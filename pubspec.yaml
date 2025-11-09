@@ -1,0 +1,34 @@
+name: liquid_glass_easy
+description: "A Flutter package that provides real-time liquid glass lens effects with distortion, magnification, refraction, and blur for stunning UI visuals."
+version: 1.0.0
+publish_to: none # REMOVE THIS LINE WHEN YOU PUBLISH
+
+homepage: https://github.com/AhmeedGamil/liquid_glass_easy
+repository: https://github.com/AhmeedGamil/liquid_glass_easy
+issue_tracker: https://github.com/AhmeedGamil/liquid_glass_easy/issues
+documentation: https://github.com/AhmeedGamil/liquid_glass_easy#readme
+
+topics:
+  - liquid-glass
+  - glass
+  - shaders
+  - effects
+  - flutter
+
+environment:
+  sdk: ">=3.6.2 <4.0.0"
+  flutter: ">=3.3.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  shaders:
+    - lib/assets/shaders/liquid_glass.frag
+    - lib/assets/shaders/liquid_glass_border.frag

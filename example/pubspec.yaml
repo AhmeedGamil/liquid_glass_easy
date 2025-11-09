@@ -1,0 +1,22 @@
+
+name: liquid_glass_easy_example
+description: "Example app demonstrating the usage of liquid_glass_easy package."
+publish_to: "none"
+
+environment:
+  sdk: ">=3.6.2 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  liquid_glass_easy:
+    path: ../
+
+flutter:
+  uses-material-design: true
+  # Using gradient backgrounds in code. If you add images later, include:
+
+
+  #   - assets/mountain.jpg
+  #   - assets/waterfall.jpg
