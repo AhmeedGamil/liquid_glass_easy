@@ -35,7 +35,7 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   double cornerRadius = 50;
   double magnification = 1.0;
   double distortion = 1;
-  double distortionWidth = 0;
+  double distortionWidth = 30;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 1.0;
