@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 
 class SlidersPageView extends StatelessWidget {
   final PageController controller;
@@ -156,6 +158,28 @@ class SlidersPageView extends StatelessWidget {
                   context,
                   title: "Lens Settings",
                   icon: Icons.center_focus_strong,
+                  copyButton:
+                  ElevatedButton.icon(
+                    icon: const Icon(Icons.copy),
+                    label: const Text("Copy values",style: TextStyle(fontSize: 12,color: Colors.black),),
+                    style: ElevatedButton.styleFrom(
+                      //backgroundColor: Theme.of(context).colorScheme.secondary,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    onPressed: () {
+                      final code = _generateLiquidGlassCode();
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Copied LiquidGlass code with sliders values to clipboard"),
+                          duration: Duration(seconds: 2),
+                        ),
+                      );
+                    },
+                  ),
                   sliders: [
 
               Row(
@@ -399,11 +423,71 @@ class SlidersPageView extends StatelessWidget {
     );
   }
 
+  String _generateLiquidGlassCode() {
+    final shapeCode = shape
+        ? '''
+SuperellipseShape(
+  curveExponent: $curveExponent,
+  borderWidth: $borderWidth,
+  borderSoftness: $borderSoftness,
+  lightIntensity: $lightIntensity,
+  lightDirection: $lightDirection,
+)
+'''
+        : '''
+RoundedRectangleShape(
+  lightEffectIntensity: $lightEffectIntensity,
+  cornerRadius: $cornerRadius,
+  highDistortionOnCurves: false,
+  borderWidth: $borderWidth,
+  borderSoftness: $borderSoftness,
+  lightIntensity: $lightIntensity,
+  lightDirection: $lightDirection,
+)
+''';
+
+    return '''
+LiquidGlassView(
+  controller: viewController,
+  pixelRatio: $pixelRatio,
+  realTimeCapture: $realTimeCapture,
+  refreshRate: ${
+        refreshRate==0?
+        LiquidGlassRefreshRate.low
+            :  refreshRate==1? LiquidGlassRefreshRate.medium
+            :refreshRate==2? LiquidGlassRefreshRate.high
+            :LiquidGlassRefreshRate.deviceRefreshRate
+    },
+  useSync: $useSync,
+  backgroundWidget: YourBackgroundWidget(),
+  children: [
+    LiquidGlass(
+      controller: controller,
+      position: const LiquidGlassAlignPosition(
+        alignment: Alignment.center,
+      ),
+      width: $lensWidth,
+      height: $lensHeight,
+      magnification: $magnification,
+      enableInnerRadiusTransparent: $enableInnerRadiusTransparent,
+      diagonalFlip: $diagonalFlip,
+      distortion: $distortion,
+      distortionWidth: $distortionWidth,
+      draggable: true,
+      blur: LiquidGlassBlur(sigmaX: $blur, sigmaY: $blur),
+      shape: $shapeCode,
+    ),
+  ],
+);
+''';
+  }
+
   Widget _buildSliderPage(
     BuildContext context, {
     required String title,
     required IconData icon,
     required List<Widget> sliders,
+        Widget copyButton= const SizedBox.shrink(),
   }) {
     return Padding(
       padding: const EdgeInsets.all(12.0),
@@ -415,6 +499,7 @@ class SlidersPageView extends StatelessWidget {
           title: title,
           icon: icon,
           sliders: sliders,
+          copyButton: copyButton,
         ),
       ),
     );
@@ -425,11 +510,13 @@ class _ScrollableWithHint extends StatefulWidget {
   final String title;
   final IconData icon;
   final List<Widget> sliders;
+  final Widget copyButton;
 
   const _ScrollableWithHint({
     required this.title,
     required this.icon,
     required this.sliders,
+    this.copyButton = const SizedBox.shrink(),
   });
 
   @override
@@ -455,6 +542,8 @@ class _ScrollableWithHintState extends State<_ScrollableWithHint> {
                   Text(widget.title,
                       style: const TextStyle(
                           fontSize: 18, fontWeight: FontWeight.bold)),
+                  Spacer(),
+                  widget.copyButton,
                 ],
               ),
               const Divider(),
@@ -530,7 +619,7 @@ class _ScrollHintArrowState extends State<_ScrollHintArrow>
           child: Icon(
             Icons.keyboard_arrow_down,
             size: 28,
-            color: Colors.black.withOpacity(0.9),
+            color: Colors.black.withAlpha(229),
           ),
         );
       },
@@ -577,7 +666,7 @@ class SliderWidget extends StatelessWidget {
                 ),
               ),
               Text(
-                value.toStringAsFixed(2), // ✅ Show value here
+                value.toStringAsFixed(2), // Show value here
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.bold,
@@ -590,7 +679,7 @@ class SliderWidget extends StatelessWidget {
           // Slider
           Slider(
             activeColor: accent,
-            inactiveColor: accent.withOpacity(0.3),
+            inactiveColor: accent.withAlpha(76),
             value: value,
             min: min,
             max: max,

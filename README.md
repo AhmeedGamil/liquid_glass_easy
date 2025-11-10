@@ -61,6 +61,13 @@ You can also try:
 - `LiquidGlassShowcase` — a comprehensive demo widget that lets you explore all Liquid Glass Easy capabilities interactively. Adjust parameters such as distortion, blur, magnification, lighting, and border style in real time using intuitive sliders and toggles.
 - `LiquidGlassPlayground` — an experimental environment where you can test your own widgets beneath a live liquid glass lens. Fine-tune visual parameters with built-in controls to instantly see how the effect adapts to different content and layouts.
 
+> ⚠️ **Important Note:**  
+> The `LiquidGlassShowcase` and `LiquidGlassPlayground` widgets are designed only for **previewing and copying slider values**.
+>
+> They are **not intended for performance benchmarking**, because the `backgroundWidget` is rendered at **half the screen height**, while the other half is used for sliders.
+>
+> For **accurate performance testing**, use the `LiquidGlassView` directly without these preview widgets.
+
 **Basic setup with one lens:**
 
 ```dart

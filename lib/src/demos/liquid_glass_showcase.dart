@@ -8,6 +8,7 @@ import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass_view.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 
 

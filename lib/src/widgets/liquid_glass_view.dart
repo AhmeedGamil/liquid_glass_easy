@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 
 
 
@@ -257,11 +258,4 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       ],
           );
   }
-}
-
-enum LiquidGlassRefreshRate {
-  low,          // ~10 FPS
-  medium,       // ~24 FPS
-  high,         // ~60 FPS
-  deviceRefreshRate, // match system refresh rate if possible
 }

@@ -8,6 +8,7 @@ export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.d
 
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 
 export 'package:liquid_glass_easy/src/demos/liquid_glass_showcase.dart';
