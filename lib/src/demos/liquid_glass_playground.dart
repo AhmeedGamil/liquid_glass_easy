@@ -34,8 +34,8 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   double lensHeight = 100;
   double cornerRadius = 50;
   double magnification = 1.0;
-  double distortion = 1;
-  double distortionWidth = 30;
+  double distortion = 0.2;
+  double distortionWidth = 40;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 1.0;
@@ -93,8 +93,8 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
                   distortionWidth: distortionWidth,
                   draggable: true,
                   blur: LiquidGlassBlur(sigmaX:blur  , sigmaY:blur ),
-                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection)
-                    :RoundedRectangleShape(cornerRadius: cornerRadius,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection),
+                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,lightEffectIntensity:lightEffectIntensity )
+                    :RoundedRectangleShape(cornerRadius: cornerRadius,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,lightEffectIntensity: lightEffectIntensity),
                   visibility: visibility,
                 ),
               ],

@@ -188,6 +188,6 @@ class LiquidGlassPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant LiquidGlassPainter old) {
-    return old.image != image;
+    return (old.image != image) || (borderAlpha>0 && borderAlpha<1);
   }
 }

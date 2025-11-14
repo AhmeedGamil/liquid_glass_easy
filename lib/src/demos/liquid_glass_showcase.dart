@@ -33,8 +33,8 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   double lensHeight = 60;
   double cornerRadius = 30;
   double magnification = 1.0;
-  double distortion = 1;
-  double distortionWidth = 30;
+  double distortion = 0.2;
+  double distortionWidth = 40;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 2.0;
@@ -103,7 +103,7 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
                       :RoundedRectangleShape(cornerRadius: cornerRadius,
                       borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,
                       lightEffectIntensity: lightEffectIntensity,
-                      lightDirection: lightDirection),                    visibility: visibility,
+                      lightDirection: lightDirection),visibility: visibility,
                   //child:_GlassInputBar()
                 ),
               ],

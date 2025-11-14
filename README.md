@@ -8,6 +8,7 @@ These dynamic lenses can **magnify**, **distort**, **blur**, **tint**, and **ref
 ![Example GIF](showcases/liquid_glass_example_1.gif)
 ![Example GIF](showcases/liquid_glass_example_2.gif)
 ![Example GIF](showcases/liquid_glass_example_3.gif)
+![Example GIF](showcases/liquid_glass_example_4.gif)
 
 ---
 
@@ -85,7 +86,8 @@ class DemoGlass extends StatelessWidget {
             width: 200,
             height: 100,
             magnification: 1,
-            distortion: 1,
+            distortion: 0.2,
+            distortionWidth: 50,
             position: LiquidGlassAlignPosition(alignment: Alignment.center),
           ),
         ],
@@ -107,14 +109,16 @@ LiquidGlassView(
     LiquidGlass(
       width: 160,
       height: 160,
-      distortion: 0.6,
+      distortion: 0.3,
+      distortionWidth: 50,
       position: LiquidGlassOffsetPosition(left: 40, top: 100),
     ),
     LiquidGlass(
       width: 220,
       height: 120,
-      distortion: 0.18,
-      magnification: 1.1,
+      distortion: 0.15,
+      magnification: 1,
+      distortionWidth: 40,
       position: LiquidGlassAlignPosition(alignment: Alignment.bottomRight),
       blur: LiquidGlassBlur(sigmaX: 1, sigmaY: 1),
       color: Colors.white30,
@@ -143,6 +147,21 @@ LiquidGlass(
 )
 ```
 
+### ⚠️ Important Note
+
+The child widget inside `LiquidGlass` always takes the **full size of the lens**.
+
+If you want to reduce the child’s visible area, wrap it with your own `Padding`:
+
+```dart
+LiquidGlass(
+  child: Padding(
+           padding: EdgeInsets.all(12),
+           child: YourWidget(),
+  ),
+)
+```
+
 ---
 
 ## Positions & Shapes
@@ -162,7 +181,7 @@ LiquidGlass(
 > **Tip:**  
 > The `RoundedRectangleShape` includes a property called `highDistortionOnCurves`, which enhances distortion along curved edges.  
 > Use this when you want refracted highlights or edge refraction even with a small `distortionWidth`, especially for circular or highly curved shapes.
->`distortionWidth` defines the visible refraction band: half for refraction, half for the distorted pixel edge.
+>`distortionWidth` defines the area that is gonna be refracted, started from the edge.
 
 ---
 
@@ -172,8 +191,8 @@ LiquidGlass(
 final lensController = LiquidGlassController();
 
 LiquidGlass(
-controller: lensController,
-position: LiquidGlassAlignPosition(alignment: Alignment.center),
+  controller: lensController,
+  position: LiquidGlassAlignPosition(alignment: Alignment.center),
 );
 
 // Later
@@ -184,12 +203,13 @@ lensController.showLiquidGlass(animationTimeMillisecond: 300);
 Toggle real-time capturing:
 ```dart
 if (isVisible = (!isVisible)) {
-viewController.startRealtimeCapture();
-lensController.showLiquidGlass!();
-} else {
-lensController.hideLiquidGlass!(
-onComplete: viewController.stopRealtimeCapture,
-);
+  viewController.startRealtimeCapture();
+  lensController.showLiquidGlass!();
+} 
+else {
+  lensController.hideLiquidGlass!(
+  onComplete: viewController.stopRealtimeCapture,
+  );
 }
 ```
 
@@ -207,10 +227,10 @@ onComplete: viewController.stopRealtimeCapture,
 final viewController = LiquidGlassViewController();
 
 LiquidGlassView(
-controller: viewController,
-backgroundWidget: ...,
-realTimeCapture: false,
-children: [...],
+  controller: viewController,
+  backgroundWidget: ...,
+  realTimeCapture: false,
+  children: [...],
 );
 
 // Refresh manually
@@ -237,26 +257,26 @@ await viewController.captureOnce();
 ### `LiquidGlassView`
 ```dart
 LiquidGlassView({
-required Widget backgroundWidget,
-required List<LiquidGlass> children,
-double pixelRatio = 1.0,
-bool realTimeCapture = true,
-bool useSync = true,
-LiquidGlassRefreshRate refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
+  required Widget backgroundWidget,
+  required List<LiquidGlass> children,
+  double pixelRatio = 1.0,
+  bool realTimeCapture = true,
+  bool useSync = true,
+  LiquidGlassRefreshRate refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
 })
 ```
 
 ### `LiquidGlass`
 ```dart
 LiquidGlass({
-double width = 200,
-double height = 100,
-double magnification = 1.0,
-double distortion = 1,
-bool draggable = false,
-required LiquidGlassPosition position,
-Widget? child,
-Color color = Colors.transparent,
+  double width = 200,
+  double height = 100,
+  double magnification = 1.0,
+  double distortion = 0.25,
+  bool draggable = false,
+  required LiquidGlassPosition position,
+  Widget? child,
+  Color color = Colors.transparent,
 })
 ```
 

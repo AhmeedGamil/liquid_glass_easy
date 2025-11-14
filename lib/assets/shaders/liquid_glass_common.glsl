@@ -228,19 +228,23 @@ float superellipseCornerBandPx(vec2 halfSizePx, float n, float thicknessPx){
 float computeDistortionFactor(float u_distortion, float zoneT) {
     // clamp distortion input
     float distortionClamped = clamp(u_distortion, 0.0, 1.0);
-    float distortionStrength = distortionClamped * 20.0;
+    float distortionStrength = distortionClamped * 50.0;
 
 
         // --- stronger curve (outer edge emphasis)
-    float edgeFactorStrongCurve = pow(zoneT, distortionStrength) * 0.5;
+    //float edgeFactorStrongCurve = pow(zoneT, distortionStrength) * 0.5;
+    float edgeFactorStrongCurve = pow(zoneT, distortionStrength);
+
     float distortionStrong = 1.0 + distortionStrength * edgeFactorStrongCurve;
 
     // --- softer curve (inner falloff)
-    float edgeFactorSoftCurve = pow(zoneT, 5.0) * 0.08;
-    float distortionSoft = 1.0 + distortionStrength * edgeFactorSoftCurve;
+    //float edgeFactorSoftCurve = pow(zoneT, 5.0) * 0.08;
+    //float distortionSoft = 1.0 + distortionStrength * edgeFactorSoftCurve;
 
     // --- combined result
-    float distortionFactor = distortionStrong + (distortionSoft - 1.0);
+    //float distortionFactor = distortionStrong + (distortionSoft - 1.0);
+    float distortionFactor = distortionStrong;
+
     return distortionFactor;
 }
 

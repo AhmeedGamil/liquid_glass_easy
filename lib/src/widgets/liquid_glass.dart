@@ -20,20 +20,31 @@ class LiquidGlass {
   /// The height of the lens in logical pixels.
   final double height;
 
-  /// Defines how much the lens magnifies (zooms in on) the background content.
+  /// Defines how much the lens magnifies (zooms in on) the distorted content.
   ///
   /// - `1.0` means no magnification.
   final double magnification;
 
-  /// The bending strength.
+  /// The bending strength of the distortion effect.
   ///
-  /// Controls how much the refracted (bent) effect warps the background.
-  /// - Range: `0.0` (no distortion) to `1.0` (maximum distortion).
+  /// Controls how much the refracted (bent) background is warped inside the
+  /// distortion width area. Higher values increase compression within the
+  /// distortion zone, creating a stronger bending effect. Lower values reduce
+  /// compression and produce softer distortion.
+  ///
+  /// - **Range:** `0.0` (no distortion) to `1.0` (maximum distortion).
   final double distortion;
 
-  /// Defines the thickness of the distortion band (from the edge toward the center).
+
+  /// The thickness of the distortion band around the lens perimeter.
   ///
-  /// Larger values create a wider "bending" zone at the edges of the lens.
+  /// This defines how wide the bending/refraction zone is. Larger values create
+  /// a thicker distortion border, affecting more of the background. Smaller values
+  /// produce a thinner, tighter distortion edge.
+  ///
+  /// - **Unit:** logical pixels
+  /// - **Typical range:** `0.0` (no distortion band) to around `50.0`+ depending
+  ///   on the lens size and desired visual intensity.
   final double distortionWidth;
 
   /// Applies a diagonal mirroring or flip effect to the refraction direction.
@@ -95,7 +106,7 @@ class LiquidGlass {
     this.height = 100,
     this.magnification = 1,
     this.distortion = 0.2,
-    this.distortionWidth = 25,
+    this.distortionWidth = 30,
     this.enableInnerRadiusTransparent = false,
     this.diagonalFlip = 0,
     this.draggable = false,
@@ -240,44 +251,52 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     if (parentSize.width != oldParentSize.width ||
         parentSize.height != oldParentSize.height ||
         config.width != oldWidget.config.width ||
-        config.height != oldWidget.config.height) {
-      // Compute old and new resolved centers
-      final oldResolvedPosition = oldWidget.config.position.resolve(
-        oldParentSize,
-        Size(oldWidget.config.width, oldWidget.config.height),
-      );
-      final resolvedPosition = config.position.resolve(
-        parentSize,
-        Size(config.width, config.height),
-      );
+        config.height != oldWidget.config.height || config.position!=oldWidget.config.position
 
-      // Calculate proportional scaling factors
-      final scaleX = parentSize.width / oldParentSize.width;
-      final scaleY = parentSize.height / oldParentSize.height;
 
-      // Maintain the same relative touch offset ratio inside the parent
-      final Offset oldTouch = _touchNotifier.value;
-      final Offset relative = Offset(
-        (oldTouch.dx - oldResolvedPosition.dx) / oldParentSize.width,
-        (oldTouch.dy - oldResolvedPosition.dy) / oldParentSize.height,
-      );
+    ) {
+      if (config.position != oldWidget.config.position) {
+        setPosition();
+      }
+      else {
+        // Compute old and new resolved centers
+        final oldResolvedPosition = oldWidget.config.position.resolve(
+          oldParentSize,
+          Size(oldWidget.config.width, oldWidget.config.height),
+        );
+        final resolvedPosition = config.position.resolve(
+          parentSize,
+          Size(config.width, config.height),
+        );
 
-      // Apply scaling and update position proportionally
-      Offset newTouch = Offset(
-        resolvedPosition.dx + relative.dx * parentSize.width,
-        resolvedPosition.dy + relative.dy * parentSize.height,
-      );
+        // Calculate proportional scaling factors
+        final scaleX = parentSize.width / oldParentSize.width;
+        final scaleY = parentSize.height / oldParentSize.height;
 
-      // Clamp lens inside parent bounds
-      final double maxX = parentSize.width - config.width;
-      final double maxY = parentSize.height - config.height;
+        // Maintain the same relative touch offset ratio inside the parent
+        final Offset oldTouch = _touchNotifier.value;
+        final Offset relative = Offset(
+          (oldTouch.dx - oldResolvedPosition.dx) / oldParentSize.width,
+          (oldTouch.dy - oldResolvedPosition.dy) / oldParentSize.height,
+        );
 
-      newTouch = Offset(
-        newTouch.dx.clamp(0.0, maxX),
-        newTouch.dy.clamp(0.0, maxY),
-      );
+        // Apply scaling and update position proportionally
+        Offset newTouch = Offset(
+          resolvedPosition.dx + relative.dx * parentSize.width,
+          resolvedPosition.dy + relative.dy * parentSize.height,
+        );
 
-      _touchNotifier.value = newTouch;
+        // Clamp lens inside parent bounds
+        final double maxX = parentSize.width - config.width;
+        final double maxY = parentSize.height - config.height;
+
+        newTouch = Offset(
+          newTouch.dx.clamp(0.0, maxX),
+          newTouch.dy.clamp(0.0, maxY),
+        );
+
+        _touchNotifier.value = newTouch;
+      }
     }
 
     if (!widget.config.outOfBoundaries) {
