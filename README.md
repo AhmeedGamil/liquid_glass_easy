@@ -5,10 +5,9 @@
 **A Flutter package that adds real-time, interactive liquid glass lenses to any UI.**
 These dynamic lenses can **magnify**, **distort**, **blur**, **tint**, and **refract** underlying content — creating stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
-![Example GIF](showcases/liquid_glass_example_1.gif)
-![Example GIF](showcases/liquid_glass_example_2.gif)
-![Example GIF](showcases/liquid_glass_example_3.gif)
-![Example GIF](showcases/liquid_glass_example_4.gif)
+![Example GIF](showcases/liquid_glass_example_1.gif) ![Example GIF](showcases/liquid_glass_example_2.gif)
+
+![Example GIF](showcases/liquid_glass_example_3.gif) ![Example GIF](showcases/liquid_glass_example_4.gif)
 
 ---
 
