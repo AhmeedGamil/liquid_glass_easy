@@ -252,13 +252,7 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
         parentSize.height != oldParentSize.height ||
         config.width != oldWidget.config.width ||
         config.height != oldWidget.config.height || config.position!=oldWidget.config.position
-
-
     ) {
-      if (config.position != oldWidget.config.position) {
-        setPosition();
-      }
-      else {
         // Compute old and new resolved centers
         final oldResolvedPosition = oldWidget.config.position.resolve(
           oldParentSize,
@@ -270,8 +264,8 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
         );
 
         // Calculate proportional scaling factors
-        final scaleX = parentSize.width / oldParentSize.width;
-        final scaleY = parentSize.height / oldParentSize.height;
+        // final scaleX = parentSize.width / oldParentSize.width;
+        // final scaleY = parentSize.height / oldParentSize.height;
 
         // Maintain the same relative touch offset ratio inside the parent
         final Offset oldTouch = _touchNotifier.value;
@@ -297,7 +291,6 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
 
         _touchNotifier.value = newTouch;
       }
-    }
 
     if (!widget.config.outOfBoundaries) {
       // --- clamp comes here, completely outside the condition ---
