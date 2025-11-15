@@ -2,12 +2,16 @@
 
 [![Pub Version](https://img.shields.io/pub/v/liquid_glass_easy)](https://pub.dev/packages/liquid_glass_easy)
 
-**A Flutter package that adds real-time, interactive liquid glass lenses to any UI.**
+<p>
+  🤝 <strong>Contributions are welcome!</strong>
+</p>
+
+**A Flutter package that adds real-time, interactive liquid glass lenses.**
 These dynamic lenses can **magnify**, **distort**, **blur**, **tint**, and **refract** underlying content — creating stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
-![Example GIF](showcases/liquid_glass_example_1.gif) ![Example GIF](showcases/liquid_glass_example_2.gif)
-
-![Example GIF](showcases/liquid_glass_example_3.gif) ![Example GIF](showcases/liquid_glass_example_4.gif)
+<p>
+  <img src="showcases/liquid_glass_example_1.gif" width="60%" alt="LiquidGlass Example"/>
+</p>
 
 ---
 
@@ -20,21 +24,13 @@ It captures and refracts live background content in real time, producing **immer
 
 ## Features
 
-💠 **True liquid glass visuals** — replicate the look and physics of real glass with fluid transparency, soft highlights, and refraction that bends light naturally through your UI.
-
-🌀 **Real-time lens rendering** — see distortion, blur, tint, and refraction react instantly as elements move behind the glass.
-
-💧 **Interactive lenses** that shimmer and deform fluidly in response to gestures, motion, and device orientation.
-
-🎨 **Custom shapes** — design lenses as rounded rectangles, circles, or smooth superellipses that perfectly match your interface style.
-
-🌈 **Fully customizable effects** — control tint color, intensity, softness, refraction depth, and light direction for precise glass behavior.
-
-🧠 **Controller-driven animations** — show, hide, or animate lenses in real time through the `LiquidGlassController`.
-
-⚙️ **Shader-driven, GPU-accelerated pipeline** — ensures smooth, high-FPS performance even with multiple dynamic lenses.
-
-📱 **Cross-platform compatibility** — works seamlessly on Android, iOS, Web, macOS, and Windows.
+- 💠 **True liquid glass visuals** — replicate the look and physics of real glass with fluid transparency, soft highlights, and refraction that bends light naturally through your UI.
+- 🌀 **Real-time lens rendering** — see distortion, blur, tint, and refraction react instantly as elements move behind the glass.
+- 🎨 **Custom shapes** — design lenses as rounded rectangles, circles, or smooth superellipses that perfectly match your interface style.
+- 🌈 **Fully customizable effects** — control tint color, intensity, softness, refraction depth, and light direction for precise glass behavior.
+- 🧠 **Controller-driven animations** — show, hide, or animate lenses in real time through the `LiquidGlassController`.
+- ⚙️ **Shader-driven, GPU-accelerated pipeline** — ensures smooth, high-FPS performance even with multiple dynamic lenses.
+- 📱 **Cross-platform compatibility** — works seamlessly on Android, iOS, Web, macOS, and Windows.
 
 ---
 
@@ -60,6 +56,10 @@ Use the `LiquidGlassExample` widget found in the `example/` directory for a quic
 You can also try:
 - `LiquidGlassShowcase` — a comprehensive demo widget that lets you explore all Liquid Glass Easy capabilities interactively. Adjust parameters such as distortion, blur, magnification, lighting, and border style in real time using intuitive sliders and toggles.
 - `LiquidGlassPlayground` — an experimental environment where you can test your own widgets beneath a live liquid glass lens. Fine-tune visual parameters with built-in controls to instantly see how the effect adapts to different content and layouts.
+
+<p>
+  <img src="showcases/liquid_glass_example_4.gif" width="40%" alt="LiquidGlass Example"/>
+</p>
 
 > ⚠️ **Important Note:**  
 > The `LiquidGlassShowcase` and `LiquidGlassPlayground` widgets are designed only for **previewing and copying slider values**.
@@ -127,6 +127,11 @@ LiquidGlassView(
 ```
 
 ### Draggable Lens
+
+<p>
+  <img src="showcases/liquid_glass_example_2.gif" width="60%" alt="LiquidGlass Example"/>
+</p>
+
 ```dart
 LiquidGlass(
   draggable: true,
@@ -164,6 +169,10 @@ LiquidGlass(
 ---
 
 ## Positions & Shapes
+
+<p>
+  <img src="showcases/liquid_glass_example_3.gif" width="60%" alt="LiquidGlass Example"/>
+</p>
 
 ### Position Types
 | Class | Description |
@@ -286,4 +295,12 @@ LiquidGlass({
 
 ---
 
-## Made by Ahmed Gamil
+## Author
+
+**Ahmed Gamil**
+
+- GitHub: https://github.com/AhmeedGamil
+- LinkedIn: https://www.linkedin.com/in/ahmed-gamil-630980218
+- Email: ahmed.gamil.codes@gmail.com
+
+Feel free to open issues or contribute to the project!
