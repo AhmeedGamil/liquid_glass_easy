@@ -35,7 +35,7 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   double cornerRadius = 50;
   double magnification = 1.0;
   double distortion = 0.2;
-  double distortionWidth = 40;
+  double distortionWidth = 33;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 1.0;
@@ -63,12 +63,13 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
       floatingActionButton: FloatingActionButton(onPressed: () {
         if (isVisible = (!isVisible)) {
           viewController.startRealtimeCapture();
-          controller.showLiquidGlass!();
+          controller.showLiquidGlass();
         } else {
-          controller.hideLiquidGlass!(
+          controller.hideLiquidGlass(
               onComplete: viewController.stopRealtimeCapture);
         }
-      }, child: Text('Animation'),),
+      }, child:
+      Text('Animation',style: TextStyle(fontSize: 11),),),
       appBar: AppBar(title: const Text("Liquid Glass Playground")),
       body: Column(
         children: [

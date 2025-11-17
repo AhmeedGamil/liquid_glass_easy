@@ -34,7 +34,7 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   double cornerRadius = 30;
   double magnification = 1.0;
   double distortion = 0.2;
-  double distortionWidth = 40;
+  double distortionWidth = 33;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 2.0;
@@ -54,15 +54,14 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   bool isVisible = true;
   final controller = LiquidGlassController();
   final viewController = LiquidGlassViewController();
-  late Future<void> _initializeVideoPlayerFuture;
 
   void toggleLiquidGlassAnimation() {
     // Toggle the direction flag
     if (isVisible = (!isVisible)) {
       viewController.startRealtimeCapture();
-      controller.showLiquidGlass!();
+      controller.showLiquidGlass();
     } else {
-      controller.hideLiquidGlass!(
+      controller.hideLiquidGlass(
           onComplete: viewController.stopRealtimeCapture);
     }
   }
@@ -70,7 +69,8 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(onPressed:toggleLiquidGlassAnimation,child: Text("Animation"),),
+      floatingActionButton: FloatingActionButton(onPressed:toggleLiquidGlassAnimation,child:
+     Text('Animation',style: TextStyle(fontSize: 11),),),
         appBar: const _FrostedAppBar(title: "Gallery"),
       body: Column(
         children: [
@@ -174,14 +174,13 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
 }
 
 class _GalleryCardsPage extends StatelessWidget {
-  const _GalleryCardsPage({super.key});
-
   static const imageUrls = [
-    'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1470770841072-f978cf4d019e?auto=format&fit=crop&w=1000&q=80',
-    'https://images.unsplash.com/photo-1508921912186-1d1a45ebb3c1?auto=format&fit=crop&w=1000&q=80',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/flower.jpg',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/rain.jpg',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/neon.png',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/socotra_tree_1.png',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/socotra_tree_2.jpg',
+    'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets/refs/heads/main/socotra_tree_3.jpg',
   ];
 
   @override
@@ -279,122 +278,10 @@ class _GalleryCard extends StatelessWidget {
   }
 }
 
-class _ImagePreviewPage extends StatelessWidget {
-  final String url;
-  const _ImagePreviewPage({required this.url});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        onTap: () => Navigator.pop(context),
-        child: Center(
-          child: InteractiveViewer(
-            child: Image.network(url, fit: BoxFit.contain),
-          ),
-        ),
-      ),
-    );
-  }}
-
-class _GlassInputBar extends StatelessWidget {
-  final String hintText;
-  final VoidCallback? onMicPressed;
-  final VoidCallback? onStopPressed;
-  final ValueChanged<String>? onSubmitted;
-
-  const _GlassInputBar({
-    super.key,
-    this.hintText = "Ask anything",
-    this.onMicPressed,
-    this.onStopPressed,
-    this.onSubmitted,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-     // margin: EdgeInsets.symmetric(horizontal: 1, vertical: 1),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        //color: Colors.white.withOpacity(0.4),
-        //borderRadius: BorderRadius.circular(13),
-      ),
-      child: Row(
-        children: [
-          // Plus button
-          IconButton(
-            icon: const Icon(Icons.upload, color: Colors.black),
-            onPressed: () {},
-          ),
-          // Input field
-          Expanded(
-            child: TextField(
-              style: const TextStyle(color: Colors.black),
-              onSubmitted: onSubmitted,
-              decoration: InputDecoration(
-                hintText: hintText,
-                hintStyle: const TextStyle(color: Colors.black,fontSize: 16,fontWeight: FontWeight.bold),
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-
-          // Mic button
-          IconButton(
-            icon: const Icon(Icons.mic, color: Colors.black),
-            onPressed: onMicPressed,
-          ),
-          // Stop recording button
-          // IconButton(
-          //   icon: const Icon(Icons.stop, color: Colors.black),
-          //   onPressed: onStopPressed,
-          // ),
-        ],
-      ),
-    );
-  }
-}
-
-
-class _GlassIconButton extends StatelessWidget {
-  const _GlassIconButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(6),
-      decoration: BoxDecoration(
-        //color: Colors.white.withOpacity(0.4),
-        //borderRadius: BorderRadius.circular(13),
-      ),
-      child: IconButton(
-        icon: const Icon(Icons.add, color: Colors.black, size: 24),
-        onPressed: () {
-        },
-      ),
-    );
-  }
-}
-
-
-
 class _FrostedAppBar extends StatelessWidget implements PreferredSizeWidget {
   final String title;
-
-  final List<Widget>? actions;
-
-  final double blurSigma;
-
-  final Color backgroundColor;
-
   const _FrostedAppBar({
-    super.key,
     required this.title,
-    this.actions,
-    this.blurSigma = 10.0,
-    this.backgroundColor = const Color.fromRGBO(0, 0, 0, 0.9),
   });
 
   @override
@@ -404,10 +291,10 @@ class _FrostedAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blurSigma, sigmaY: blurSigma),
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
         child: AppBar(
           elevation: 0,
-          backgroundColor: backgroundColor,
+          backgroundColor: Color.fromRGBO(0, 0, 0, 0.9),
           centerTitle: true,
           title: ShaderMask(
             shaderCallback: (bounds) => const LinearGradient(
@@ -422,7 +309,7 @@ class _FrostedAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          actions: actions ??
+          actions:
               [
                 IconButton(
                   icon: const Icon(Icons.search, color: Colors.white),

@@ -17,7 +17,7 @@ class LiquidGlassExampleApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const LiquidGlassExample(),
+      home: const LiquidGlassExample()
     );
   }
 }

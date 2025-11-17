@@ -248,9 +248,10 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
                         border: _shaders['liquid_glass_border']
                     );
                   }
-                  else
+                  else {
                     return const SizedBox.shrink();
-                }).toList(),
+                  }
+                }),
               ]
               );
             }
