@@ -180,21 +180,26 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       final boundary = context.findRenderObject();
       if (boundary is RenderRepaintBoundary && boundary.attached) {
         await WidgetsBinding.instance.endOfFrame;
-
-        if (widget.useSync) {
+        if(context.mounted)
+          {
+            double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+            double pixelRatio = widget.pixelRatio <= 0
+                ? devicePixelRatio
+                : widget.pixelRatio;
+            if (pixelRatio > devicePixelRatio) {
+              pixelRatio = devicePixelRatio;
+            }
+            if (widget.useSync) {
           _image = boundary.toImageSync(
-            pixelRatio: widget.pixelRatio <= 0
-                ? MediaQuery.of(context).devicePixelRatio
-                : widget.pixelRatio,
+            pixelRatio:pixelRatio,
           );
         } else {
           _image = await boundary.toImage(
-            pixelRatio: widget.pixelRatio <= 0
-                ? MediaQuery.of(context).devicePixelRatio
-                : widget.pixelRatio,
+              pixelRatio:pixelRatio,
           );
         }
       }
+        }
     } catch (_) {}
   }
 

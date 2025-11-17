@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/painters/liquid_glass_painter.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';

@@ -1,5 +1,3 @@
-library liquid_glass_easy;
-
 export 'package:liquid_glass_easy/src/widgets/liquid_glass_view.dart';
 export 'package:liquid_glass_easy/src/widgets/liquid_glass.dart' show LiquidGlass;
 
