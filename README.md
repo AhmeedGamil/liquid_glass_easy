@@ -1,7 +1,5 @@
 # Liquid Glass Easy
 
-[![Pub Version](https://img.shields.io/pub/v/liquid_glass_easy)](https://pub.dev/packages/liquid_glass_easy)
-
 <p>
   🤝 <strong>Contributions are welcome!</strong>
 </p>
