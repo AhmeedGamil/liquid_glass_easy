@@ -1,7 +1,5 @@
 # Liquid Glass Easy
 
-[![GitHub](https://img.shields.io/badge/GitHub-Project-black?logo=github)](https://github.com/AhmeedGamil/liquid_glass_easy)
-
 <p>
   🤝 <strong>Contributions are welcome!</strong>
 </p>
