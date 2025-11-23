@@ -1,11 +1,10 @@
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
-
-
 
 // Main container that renders LiquidGlass lenses on top of a background
 class LiquidGlassView extends StatefulWidget {
@@ -45,13 +44,15 @@ class LiquidGlassView extends StatefulWidget {
   /// When `false`, updates run asynchronously, which can provide higher throughput
   /// on powerful devices, but may introduce slight delays or
   /// less consistent frame timing.
+  ///
+  /// It is slower than synchronous mode, but it becomes very stable
+  /// when the pixel ratio is low (e.g., around 0.5).
   final bool useSync;
 
   /// The widget tree drawn behind all LiquidGlass lenses.
   /// Typically a static or animated background (such as an `Image`, `Stack`, or
   /// complex layout) over which the lenses apply refraction and effects.
   final Widget backgroundWidget;
-
 
   /// Controls how frequently the background is re-captured while real-time updates are enabled.
   ///
@@ -61,16 +62,15 @@ class LiquidGlassView extends StatefulWidget {
   /// - [deviceRefreshRate] = tries to match the display refresh rate
   final LiquidGlassRefreshRate refreshRate;
 
-  const LiquidGlassView({
-    super.key,
-    this.controller,
-    required this.backgroundWidget,
-    required this.children,
-    this.pixelRatio = 1.0,
-    this.realTimeCapture = true,
-    this.useSync = true,
-    this.refreshRate=LiquidGlassRefreshRate.deviceRefreshRate
-  });
+  const LiquidGlassView(
+      {super.key,
+      this.controller,
+      required this.backgroundWidget,
+      required this.children,
+      this.pixelRatio = 1.0,
+      this.realTimeCapture = true,
+      this.useSync = true,
+      this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate});
 
   @override
   State<LiquidGlassView> createState() => _LiquidGlassViewState();
@@ -80,10 +80,12 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     with SingleTickerProviderStateMixin {
   final GlobalKey _repaintKey = GlobalKey();
   ui.Image? _image;
-  Map<String, ui.FragmentShader> _shaders = {};
+  ui.FragmentProgram? _mainProgram;
+  ui.FragmentProgram? _borderProgram;
+  Map<String, dynamic> _shaders = {};
   late final AnimationController _controller;
   bool _realtimeCaptureEnabled = false;
-
+  bool isWeb = kIsWeb;
 
   @override
   void initState() {
@@ -93,36 +95,31 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     DateTime _lastCaptureTime = DateTime.now();
 
     _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(days: 2),
+      vsync: this,
+      duration: const Duration(days: 2),
     )..addListener(() async {
-    if (!_realtimeCaptureEnabled) return;
-
-    final interval = _refreshInterval;
-
-    // If deviceRefreshRate → capture every frame
-    if (interval == null) {
-    await _captureWidgetSafe();
-    return;
-    }
-
-    // Otherwise throttle based on selected refresh rate
-    final now = DateTime.now();
-    if (now.difference(_lastCaptureTime) >= interval) {
-    _lastCaptureTime = now;
-    await _captureWidgetSafe();
-    }
-    });
+        if (!_realtimeCaptureEnabled) return;
+        final interval = _refreshInterval;
+        // If deviceRefreshRate → capture every frame
+        if (interval == null) {
+          await _captureWidgetSafe();
+          return;
+        }
+        // Otherwise throttle based on selected refresh rate
+        final now = DateTime.now();
+        if (now.difference(_lastCaptureTime) >= interval) {
+          _lastCaptureTime = now;
+          await _captureWidgetSafe();
+        }
+      });
     widget.controller?.attach(
       captureOnce: _captureOnce,
       startRealtime: _startRealtimeCapture,
       stopRealtime: _stopRealtimeCapture,
     );
 
-
     _loadShaders().then((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
-        //if (_realtimeCaptureEnabled)
         await _captureWidgetSafe();
         setState(() {});
       });
@@ -135,9 +132,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       case LiquidGlassRefreshRate.low:
         return const Duration(milliseconds: 100); // ~10 FPS
       case LiquidGlassRefreshRate.medium:
-        return const Duration(milliseconds: 42);  // ~24 FPS
+        return const Duration(milliseconds: 42); // ~24 FPS
       case LiquidGlassRefreshRate.high:
-        return const Duration(milliseconds: 16);  // ~60 FPS
+        return const Duration(milliseconds: 16); // ~60 FPS
       case LiquidGlassRefreshRate.deviceRefreshRate:
         return null; // no throttling → capture every frame
     }
@@ -147,29 +144,79 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   void didUpdateWidget(covariant LiquidGlassView oldWidget) {
     super.didUpdateWidget(oldWidget);
     // If config changes and no animation is running → update instantly
-    if(widget.realTimeCapture != oldWidget.realTimeCapture) {
-      _realtimeCaptureEnabled=widget.realTimeCapture;
-      //_animController.value=widgets.config.distortionBegin;
-      //setState(() {});
+
+    if (isWeb && widget.children.length != oldWidget.children.length) {
+      _recreateWebShaders(widget.children.length);
+    }
+    if (widget.realTimeCapture != oldWidget.realTimeCapture) {
+      _realtimeCaptureEnabled = widget.realTimeCapture;
     }
   }
 
   Size get captureSize {
     final renderBox =
-    _repaintKey.currentContext?.findRenderObject() as RenderBox?;
+        _repaintKey.currentContext?.findRenderObject() as RenderBox?;
     return renderBox?.size ?? Size.zero;
   }
 
-  Future<void> _loadShaders() async {
-    final liquidGlassProgram = await ui.FragmentProgram.fromAsset(
-        'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass.frag');
-    final borderProgram = await ui.FragmentProgram.fromAsset(
-        'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass_border.frag');
+  // Future<void> _loadShaders() async {
+  //   final liquidGlassProgram = await ui.FragmentProgram.fromAsset(
+  //       'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass.frag');
+  //   final borderProgram = await ui.FragmentProgram.fromAsset(
+  //       'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass_border.frag');
+  //
+  //   _shaders = {
+  //     'liquid_glass': liquidGlassProgram.fragmentShader(),
+  //     'liquid_glass_border':borderProgram.fragmentShader(),
+  //   };
+  // }
 
-    _shaders = {
-      'liquid_glass': liquidGlassProgram.fragmentShader(),
-      'liquid_glass_border':borderProgram.fragmentShader(),
-    };
+  Future<void> _loadProgramsOnce() async {
+    _mainProgram ??= await ui.FragmentProgram.fromAsset(
+        'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass.frag');
+    _borderProgram ??= await ui.FragmentProgram.fromAsset(
+        'packages/liquid_glass_easy/lib/assets/shaders/liquid_glass_border.frag');
+  }
+
+  List<ui.FragmentShader> _createShaderList(
+    ui.FragmentProgram program,
+    int count,
+  ) {
+    return List.generate(count, (_) => program.fragmentShader());
+  }
+
+  Future<void> _loadShaders() async {
+    await _loadProgramsOnce();
+
+    final main = _mainProgram!;
+    final border = _borderProgram!;
+
+    if (isWeb) {
+      final count = widget.children.length;
+
+      _shaders = {
+        'liquid_glass_list': _createShaderList(main, count),
+        'liquid_glass_border_list': _createShaderList(border, count),
+      };
+    } else {
+      _shaders = {
+        'liquid_glass': main.fragmentShader(),
+        'liquid_glass_border': border.fragmentShader(),
+      };
+    }
+  }
+
+  Future<void> _recreateWebShaders(int newCount) async {
+    if (!isWeb) return;
+
+    final main = _mainProgram!;
+    final border = _borderProgram!;
+
+    setState(() {
+      _shaders['liquid_glass_list'] = _createShaderList(main, newCount);
+      _shaders['liquid_glass_border_list'] =
+          _createShaderList(border, newCount);
+    });
   }
 
   Future<void> _captureWidgetSafe() async {
@@ -180,26 +227,25 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       final boundary = context.findRenderObject();
       if (boundary is RenderRepaintBoundary && boundary.attached) {
         await WidgetsBinding.instance.endOfFrame;
-        if(context.mounted)
-          {
-            double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-            double pixelRatio = widget.pixelRatio <= 0
-                ? devicePixelRatio
-                : widget.pixelRatio;
-            if (pixelRatio > devicePixelRatio) {
-              pixelRatio = devicePixelRatio;
-            }
-            if (widget.useSync) {
-          _image = boundary.toImageSync(
-            pixelRatio:pixelRatio,
-          );
-        } else {
-          _image = await boundary.toImage(
-              pixelRatio:pixelRatio,
-          );
+        if (context.mounted) {
+             double devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+             double pixelRatio =
+             widget.pixelRatio <= 0 ? devicePixelRatio : widget.pixelRatio;
+             if (pixelRatio > devicePixelRatio) {
+               pixelRatio = devicePixelRatio;
+             }
+             if (widget.useSync) {
+               _image = boundary.toImageSync(
+               pixelRatio: pixelRatio,
+               );
+             }
+             else {
+              _image = await boundary.toImage(
+              pixelRatio: pixelRatio,
+            );
+          }
         }
       }
-        }
     } catch (_) {}
   }
 
@@ -229,39 +275,41 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
 
   @override
   Widget build(BuildContext context) {
-    return 
-      Stack(
+    return Stack(
       children: [
-        // User content wrapped in invisible RepaintBoundary
         RepaintBoundary(
           key: _repaintKey,
           child: widget.backgroundWidget,
         ),
-        // Liquid glass lenses
         AnimatedBuilder(
             animation: _controller,
-            builder: (context,s) {
+            builder: (context, s) {
               return Stack(children: [
-                ...widget.children.map((child) {
-                  if (_shaders.length>1 && _image != null) {
+                ...widget.children.asMap().entries.map((entry) {
+                  if (_shaders.length > 1 && _image != null) {
+                    final index = entry.key;
+                    final child = entry.value;
 
                     return LiquidGlassWidget(
-                        config: child,
-                        parentSize: captureSize,
-                        sharedShader: _shaders['liquid_glass']!,
-                        sharedImage: _image!,
-                        border: _shaders['liquid_glass_border']
+                      config: child,
+                      parentSize: captureSize,
+                      sharedShader: isWeb
+                          ? (_shaders['liquid_glass_list']
+                              as List<ui.FragmentShader>)[index]
+                          : _shaders['liquid_glass'],
+                      border: isWeb
+                          ? (_shaders['liquid_glass_border_list']
+                              as List<ui.FragmentShader>)[index]
+                          : _shaders['liquid_glass_border'],
+                      sharedImage: _image!,
                     );
-                  }
-                  else {
+                  } else {
                     return const SizedBox.shrink();
                   }
                 }),
-              ]
-              );
-            }
-        )
+              ]);
+            })
       ],
-          );
+    );
   }
 }

@@ -1,5 +1,7 @@
 # Liquid Glass Easy
 
+[![GitHub](https://img.shields.io/badge/GitHub-Project-black?logo=github)](https://github.com/AhmeedGamil/liquid_glass_easy)
+
 <p>
   🤝 <strong>Contributions are welcome!</strong>
 </p>
@@ -254,7 +256,7 @@ await viewController.captureOnce();
 
 > If your background is full-screen, a pixel ratio of 0.5–1.0 gives the best trade-off between performance and detail.
 > For smaller regions, higher pixel ratios yield sharper glass.
-> This is a general guideline — the final choice depends on your device’s performance.
+> This is a general guideline — the final choice depends on the device’s performance.
 
 ---
 
@@ -296,9 +298,5 @@ LiquidGlass({
 ## Author
 
 **Ahmed Gamil**
-
-- GitHub: https://github.com/AhmeedGamil
-- LinkedIn: https://www.linkedin.com/in/ahmed-gamil-630980218
-- Email: ahmed.gamil.codes@gmail.com
 
 Feel free to open issues or contribute to the project!

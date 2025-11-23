@@ -280,8 +280,8 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
         );
 
         // Clamp lens inside parent bounds
-        final double maxX = parentSize.width - config.width;
-        final double maxY = parentSize.height - config.height;
+        final double maxX = parentSize.width -config.width.clamp(0.0, parentSize.width);
+        final double maxY = parentSize.height - config.height.clamp(0.0, parentSize.height);
 
         newTouch = Offset(
           newTouch.dx.clamp(0.0, maxX),
@@ -290,11 +290,12 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
 
         _touchNotifier.value = newTouch;
       }
-
+    // config.width.clamp(0.0, parentSize.width);
+    // config.height.clamp(0.0, parentSize.height);
     if (!widget.config.outOfBoundaries) {
       // --- clamp comes here, completely outside the condition ---
-      final double maxX = parentSize.width - config.width;
-      final double maxY = parentSize.height - config.height;
+      final double maxX = parentSize.width - config.width.clamp(0.0, parentSize.width);
+      final double maxY = parentSize.height - config.height.clamp(0.0, parentSize.height);
 
       _touchNotifier.value = Offset(
         _touchNotifier.value.dx.clamp(0.0, maxX),
