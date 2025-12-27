@@ -17,7 +17,7 @@ class LiquidGlassExampleApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
         useMaterial3: true,
       ),
-      home: const LiquidGlassExample()
+      home: const LiquidGlassShowcase()
     );
   }
 }
@@ -34,7 +34,7 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
   final lensController = LiquidGlassController();
 
   // Start with realtime capturing ON
-  bool _realtime =
+  final bool _realtime =
       true;
 
   // We cycle through three gradient backgrounds (no images required).
@@ -113,7 +113,6 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
     setState(() {
       //lensController.resetLiquidGlassPosition();
       _bgIndex = (_bgIndex + 1) % 6;
-      print(_bgIndex);
     });
     if (!_realtime) {
       viewController.captureOnce();
@@ -123,177 +122,180 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        child: LiquidGlassView(
-          controller: viewController,
-          backgroundWidget: _buildBackground(),
-          pixelRatio: 1,
-          useSync: true,
-          realTimeCapture: _realtime,
-          refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
-          children: [
-            if (_bgIndex == 0)
-              LiquidGlass(
-                controller: lensController,
-                position:
-                const LiquidGlassAlignPosition(alignment: Alignment.center),
-                width: 100,
-                height: 100,
-                magnification: 1,
-                enableInnerRadiusTransparent: false,
-                diagonalFlip: 0,
-                distortion: 0.225,
-                distortionWidth: 50,
-                draggable: true,
-                outOfBoundaries: true,
-                blur: LiquidGlassBlur(sigmaX: 0.75, sigmaY: 0.75),
-                shape: RoundedRectangleShape(
-                    //highDistortionOnCurves: true,
-                    cornerRadius: 50,
-                    borderWidth: 1,
-                    borderSoftness: 2.5,
-                    lightIntensity: 1.5,
-                    lightDirection: 39.0),
-              child:
-                Container(
-                  decoration:  BoxDecoration(borderRadius: BorderRadius.circular(50),),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(50),
-                      child: Container(
-                          height: 50,
-                          width: 50,
-                          child: Icon(
-                            color: Colors.white,
-                          Icons.pause,
-                            size: 36,
-                          ))),
-                ),
+      body: LiquidGlassView(
+        controller: viewController,
+        backgroundWidget: _buildBackground(),
+        pixelRatio: 1,
+        useSync: true,
+        realTimeCapture: _realtime,
+        refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
+        children: [
+          if (_bgIndex == 0)
+            LiquidGlass(
+              controller: lensController,
+              position:
+              const LiquidGlassAlignPosition(alignment: Alignment.center),
+              width: 100,
+              height: 100,
+              magnification: 1,
+              enableInnerRadiusTransparent: false,
+              diagonalFlip: 0,
+              distortion: 0.1125,
+              distortionWidth: 50,
+              chromaticAberration: 0.002,
+              draggable: true,
+              outOfBoundaries: true,
+              blur: LiquidGlassBlur(sigmaX: 0.75, sigmaY: 0.75),
+              shape: RoundedRectangleShape(
+                  //highDistortionOnCurves: true,
+                  cornerRadius: 50,
+                  borderWidth: 1,
+                  borderSoftness: 2.5,
+                  lightIntensity: 1.5,
+                  lightDirection: 39.0),
+            child:
+              Container(
+                decoration:  BoxDecoration(borderRadius: BorderRadius.circular(50),),
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(50),
+                    child: SizedBox(
+                        height: 50,
+                        width: 50,
+                        child: Icon(
+                          color: Colors.white,
+                        Icons.pause,
+                          size: 36,
+                        ))),
               ),
+            ),
 
-            if (_bgIndex == 1)
-              LiquidGlass(
-                controller: lensController,
-                position:
-                const LiquidGlassAlignPosition(alignment: Alignment.center),
-                width: 240 * 0.8,
-                height: 312 * 0.8,
+          if (_bgIndex == 1)
+            LiquidGlass(
+              controller: lensController,
+              position:
+              const LiquidGlassAlignPosition(alignment: Alignment.center),
+              width: 240 * 0.8,
+              height: 312 * 0.8,
+              magnification: 1,
+              enableInnerRadiusTransparent: false,
+              diagonalFlip: 0,
+              distortion: 0.075,
+              distortionWidth: 70,
+              draggable: true,
+              outOfBoundaries: true,
+              chromaticAberration: 0.002,
+              color: Colors.grey.withAlpha(60),
+              blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
+              shape: RoundedRectangleShape(
+                  cornerRadius: 70 * 0.8,
+                  borderWidth: 1,
+                  borderSoftness: 7.5,
+                  lightIntensity: 1.5 * 0.6,
+                  oneSideLightIntensity: 0.4,
+                  lightDirection: 39.0),
+              visibility: true,
+              child: Center(
+                child: WeatherWidget(
+                  cityName: "City",
+                  description: "Rainy",
+                  temperature: 23.4,
+                  minTemp: 22.0,
+                  maxTemp: 30.5,
+                  humidity: 58,
+                  windSpeed: 14.3,
+                  weatherIcon: Icons.water_drop_rounded,
+                ),
+              ),
+            ),
+          if (_bgIndex == 2)
+            LiquidGlass(
+                //controller: controller,
+                position:const LiquidGlassAlignPosition(alignment: Alignment.center),
+                width: 250,
+                height: 250,
                 magnification: 1,
                 enableInnerRadiusTransparent: false,
                 diagonalFlip: 0,
-                distortion: 0.15,
-                distortionWidth: 70,
+                distortion: 0.0875,
+                distortionWidth: 80,
+                chromaticAberration: 0.002,
                 draggable: true,
                 outOfBoundaries: true,
-                color: Colors.grey.withAlpha(60),
-                blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
-                shape: RoundedRectangleShape(
-                    cornerRadius: 70 * 0.8,
+                blur: LiquidGlassBlur(sigmaX: 0, sigmaY: 0),
+                shape: SuperellipseShape(
+                    curveExponent: 3,
                     borderWidth: 1,
-                    borderSoftness: 7.5,
-                    lightIntensity: 1.5 * 0.6,
-                    lightEffectIntensity: 0.4,
-                    lightDirection: 39.0),
-                visibility: true,
-                child: Center(
-                  child: WeatherWidget(
-                    cityName: "City",
-                    description: "Rainy",
-                    temperature: 23.4,
-                    minTemp: 22.0,
-                    maxTemp: 30.5,
-                    humidity: 58,
-                    windSpeed: 14.3,
-                    weatherIcon: Icons.water_drop_rounded,
-                  ),
+                    borderSoftness: 1,
+                    lightIntensity: 1,
+                    lightDirection: 0)
+                //child:GlassInputBar()
                 ),
+          if (_bgIndex == 3)
+            LiquidGlass(
+              controller: lensController,
+              width: 240,
+              height: 200,
+              magnification: 1,
+              distortion: 0.25,
+              draggable: true,
+              distortionWidth: 70,
+              chromaticAberration: 0.002,
+              position: LiquidGlassAlignPosition(alignment: Alignment.center),
+              shape: RoundedRectangleShape(
+                lightDirection: 140,
+                lightIntensity: 1.5,
+                borderWidth: 2,
+                borderSoftness: 1.5,
               ),
-            if (_bgIndex == 2)
-              LiquidGlass(
-                  //controller: controller,
-                  position:const LiquidGlassAlignPosition(alignment: Alignment.center),
-                  width: 250,
-                  height: 250,
-                  magnification: 1,
-                  enableInnerRadiusTransparent: false,
-                  diagonalFlip: 0,
-                  distortion: 0.175,
-                  distortionWidth: 80,
-                  draggable: true,
-                  outOfBoundaries: true,
-                  blur: LiquidGlassBlur(sigmaX: 0, sigmaY: 0),
-                  shape: SuperellipseShape(
-                      curveExponent: 3,
-                      borderWidth: 1,
-                      borderSoftness: 1,
-                      lightIntensity: 1,
-                      lightDirection: 0)
-                  //child:GlassInputBar()
-                  ),
-            if (_bgIndex == 3)
-              LiquidGlass(
-                controller: lensController,
-                width: 240,
-                height: 200,
-                magnification: 1,
-                distortion: 0.5,
-                draggable: true,
-                distortionWidth: 70,
-                position: LiquidGlassAlignPosition(alignment: Alignment.center),
-                shape: RoundedRectangleShape(
+              //child: const Center(
+              //child: Icon(Icons.search, size: 42, color: Colors.white70),
+              //),
+            ),
+          if (_bgIndex == 4)
+            LiquidGlass(
+              controller: lensController,
+              width: 240,
+              height: 200,
+              magnification: 1,
+              distortion: 0.1,
+              draggable: true,
+              outOfBoundaries: true,
+              distortionWidth: 70,
+              chromaticAberration: 0.002,
+              position: LiquidGlassAlignPosition(alignment: Alignment.center),
+              shape: SuperellipseShape(
                   lightDirection: 140,
                   lightIntensity: 1.5,
                   borderWidth: 2,
                   borderSoftness: 1.5,
-                ),
-                //child: const Center(
-                //child: Icon(Icons.search, size: 42, color: Colors.white70),
-                //),
-              ),
-            if (_bgIndex == 4)
-              LiquidGlass(
-                controller: lensController,
-                width: 240,
-                height: 200,
-                magnification: 1,
-                distortion: 0.2,
-                draggable: true,
-                outOfBoundaries: true,
-                distortionWidth: 70,
-                position: LiquidGlassAlignPosition(alignment: Alignment.center),
-                shape: SuperellipseShape(
-                    lightDirection: 140,
-                    lightIntensity: 1.5,
-                    borderWidth: 2,
-                    borderSoftness: 1.5,
-                    curveExponent: 4),
-                // child: const Center(
-                //   child: Icon(Icons.search, size: 42, color: Colors.white70),
-                // ),
-              ),
-            if (_bgIndex == 5)
-              LiquidGlass(
-                controller: lensController,
-                width: 150,
-                height: 150,
-                magnification: 1,
-                distortion: 0.15,
-                draggable: true,
-                outOfBoundaries: true,
-                distortionWidth: 50,
-                position: LiquidGlassAlignPosition(alignment: Alignment.center),
-                shape: RoundedRectangleShape(
-                  highDistortionOnCurves: true,
-                    lightDirection: 140,
-                    lightIntensity: 1.5,
-                    borderWidth: 2,
-                    borderSoftness: 1.5,
-                    cornerRadius: 75),
-                // child: const Center(
-                //   child: Icon(Icons.search, size: 42, color: Colors.white70),
-                // ),
-              ),
-          ],
-        ),
+                  curveExponent: 4),
+              // child: const Center(
+              //   child: Icon(Icons.search, size: 42, color: Colors.white70),
+              // ),
+            ),
+          if (_bgIndex == 5)
+            LiquidGlass(
+              controller: lensController,
+              width: 150,
+              height: 150,
+              magnification: 1,
+              distortion: 0.075,
+              draggable: true,
+              outOfBoundaries: true,
+              distortionWidth: 50,
+              chromaticAberration: 0.002,
+              position: LiquidGlassAlignPosition(alignment: Alignment.center),
+              shape: RoundedRectangleShape(
+                  lightDirection: 140,
+                  lightIntensity: 1.5,
+                  borderWidth: 2,
+                  borderSoftness: 1.5,
+                  cornerRadius: 75),
+              // child: const Center(
+              //   child: Icon(Icons.search, size: 42, color: Colors.white70),
+              // ),
+            ),
+        ],
       ),
       bottomNavigationBar: SafeArea(
         top: false, // note: 'false' would break Dart; fix to false if needed.
@@ -353,7 +355,7 @@ class WeatherWidget extends StatelessWidget {
       padding: const EdgeInsets.all(21 * 0.8), // ~14
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(24 * 0.8), // ~16
-        border: Border.all(color: Colors.white.withOpacity(0.0), width: 1.5),
+        border: Border.all(color: Colors.white.withAlpha(0), width: 1.5),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -374,7 +376,7 @@ class WeatherWidget extends StatelessWidget {
                 _formattedDate(),
                 style: TextStyle(
                   fontSize: 14 * 0.8, // 9.2
-                  color: Colors.white.withOpacity(0.8),
+                  color: Colors.white.withAlpha(204),
                 ),
               ),
             ],
@@ -389,7 +391,7 @@ class WeatherWidget extends StatelessWidget {
               Icon(
                 weatherIcon,
                 size: 44 * 0.8, // 31.5
-                color: Colors.white.withOpacity(0.9),
+                color: Colors.white.withAlpha(229),
               ),
               const SizedBox(width: 12 * 0.8), // 7.9
               Text(
@@ -435,7 +437,7 @@ class WeatherWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
               _extraInfo(Icons.water_drop_rounded, "Humidity", "$humidity%"),
-              _extraInfo(Icons.air_rounded, "Wind", "${windSpeed} km/h"),
+              _extraInfo(Icons.air_rounded, "Wind", "$windSpeed km/h"),
             ],
           ),
         ],
@@ -455,7 +457,7 @@ class WeatherWidget extends StatelessWidget {
           label,
           style: TextStyle(
             fontSize: 14 * 0.8, // 9.2
-            color: Colors.white.withOpacity(0.8),
+            color: Colors.white.withAlpha(204),
           ),
         ),
         Text(
@@ -474,13 +476,13 @@ class WeatherWidget extends StatelessWidget {
     return Column(
       children: [
         Icon(icon,
-            color: Colors.white.withOpacity(0.9), size: 22 * 0.8), // 14.5
+            color: Colors.white.withAlpha(229), size: 22 * 0.8), // 14.5
         const SizedBox(height: 4 * 0.8), // 2.6
         Text(
           label,
           style: TextStyle(
             fontSize: 12 * 0.8, // 7.9
-            color: Colors.white.withOpacity(0.7),
+            color: Colors.white.withAlpha(179),
           ),
         ),
         Text(

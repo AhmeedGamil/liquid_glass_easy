@@ -40,35 +40,79 @@ uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform float u_lightDirection;
 uniform vec4 u_lensColor;
-uniform float u_highDistoritonOnCurves;
-uniform float u_lightEffectIntensity;
+uniform float u_oneSideLightIntensity;
+uniform float u_chromaticAberration;
+uniform float u_saturation;
+uniform float u_lightMode;
+uniform float u_refractionMode;
 
 
 out vec4 frag_color;
 
+// ===================================================
+
+#define REFRACTION_SHAPE    0
+#define REFRACTION_RADIAL   1
+
 #define PIXEL_TO_NORM(px) ((px) / u_resolution.y)
 
+vec3 applyChromaticAberration(vec2 uv, float shift) {
+    // Compute offsets based on luma
+    vec3 color = texture(u_texture_input, uv).rgb;
+    if(shift < 0.001) return color;
+    // Luma calculation (Rec. 709)
+    float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+
+    // Offset depends on brightness
+    vec2 offset = vec2(shift * luma);
+
+    float r = texture(u_texture_input, uv + offset).r;
+    float g = texture(u_texture_input, uv).g;
+    float b = texture(u_texture_input, uv - offset).b;
+
+    return vec3(r, g, b);
+}
+
+vec3 applySaturation(vec3 color, float saturation) {
+
+    float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+    return mix(vec3(luminance), color, saturation);
+}
 // ===================================================
 // Final texture sampling after refraction
 // ===================================================
+
+
 vec4 finalSample(
-    vec2 refractedPx,    // refracted position in pixels
-    vec2 texScale,       // texture coordinate scale
-    float shapeMask      // mask (usually 0..1)
+    vec2 refractedPx,
+    vec2 texScale,
+    float shapeMask
 ){
-    // Convert refracted pixel position to normalized texture UV
-    vec2 sampleUV = clamp((refractedPx) * texScale, vec2(0.001), vec2(0.999));
+    vec3 refrColor;
 
-    // Sample the color from the texture
-    vec3 refrColor = texture(u_texture_input, sampleUV).rgb;
-
-    // Apply the shape mask for transparency/alpha control
+    vec2 sampleUV = clamp(refractedPx * texScale, vec2(0.001), vec2(0.999));
+    refrColor = applyChromaticAberration(sampleUV, u_chromaticAberration);
+    // Apply saturation BEFORE tinting
+    refrColor = applySaturation(refrColor,u_saturation);
     vec4 base = vec4(refrColor * shapeMask, shapeMask);
-
-    base.rgb = applyLensTint(base.rgb,shapeMask,u_lensColor,u_borderAlpha);
-
+    // Then apply lens tint
+    base.rgb = applyLensTint(base.rgb, shapeMask, u_lensColor, u_borderAlpha);
     return base;
 }
+
+
+float computeShapeMask(float shapeDistPx) {
+    float aa = 1.0;
+
+    #ifdef GL_OES_standard_derivatives
+        aa = max(fwidth(shapeDistPx), 1.0);
+    #endif
+
+    float mask = 1.0 - smoothstep(0.0, aa, shapeDistPx);
+    mask *= step(shapeDistPx, 0.0);
+    return mask;
+}
+
 
 // =====================================================
 // Main entry
@@ -88,37 +132,38 @@ void main() {
     vec2 lensHalfSizePx = 0.5 * vec2(u_lensWidth, u_lensHeight);
     vec2 lensCenterPx   = u_touch + lensHalfSizePx;
     vec2 lensCenterNorm = lensCenterPx * invResY;
-    vec2 localPosPx     = fragPx - lensCenterPx;
 
     // ===============================
     // Shape distance (SDF)
     // ===============================
     float shapeDistPx;
     float shapeMask;
-    SuperellipseData superellipseData;
+    ShapeData shapeData;
 
+    // --- Compute shape distance depending on type ---
     if (u_shapeType > 0.5) {
-        // Superellipse mode
+        // Superellipse
         float n = max(u_superN, 1.0001);
-        superellipseData= superellipseEvaluateAll(localPosPx, lensHalfSizePx, n);
-
-        shapeDistPx = superellipseData.orthoDist;
-
-        float aa = 1.0;
-        #ifdef GL_OES_standard_derivatives
-        aa = max(fwidth(shapeDistPx), 1.0);
-        #endif
-
-        shapeMask = 1.0 - smoothstep(0.0, aa, shapeDistPx);
-        shapeMask *= step(shapeDistPx, 0.0);
+        shapeData = evaluateShape(fragPx,lensCenterPx, lensHalfSizePx, n,u_shapeType);
+        shapeDistPx = shapeData.orthoDist;
     } else {
-        // RoundedRect mode
-        vec2 lensHalfUV  = lensHalfSizePx / u_resolution.y;
-        float cornerNorm = PIXEL_TO_NORM(min(u_cornerRadius, min(u_lensWidth, u_lensHeight) * 0.5));
-        float roundedRectDist = roundedRectangleShape(uvNorm, lensCenterNorm, lensHalfUV, cornerNorm);
-        shapeDistPx = roundedRectDist * u_resolution.y;
-        shapeMask   = smoothstep(PIXEL_TO_NORM(1.5), 0.0, roundedRectDist);
+        // Rounded rectangle
+        float maxCorner      = min(u_lensWidth, u_lensHeight) * 0.5;
+        float cornerRadiusPx = min(u_cornerRadius, maxCorner);
+
+        shapeData = evaluateShape(
+            fragPx,
+            lensCenterPx,
+            lensHalfSizePx,
+            cornerRadiusPx,
+            u_shapeType
+        );
+
+        shapeDistPx = shapeData.orthoDist;
     }
+
+    // --- Shared antialiasing + mask ---
+    shapeMask = computeShapeMask(shapeDistPx);
 
     // ===============================
     // Distortion band setup
@@ -127,17 +172,28 @@ void main() {
     float zoneLimit = u_distortionThicknessPx;
     float zoneMask  = step(distAbsPx, zoneLimit);
 
+    // ===============================
+    // Apply uniform magnification to entire lens
+    // ===============================
+
+    vec2 magPx = applyLensMagnification(
+        fragPx,
+        lensCenterPx,
+        u_magnification
+    );
+
+    vec2 magUV=magPx*invResY;
     if (zoneMask < 0.5) {
         // Outside distortion zone
         vec4 base = (u_enableBackgroundTransparency > 0.5)
         ? vec4(0.0)
-        : finalSample(uvNorm, texScale, shapeMask);
+        : finalSample(magUV, texScale, shapeMask);
 
         vec4 borderPremul = getSweepBorder(
-            uvNorm, lensCenterNorm, shapeDistPx,
+            uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
             u_borderWidth, u_borderSoftness, u_borderColor,
             u_lightColor, u_shadowColor,
-            u_lightIntensity, u_borderAlpha, u_lightDirection,u_lightEffectIntensity
+            u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode
         );
 
         frag_color = overlayPremul(base, borderPremul);
@@ -153,85 +209,43 @@ void main() {
     // ===============================
     // Refracted position
     // ===============================
-    vec2 refrUV;
 
-    if (u_shapeType > 0.5) {
-        // --- Superellipse refraction
-        float n = max(u_superN, 1.0001);
-        float cornerBand = superellipseCornerBandPx(lensHalfSizePx, n, u_distortionThicknessPx);
+    vec2 refrPx;
 
-        vec2 refrPx = computeRefractedPositionPx(
-            fragPx,
-            localPosPx,
-             superellipseData.normal,
-            superellipseData.sdf,
-            lensCenterPx,
-            lensHalfSizePx,
-            cornerBand,
+    if(u_refractionMode== REFRACTION_SHAPE) {
+        refrPx = computeShapeRefraction(
+            magPx,
+            shapeData.normal,
+            shapeData.sdf,
+            u_distortionThicknessPx,
             distortionFactor,
             u_magnification,
             u_diagonalFlip,
             zoneT
         );
-
-        refrUV = refrPx * invResY;
-    } else {
-        // --- Shared setup ---
-        float maxCorner = min(u_lensWidth, u_lensHeight) * 0.5;
-        float cornerRadiusClamped = min(u_cornerRadius, maxCorner);
-        float cornerRadiusNorm = PIXEL_TO_NORM(cornerRadiusClamped);
-        float thicknessNorm = PIXEL_TO_NORM(u_distortionThicknessPx);
-        vec2 lensHalfUV = lensHalfSizePx / u_resolution.y;
-
-        // --- Conditional logic ---
-        if (u_highDistoritonOnCurves > 0.5) {
-            float cornerRadiusForClassification = max(cornerRadiusNorm, thicknessNorm);
-
-            vec2 distortionCenter = computeDistortionCenter(
-                uvNorm,
-                lensCenterNorm,
-                lensHalfUV,
-                cornerRadiusForClassification
-            );
-
-            refrUV = computeRefractedUV(
-                uvNorm,
-                distortionCenter,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT
-            );
-
-        } else {
-            vec2 refrPx = computeRefractedPositionRoundedRectPx(
-                fragPx,
-                uvNorm,
-                lensCenterPx,
-                lensCenterNorm,
-                lensHalfUV,
-                cornerRadiusNorm,
-                thicknessNorm,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT,
-                u_resolution.y
-            );
-            refrUV = refrPx * invResY;
-        }
     }
-
+    else if(u_refractionMode== REFRACTION_RADIAL){
+        vec2 distortionCenter = lensCenterPx;
+        refrPx = refractFromAnchorPx(
+            magPx,
+            distortionCenter,
+            distortionFactor,
+            u_magnification,
+            u_diagonalFlip,
+            zoneT
+        );
+    }
+    vec2 refrUV = refrPx * invResY;
     // ===============================
     // Final sample & border
     // ===============================
     vec4 base = finalSample(refrUV, texScale, shapeMask);
 
     vec4 borderPremul = getSweepBorder(
-        uvNorm, lensCenterNorm, shapeDistPx,
+        uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
         u_borderWidth, u_borderSoftness, u_borderColor,
         u_lightColor, u_shadowColor,
-        u_lightIntensity, u_borderAlpha, u_lightDirection,u_lightEffectIntensity
+        u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode
     );
 
     // ===============================

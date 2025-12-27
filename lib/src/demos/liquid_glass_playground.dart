@@ -7,6 +7,8 @@ import '../helpers/slider_page_view.dart';
 import '../widgets/liquid_glass.dart';
 import '../widgets/liquid_glass_view.dart';
 import '../widgets/utils/liquid_glass_blur.dart';
+import '../widgets/utils/liquid_glass_light_mode.dart';
+import '../widgets/utils/liquid_glass_refraction_mode.dart';
 import '../widgets/utils/liquid_glass_shape.dart';
 import '../widgets/utils/liquid_glass_position.dart';
 
@@ -34,16 +36,17 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   double lensHeight = 100;
   double cornerRadius = 50;
   double magnification = 1.0;
-  double distortion = 0.2;
+  double distortion = 0.1;
   double distortionWidth = 33;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
   double borderWidth = 1.0;
   double borderSoftness = 1.0;
   double lightIntensity =1.0;
-  double lightEffectIntensity =0.0;
-
-  double lightDirection = 0.0;
+  double oneSideLightIntensity =0.0;
+  double chromaticAberration=0.003;
+  double saturation=1;
+  double lightDirection = 39.0;
   double  curveExponent=3;
   double pixelRatio = 1.0;
   bool realTimeCapture = true;
@@ -56,6 +59,8 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   final controller = LiquidGlassController();
   final viewController = LiquidGlassViewController();
   bool isVisible = true;
+  bool isRadialLightMode=false;
+  bool isRadialRefractionMode=false;
 
   @override
   Widget build(BuildContext context) {
@@ -90,12 +95,19 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
                   width: lensWidth,
                   height: lensHeight,
                   magnification: magnification,
+                  refractionMode: isRadialRefractionMode?LiquidGlassRefractionMode.radialRefraction:LiquidGlassRefractionMode.shapeRefraction,
                   distortion: distortion,
                   distortionWidth: distortionWidth,
+                  chromaticAberration: chromaticAberration,
+                  saturation: saturation,
                   draggable: true,
                   blur: LiquidGlassBlur(sigmaX:blur  , sigmaY:blur ),
-                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,lightEffectIntensity:lightEffectIntensity )
-                    :RoundedRectangleShape(cornerRadius: cornerRadius,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,lightEffectIntensity: lightEffectIntensity),
+                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,oneSideLightIntensity:oneSideLightIntensity,
+                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
+                  )
+                    :RoundedRectangleShape(cornerRadius: cornerRadius,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,oneSideLightIntensity: oneSideLightIntensity,
+                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
+                  ),
                   visibility: visibility,
                 ),
               ],
@@ -110,6 +122,7 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
             lensHeight: lensHeight,
             cornerRadius: cornerRadius,
             magnification: magnification,
+            refractionMode: isRadialRefractionMode,
             distortion: distortion,
             distortionWidth: distortionWidth,
             diagonalFlip: diagonalFlip,
@@ -118,7 +131,10 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
             curveExponent: curveExponent,
             lightDirection: lightDirection,
             lightIntensity: lightIntensity,
-            lightEffectIntensity: lightEffectIntensity,
+            oneSideLightIntensity: oneSideLightIntensity,
+            lightMode: isRadialLightMode,
+            chromaticAberration: chromaticAberration,
+            saturation: saturation,
             blur: blur,
             refreshRate: refreshRate,
             pixelRatio: pixelRatio,
@@ -132,6 +148,7 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
             onLensHeightChanged: (v) => setState(() => lensHeight = v),
             onCornerRadiusChanged: (v) => setState(() => cornerRadius = v),
             onMagnificationChanged: (v) => setState(() => magnification = v),
+            onRefractionModeChanged: (v) => setState(() => isRadialRefractionMode = v),
             onDistortionChanged: (v) => setState(() => distortion = v),
             onDistortionWidthChanged: (v) =>
                 setState(() => distortionWidth = v),
@@ -140,7 +157,10 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
             onBorderSoftnessChanged:(v) => setState(() => borderSoftness = v),
             onCurveExponentChanged: (v) => setState(() => curveExponent = v),
             onLightIntensityChanged: (v) => setState(() => lightIntensity = v),
-            onLightEffectIntensityChanged: (v) => setState(() => lightEffectIntensity = v),
+            onOneSideLightIntensityChanged: (v) => setState(() => oneSideLightIntensity = v),
+            onLightModeChanged: (v) => setState(() => isRadialLightMode = v),
+            onChromaticAberrationChanged: (v) => setState(() => chromaticAberration = v),
+            onSaturationChanged: (v) => setState(() => saturation = v),
             onLightDirectionChanged: (v) => setState(() => lightDirection = v),
             onBlurChanged: (v) => setState(() => blur = v),
             onRefreshRateChanged:(v) => setState(() {

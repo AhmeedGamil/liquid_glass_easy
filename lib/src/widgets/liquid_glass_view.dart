@@ -92,7 +92,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     super.initState();
     _realtimeCaptureEnabled = widget.realTimeCapture;
 
-    DateTime _lastCaptureTime = DateTime.now();
+    DateTime lastCaptureTime = DateTime.now();
 
     _controller = AnimationController(
       vsync: this,
@@ -107,8 +107,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
         }
         // Otherwise throttle based on selected refresh rate
         final now = DateTime.now();
-        if (now.difference(_lastCaptureTime) >= interval) {
-          _lastCaptureTime = now;
+        if (now.difference(lastCaptureTime) >= interval) {
+          lastCaptureTime = now;
           await _captureWidgetSafe();
         }
       });

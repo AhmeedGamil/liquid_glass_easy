@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'liquid_glass_light_mode.dart';
+
 /// Abstract base border configuration
 abstract class LiquidGlassShape {
 
@@ -26,17 +28,20 @@ abstract class LiquidGlassShape {
   /// - Typical range: `0.0` (no lighting) → `1.0` (normal brightness) → `>1.0` (strong glow).
   final double lightIntensity;
 
-  /// Controls the strength of the glass lighting and reflection effects on the border.
+  /// Controls the intensity of the one-sided specular highlight
+  /// applied to the glass border.
   ///
-  /// This value adjusts how pronounced the Fresnel edge glow and specular highlights appear.
+  /// This affects only the specular reflection component and is
+  /// applied from a single light direction, creating a focused
+  /// glass-like shine on one side of the border.
   ///
-  /// - `0.0` → Disables all advanced lighting for a flat, simple border.
-  /// - `1.0` → Default realistic glass lighting.
-  /// - `>1.0` → Intensifies reflections for a more glossy or crystal-like effect.
+  /// - `0.0` → Disables the specular highlight entirely.
+  /// - `1.0` → Default subtle specular reflection.
+  /// - `>1.0` → Produces a stronger, sharper highlight for a more
+  ///   glossy or crystal-like appearance.
   ///
   /// Recommended range: `0.0` to `2.0`.
-  final double lightEffectIntensity;
-
+  final double oneSideLightIntensity;
 
   /// The primary highlight color applied to illuminated areas of the lens border.
   ///
@@ -58,35 +63,49 @@ abstract class LiquidGlassShape {
   /// Used to compute where highlights and shadows fall on the border.
   final double lightDirection;
 
+  /// Defines how lighting is calculated along the liquid glass border.
+  ///
+  /// • [LiquidGlassLightMode.edge] — Uses the shape’s edge gradient
+  ///   as the surface normal, producing lighting that follows the
+  ///   contour of the glass border and the light to expand along
+  ///   straight edges  This results in more physically
+  ///   accurate edge highlights.
+  ///
+  /// • [LiquidGlassLightMode.radial] — Uses a radial direction from
+  ///   the center of the glass to each fragment, causing the light to expand naturally
+  ///   along curved edges creating a uniform,
+  ///   lens-like lighting sweep around the border.
+  final LiquidGlassLightMode lightMode;
+
+
 
   const LiquidGlassShape({
     this.borderWidth = 1.0,
     this.borderSoftness = 1.0,
     this.borderColor,
     this.lightIntensity = 1.0,
-    this.lightEffectIntensity=0,
+    this.oneSideLightIntensity=0,
     this.lightColor = const Color(0xB2FFFFFF),
     this.shadowColor = const Color(0x1A000000),
     this.lightDirection = 0.0,
+    this.lightMode=LiquidGlassLightMode.edge,
   });
 }
 
 class RoundedRectangleShape extends LiquidGlassShape {
   final double cornerRadius;
-  final bool highDistortionOnCurves;
   const RoundedRectangleShape({
     this.cornerRadius = 50.0,
-    this.highDistortionOnCurves=false,
     super.borderWidth,
     super.borderSoftness,
     super.borderColor,
     super.lightIntensity,
-    super.lightEffectIntensity,
+    super.oneSideLightIntensity,
     super.lightColor,
     super.shadowColor,
     super.lightDirection,
+    super.lightMode
   });
-
 }
 
 class SuperellipseShape extends LiquidGlassShape {
@@ -98,10 +117,11 @@ class SuperellipseShape extends LiquidGlassShape {
     super.borderSoftness,
     super.borderColor,
     super.lightIntensity,
-    super.lightEffectIntensity,
+    super.oneSideLightIntensity,
     super.lightColor,
     super.shadowColor,
     super.lightDirection,
+    super.lightMode
   });
 }
 

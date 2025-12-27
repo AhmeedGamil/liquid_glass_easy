@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 
 
 import '../utils/liquid_glass_blur.dart';
+import '../utils/liquid_glass_light_mode.dart';
 import '../utils/liquid_glass_position.dart';
+import '../utils/liquid_glass_refraction_mode.dart';
 import '../utils/liquid_glass_shape.dart';
 
 class LiquidGlassPainter extends CustomPainter {
@@ -21,6 +23,9 @@ class LiquidGlassPainter extends CustomPainter {
   final LiquidGlassShape? border;
   final double borderAlpha;
   final LiquidGlassBlur blur;
+  final double chromaticAberration;
+  final double saturation;
+  final LiquidGlassRefractionMode? refractionMode;
   final Color color;
   final ui.FragmentShader shader;
   final ui.FragmentShader? borderShader;
@@ -45,6 +50,9 @@ class LiquidGlassPainter extends CustomPainter {
     required this.color,
     required this.shader,
     this.borderShader,
+    required this.chromaticAberration,
+    required this.saturation,
+    required this.refractionMode,
     required this.image,
   });
 
@@ -52,7 +60,9 @@ class LiquidGlassPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final bool useBlur=blur.sigmaX>0 || blur.sigmaY>0;
     final lensPosition = dragOffset!;
-    final bool highDistortionOnCurves=border is RoundedRectangleShape? (border as RoundedRectangleShape).highDistortionOnCurves:false;
+    final double selectedLightMode=(border!.lightMode == LiquidGlassLightMode.edge)?0:1;
+    final double selectedRefractionMode=(refractionMode == LiquidGlassRefractionMode.shapeRefraction)?0:1;
+
     int index=0;
     // Pass shader parameters (uniforms) for the GLSL shader
     shader.setFloat(index++, size.width);
@@ -99,8 +109,12 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(index++,color.b);
     shader.setFloat(index++,color.g);
     shader.setFloat(index++,color.a);
-    shader.setFloat(index++,highDistortionOnCurves?1:0);
-    shader.setFloat(index,border!.lightEffectIntensity);
+    shader.setFloat(index++,border!.oneSideLightIntensity);
+    shader.setFloat(index++,chromaticAberration);
+    shader.setFloat(index++,saturation);
+    shader.setFloat(index++,selectedLightMode);
+    shader.setFloat(index,selectedRefractionMode);
+
 
     shader.setImageSampler(0, image);
 
@@ -175,7 +189,11 @@ class LiquidGlassPainter extends CustomPainter {
         ..setFloat(index++, border!.shadowColor.b)
         ..setFloat(index++, border!.shadowColor.a)
         ..setFloat(index++, border!.lightDirection)
-        ..setFloat(index, border!.lightEffectIntensity);
+        ..setFloat(index++, border!.oneSideLightIntensity)
+      ..setFloat(index,selectedLightMode);
+
+
+
 
 
 

@@ -7,6 +7,8 @@
 
 #ifndef LIQUID_GLASS_BORDER_GLSL
 #define LIQUID_GLASS_BORDER_GLSL
+#define LIGHT_NORMAL_EDGE   0  // Follow the shape gradient (curvature)
+#define LIGHT_NORMAL_RADIAL 1  // Radial from center
 #define PI 3.14159265
 precision highp float; // or highp float
 
@@ -16,10 +18,11 @@ precision highp float; // or highp float
 // =======================================================
 vec4 getSweepBorder(
     vec2 uvNorm, vec2 centerNorm, float signedEdgeOrthoDistPx,
+    vec2 gradDistPx,
     float borderWidthPx, float softnessPx, vec4 tint,
-    vec4 lightColor, vec4 shadowColor, float u_lightIntensity,
+    vec4 lightColor, vec4 shadowColor, float lightIntensity,
     float borderAlpha, float lightDirDeg,
-    float lightEffectIntensity   // 0 = no extra lighting
+    float oneSideLightIntensity, float lightMode  // 0 = no extra lighting
 ){
     if (borderWidthPx <= 0.0 || borderAlpha <= 0.0) return vec4(0.0);
 
@@ -32,7 +35,17 @@ vec4 getSweepBorder(
     );
     if (mask <= 0.001) return vec4(0.0);
 
-    float ang = atan(uvNorm.y - centerNorm.y, uvNorm.x - centerNorm.x);
+
+    vec2 normal;
+    float ang;
+
+    if(lightMode == LIGHT_NORMAL_EDGE){
+        normal = normalize(gradDistPx);
+    } else {
+        normal = normalize(uvNorm - centerNorm);
+    }
+    ang = atan(normal.y, normal.x);
+    float lightRad= radians(lightDirDeg);
     ang -= radians(lightDirDeg);
     ang = mod(ang, 2.0 * PI);
     float tAngle = ang / (2.0 * PI);
@@ -55,27 +68,15 @@ vec4 getSweepBorder(
     // ===========================================================
     // Balanced Glass Lighting — mirrored highlights on both sides
     // ===========================================================
-    if (lightEffectIntensity > 0.0)
+    if (oneSideLightIntensity > 0.0)
     {
-        vec2 normal = normalize(uvNorm - centerNorm);
-        float lightRad = radians(lightDirDeg);
         vec2 lightDirV = vec2(cos(lightRad), sin(lightRad));
-
-        // Fresnel glow (now symmetrical)
-        float viewDot = abs(dot(normal, lightDirV));
-        float fresnel = pow(1.0 - viewDot, 2.5);
-        col.rgb = mix(col.rgb, lightColor.rgb, fresnel * (0.6 * lightEffectIntensity));
-
-        // Specular reflections on both sides
-        float spec1 = max(dot(normal, lightDirV), 0.0);
-        float spec2 = max(dot(normal, -lightDirV), 0.0);
-        float spec = pow(spec1, 8.0) + pow(spec2, 8.0); // symmetrical
-        col.rgb += lightColor.rgb * spec * u_lightIntensity * (0.8 * lightEffectIntensity);
+        float spec = max(dot(normal, lightDirV), 0.0);
+        spec = pow(spec, 8.0); // higher exponent = smaller highlight
+        col.rgb += lightColor.rgb * spec * lightIntensity * (0.8 * oneSideLightIntensity);
     }
-
     // Apply global intensity
-    col.rgb *= u_lightIntensity;
-
+    col.rgb *= lightIntensity;
     float a = col.a * borderAlpha * mask;
     return vec4(col.rgb * a, a);
 }

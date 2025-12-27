@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
+
+import '../widgets/utils/liquid_glass_refraction_mode.dart';
 
 class SlidersPageView extends StatelessWidget {
   final PageController controller;
@@ -13,14 +16,18 @@ class SlidersPageView extends StatelessWidget {
   final double lensHeight;
   final double cornerRadius;
   final double magnification;
+  final bool refractionMode;
   final double distortion;
   final double distortionWidth;
   final double diagonalFlip;
   final double borderWidth;
   final double borderSoftness;
   final double lightIntensity;
-  final double lightEffectIntensity;
+  final double oneSideLightIntensity;
   final double lightDirection;
+  final bool lightMode;
+  final double chromaticAberration;
+  final double saturation;
   final double curveExponent;
   final double pixelRatio;
   final double blur;
@@ -36,15 +43,21 @@ class SlidersPageView extends StatelessWidget {
   final ValueChanged<double> onLensHeightChanged;
   final ValueChanged<double> onCornerRadiusChanged;
   final ValueChanged<double> onMagnificationChanged;
+  final ValueChanged<bool> onRefractionModeChanged;
   final ValueChanged<double> onDistortionChanged;
   final ValueChanged<double> onDistortionWidthChanged;
   final ValueChanged<double> onDiagonalFlipChanged;
   final ValueChanged<double> onBorderWidthChanged;
   final ValueChanged<double> onBorderSoftnessChanged;
   final ValueChanged<double> onLightIntensityChanged;
-  final ValueChanged<double> onLightEffectIntensityChanged;
+  final ValueChanged<double> onOneSideLightIntensityChanged;
 
   final ValueChanged<double> onLightDirectionChanged;
+  final ValueChanged<bool> onLightModeChanged;
+  final ValueChanged<double> onChromaticAberrationChanged;
+  final ValueChanged<double> onSaturationChanged;
+
+
   final ValueChanged<double> onCurveExponentChanged;
   final ValueChanged<double> onBlurChanged;
   final ValueChanged<double> onRefreshRateChanged;
@@ -62,19 +75,22 @@ class SlidersPageView extends StatelessWidget {
     required this.lensHeight,
     required this.cornerRadius,
     required this.magnification,
+    required this.refractionMode,
     required this.distortion,
     required this.distortionWidth,
     required this.diagonalFlip,
     required this.borderWidth,
     required this.borderSoftness,
     required this.lightIntensity,
-    required this.lightEffectIntensity,
+    required this.oneSideLightIntensity,
     required this.lightDirection,
+    required this.lightMode,
+    required this.chromaticAberration,
+    required this.saturation,
     required this.curveExponent,
     required this.pixelRatio,
     required this.blur,
     required this.refreshRate,
-
     required this.realTimeCapture,
     required this.useSync,
     required this.enableInnerRadiusTransparent,
@@ -84,6 +100,7 @@ class SlidersPageView extends StatelessWidget {
     required this.onLensHeightChanged,
     required this.onCornerRadiusChanged,
     required this.onMagnificationChanged,
+    required this.onRefractionModeChanged,
     required this.onDistortionChanged,
     required this.onDistortionWidthChanged,
     required this.onEnableInnerRadiusTransparent,
@@ -91,8 +108,11 @@ class SlidersPageView extends StatelessWidget {
     required this.onBorderWidthChanged,
     required this.onBorderSoftnessChanged,
     required this.onLightIntensityChanged,
-    required this.onLightEffectIntensityChanged,
+    required this.onOneSideLightIntensityChanged,
     required this.onLightDirectionChanged,
+    required this.onLightModeChanged,
+    required this.onChromaticAberrationChanged,
+    required this.onSaturationChanged,
     required this.onCurveExponentChanged,
     required this.onBlurChanged,
     required this.onRefreshRateChanged,
@@ -189,7 +209,6 @@ class SlidersPageView extends StatelessWidget {
                   child: Text("Rounded Rectangle - Superellipse"),
                 ),
                 Switch(
-                  activeColor: accent,
                   value: shape,
                   onChanged: onShapeChanged,
                 ),
@@ -236,6 +255,19 @@ class SlidersPageView extends StatelessWidget {
                   title: "Effects & Distortion",
                   icon: Icons.blur_on,
                   sliders: [
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text("Shape Refraction - Radial Refraction"),
+                        ),
+                        Switch(
+                          value: refractionMode,
+                          onChanged: onRefractionModeChanged,
+                        ),
+                      ],
+                    ),
                     SliderWidget(
                       label: "Distortion",
                       value: distortion,
@@ -269,11 +301,19 @@ class SlidersPageView extends StatelessWidget {
                           child: Text("Enable Transparency"),
                         ),
                         Switch(
-                          activeColor: accent,
                           value: enableInnerRadiusTransparent,
                           onChanged: onEnableInnerRadiusTransparent,
                         ),
                       ],
+                    ),
+
+                    SliderWidget(
+                      label: "Diagonal Flip",
+                      value: diagonalFlip,
+                      min: 0,
+                      max: 1,
+                      devision: 100,
+                      onChanged: onDiagonalFlipChanged,
                     ),
                     SliderWidget(
                       label: "Blur",
@@ -283,13 +323,23 @@ class SlidersPageView extends StatelessWidget {
                       devision: 30,
                       onChanged: onBlurChanged,
                     ),
+
                     SliderWidget(
-                      label: "Diagonal Flip",
-                      value: diagonalFlip,
+                      label: "Chromatic Aberration",
+                      value: chromaticAberration,
                       min: 0,
-                      max: 1,
+                      max: 0.25,
                       devision: 100,
-                      onChanged: onDiagonalFlipChanged,
+                      onChanged: onChromaticAberrationChanged,
+                    ),
+
+                    SliderWidget(
+                      label: "Saturation",
+                      value: saturation,
+                      min: 0,
+                      max: 3,
+                      devision: 30,
+                      onChanged: onSaturationChanged,
                     ),
                   ],
                 ),
@@ -300,6 +350,19 @@ class SlidersPageView extends StatelessWidget {
                   title: "Border Settings",
                   icon: Icons.border_style,
                   sliders: [
+
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text("Edge light Mode - Radial Light Mode"),
+                        ),
+                        Switch(
+                          value: lightMode,
+                          onChanged: onLightModeChanged,
+                        ),
+                      ],
+                    ),
                     SliderWidget(
                       label: "Border Width",
                       value: borderWidth,
@@ -325,12 +388,12 @@ class SlidersPageView extends StatelessWidget {
                       onChanged: onLightIntensityChanged,
                     ),
                     SliderWidget(
-                      label: "Light Effect Intensity",
-                      value: lightEffectIntensity,
+                      label: "One Side Light Intensity",
+                      value: oneSideLightIntensity,
                       min: 0,
                       max: 5,
                       devision: 100,
-                      onChanged: onLightEffectIntensityChanged,
+                      onChanged: onOneSideLightIntensityChanged,
                     ),
                     SliderWidget(
                       label: "Light Direction",
@@ -363,7 +426,6 @@ class SlidersPageView extends StatelessWidget {
                       children: [
                         const Text("Real Time Capture"),
                         Switch(
-                          activeColor: accent,
                           value: realTimeCapture,
                           onChanged: onRealTimeCaptureChanged,
                         ),
@@ -390,7 +452,6 @@ class SlidersPageView extends StatelessWidget {
                       children: [
                         const Text("Use Sync"),
                         Switch(
-                          activeColor: accent,
                           value: useSync,
                           onChanged: onUseSyncChanged,
                         ),
@@ -424,25 +485,37 @@ class SlidersPageView extends StatelessWidget {
   }
 
   String _generateLiquidGlassCode() {
+
+    final refractionModeCode=refractionMode?
+    '''${LiquidGlassRefractionMode.radialRefraction}'''
+        :
+    '''${LiquidGlassRefractionMode.shapeRefraction}''';
+    final lightModeCode=lightMode?
+    '''${LiquidGlassLightMode.radial}'''
+        :
+        '''${LiquidGlassLightMode.edge}''';
+
     final shapeCode = shape
         ? '''
 SuperellipseShape(
+  oneSideLightIntensity: $oneSideLightIntensity,
   curveExponent: $curveExponent,
   borderWidth: $borderWidth,
   borderSoftness: $borderSoftness,
   lightIntensity: $lightIntensity,
   lightDirection: $lightDirection,
+  lightMode: $lightModeCode
 )
 '''
         : '''
 RoundedRectangleShape(
-  lightEffectIntensity: $lightEffectIntensity,
+  oneSideLightIntensity: $oneSideLightIntensity,
   cornerRadius: $cornerRadius,
-  highDistortionOnCurves: false,
   borderWidth: $borderWidth,
   borderSoftness: $borderSoftness,
   lightIntensity: $lightIntensity,
   lightDirection: $lightDirection,
+  lightMode: $lightModeCode
 )
 ''';
 
@@ -469,6 +542,7 @@ LiquidGlassView(
       width: $lensWidth,
       height: $lensHeight,
       magnification: $magnification,
+      refractionMode:$refractionModeCode,
       enableInnerRadiusTransparent: $enableInnerRadiusTransparent,
       diagonalFlip: $diagonalFlip,
       distortion: $distortion,
@@ -476,6 +550,8 @@ LiquidGlassView(
       draggable: true,
       blur: LiquidGlassBlur(sigmaX: $blur, sigmaY: $blur),
       shape: $shapeCode,
+      chromaticAberration:$chromaticAberration,
+      saturation:$saturation
     ),
   ],
 );

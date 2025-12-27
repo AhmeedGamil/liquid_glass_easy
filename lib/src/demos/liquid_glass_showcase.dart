@@ -7,7 +7,9 @@ import 'package:liquid_glass_easy/src/helpers/slider_page_view.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass_view.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 
@@ -33,15 +35,17 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   double lensHeight = 60;
   double cornerRadius = 30;
   double magnification = 1.0;
-  double distortion = 0.2;
+  double distortion = 0.1;
   double distortionWidth = 33;
   double backgroundTransparencyFadeIn = 0;
   double diagonalFlip = 0;
-  double borderWidth = 2.0;
+  double borderWidth = 1.0;
   double borderSoftness = 1.0;
   double lightIntensity =1.0;
-  double lightEffectIntensity =0.0;
-  double lightDirection = 0.0;
+  double oneSideLightIntensity =0.0;
+  double chromaticAberration=0.003;
+  double saturation=1;
+  double lightDirection = 39.0;
   double  curveExponent=3;
   double pixelRatio = 1.0;
   bool realTimeCapture = true;
@@ -51,6 +55,10 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   double blur=0;
   double refreshRate=3;
   LiquidGlassRefreshRate liquidGlassRefreshRate=LiquidGlassRefreshRate.deviceRefreshRate;
+  bool isRadialLightMode=false;
+  bool isRadialRefractionMode=false;
+
+
   bool isVisible = true;
   final controller = LiquidGlassController();
   final viewController = LiquidGlassViewController();
@@ -91,19 +99,27 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
                   width: lensWidth,
                   height: lensHeight,
                   magnification: magnification,
+                  refractionMode: isRadialRefractionMode?LiquidGlassRefractionMode.radialRefraction:LiquidGlassRefractionMode.shapeRefraction,
                   enableInnerRadiusTransparent: enableInnerRadiusTransparent,
                   diagonalFlip: diagonalFlip,
                   distortion: distortion,
                   distortionWidth: distortionWidth,
+                  chromaticAberration: chromaticAberration,
+                  saturation: saturation,
                   draggable: true,
                   blur: LiquidGlassBlur(sigmaX:blur  , sigmaY:blur ),
                   shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,
-                      lightEffectIntensity: lightEffectIntensity,
-                      lightDirection: lightDirection)
+                      oneSideLightIntensity: oneSideLightIntensity,
+                      lightDirection: lightDirection,
+                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
+                  )
                       :RoundedRectangleShape(cornerRadius: cornerRadius,
                       borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,
-                      lightEffectIntensity: lightEffectIntensity,
-                      lightDirection: lightDirection),visibility: visibility,
+                      oneSideLightIntensity: oneSideLightIntensity,
+                      lightDirection: lightDirection,
+                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
+                  ),visibility: visibility,
+
                   //child:_GlassInputBar()
                 ),
               ],
@@ -117,6 +133,7 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
             lensHeight: lensHeight,
             cornerRadius: cornerRadius,
             magnification: magnification,
+            refractionMode: isRadialRefractionMode,
             distortion: distortion,
             distortionWidth: distortionWidth,
             diagonalFlip: diagonalFlip,
@@ -125,7 +142,10 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
             curveExponent: curveExponent,
             lightDirection: lightDirection,
             lightIntensity: lightIntensity,
-            lightEffectIntensity: lightEffectIntensity,
+            oneSideLightIntensity: oneSideLightIntensity,
+            lightMode: isRadialLightMode,
+            chromaticAberration: chromaticAberration,
+            saturation: saturation,
             blur: blur,
             refreshRate: refreshRate,
             pixelRatio: pixelRatio,
@@ -139,6 +159,7 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
             onLensHeightChanged: (v) => setState(() => lensHeight = v),
             onCornerRadiusChanged: (v) => setState(() => cornerRadius = v),
             onMagnificationChanged: (v) => setState(() => magnification = v),
+            onRefractionModeChanged: (v) => setState(() => isRadialRefractionMode = v) ,
             onDistortionChanged: (v) => setState(() => distortion = v),
             onDistortionWidthChanged: (v) =>
                 setState(() => distortionWidth = v),
@@ -147,9 +168,11 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
             onBorderSoftnessChanged:(v) => setState(() => borderSoftness = v),
             onCurveExponentChanged: (v) => setState(() => curveExponent = v),
             onLightIntensityChanged: (v) => setState(() => lightIntensity = v),
-            onLightEffectIntensityChanged: (v) => setState(() => lightEffectIntensity = v),
-
+            onOneSideLightIntensityChanged: (v) => setState(() => oneSideLightIntensity = v),
+            onLightModeChanged: (v) => setState(() => isRadialLightMode = v),
             onLightDirectionChanged: (v) => setState(() => lightDirection = v),
+            onChromaticAberrationChanged: (v) => setState(() => chromaticAberration = v),
+            onSaturationChanged: (v) => setState(() => saturation = v),
             onBlurChanged: (v) => setState(() => blur = v),
             onRefreshRateChanged:(v) => setState(() {
               v==0?

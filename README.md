@@ -1,5 +1,7 @@
 # Liquid Glass Easy
 
+[![pub package](https://img.shields.io/pub/v/liquid_glass_easy.svg)](https://pub.dev/packages/liquid_glass_easy)
+
 <p>
   🤝 <strong>Contributions are welcome!</strong>
 </p>
@@ -13,9 +15,9 @@ These dynamic lenses can **magnify**, **distort**, **blur**, **tint**, and **ref
 
 ---
 
-## Why LiquidGlassEffect?
+## Why Liquid Glass Easy?
 
-Unlike traditional glassmorphism or static blur effects, **LiquidGlassEasy** simulates *real glass physics* — complete with **refraction, distortion, and fluid responsiveness**.
+Unlike traditional glassmorphism or static blur effects, **Liquid Glass Easy** simulates *real glass physics* — complete with **refraction, distortion, and fluid responsiveness**.
 It captures and refracts live background content in real time, producing **immersive, motion-reactive visuals** that bring depth and realism to your UI.
 
 ---
@@ -83,7 +85,7 @@ class DemoGlass extends StatelessWidget {
             width: 200,
             height: 100,
             magnification: 1,
-            distortion: 0.2,
+            distortion: 0.1,
             distortionWidth: 50,
             position: LiquidGlassAlignPosition(alignment: Alignment.center),
           ),
@@ -93,6 +95,20 @@ class DemoGlass extends StatelessWidget {
   }
 }
 ```
+
+---
+
+### Refraction Modes
+
+  <p>
+  <img src="showcases/liquid_glass_shape_refraction.jpg" width="49%" alt="Shape Refraction"/>
+  <img src="showcases/liquid_glass_radial_refraction.jpg" width="49%" alt="Radial Refraction"/>
+</p>
+
+| Mode | Description |
+|--------|-------------|
+| `shapeRefraction` | Refracts light based on the underlying shape geometry, following the contours of the glass for more physically accurate distortion. |
+| `radialRefraction` | Refracts light radially from a central point, creating a circular distortion pattern. |
 
 ---
 
@@ -106,14 +122,14 @@ LiquidGlassView(
     LiquidGlass(
       width: 160,
       height: 160,
-      distortion: 0.3,
+      distortion: 0.15,
       distortionWidth: 50,
       position: LiquidGlassOffsetPosition(left: 40, top: 100),
     ),
     LiquidGlass(
       width: 220,
       height: 120,
-      distortion: 0.15,
+      distortion: 0.075,
       magnification: 1,
       distortionWidth: 40,
       position: LiquidGlassAlignPosition(alignment: Alignment.bottomRight),
@@ -184,11 +200,20 @@ LiquidGlass(
 | `RoundedRectangleShape` | Use `cornerRadius`. |
 | `SuperellipseShape` | Use `curveExponent`. |
 
-> **Tip:**  
-> The `RoundedRectangleShape` includes a property called `highDistortionOnCurves`, which enhances distortion along curved edges.  
-> Use this when you want refracted highlights or edge refraction even with a small `distortionWidth`, especially for circular or highly curved shapes.
->`distortionWidth` defines the area that is gonna be refracted, started from the edge.
+---
 
+### Chromatic Aberration
+
+  <img src="showcases/liquid_glass_chromatic_aberration.jpg" width="60%" alt="Radial Refraction"/>
+
+| Property | Description |
+|----------|-------------|
+| `chromaticAberration` | Controls the intensity of the chromatic aberration effect applied to the lens. Higher values increase the separation of color channels, producing a stronger rainbow-like distortion. |
+
+> **Tip:**  
+> The default value is `0.003`.  
+> Setting it to `0.0` disables the chromatic aberration effect entirely.  
+> Use this property to add subtle or exaggerated color distortion for a more realistic or stylistic glass effect.
 ---
 
 ## Show/Hide Lens with Controller (Animated)
@@ -278,7 +303,7 @@ LiquidGlass({
   double width = 200,
   double height = 100,
   double magnification = 1.0,
-  double distortion = 0.25,
+  double distortion = 0.125,
   bool draggable = false,
   required LiquidGlassPosition position,
   Widget? child,

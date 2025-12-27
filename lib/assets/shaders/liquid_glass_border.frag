@@ -7,6 +7,7 @@
 
 #include <flutter/runtime_effect.glsl>
 #include "liquid_glass_border.glsl"
+#include "liquid_glass_common.glsl"
 #define PI 3.14159265
 precision highp float; // or highp float
 
@@ -31,45 +32,10 @@ uniform float u_lightIntensity;
 uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform float u_lightDirection;
-uniform float u_lightEffectIntensity;
+uniform float u_oneSideLightIntensity;
+uniform float u_lightMode;
 
 out vec4 frag_color;
-
-/* ================
-   HELPERS
-   ================ */
-const float EPS = 1e-6;
-vec2 safe2(vec2 v){ return max(v, vec2(EPS)); }
-
-float fastPow(float x, float n) {
-    return exp2(n * log2(x));
-}
-
-float superellipseShape(vec2 pLocalPx, vec2 halfSizePx, float n){
-    vec2 d = abs(pLocalPx) / safe2(halfSizePx);
-    float k = fastPow(fastPow(d.x, n) + fastPow(d.y, n), 1.0 / n);
-    float s = max(min(halfSizePx.x, halfSizePx.y), EPS);
-    return (k - 1.0) * s;
-}
-
-// Pixel-true orthogonal signed distance from the superellipse edge
-float superellipseOrthoDist_px(vec2 pLocalPx, vec2 halfSizePx, float n){
-    float h  = 1.0;
-    float f  = superellipseShape(pLocalPx, halfSizePx, n);
-    float fx = superellipseShape(pLocalPx + vec2(h, 0.0), halfSizePx, n)
-    - superellipseShape(pLocalPx - vec2(h, 0.0), halfSizePx, n);
-    float fy = superellipseShape(pLocalPx + vec2(0.0, h), halfSizePx, n)
-    - superellipseShape(pLocalPx - vec2(0.0, h), halfSizePx, n);
-    vec2  g  = vec2(fx, fy) * 0.5;
-    return f / max(length(g), EPS);
-}
-
-
-float roundedRectangleShape(vec2 point, vec2 center, vec2 halfSize, float radius) {
-    vec2 q = abs(point - center) - halfSize + radius;
-    return min(max(q.x, q.y), 0.0) + length(max(q, 0.0)) - radius;
-}
-
 
 /* ================
    MAIN
@@ -86,16 +52,25 @@ void main() {
     vec2 localPosPx     = fragPosPx - lensCenterPx;
 
     // =====================================================
-    // 🌀 Shape distance (only this part changes per shape)
+    // Shape distance (only this part changes per shape)
     // =====================================================
-    float shapeDistPx = (u_shapeType < 0.5)
-    ? roundedRectangleShape(
-        uvNorm, lensCenterNorm,
-        lensHalfSizePx / u_resolution.y,
-        min(u_cornerRadius, min(u_lensWidth, u_lensHeight) * 0.5)/ u_resolution.y
-    ) * u_resolution.y
-    : superellipseOrthoDist_px(localPosPx, lensHalfSizePx, max(u_superN, 1.0001));
-
+    ShapeData shapeData;
+    if (u_shapeType > 0.5) {
+        // Superellipse
+        float n = max(u_superN, 1.0001);
+        shapeData = evaluateShape(fragPosPx,lensCenterPx, lensHalfSizePx, n,u_shapeType);
+    } else {
+        // Rounded rectangle
+        float maxCorner      = min(u_lensWidth, u_lensHeight) * 0.5;
+        float cornerRadiusPx = min(u_cornerRadius, maxCorner);
+        shapeData = evaluateShape(
+            fragPosPx,
+            lensCenterPx,
+            lensHalfSizePx,
+            cornerRadiusPx,
+            u_shapeType
+        );
+    }
 
     // =====================================================
     // Border (shared for both shapes)
@@ -103,7 +78,8 @@ void main() {
     vec4 borderPremul = getSweepBorder(
         uvNorm,
         lensCenterNorm,
-        shapeDistPx,                // unified signed-distance value
+        shapeData.orthoDist,
+    shapeData.grad,// unified signed-distance value
         u_borderWidth,
         u_borderSoftness,
         u_borderColor,
@@ -111,9 +87,8 @@ void main() {
         u_shadowColor,
         u_lightIntensity,
         u_borderAlpha,
-        u_lightDirection,u_lightEffectIntensity
+        u_lightDirection, u_oneSideLightIntensity,u_lightMode
     );
-
     // output example
     frag_color = borderPremul;
 }

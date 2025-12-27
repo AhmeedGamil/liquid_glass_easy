@@ -6,6 +6,8 @@ import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 
+import 'utils/liquid_glass_refraction_mode.dart';
+
 
 // Represents a single lens in the LiquidGlass system
 class LiquidGlass {
@@ -24,6 +26,20 @@ class LiquidGlass {
   /// - `1.0` means no magnification.
   final double magnification;
 
+  /// Defines how light is refracted through the liquid glass surface.
+  ///
+  /// This determines the visual distortion pattern applied to the
+  /// background behind the glass effect:
+  ///
+  /// • [LiquidGlassRefractionMode.shapeRefraction] — Refracts light
+  ///   based on the underlying shape geometry, following the contours
+  ///   of the glass for a more physically accurate distortion.
+  ///
+  /// • [LiquidGlassRefractionMode.radialRefraction] — Refracts light
+  ///   radially from a central point, creating a circular
+  ///   distortion pattern.
+  final LiquidGlassRefractionMode refractionMode;
+
   /// The bending strength of the distortion effect.
   ///
   /// Controls how much the refracted (bent) background is warped inside the
@@ -33,7 +49,6 @@ class LiquidGlass {
   ///
   /// - **Range:** `0.0` (no distortion) to `1.0` (maximum distortion).
   final double distortion;
-
 
   /// The thickness of the distortion band around the lens perimeter.
   ///
@@ -74,6 +89,20 @@ class LiquidGlass {
   /// Controls how the underlying content is blurred beneath the glass.
   final LiquidGlassBlur blur;
 
+  /// Controls the intensity of the chromatic aberration effect.
+  ///
+  /// Higher values increase the separation of color channels,
+  /// creating a stronger chromatic distortion. The default value is 0.003. A value of `0.0`
+  /// disables the effect.
+  final double chromaticAberration;
+
+  /// Controls the color saturation level of the rendered output.
+  ///
+  /// Values greater than `1.0` increase color intensity, while
+  /// values between `0.0` and `1.0` reduce saturation. A value of
+  /// `0.0` results in a grayscale image.
+  final double saturation;
+
   /// Whether the inner, non-distorted region should be transparent.
   ///
   /// When enabled, the unaffected center area will reveal the background directly.
@@ -104,7 +133,7 @@ class LiquidGlass {
     this.width = 200,
     this.height = 100,
     this.magnification = 1,
-    this.distortion = 0.2,
+    this.distortion = 0.1,
     this.distortionWidth = 30,
     this.enableInnerRadiusTransparent = false,
     this.diagonalFlip = 0,
@@ -113,6 +142,9 @@ class LiquidGlass {
     required this.position,
     this.shape = const RoundedRectangleShape(),
     this.blur = const LiquidGlassBlur(),
+    this.chromaticAberration=0.003,
+    this.saturation=1.0,
+    this.refractionMode=LiquidGlassRefractionMode.shapeRefraction,
     this.visibility = true,
     this.color = Colors.transparent,
     this.outOfBoundaries=false
@@ -159,20 +191,20 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
       hideLiquidGlass: _hideLiquidGlass,
       resetLiquidGlassPosition: _resetLiquidGlassPosition
     ); // Resolve initial position
-    final _initialPosition = widget.config.position.resolve(
+    final initialPosition = widget.config.position.resolve(
       widget.parentSize,
       Size(widget.config.width, widget.config.height),
     );
-    _touchNotifier = ValueNotifier<Offset>(_initialPosition);
+    _touchNotifier = ValueNotifier<Offset>(initialPosition);
   }
 
   void setPosition()
   {
-    final _initialPosition = widget.config.position.resolve(
+    final initialPosition = widget.config.position.resolve(
       widget.parentSize,
       Size(widget.config.width, widget.config.height),
     );
-    _touchNotifier.value = _initialPosition;
+    _touchNotifier.value = initialPosition;
   }
 
 
@@ -331,7 +363,8 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
                             position: widget.config.position,
                             lensWidth: widget.config.width,
                             lensHeight: widget.config.height,
-                            magnification: widget.config.magnification,
+                            magnification:
+                            (_animController.value)+(widget.config.magnification*(1-_animController.value)),
                             distortion: widget.config.distortion,
                             distortionWidth: (widget.config.distortionWidth -
                                 _animController.value *
@@ -347,7 +380,11 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
                             color: widget.config.color,
                             shader: widget.sharedShader!,
                             image: widget.sharedImage!,
-                            borderShader: widget.border)
+                            borderShader: widget.border,
+                          chromaticAberration: widget.config.chromaticAberration*(1-_animController.value),
+                          saturation:(_animController.value)+(widget.config.saturation*(1-_animController.value)),
+                          refractionMode: widget.config.refractionMode,
+                    )
                         : null,
                     child: const SizedBox.expand(),
                   ),
