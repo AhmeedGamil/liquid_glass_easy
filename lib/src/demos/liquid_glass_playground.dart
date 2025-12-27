@@ -30,7 +30,7 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   // all the state values
-  bool shape=false;
+  bool shape = false;
 
   double lensWidth = 200;
   double lensHeight = 100;
@@ -42,44 +42,52 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
   double diagonalFlip = 0;
   double borderWidth = 1.0;
   double borderSoftness = 1.0;
-  double lightIntensity =1.0;
-  double oneSideLightIntensity =0.0;
-  double chromaticAberration=0.003;
-  double saturation=1;
+  double lightIntensity = 1.0;
+  double oneSideLightIntensity = 0.0;
+  double chromaticAberration = 0.003;
+  double saturation = 1;
   double lightDirection = 39.0;
-  double  curveExponent=3;
+  double curveExponent = 3;
   double pixelRatio = 1.0;
   bool realTimeCapture = true;
   bool useSync = true;
   bool enableInnerRadiusTransparent = false;
   bool visibility = true;
-  double blur=0;
-  double refreshRate=3;
-  LiquidGlassRefreshRate liquidGlassRefreshRate=LiquidGlassRefreshRate.deviceRefreshRate;
+  double blur = 0;
+  double refreshRate = 3;
+  LiquidGlassRefreshRate liquidGlassRefreshRate =
+      LiquidGlassRefreshRate.deviceRefreshRate;
   final controller = LiquidGlassController();
   final viewController = LiquidGlassViewController();
   bool isVisible = true;
-  bool isRadialLightMode=false;
-  bool isRadialRefractionMode=false;
+  bool isRadialLightMode = false;
+  bool isRadialRefractionMode = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(onPressed: () {
-        if (isVisible = (!isVisible)) {
-          viewController.startRealtimeCapture();
-          controller.showLiquidGlass();
-        } else {
-          controller.hideLiquidGlass(
-              onComplete: viewController.stopRealtimeCapture);
-        }
-      }, child:
-      Text('Animation',style: TextStyle(fontSize: 11),),),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          if (isVisible = (!isVisible)) {
+            viewController.startRealtimeCapture();
+            controller.showLiquidGlass();
+          } else {
+            controller.hideLiquidGlass(
+                onComplete: viewController.stopRealtimeCapture);
+          }
+        },
+        child: Text(
+          'Animation',
+          style: TextStyle(fontSize: 11),
+        ),
+      ),
       appBar: AppBar(title: const Text("Liquid Glass Playground")),
       body: Column(
         children: [
           SizedBox(
-      height: MediaQuery.of(context).size.height*0.5-kToolbarHeight-MediaQuery.of(context).padding.top,
+            height: MediaQuery.of(context).size.height * 0.5 -
+                kToolbarHeight -
+                MediaQuery.of(context).padding.top,
             child: LiquidGlassView(
               controller: viewController,
               pixelRatio: pixelRatio,
@@ -95,19 +103,36 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
                   width: lensWidth,
                   height: lensHeight,
                   magnification: magnification,
-                  refractionMode: isRadialRefractionMode?LiquidGlassRefractionMode.radialRefraction:LiquidGlassRefractionMode.shapeRefraction,
+                  refractionMode: isRadialRefractionMode
+                      ? LiquidGlassRefractionMode.radialRefraction
+                      : LiquidGlassRefractionMode.shapeRefraction,
                   distortion: distortion,
                   distortionWidth: distortionWidth,
                   chromaticAberration: chromaticAberration,
                   saturation: saturation,
                   draggable: true,
-                  blur: LiquidGlassBlur(sigmaX:blur  , sigmaY:blur ),
-                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,oneSideLightIntensity:oneSideLightIntensity,
-                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
-                  )
-                    :RoundedRectangleShape(cornerRadius: cornerRadius,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,lightDirection: lightDirection,oneSideLightIntensity: oneSideLightIntensity,
-                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
-                  ),
+                  blur: LiquidGlassBlur(sigmaX: blur, sigmaY: blur),
+                  shape: shape
+                      ? SuperellipseShape(
+                          curveExponent: curveExponent,
+                          borderWidth: borderWidth,
+                          borderSoftness: borderSoftness,
+                          lightIntensity: lightIntensity,
+                          lightDirection: lightDirection,
+                          oneSideLightIntensity: oneSideLightIntensity,
+                          lightMode: isRadialLightMode
+                              ? LiquidGlassLightMode.radial
+                              : LiquidGlassLightMode.edge)
+                      : RoundedRectangleShape(
+                          cornerRadius: cornerRadius,
+                          borderWidth: borderWidth,
+                          borderSoftness: borderSoftness,
+                          lightIntensity: lightIntensity,
+                          lightDirection: lightDirection,
+                          oneSideLightIntensity: oneSideLightIntensity,
+                          lightMode: isRadialLightMode
+                              ? LiquidGlassLightMode.radial
+                              : LiquidGlassLightMode.edge),
                   visibility: visibility,
                 ),
               ],
@@ -143,32 +168,38 @@ class _LiquidGlassPlaygroundState extends State<LiquidGlassPlayground> {
             enableInnerRadiusTransparent: enableInnerRadiusTransparent,
             // callbacks update state
             onPageChanged: (i) => setState(() => _currentPage = i),
-            onShapeChanged: (i)=> setState(() => shape = i),
+            onShapeChanged: (i) => setState(() => shape = i),
             onLensWidthChanged: (v) => setState(() => lensWidth = v),
             onLensHeightChanged: (v) => setState(() => lensHeight = v),
             onCornerRadiusChanged: (v) => setState(() => cornerRadius = v),
             onMagnificationChanged: (v) => setState(() => magnification = v),
-            onRefractionModeChanged: (v) => setState(() => isRadialRefractionMode = v),
+            onRefractionModeChanged: (v) =>
+                setState(() => isRadialRefractionMode = v),
             onDistortionChanged: (v) => setState(() => distortion = v),
             onDistortionWidthChanged: (v) =>
                 setState(() => distortionWidth = v),
             onDiagonalFlipChanged: (v) => setState(() => diagonalFlip = v),
             onBorderWidthChanged: (v) => setState(() => borderWidth = v),
-            onBorderSoftnessChanged:(v) => setState(() => borderSoftness = v),
+            onBorderSoftnessChanged: (v) => setState(() => borderSoftness = v),
             onCurveExponentChanged: (v) => setState(() => curveExponent = v),
             onLightIntensityChanged: (v) => setState(() => lightIntensity = v),
-            onOneSideLightIntensityChanged: (v) => setState(() => oneSideLightIntensity = v),
+            onOneSideLightIntensityChanged: (v) =>
+                setState(() => oneSideLightIntensity = v),
             onLightModeChanged: (v) => setState(() => isRadialLightMode = v),
-            onChromaticAberrationChanged: (v) => setState(() => chromaticAberration = v),
+            onChromaticAberrationChanged: (v) =>
+                setState(() => chromaticAberration = v),
             onSaturationChanged: (v) => setState(() => saturation = v),
             onLightDirectionChanged: (v) => setState(() => lightDirection = v),
             onBlurChanged: (v) => setState(() => blur = v),
-            onRefreshRateChanged:(v) => setState(() {
-              v==0?
-              liquidGlassRefreshRate=LiquidGlassRefreshRate.low
-                  :  v==1? liquidGlassRefreshRate=LiquidGlassRefreshRate.medium
-                  :v==2? liquidGlassRefreshRate=LiquidGlassRefreshRate.high
-                  :liquidGlassRefreshRate=LiquidGlassRefreshRate.deviceRefreshRate;
+            onRefreshRateChanged: (v) => setState(() {
+              v == 0
+                  ? liquidGlassRefreshRate = LiquidGlassRefreshRate.low
+                  : v == 1
+                      ? liquidGlassRefreshRate = LiquidGlassRefreshRate.medium
+                      : v == 2
+                          ? liquidGlassRefreshRate = LiquidGlassRefreshRate.high
+                          : liquidGlassRefreshRate =
+                              LiquidGlassRefreshRate.deviceRefreshRate;
               refreshRate = v;
             }),
 

@@ -57,7 +57,6 @@ class SlidersPageView extends StatelessWidget {
   final ValueChanged<double> onChromaticAberrationChanged;
   final ValueChanged<double> onSaturationChanged;
 
-
   final ValueChanged<double> onCurveExponentChanged;
   final ValueChanged<double> onBlurChanged;
   final ValueChanged<double> onRefreshRateChanged;
@@ -128,7 +127,7 @@ class SlidersPageView extends StatelessWidget {
     final accent = Theme.of(context).colorScheme.secondary;
 
     return SizedBox(
-      height: MediaQuery.of(context).size.height*0.5,
+      height: MediaQuery.of(context).size.height * 0.5,
       child: Column(
         children: [
           Row(
@@ -167,7 +166,7 @@ class SlidersPageView extends StatelessWidget {
                 const SizedBox(width: 48),
             ],
           ),
-    Expanded(
+          Expanded(
             child: PageView(
               controller: controller,
               physics: const NeverScrollableScrollPhysics(),
@@ -178,10 +177,12 @@ class SlidersPageView extends StatelessWidget {
                   context,
                   title: "Lens Settings",
                   icon: Icons.center_focus_strong,
-                  copyButton:
-                  ElevatedButton.icon(
+                  copyButton: ElevatedButton.icon(
                     icon: const Icon(Icons.copy),
-                    label: const Text("Copy values",style: TextStyle(fontSize: 12,color: Colors.black),),
+                    label: const Text(
+                      "Copy values",
+                      style: TextStyle(fontSize: 12, color: Colors.black),
+                    ),
                     style: ElevatedButton.styleFrom(
                       //backgroundColor: Theme.of(context).colorScheme.secondary,
                       foregroundColor: Colors.white,
@@ -194,26 +195,26 @@ class SlidersPageView extends StatelessWidget {
                       Clipboard.setData(ClipboardData(text: code));
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
-                          content: Text("Copied LiquidGlass code with sliders values to clipboard"),
+                          content: Text(
+                              "Copied LiquidGlass code with sliders values to clipboard"),
                           duration: Duration(seconds: 2),
                         ),
                       );
                     },
                   ),
                   sliders: [
-
-              Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Expanded(
-                  child: Text("Rounded Rectangle - Superellipse"),
-                ),
-                Switch(
-                  value: shape,
-                  onChanged: onShapeChanged,
-                ),
-              ],
-            ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Expanded(
+                          child: Text("Rounded Rectangle - Superellipse"),
+                        ),
+                        Switch(
+                          value: shape,
+                          onChanged: onShapeChanged,
+                        ),
+                      ],
+                    ),
                     SliderWidget(
                       label: "Width",
                       value: lensWidth,
@@ -255,7 +256,6 @@ class SlidersPageView extends StatelessWidget {
                   title: "Effects & Distortion",
                   icon: Icons.blur_on,
                   sliders: [
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -276,7 +276,6 @@ class SlidersPageView extends StatelessWidget {
                       devision: 100,
                       onChanged: onDistortionChanged,
                     ),
-
                     SliderWidget(
                       label: "Distortion Width",
                       value: distortionWidth,
@@ -285,7 +284,6 @@ class SlidersPageView extends StatelessWidget {
                       devision: 100,
                       onChanged: onDistortionWidthChanged,
                     ),
-
                     SliderWidget(
                       label: "Magnification",
                       value: magnification,
@@ -306,7 +304,6 @@ class SlidersPageView extends StatelessWidget {
                         ),
                       ],
                     ),
-
                     SliderWidget(
                       label: "Diagonal Flip",
                       value: diagonalFlip,
@@ -323,7 +320,6 @@ class SlidersPageView extends StatelessWidget {
                       devision: 30,
                       onChanged: onBlurChanged,
                     ),
-
                     SliderWidget(
                       label: "Chromatic Aberration",
                       value: chromaticAberration,
@@ -332,7 +328,6 @@ class SlidersPageView extends StatelessWidget {
                       devision: 100,
                       onChanged: onChromaticAberrationChanged,
                     ),
-
                     SliderWidget(
                       label: "Saturation",
                       value: saturation,
@@ -350,7 +345,6 @@ class SlidersPageView extends StatelessWidget {
                   title: "Border Settings",
                   icon: Icons.border_style,
                   sliders: [
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -442,11 +436,12 @@ class SlidersPageView extends StatelessWidget {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                      Text("Low"),
-                      Text("Medium"),
-                      Text("High"),
-                      Text("Device Refresh Rate"),
-                    ],),
+                        Text("Low"),
+                        Text("Medium"),
+                        Text("High"),
+                        Text("Device Refresh Rate"),
+                      ],
+                    ),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -485,15 +480,12 @@ class SlidersPageView extends StatelessWidget {
   }
 
   String _generateLiquidGlassCode() {
-
-    final refractionModeCode=refractionMode?
-    '''${LiquidGlassRefractionMode.radialRefraction}'''
-        :
-    '''${LiquidGlassRefractionMode.shapeRefraction}''';
-    final lightModeCode=lightMode?
-    '''${LiquidGlassLightMode.radial}'''
-        :
-        '''${LiquidGlassLightMode.edge}''';
+    final refractionModeCode = refractionMode
+        ? '''${LiquidGlassRefractionMode.radialRefraction}'''
+        : '''${LiquidGlassRefractionMode.shapeRefraction}''';
+    final lightModeCode = lightMode
+        ? '''${LiquidGlassLightMode.radial}'''
+        : '''${LiquidGlassLightMode.edge}''';
 
     final shapeCode = shape
         ? '''
@@ -524,13 +516,7 @@ LiquidGlassView(
   controller: viewController,
   pixelRatio: $pixelRatio,
   realTimeCapture: $realTimeCapture,
-  refreshRate: ${
-        refreshRate==0?
-        LiquidGlassRefreshRate.low
-            :  refreshRate==1? LiquidGlassRefreshRate.medium
-            :refreshRate==2? LiquidGlassRefreshRate.high
-            :LiquidGlassRefreshRate.deviceRefreshRate
-    },
+  refreshRate: ${refreshRate == 0 ? LiquidGlassRefreshRate.low : refreshRate == 1 ? LiquidGlassRefreshRate.medium : refreshRate == 2 ? LiquidGlassRefreshRate.high : LiquidGlassRefreshRate.deviceRefreshRate},
   useSync: $useSync,
   backgroundWidget: YourBackgroundWidget(),
   children: [
@@ -563,7 +549,7 @@ LiquidGlassView(
     required String title,
     required IconData icon,
     required List<Widget> sliders,
-        Widget copyButton= const SizedBox.shrink(),
+    Widget copyButton = const SizedBox.shrink(),
   }) {
     return Padding(
       padding: const EdgeInsets.all(12.0),

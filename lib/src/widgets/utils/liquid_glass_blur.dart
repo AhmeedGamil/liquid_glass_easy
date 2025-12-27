@@ -1,4 +1,4 @@
-class LiquidGlassBlur{
+class LiquidGlassBlur {
   /// The horizontal blur intensity (sigma value).
   ///
   /// Controls how much the background is blurred **horizontally** beneath the lens.
@@ -12,7 +12,7 @@ class LiquidGlassBlur{
   final double sigmaY;
 
   const LiquidGlassBlur({
-    this.sigmaX=0,
-    this.sigmaY=0,
+    this.sigmaX = 0,
+    this.sigmaY = 0,
   });
 }

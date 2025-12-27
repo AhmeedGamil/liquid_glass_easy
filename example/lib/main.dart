@@ -11,14 +11,13 @@ class LiquidGlassExampleApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
-        useMaterial3: true,
-      ),
-      home: const LiquidGlassExample()
-    );
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          brightness: Brightness.light,
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+          useMaterial3: true,
+        ),
+        home: const LiquidGlassExample());
   }
 }
 
@@ -34,8 +33,7 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
   final lensController = LiquidGlassController();
 
   // Start with realtime capturing ON
-  final bool _realtime =
-      true;
+  final bool _realtime = true;
 
   // We cycle through three gradient backgrounds (no images required).
   int _bgIndex = 0;
@@ -80,7 +78,8 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
       ),
     ];
 
-    return Stack(alignment: Alignment.center,
+    return Stack(
+      alignment: Alignment.center,
       children: [
         images[_bgIndex], // spread the list into widgets
         Align(
@@ -134,7 +133,7 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
             LiquidGlass(
               controller: lensController,
               position:
-              const LiquidGlassAlignPosition(alignment: Alignment.center),
+                  const LiquidGlassAlignPosition(alignment: Alignment.center),
               width: 100,
               height: 100,
               magnification: 1,
@@ -153,27 +152,27 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
                   borderSoftness: 2.5,
                   lightIntensity: 1.5,
                   lightDirection: 39.0),
-            child:
-              Container(
-                decoration:  BoxDecoration(borderRadius: BorderRadius.circular(50),),
-                child: InkWell(
+              child: Container(
+                decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(50),
+                ),
+                child: InkWell(
+                    borderRadius: BorderRadius.circular(50),
                     child: SizedBox(
                         height: 50,
                         width: 50,
                         child: Icon(
                           color: Colors.white,
-                        Icons.pause,
+                          Icons.pause,
                           size: 36,
                         ))),
               ),
             ),
-
           if (_bgIndex == 1)
             LiquidGlass(
               controller: lensController,
               position:
-              const LiquidGlassAlignPosition(alignment: Alignment.center),
+                  const LiquidGlassAlignPosition(alignment: Alignment.center),
               width: 240 * 0.8,
               height: 312 * 0.8,
               magnification: 1,
@@ -210,7 +209,8 @@ class _LiquidGlassExampleState extends State<LiquidGlassExample> {
           if (_bgIndex == 2)
             LiquidGlass(
                 //controller: controller,
-                position:const LiquidGlassAlignPosition(alignment: Alignment.center),
+                position:
+                    const LiquidGlassAlignPosition(alignment: Alignment.center),
                 width: 250,
                 height: 250,
                 magnification: 1,
@@ -475,8 +475,7 @@ class WeatherWidget extends StatelessWidget {
   Widget _extraInfo(IconData icon, String label, String value) {
     return Column(
       children: [
-        Icon(icon,
-            color: Colors.white.withAlpha(229), size: 22 * 0.8), // 14.5
+        Icon(icon, color: Colors.white.withAlpha(229), size: 22 * 0.8), // 14.5
         const SizedBox(height: 4 * 0.8), // 2.6
         Text(
           label,

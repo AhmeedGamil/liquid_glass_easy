@@ -1,7 +1,6 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_light_mode.dart';
 import '../utils/liquid_glass_position.dart';
@@ -58,12 +57,14 @@ class LiquidGlassPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final bool useBlur=blur.sigmaX>0 || blur.sigmaY>0;
+    final bool useBlur = blur.sigmaX > 0 || blur.sigmaY > 0;
     final lensPosition = dragOffset!;
-    final double selectedLightMode=(border!.lightMode == LiquidGlassLightMode.edge)?0:1;
-    final double selectedRefractionMode=(refractionMode == LiquidGlassRefractionMode.shapeRefraction)?0:1;
+    final double selectedLightMode =
+        (border!.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
+    final double selectedRefractionMode =
+        (refractionMode == LiquidGlassRefractionMode.shapeRefraction) ? 0 : 1;
 
-    int index=0;
+    int index = 0;
     // Pass shader parameters (uniforms) for the GLSL shader
     shader.setFloat(index++, size.width);
     shader.setFloat(index++, size.height);
@@ -72,9 +73,17 @@ class LiquidGlassPainter extends CustomPainter {
 
     shader.setFloat(index++, lensWidth);
     shader.setFloat(index++, lensHeight);
-    shader.setFloat(index++, border is RoundedRectangleShape? 0:1);
-    shader.setFloat(index++, border is RoundedRectangleShape? (border as RoundedRectangleShape).cornerRadius:0);
-    shader.setFloat(index++, border is SuperellipseShape? (border as SuperellipseShape).curveExponent:0);
+    shader.setFloat(index++, border is RoundedRectangleShape ? 0 : 1);
+    shader.setFloat(
+        index++,
+        border is RoundedRectangleShape
+            ? (border as RoundedRectangleShape).cornerRadius
+            : 0);
+    shader.setFloat(
+        index++,
+        border is SuperellipseShape
+            ? (border as SuperellipseShape).curveExponent
+            : 0);
 
     shader.setFloat(index++, magnification);
     shader.setFloat(index++, distortion);
@@ -83,42 +92,39 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(index++, enableInnerRadiusTransparent ? 1.0 : 0.0);
     shader.setFloat(index++, diagonalFlip);
 
-    shader.setFloat(index++,useBlur?0: border!.borderWidth);
+    shader.setFloat(index++, useBlur ? 0 : border!.borderWidth);
     shader.setFloat(index++, border!.borderSoftness);
 
-    shader.setFloat(index++, border!.borderColor?.r??0);
-    shader.setFloat(index++,border!.borderColor?.g??0);
-    shader.setFloat(index++,border!.borderColor?.b??0);
-    shader.setFloat(index++, border!.borderColor?.a??0);
-    shader.setFloat(index++,  borderAlpha);
+    shader.setFloat(index++, border!.borderColor?.r ?? 0);
+    shader.setFloat(index++, border!.borderColor?.g ?? 0);
+    shader.setFloat(index++, border!.borderColor?.b ?? 0);
+    shader.setFloat(index++, border!.borderColor?.a ?? 0);
+    shader.setFloat(index++, borderAlpha);
 
-    shader.setFloat(index++,  border!.lightIntensity);
+    shader.setFloat(index++, border!.lightIntensity);
 
-    shader.setFloat(index++,  border!.lightColor.r);
-    shader.setFloat(index++, border!.lightColor.g );
-    shader.setFloat(index++,border!.lightColor.b );
+    shader.setFloat(index++, border!.lightColor.r);
+    shader.setFloat(index++, border!.lightColor.g);
+    shader.setFloat(index++, border!.lightColor.b);
     shader.setFloat(index++, border!.lightColor.a);
 
-    shader.setFloat(index++,border!.shadowColor.r);
-    shader.setFloat(index++,border!.shadowColor.g);
-    shader.setFloat(index++,border!.shadowColor.b);
-    shader.setFloat(index++,border!.shadowColor.a);
+    shader.setFloat(index++, border!.shadowColor.r);
+    shader.setFloat(index++, border!.shadowColor.g);
+    shader.setFloat(index++, border!.shadowColor.b);
+    shader.setFloat(index++, border!.shadowColor.a);
 
-    shader.setFloat(index++,border!.lightDirection);
-    shader.setFloat(index++,color.r);
-    shader.setFloat(index++,color.b);
-    shader.setFloat(index++,color.g);
-    shader.setFloat(index++,color.a);
-    shader.setFloat(index++,border!.oneSideLightIntensity);
-    shader.setFloat(index++,chromaticAberration);
-    shader.setFloat(index++,saturation);
-    shader.setFloat(index++,selectedLightMode);
-    shader.setFloat(index,selectedRefractionMode);
-
+    shader.setFloat(index++, border!.lightDirection);
+    shader.setFloat(index++, color.r);
+    shader.setFloat(index++, color.b);
+    shader.setFloat(index++, color.g);
+    shader.setFloat(index++, color.a);
+    shader.setFloat(index++, border!.oneSideLightIntensity);
+    shader.setFloat(index++, chromaticAberration);
+    shader.setFloat(index++, saturation);
+    shader.setFloat(index++, selectedLightMode);
+    shader.setFloat(index, selectedRefractionMode);
 
     shader.setImageSampler(0, image);
-
-
 
     final borderExpand = border!.borderWidth / 2;
     final rectExpandedBorder = Rect.fromLTWH(
@@ -129,7 +135,7 @@ class LiquidGlassPainter extends CustomPainter {
     );
 
     final rectRRect = RRect.fromRectAndRadius(
-     rectExpandedBorder,
+      rectExpandedBorder,
       Radius.circular(
         border is RoundedRectangleShape
             ? (border as RoundedRectangleShape).cornerRadius
@@ -140,22 +146,21 @@ class LiquidGlassPainter extends CustomPainter {
     //canvas.save();
     canvas.clipRRect(rectRRect);
 
-    final lensPaint = Paint()
-      ..shader = shader;
+    final lensPaint = Paint()..shader = shader;
 
-    if(useBlur) {
+    if (useBlur) {
       lensPaint.imageFilter = ui.ImageFilter.blur(
-    sigmaX: blur.sigmaX>3?3*borderAlpha:blur.sigmaX*borderAlpha,
-    sigmaY: blur.sigmaY>3?3*borderAlpha:blur.sigmaX*borderAlpha,
-    tileMode: ui.TileMode.clamp,
-    );
+        sigmaX: blur.sigmaX > 3 ? 3 * borderAlpha : blur.sigmaX * borderAlpha,
+        sigmaY: blur.sigmaY > 3 ? 3 * borderAlpha : blur.sigmaX * borderAlpha,
+        tileMode: ui.TileMode.clamp,
+      );
     }
     canvas.drawRRect(rectRRect, lensPaint);
     //canvas.restore();
 
 // --- PASS 2: BORDER SHADER (sharp, no blur) ---
     if (borderShader != null && useBlur) {
-      index=0;
+      index = 0;
       borderShader!
         ..setFloat(index++, size.width)
         ..setFloat(index++, size.height)
@@ -163,15 +168,17 @@ class LiquidGlassPainter extends CustomPainter {
         ..setFloat(index++, lensPosition.dy)
         ..setFloat(index++, lensWidth)
         ..setFloat(index++, lensHeight)
-        ..setFloat(index++, border is SuperellipseShape
-            ? 1
-            : 0)
-        ..setFloat(index++, border is RoundedRectangleShape
-            ? (border as RoundedRectangleShape).cornerRadius
-            : 0)
-        ..setFloat(index++, border is SuperellipseShape
-            ? (border as SuperellipseShape).curveExponent
-            : 0)
+        ..setFloat(index++, border is SuperellipseShape ? 1 : 0)
+        ..setFloat(
+            index++,
+            border is RoundedRectangleShape
+                ? (border as RoundedRectangleShape).cornerRadius
+                : 0)
+        ..setFloat(
+            index++,
+            border is SuperellipseShape
+                ? (border as SuperellipseShape).curveExponent
+                : 0)
         ..setFloat(index++, border!.borderWidth)
         ..setFloat(index++, border!.borderSoftness)
         ..setFloat(index++, border!.borderColor?.r ?? 0)
@@ -190,12 +197,7 @@ class LiquidGlassPainter extends CustomPainter {
         ..setFloat(index++, border!.shadowColor.a)
         ..setFloat(index++, border!.lightDirection)
         ..setFloat(index++, border!.oneSideLightIntensity)
-      ..setFloat(index,selectedLightMode);
-
-
-
-
-
+        ..setFloat(index, selectedLightMode);
 
       final borderPaint = Paint()..shader = borderShader;
 
@@ -206,6 +208,6 @@ class LiquidGlassPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant LiquidGlassPainter oldDelegate) {
-    return (oldDelegate.image != image) || (borderAlpha>0 && borderAlpha<1);
+    return (oldDelegate.image != image) || (borderAlpha > 0 && borderAlpha < 1);
   }
 }

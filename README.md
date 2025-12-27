@@ -40,7 +40,7 @@ Add the dependency:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^1.0.0
+  liquid_glass_easy: ^1.1.1
 ```
 
 Then run:

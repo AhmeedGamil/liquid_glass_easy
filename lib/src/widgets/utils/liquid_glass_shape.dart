@@ -4,7 +4,6 @@ import 'liquid_glass_light_mode.dart';
 
 /// Abstract base border configuration
 abstract class LiquidGlassShape {
-
   /// The thickness of the lens border in logical pixels.
   ///
   /// Increasing this value makes the border appear thicker
@@ -77,52 +76,46 @@ abstract class LiquidGlassShape {
   ///   lens-like lighting sweep around the border.
   final LiquidGlassLightMode lightMode;
 
-
-
   const LiquidGlassShape({
     this.borderWidth = 1.0,
     this.borderSoftness = 1.0,
     this.borderColor,
     this.lightIntensity = 1.0,
-    this.oneSideLightIntensity=0,
+    this.oneSideLightIntensity = 0,
     this.lightColor = const Color(0xB2FFFFFF),
     this.shadowColor = const Color(0x1A000000),
     this.lightDirection = 0.0,
-    this.lightMode=LiquidGlassLightMode.edge,
+    this.lightMode = LiquidGlassLightMode.edge,
   });
 }
 
 class RoundedRectangleShape extends LiquidGlassShape {
   final double cornerRadius;
-  const RoundedRectangleShape({
-    this.cornerRadius = 50.0,
-    super.borderWidth,
-    super.borderSoftness,
-    super.borderColor,
-    super.lightIntensity,
-    super.oneSideLightIntensity,
-    super.lightColor,
-    super.shadowColor,
-    super.lightDirection,
-    super.lightMode
-  });
+  const RoundedRectangleShape(
+      {this.cornerRadius = 50.0,
+      super.borderWidth,
+      super.borderSoftness,
+      super.borderColor,
+      super.lightIntensity,
+      super.oneSideLightIntensity,
+      super.lightColor,
+      super.shadowColor,
+      super.lightDirection,
+      super.lightMode});
 }
 
 class SuperellipseShape extends LiquidGlassShape {
   final double curveExponent;
 
-  const SuperellipseShape({
-    this.curveExponent = 3.0,
-    super.borderWidth,
-    super.borderSoftness,
-    super.borderColor,
-    super.lightIntensity,
-    super.oneSideLightIntensity,
-    super.lightColor,
-    super.shadowColor,
-    super.lightDirection,
-    super.lightMode
-  });
+  const SuperellipseShape(
+      {this.curveExponent = 3.0,
+      super.borderWidth,
+      super.borderSoftness,
+      super.borderColor,
+      super.lightIntensity,
+      super.oneSideLightIntensity,
+      super.lightColor,
+      super.shadowColor,
+      super.lightDirection,
+      super.lightMode});
 }
-
-

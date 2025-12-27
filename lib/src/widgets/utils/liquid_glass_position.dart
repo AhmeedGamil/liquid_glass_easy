@@ -10,7 +10,6 @@ abstract class LiquidGlassPosition {
 
 // Concrete position using a fixed Offset (x, y) in the parent widgets
 class LiquidGlassOffsetPosition extends LiquidGlassPosition {
-
   /// The distance between the lens and the **left** edge of its parent container.
   ///
   final double? left;
@@ -26,7 +25,6 @@ class LiquidGlassOffsetPosition extends LiquidGlassPosition {
   /// The distance between the lens and the **bottom** edge of its parent container.
   ///
   final double? bottom;
-
 
   const LiquidGlassOffsetPosition({
     this.left,
@@ -78,8 +76,6 @@ class LiquidGlassAlignPosition extends LiquidGlassPosition {
   /// between the lens and surrounding UI elements.
   final EdgeInsets margin;
 
-
-
   const LiquidGlassAlignPosition({
     required this.alignment,
     this.margin = EdgeInsets.zero, // default no margin
@@ -88,8 +84,10 @@ class LiquidGlassAlignPosition extends LiquidGlassPosition {
   @override
   Offset resolve(Size parentSize, Size lensSize) {
     // Available space after subtracting margins
-    final double availableWidth = parentSize.width - lensSize.width - margin.left - margin.right;
-    final double availableHeight = parentSize.height - lensSize.height - margin.top - margin.bottom;
+    final double availableWidth =
+        parentSize.width - lensSize.width - margin.left - margin.right;
+    final double availableHeight =
+        parentSize.height - lensSize.height - margin.top - margin.bottom;
 
     // Convert alignment (-1..1) to pixel Offset inside available area
     final double dx = margin.left + (alignment.x + 1) / 2 * availableWidth;

@@ -8,7 +8,6 @@ import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 
 import 'utils/liquid_glass_refraction_mode.dart';
 
-
 // Represents a single lens in the LiquidGlass system
 class LiquidGlass {
   /// Controls the lens behavior programmatically, such as toggling visibility or
@@ -127,28 +126,26 @@ class LiquidGlass {
   /// clamped to remain fully within the parent’s bounds.
   final bool outOfBoundaries;
 
-
-  const LiquidGlass({
-    this.controller,
-    this.width = 200,
-    this.height = 100,
-    this.magnification = 1,
-    this.distortion = 0.1,
-    this.distortionWidth = 30,
-    this.enableInnerRadiusTransparent = false,
-    this.diagonalFlip = 0,
-    this.draggable = false,
-    this.child,
-    required this.position,
-    this.shape = const RoundedRectangleShape(),
-    this.blur = const LiquidGlassBlur(),
-    this.chromaticAberration=0.003,
-    this.saturation=1.0,
-    this.refractionMode=LiquidGlassRefractionMode.shapeRefraction,
-    this.visibility = true,
-    this.color = Colors.transparent,
-    this.outOfBoundaries=false
-  });
+  const LiquidGlass(
+      {this.controller,
+      this.width = 200,
+      this.height = 100,
+      this.magnification = 1,
+      this.distortion = 0.1,
+      this.distortionWidth = 30,
+      this.enableInnerRadiusTransparent = false,
+      this.diagonalFlip = 0,
+      this.draggable = false,
+      this.child,
+      required this.position,
+      this.shape = const RoundedRectangleShape(),
+      this.blur = const LiquidGlassBlur(),
+      this.chromaticAberration = 0.003,
+      this.saturation = 1.0,
+      this.refractionMode = LiquidGlassRefractionMode.shapeRefraction,
+      this.visibility = true,
+      this.color = Colors.transparent,
+      this.outOfBoundaries = false});
 }
 
 /// Lens widgets that uses the shared shader + image
@@ -187,10 +184,10 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     // only attach trigger if controller exists
     // Attach controller if provided
     widget.config.controller?.attach(
-      showLiquidGlass: _showLiquidGlass,
-      hideLiquidGlass: _hideLiquidGlass,
-      resetLiquidGlassPosition: _resetLiquidGlassPosition
-    ); // Resolve initial position
+        showLiquidGlass: _showLiquidGlass,
+        hideLiquidGlass: _hideLiquidGlass,
+        resetLiquidGlassPosition:
+            _resetLiquidGlassPosition); // Resolve initial position
     final initialPosition = widget.config.position.resolve(
       widget.parentSize,
       Size(widget.config.width, widget.config.height),
@@ -198,16 +195,13 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     _touchNotifier = ValueNotifier<Offset>(initialPosition);
   }
 
-  void setPosition()
-  {
+  void setPosition() {
     final initialPosition = widget.config.position.resolve(
       widget.parentSize,
       Size(widget.config.width, widget.config.height),
     );
     _touchNotifier.value = initialPosition;
   }
-
-
 
   void _hideLiquidGlass(
       {int? animationTimeMillisecond, VoidCallback? onComplete}) {
@@ -257,8 +251,6 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     setPosition();
   }
 
-
-
   @override
   void didUpdateWidget(covariant LiquidGlassWidget oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -274,7 +266,6 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
       }
     }
 
-
     // --- Handle parent size / layout changes
     final parentSize = widget.parentSize;
     final oldParentSize = oldWidget.parentSize;
@@ -282,52 +273,56 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     if (parentSize.width != oldParentSize.width ||
         parentSize.height != oldParentSize.height ||
         config.width != oldWidget.config.width ||
-        config.height != oldWidget.config.height || config.position!=oldWidget.config.position
-    ) {
-        // Compute old and new resolved centers
-        final oldResolvedPosition = oldWidget.config.position.resolve(
-          oldParentSize,
-          Size(oldWidget.config.width, oldWidget.config.height),
-        );
-        final resolvedPosition = config.position.resolve(
-          parentSize,
-          Size(config.width, config.height),
-        );
+        config.height != oldWidget.config.height ||
+        config.position != oldWidget.config.position) {
+      // Compute old and new resolved centers
+      final oldResolvedPosition = oldWidget.config.position.resolve(
+        oldParentSize,
+        Size(oldWidget.config.width, oldWidget.config.height),
+      );
+      final resolvedPosition = config.position.resolve(
+        parentSize,
+        Size(config.width, config.height),
+      );
 
-        // Calculate proportional scaling factors
-        // final scaleX = parentSize.width / oldParentSize.width;
-        // final scaleY = parentSize.height / oldParentSize.height;
+      // Calculate proportional scaling factors
+      // final scaleX = parentSize.width / oldParentSize.width;
+      // final scaleY = parentSize.height / oldParentSize.height;
 
-        // Maintain the same relative touch offset ratio inside the parent
-        final Offset oldTouch = _touchNotifier.value;
-        final Offset relative = Offset(
-          (oldTouch.dx - oldResolvedPosition.dx) / oldParentSize.width,
-          (oldTouch.dy - oldResolvedPosition.dy) / oldParentSize.height,
-        );
+      // Maintain the same relative touch offset ratio inside the parent
+      final Offset oldTouch = _touchNotifier.value;
+      final Offset relative = Offset(
+        (oldTouch.dx - oldResolvedPosition.dx) / oldParentSize.width,
+        (oldTouch.dy - oldResolvedPosition.dy) / oldParentSize.height,
+      );
 
-        // Apply scaling and update position proportionally
-        Offset newTouch = Offset(
-          resolvedPosition.dx + relative.dx * parentSize.width,
-          resolvedPosition.dy + relative.dy * parentSize.height,
-        );
+      // Apply scaling and update position proportionally
+      Offset newTouch = Offset(
+        resolvedPosition.dx + relative.dx * parentSize.width,
+        resolvedPosition.dy + relative.dy * parentSize.height,
+      );
 
-        // Clamp lens inside parent bounds
-        final double maxX = parentSize.width -config.width.clamp(0.0, parentSize.width);
-        final double maxY = parentSize.height - config.height.clamp(0.0, parentSize.height);
+      // Clamp lens inside parent bounds
+      final double maxX =
+          parentSize.width - config.width.clamp(0.0, parentSize.width);
+      final double maxY =
+          parentSize.height - config.height.clamp(0.0, parentSize.height);
 
-        newTouch = Offset(
-          newTouch.dx.clamp(0.0, maxX),
-          newTouch.dy.clamp(0.0, maxY),
-        );
+      newTouch = Offset(
+        newTouch.dx.clamp(0.0, maxX),
+        newTouch.dy.clamp(0.0, maxY),
+      );
 
-        _touchNotifier.value = newTouch;
-      }
+      _touchNotifier.value = newTouch;
+    }
     // config.width.clamp(0.0, parentSize.width);
     // config.height.clamp(0.0, parentSize.height);
     if (!widget.config.outOfBoundaries) {
       // --- clamp comes here, completely outside the condition ---
-      final double maxX = parentSize.width - config.width.clamp(0.0, parentSize.width);
-      final double maxY = parentSize.height - config.height.clamp(0.0, parentSize.height);
+      final double maxX =
+          parentSize.width - config.width.clamp(0.0, parentSize.width);
+      final double maxY =
+          parentSize.height - config.height.clamp(0.0, parentSize.height);
 
       _touchNotifier.value = Offset(
         _touchNotifier.value.dx.clamp(0.0, maxX),
@@ -363,8 +358,9 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
                             position: widget.config.position,
                             lensWidth: widget.config.width,
                             lensHeight: widget.config.height,
-                            magnification:
-                            (_animController.value)+(widget.config.magnification*(1-_animController.value)),
+                            magnification: (_animController.value) +
+                                (widget.config.magnification *
+                                    (1 - _animController.value)),
                             distortion: widget.config.distortion,
                             distortionWidth: (widget.config.distortionWidth -
                                 _animController.value *
@@ -381,10 +377,14 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
                             shader: widget.sharedShader!,
                             image: widget.sharedImage!,
                             borderShader: widget.border,
-                          chromaticAberration: widget.config.chromaticAberration*(1-_animController.value),
-                          saturation:(_animController.value)+(widget.config.saturation*(1-_animController.value)),
-                          refractionMode: widget.config.refractionMode,
-                    )
+                            chromaticAberration:
+                                widget.config.chromaticAberration *
+                                    (1 - _animController.value),
+                            saturation: (_animController.value) +
+                                (widget.config.saturation *
+                                    (1 - _animController.value)),
+                            refractionMode: widget.config.refractionMode,
+                          )
                         : null,
                     child: const SizedBox.expand(),
                   ),
@@ -400,16 +400,18 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
                     width: widget.config.width,
                     height: widget.config.height,
                     child: GestureDetector(
-                      behavior: HitTestBehavior.opaque, // ensures full area receives gestures
+                      behavior: HitTestBehavior
+                          .opaque, // ensures full area receives gestures
                       onPanUpdate: widget.config.draggable
                           ? (details) {
-                        _touchNotifier.value += details.delta;
-                      }
+                              _touchNotifier.value += details.delta;
+                            }
                           : null,
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(
                           widget.config.shape is RoundedRectangleShape
-                              ? (widget.config.shape as RoundedRectangleShape).cornerRadius
+                              ? (widget.config.shape as RoundedRectangleShape)
+                                  .cornerRadius
                               : 0,
                         ),
                         child: widget.config.child ??

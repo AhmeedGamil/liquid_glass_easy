@@ -2,26 +2,28 @@ import 'dart:ui';
 
 class LiquidGlassController {
   void Function({int? animationTimeMillisecond, VoidCallback? onComplete})?
-  _showLiquidGlass;
+      _showLiquidGlass;
   void Function({int? animationTimeMillisecond, VoidCallback? onComplete})?
-  _hideLiquidGlass;
-  void Function()?
-  _resetLiquidGlassPosition;
+      _hideLiquidGlass;
+  void Function()? _resetLiquidGlassPosition;
   void attach({
-    required void Function({int? animationTimeMillisecond, VoidCallback? onComplete}) showLiquidGlass,
-    required void Function({int? animationTimeMillisecond, VoidCallback? onComplete}) hideLiquidGlass,
-    required void Function()resetLiquidGlassPosition,
-
+    required void Function(
+            {int? animationTimeMillisecond, VoidCallback? onComplete})
+        showLiquidGlass,
+    required void Function(
+            {int? animationTimeMillisecond, VoidCallback? onComplete})
+        hideLiquidGlass,
+    required void Function() resetLiquidGlassPosition,
   }) {
     _showLiquidGlass = showLiquidGlass;
     _hideLiquidGlass = hideLiquidGlass;
-    _resetLiquidGlassPosition=resetLiquidGlassPosition;
+    _resetLiquidGlassPosition = resetLiquidGlassPosition;
   }
 
   void detach() {
     _showLiquidGlass = null;
     _hideLiquidGlass = null;
-    _resetLiquidGlassPosition=null;
+    _resetLiquidGlassPosition = null;
   }
 
   /// Shows the LiquidGlass lens with an animation.
@@ -36,7 +38,8 @@ class LiquidGlassController {
   /// - [onComplete]: Optional callback executed after the animation finishes.
   ///
   /// Use this when you want to reveal the lens with a smooth transition.
-  void showLiquidGlass({int? animationTimeMillisecond, VoidCallback? onComplete}) {
+  void showLiquidGlass(
+      {int? animationTimeMillisecond, VoidCallback? onComplete}) {
     _showLiquidGlass?.call(
       animationTimeMillisecond: animationTimeMillisecond,
       onComplete: onComplete,
@@ -55,7 +58,8 @@ class LiquidGlassController {
   /// - [onComplete]: Optional callback triggered after the hide animation ends.
   ///
   /// Use this when you want to dismiss the lens smoothly.
-  void hideLiquidGlass({int? animationTimeMillisecond, VoidCallback? onComplete}) {
+  void hideLiquidGlass(
+      {int? animationTimeMillisecond, VoidCallback? onComplete}) {
     _hideLiquidGlass?.call(
       animationTimeMillisecond: animationTimeMillisecond,
       onComplete: onComplete,

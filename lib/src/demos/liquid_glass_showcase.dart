@@ -13,10 +13,8 @@ import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 
-
 // Playground widget
 class LiquidGlassShowcase extends StatefulWidget {
-
   const LiquidGlassShowcase({
     super.key,
   });
@@ -30,7 +28,7 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   // all the state values
-  bool shape=false;
+  bool shape = false;
   double lensWidth = 280;
   double lensHeight = 60;
   double cornerRadius = 30;
@@ -41,23 +39,23 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   double diagonalFlip = 0;
   double borderWidth = 1.0;
   double borderSoftness = 1.0;
-  double lightIntensity =1.0;
-  double oneSideLightIntensity =0.0;
-  double chromaticAberration=0.003;
-  double saturation=1;
+  double lightIntensity = 1.0;
+  double oneSideLightIntensity = 0.0;
+  double chromaticAberration = 0.003;
+  double saturation = 1;
   double lightDirection = 39.0;
-  double  curveExponent=3;
+  double curveExponent = 3;
   double pixelRatio = 1.0;
   bool realTimeCapture = true;
   bool useSync = true;
   bool enableInnerRadiusTransparent = false;
   bool visibility = true;
-  double blur=0;
-  double refreshRate=3;
-  LiquidGlassRefreshRate liquidGlassRefreshRate=LiquidGlassRefreshRate.deviceRefreshRate;
-  bool isRadialLightMode=false;
-  bool isRadialRefractionMode=false;
-
+  double blur = 0;
+  double refreshRate = 3;
+  LiquidGlassRefreshRate liquidGlassRefreshRate =
+      LiquidGlassRefreshRate.deviceRefreshRate;
+  bool isRadialLightMode = false;
+  bool isRadialRefractionMode = false;
 
   bool isVisible = true;
   final controller = LiquidGlassController();
@@ -77,14 +75,20 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: FloatingActionButton(onPressed:toggleLiquidGlassAnimation,child:
-     Text('Animation',style: TextStyle(fontSize: 11),),),
-        appBar: const _FrostedAppBar(title: "Gallery"),
+      floatingActionButton: FloatingActionButton(
+        onPressed: toggleLiquidGlassAnimation,
+        child: Text(
+          'Animation',
+          style: TextStyle(fontSize: 11),
+        ),
+      ),
+      appBar: const _FrostedAppBar(title: "Gallery"),
       body: Column(
         children: [
           SizedBox(
-            height: MediaQuery.of(context).size.height*0.5-70-MediaQuery.of(context).padding.top,
-
+            height: MediaQuery.of(context).size.height * 0.5 -
+                70 -
+                MediaQuery.of(context).padding.top,
             child: LiquidGlassView(
               controller: viewController,
               pixelRatio: pixelRatio,
@@ -95,11 +99,14 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
                 LiquidGlass(
                   controller: controller,
                   position: const LiquidGlassAlignPosition(
-                      alignment: Alignment.bottomLeft,margin: EdgeInsets.only(top: 20,bottom: 20,left: 20)),
+                      alignment: Alignment.bottomLeft,
+                      margin: EdgeInsets.only(top: 20, bottom: 20, left: 20)),
                   width: lensWidth,
                   height: lensHeight,
                   magnification: magnification,
-                  refractionMode: isRadialRefractionMode?LiquidGlassRefractionMode.radialRefraction:LiquidGlassRefractionMode.shapeRefraction,
+                  refractionMode: isRadialRefractionMode
+                      ? LiquidGlassRefractionMode.radialRefraction
+                      : LiquidGlassRefractionMode.shapeRefraction,
                   enableInnerRadiusTransparent: enableInnerRadiusTransparent,
                   diagonalFlip: diagonalFlip,
                   distortion: distortion,
@@ -107,25 +114,37 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
                   chromaticAberration: chromaticAberration,
                   saturation: saturation,
                   draggable: true,
-                  blur: LiquidGlassBlur(sigmaX:blur  , sigmaY:blur ),
-                  shape: shape?SuperellipseShape(curveExponent: curveExponent,borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,
-                      oneSideLightIntensity: oneSideLightIntensity,
-                      lightDirection: lightDirection,
-                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
-                  )
-                      :RoundedRectangleShape(cornerRadius: cornerRadius,
-                      borderWidth:borderWidth, borderSoftness: borderSoftness,lightIntensity: lightIntensity,
-                      oneSideLightIntensity: oneSideLightIntensity,
-                      lightDirection: lightDirection,
-                      lightMode:isRadialLightMode?LiquidGlassLightMode.radial:LiquidGlassLightMode.edge
-                  ),visibility: visibility,
+                  blur: LiquidGlassBlur(sigmaX: blur, sigmaY: blur),
+                  shape: shape
+                      ? SuperellipseShape(
+                          curveExponent: curveExponent,
+                          borderWidth: borderWidth,
+                          borderSoftness: borderSoftness,
+                          lightIntensity: lightIntensity,
+                          oneSideLightIntensity: oneSideLightIntensity,
+                          lightDirection: lightDirection,
+                          lightMode: isRadialLightMode
+                              ? LiquidGlassLightMode.radial
+                              : LiquidGlassLightMode.edge)
+                      : RoundedRectangleShape(
+                          cornerRadius: cornerRadius,
+                          borderWidth: borderWidth,
+                          borderSoftness: borderSoftness,
+                          lightIntensity: lightIntensity,
+                          oneSideLightIntensity: oneSideLightIntensity,
+                          lightDirection: lightDirection,
+                          lightMode: isRadialLightMode
+                              ? LiquidGlassLightMode.radial
+                              : LiquidGlassLightMode.edge),
+                  visibility: visibility,
 
                   //child:_GlassInputBar()
                 ),
               ],
-              backgroundWidget:_GalleryCardsPage(),
+              backgroundWidget: _GalleryCardsPage(),
             ),
-          ), SlidersPageView(
+          ),
+          SlidersPageView(
             controller: _pageController,
             currentPage: _currentPage,
             shape: shape,
@@ -154,32 +173,38 @@ class _LiquidGlassShowcaseState extends State<LiquidGlassShowcase> {
             enableInnerRadiusTransparent: enableInnerRadiusTransparent,
             // callbacks update state
             onPageChanged: (i) => setState(() => _currentPage = i),
-            onShapeChanged: (i)=> setState(() => shape = i),
+            onShapeChanged: (i) => setState(() => shape = i),
             onLensWidthChanged: (v) => setState(() => lensWidth = v),
             onLensHeightChanged: (v) => setState(() => lensHeight = v),
             onCornerRadiusChanged: (v) => setState(() => cornerRadius = v),
             onMagnificationChanged: (v) => setState(() => magnification = v),
-            onRefractionModeChanged: (v) => setState(() => isRadialRefractionMode = v) ,
+            onRefractionModeChanged: (v) =>
+                setState(() => isRadialRefractionMode = v),
             onDistortionChanged: (v) => setState(() => distortion = v),
             onDistortionWidthChanged: (v) =>
                 setState(() => distortionWidth = v),
             onDiagonalFlipChanged: (v) => setState(() => diagonalFlip = v),
             onBorderWidthChanged: (v) => setState(() => borderWidth = v),
-            onBorderSoftnessChanged:(v) => setState(() => borderSoftness = v),
+            onBorderSoftnessChanged: (v) => setState(() => borderSoftness = v),
             onCurveExponentChanged: (v) => setState(() => curveExponent = v),
             onLightIntensityChanged: (v) => setState(() => lightIntensity = v),
-            onOneSideLightIntensityChanged: (v) => setState(() => oneSideLightIntensity = v),
+            onOneSideLightIntensityChanged: (v) =>
+                setState(() => oneSideLightIntensity = v),
             onLightModeChanged: (v) => setState(() => isRadialLightMode = v),
             onLightDirectionChanged: (v) => setState(() => lightDirection = v),
-            onChromaticAberrationChanged: (v) => setState(() => chromaticAberration = v),
+            onChromaticAberrationChanged: (v) =>
+                setState(() => chromaticAberration = v),
             onSaturationChanged: (v) => setState(() => saturation = v),
             onBlurChanged: (v) => setState(() => blur = v),
-            onRefreshRateChanged:(v) => setState(() {
-              v==0?
-              liquidGlassRefreshRate=LiquidGlassRefreshRate.low
-              :  v==1? liquidGlassRefreshRate=LiquidGlassRefreshRate.medium
-                  :v==2? liquidGlassRefreshRate=LiquidGlassRefreshRate.high
-              :liquidGlassRefreshRate=LiquidGlassRefreshRate.deviceRefreshRate;
+            onRefreshRateChanged: (v) => setState(() {
+              v == 0
+                  ? liquidGlassRefreshRate = LiquidGlassRefreshRate.low
+                  : v == 1
+                      ? liquidGlassRefreshRate = LiquidGlassRefreshRate.medium
+                      : v == 2
+                          ? liquidGlassRefreshRate = LiquidGlassRefreshRate.high
+                          : liquidGlassRefreshRate =
+                              LiquidGlassRefreshRate.deviceRefreshRate;
               refreshRate = v;
             }),
 
@@ -214,7 +239,8 @@ class _GalleryCardsPage extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         scrollDirection: Axis.vertical, //
         itemCount: imageUrls.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12), // vertical spacing
+        separatorBuilder: (_, __) =>
+            const SizedBox(height: 12), // vertical spacing
         itemBuilder: (context, index) {
           return _GalleryCard(
             url: imageUrls[index],
@@ -226,7 +252,6 @@ class _GalleryCardsPage extends StatelessWidget {
     );
   }
 }
-
 
 class _GalleryCard extends StatelessWidget {
   final String url;
@@ -332,22 +357,21 @@ class _FrostedAppBar extends StatelessWidget implements PreferredSizeWidget {
               ),
             ),
           ),
-          actions:
-              [
-                IconButton(
-                  icon: const Icon(Icons.search, color: Colors.white),
-                  onPressed: () {},
-                ),
-                const SizedBox(width: 4),
-                const Padding(
-                  padding: EdgeInsets.only(right: 12),
-                  child: CircleAvatar(
-                    radius: 18,
-                    backgroundImage:
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.search, color: Colors.white),
+              onPressed: () {},
+            ),
+            const SizedBox(width: 4),
+            const Padding(
+              padding: EdgeInsets.only(right: 12),
+              child: CircleAvatar(
+                radius: 18,
+                backgroundImage:
                     NetworkImage("https://i.pravatar.cc/150?img=8"),
-                  ),
-                ),
-              ],
+              ),
+            ),
+          ],
         ),
       ),
     );
