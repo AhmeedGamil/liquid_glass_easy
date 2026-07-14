@@ -113,6 +113,8 @@ class ClassicBorder extends LiquidGlassBorderType {
 /// - [ambientIntensity] — Ambient lighting contribution to the rim.
 /// - [borderSolidity] — How much `lightIntensity` can drive the rim toward
 ///   a fully opaque/solid look.
+/// - [lightSpread] — How far the bright rim highlight wraps around the
+///   perimeter (higher = broader).
 class OpticalBorder extends LiquidGlassBorderType {
   /// Controls the saturation boost applied to the final border color.
   ///
@@ -159,9 +161,25 @@ class OpticalBorder extends LiquidGlassBorderType {
   /// Recommended range: `0.0` to `1.0`.
   final double borderSolidity;
 
+  /// Controls how far the bright rim highlight spreads around the perimeter.
+  ///
+  /// The optical rim has two overlapping contributions: an angle-independent
+  /// ambient ring (see [ambientIntensity]) and a directional highlight that is
+  /// brightest where the surface faces the light. `lightSpread` widens or
+  /// tightens the angular reach of that directional highlight — i.e. how much
+  /// of the perimeter it wraps across before fading into the ambient ring.
+  ///
+  /// - `0.0` — Tight, concentrated highlight on the light-facing sides only.
+  /// - `0.5` — Default (matches the legacy fixed falloff).
+  /// - `1.0` — Broad highlight that wraps almost all the way around the rim.
+  ///
+  /// Recommended range: `0.0` to `1.0`.
+  final double lightSpread;
+
   const OpticalBorder({
     this.borderSaturation = 1.0,
     this.ambientIntensity = 1.0,
     this.borderSolidity = 0.0,
+    this.lightSpread = 0.5,
   });
 }

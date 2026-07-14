@@ -53,6 +53,8 @@ uniform vec4 u_packA;
 uniform vec4 u_packB;
 // x=doubleSideLightIntensity  y=borderSaturation  z=borderSolidity  w=borderMode
 uniform vec4 u_packC;
+// Optical-rim angular spread (higher = highlight wraps further around).
+uniform float u_lightSpread;
 
 // Restore the original scalar names (plain float aliases, no swizzle chain).
 #define u_lensWidth                    u_lensGeom.x
@@ -279,6 +281,7 @@ void main() {
         u_doubleSideLightIntensity,
         u_borderSaturation,
         u_borderSolidity,
+        u_lightSpread,
         u_borderMode
     );
     // Apply the soft outer-edge mask so the rounded corners fade

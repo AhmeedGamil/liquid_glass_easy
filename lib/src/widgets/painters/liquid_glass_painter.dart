@@ -187,6 +187,8 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(index++, border!.borderSaturation);
     shader.setFloat(index++, border!.borderSolidity);
     shader.setFloat(index++, selectedBorderMode);
+    // u_lightSpread — optical-rim angular spread.
+    shader.setFloat(index++, border!.lightSpread);
 
     // u_imageOffset / u_imageSize — map the bound texture to a parent-space
     // rect. Full-frame default: offset (0,0), size == resolution (`size`),
@@ -299,6 +301,7 @@ class LiquidGlassPainter extends CustomPainter {
     if (a.doubleSideLightIntensity != b.doubleSideLightIntensity) return false;
     if (a.borderSaturation != b.borderSaturation) return false;
     if (a.borderSolidity != b.borderSolidity) return false;
+    if (a.lightSpread != b.lightSpread) return false;
     if (a.borderMode != b.borderMode) return false;
     return a.cornerStyle == b.cornerStyle &&
         a.cornerRadius == b.cornerRadius &&
@@ -439,7 +442,9 @@ class LiquidGlassBorderPainter extends CustomPainter {
           border.isOpticalBorder ? 0.0 : border.doubleSideLightIntensity)
       ..setFloat(index++, border.borderSaturation)
       ..setFloat(index++, border.borderSolidity)
-      ..setFloat(index++, selectedBorderMode);
+      ..setFloat(index++, selectedBorderMode)
+      // u_lightSpread — optical-rim angular spread.
+      ..setFloat(index++, border.lightSpread);
 
     // u_imageOffset / u_imageSize — full-frame default: (0,0) / size.
     final Offset imgOffset = imageOffset ?? Offset.zero;
@@ -505,6 +510,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
     if (a.doubleSideLightIntensity != b.doubleSideLightIntensity) return false;
     if (a.borderSaturation != b.borderSaturation) return false;
     if (a.borderSolidity != b.borderSolidity) return false;
+    if (a.lightSpread != b.lightSpread) return false;
     if (a.borderMode != b.borderMode) return false;
     return a.cornerStyle == b.cornerStyle &&
         a.cornerRadius == b.cornerRadius &&

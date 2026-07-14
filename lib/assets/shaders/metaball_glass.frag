@@ -109,7 +109,8 @@ uniform vec4 u_warp;
 uniform vec4 u_warpB;
 // x=borderAlpha  y=lightIntensity  z=lightDirection  w=honorBackdropAlpha
 uniform vec4 u_warpC;
-// x=blur (in-shader blur radius, fragment px)  y=shapeAaPx (edge-AA band)  z,w=unused
+// x=blur (in-shader blur radius, fragment px)  y=shapeAaPx (edge-AA band)
+// z=lightSpread (optical-rim angular spread)  w=unused
 uniform vec4 u_warpD;
 
 uniform vec4  u_borderColor;
@@ -145,6 +146,7 @@ uniform vec4 u_imageRegion;
 #define u_honorBackdropAlpha           u_warpC.w
 #define u_blur                         u_warpD.x
 #define u_shapeAaPx                    u_warpD.y
+#define u_lightSpread                  u_warpD.z
 #define u_imageOffset                  u_imageRegion.xy
 #define u_imageSize                    u_imageRegion.zw
 #define u_oneSideLightIntensity        u_packA.x
@@ -710,7 +712,7 @@ void main() {
             u_oneSideLightIntensity, u_lightMode,
             preTintCol, u_ambientIntensity,
             u_doubleSideLightIntensity,
-            u_borderSaturation, u_borderSolidity, u_borderMode,
+            u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
             rimWrap
         );
 
@@ -759,7 +761,7 @@ void main() {
         u_oneSideLightIntensity, u_lightMode,
         preTintCol2, u_ambientIntensity,
         u_doubleSideLightIntensity,
-        u_borderSaturation, u_borderSolidity, u_borderMode,
+        u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
         rimWrap
     );
 

@@ -59,6 +59,8 @@ uniform vec4 u_packA;
 uniform vec4 u_packB;
 // x=doubleSideLightIntensity  y=borderSaturation  z=borderSolidity  w=borderMode
 uniform vec4 u_packC;
+// Optical-rim angular spread (higher = highlight wraps further around).
+uniform float u_lightSpread;
 
 // Restore the original scalar names. These are plain float aliases (a single
 // component access, no swizzle chaining), so the shader body and every helper
@@ -306,6 +308,7 @@ void main() {
             u_doubleSideLightIntensity,
             u_borderSaturation,
             u_borderSolidity,
+            u_lightSpread,
             u_borderMode
         );
 
@@ -392,6 +395,7 @@ void main() {
         u_doubleSideLightIntensity,
         u_borderSaturation,
         u_borderSolidity,
+        u_lightSpread,
         u_borderMode
     );
 

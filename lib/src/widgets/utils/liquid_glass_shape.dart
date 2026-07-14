@@ -247,6 +247,13 @@ class LiquidGlassShape {
         ClassicBorder() => 0.0,
       };
 
+  /// The optical-mode rim highlight spread. `0.5` (neutral) for classic mode,
+  /// which doesn't use the directional-rim term.
+  double get lightSpread => switch (borderType) {
+        OpticalBorder(lightSpread: final s) => s,
+        ClassicBorder() => 0.5,
+      };
+
   /// Whether the border mode is optical.
   bool get isOpticalBorder => borderType.isOptical;
 

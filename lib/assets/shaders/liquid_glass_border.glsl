@@ -145,7 +145,8 @@ vec4 getOpticalBorder(
     vec3 ambientColor, float ambientIntensity,
     float doubleSideLightIntensity,
     float borderSaturation,
-    float borderSolidity
+    float borderSolidity,
+    float lightSpread
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap   // half-Lambert blend amount; only compiled for the metaball
 #endif
@@ -225,19 +226,30 @@ vec4 getOpticalBorder(
     // response (0.5 at 90°), so a merged shape's concave neck — whose
     // normals are perpendicular to the light — keeps a rim and the border
     // stays connected. The production single-lens shaders don't define the
-    // macro, so this compiles to exactly the original two lines.
+    // macro, so this compiles to just the original hard response.
+
+    // lightSpread widens the rim's angular reach (higher = broader);
+    // 0.5 reproduces the original pow(.,1.5) falloff exactly.
+    float spread = clamp(lightSpread, 0.0, 1.0);
+    float spreadExp = mix(2.5, 0.5, spread);
+    // Below 0.5 the exponent alone can't shrink the bright core (the ×3 gain
+    // saturates it), so also narrow the angular window of each light lobe.
+    float lobeCut = (0.5 - min(spread, 0.5)) * 1.7;
 #ifdef LIQUID_GLASS_RIM_WRAP
     float ndl = dot(normal, lightDirV);
-    float hard = max(ndl, 0.0) + max(-ndl, 0.0) * 0.8;
-    float wrapped = ndl * 0.5 + 0.5;
+    float hardFront = clamp((max(ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
+    float hardBack = clamp((max(-ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
+    float hard = hardFront + hardBack * 0.8;
+    float wrapped = clamp((ndl * 0.5 + 0.5 - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
     float totalInfluence = mix(hard, wrapped, clamp(wrap, 0.0, 1.0));
 #else
     float mainLight = max(dot(normal, lightDirV), 0.0);
     float oppositeLight = max(dot(normal, -lightDirV), 0.0);
+    mainLight = clamp((mainLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
+    oppositeLight = clamp((oppositeLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
     float totalInfluence = mainLight + oppositeLight * 0.8;
 #endif
-
-    float directional = pow(totalInfluence, 1.5) * lightIntensity * 3.0;
+    float directional = pow(totalInfluence, spreadExp) * lightIntensity * 3.0;
     float ambient = ambientIntensity * 0.1;
     float lightStrength = directional + ambient;
 
@@ -292,6 +304,7 @@ vec4 getSweepBorder(
     float doubleSideLightIntensity,
     float borderSaturation,
     float borderSolidity,
+    float lightSpread,
     float borderMode
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap
@@ -307,7 +320,7 @@ vec4 getSweepBorder(
             oneSideLightIntensity, lightMode,
             ambientColor, ambientIntensity,
             doubleSideLightIntensity, borderSaturation,
-            borderSolidity
+            borderSolidity, lightSpread
 #ifdef LIQUID_GLASS_RIM_WRAP
             , wrap
 #endif

@@ -181,6 +181,10 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, shape.borderSolidity);
   shader.setFloat(i++, selectedBorderMode);
 
+  // u_lightSpread — optical-rim angular spread. Present on both the main and
+  // border shaders (a loose float right after u_packC, before the image rect).
+  shader.setFloat(i++, shape.lightSpread);
+
   // u_imageOffset / u_imageSize — present on BOTH shaders, so always
   // written. Scaled like the other spatial uniforms.
   final Size imgSize = imageSize ?? resolution;
@@ -350,10 +354,10 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, shape.lightIntensity);
   shader.setFloat(i++, shape.lightDirection);
   shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
-  // u_warpD = (blur, shapeAaPx, unused, unused).
+  // u_warpD = (blur, shapeAaPx, lightSpread, unused).
   shader.setFloat(i++, blur * scale);
   shader.setFloat(i++, scale);
-  shader.setFloat(i++, 0);
+  shader.setFloat(i++, shape.lightSpread);
   shader.setFloat(i++, 0);
 
   // u_borderColor
