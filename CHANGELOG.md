@@ -1,3 +1,6 @@
+## 3.3.0
+- **New — `OpticalBorder.lightSpread`:** controls how far the optical rim's directional highlight wraps around the perimeter, independent of the always-on ambient ring. `0.0` = tight, concentrated glint hugging the light axis, `0.5` = default (identical to the previous fixed falloff, so existing code renders unchanged), `1.0` = highlight wraps almost all the way around. Below `0.5` the angular window of each light lobe narrows — the bright core itself tightens, not just the dim tail. Applies to `LiquidGlassLens`, the border-only painter, and the `LiquidGlassBlender` metaball rim.
+
 ## 3.2.2
 - **Fix — vertically mirrored refraction on OpenGL ES (emulators):** Flutter's OpenGLES coordinate-system unification (engine after 3.44.0) removed the framebuffer Y-flip, which turned the shaders' manual sampler/derivative Y-flips into a *double* flip — a symmetrical Y-axis refraction artifact visible on Android emulators that fall back to OpenGL ES (real Vulkan/Metal devices were never affected). All four `IMPELLER_TARGET_OPENGLES` flips are now guarded by `#ifndef IMPELLER_OPENGLES_UNFLIPPED_DEPRECATED`, so they apply only on older engines and are skipped once the engine sets the macro. Skia/web and Vulkan/Metal are unchanged.
 
