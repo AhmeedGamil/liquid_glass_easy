@@ -1,3 +1,6 @@
+## 3.3.1
+- **Fix — `flutter build web` fails on Flutter 3.44+ (`impellerc failure: Compilation failed for target: SkSL`):** Flutter 3.44 started validating every shader in the package manifest against SkSL at build time, and the Impeller-only entries use the hardware-derivative gradient (`dFdx(float)`) — invalid SkSL — so the web build died even though those entries are never loaded on web. The derivative path is now guarded behind impellerc's `SKIA_GRAPHICS_BACKEND` define: when a shader is compiled for the SkSL target it falls back to the analytic (derivative-free) gradient, so all entries compile clean. Native Impeller output is byte-identical — real devices keep the cheap 1-tap derivative path — and the runtime per-backend shader selection is unchanged.
+
 ## 3.3.0
 - **New — `OpticalBorder.lightSpread`:** controls how far the optical rim's directional highlight wraps around the perimeter, independent of the always-on ambient ring. `0.0` = tight, concentrated glint hugging the light axis, `0.5` = default (identical to the previous fixed falloff, so existing code renders unchanged), `1.0` = highlight wraps almost all the way around. Below `0.5` the angular window of each light lobe narrows — the bright core itself tightens, not just the dim tail. Applies to `LiquidGlassLens`, the border-only painter, and the `LiquidGlassBlender` metaball rim.
 
