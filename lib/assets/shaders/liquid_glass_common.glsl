@@ -88,7 +88,9 @@ struct ShapeData {
 //
 // The hardware derivatives live in FRAMEBUFFER space, y-flipped on the GLES
 // backend — mirror dFdy back so this normal matches the 5-tap one.
-#if (GLASS_GRAD_METHOD == GLASS_GRAD_DERIVATIVE) || defined(GLASS_USE_DERIVATIVE_GRAD)
+// Never compiled for the SkSL target (SKIA_GRAPHICS_BACKEND): dFdx(float) is
+// invalid SkSL and Flutter 3.44+ rejects it at build time.
+#if ((GLASS_GRAD_METHOD == GLASS_GRAD_DERIVATIVE) || defined(GLASS_USE_DERIVATIVE_GRAD)) && !defined(SKIA_GRAPHICS_BACKEND)
 ShapeData shapeFrom1Tap(float fC){
     vec2 grad = vec2(dFdx(fC), dFdy(fC));
     // GLES derivative Y-flip — only on engines BEFORE the OpenGLES coordinate

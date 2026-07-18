@@ -16,7 +16,9 @@
 #ifndef GLASS_GRAD_METHOD
 #if LIQUID_GLASS_FORCE_5TAP
 #define GLASS_GRAD_METHOD 2
-#elif defined(LIQUID_GLASS_SKIA)
+// SKIA_GRAPHICS_BACKEND is set by impellerc for the SkSL target: force analytic
+// so the Impeller entries stay valid SkSL (3.44+ validates at build time).
+#elif defined(LIQUID_GLASS_SKIA) || defined(SKIA_GRAPHICS_BACKEND)
 #define GLASS_GRAD_METHOD 1
 #else
 #define GLASS_GRAD_METHOD 0

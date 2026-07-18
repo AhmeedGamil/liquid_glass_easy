@@ -33,7 +33,9 @@
 //     (dFdx never compiled → loads on Skia) and selects the ANALYTIC gradient:
 //     the smooth-union's gradient is the h-weighted blend of the per-lens
 //     rounded-rect gradients (exact, single pass, no dFdx and no 5-tap).
-#ifndef METABALL_SKIA
+// SKIA_GRAPHICS_BACKEND (impellerc's SkSL-target define): take the analytic
+// branch so this entry compiles as valid SkSL on `flutter build web` (3.44+).
+#if !defined(METABALL_SKIA) && !defined(SKIA_GRAPHICS_BACKEND)
 #define GLASS_USE_DERIVATIVE_GRAD
 #define SHAPE_GRAD_1TAP 1
 #else
