@@ -44,6 +44,10 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_config.da
 // Generic glass UI atoms a developer composes into their app.
 // Each is a single LiquidGlass lens placed in a LiquidGlassView.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_button.dart';
+// Floating action button (circular FAB & extended FAB).
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_fab.dart';
+// Dialogs & dialog presenter helper.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_dialog.dart';
 // Jelly: a reusable squash/stretch wrapper driven by a 1-D value — the
 // slider/nav-bar jelly physics exposed as a drop-in widget.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_jelly.dart';

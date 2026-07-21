@@ -135,6 +135,28 @@ class _ScaffoldDemoState extends State<ScaffoldDemo> {
         pillStyle: navPillStyle(navTuning),
         width: 320,
       ),
+      floatingActionButton: LiquidGlassFab.extended(
+        icon: Icons.auto_awesome_rounded,
+        label: const Text('Show Dialog'),
+        onPressed: () {
+          showLiquidGlassDialog(
+            context: context,
+            builder: (context) => LiquidGlassAlertDialog(
+              icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C5CFF)),
+              title: const Text('Liquid Glass Dialog'),
+              content: const Text(
+                'This alert dialog is rendered using a refractive LiquidGlassLens floating seamlessly over the backdrop.',
+              ),
+              actions: [
+                LiquidGlassButton(
+                  label: 'Dismiss',
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
     );
   }
 }
