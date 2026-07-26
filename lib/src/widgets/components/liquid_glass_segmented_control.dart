@@ -34,11 +34,24 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
     this.selectionDuration = const Duration(milliseconds: 220),
     this.foregroundColor = Colors.white,
     this.fontSize = 13,
+    this.segmentBuilder,
   })  : assert(segments.length >= 2, 'Need at least two segments'),
         assert(selectedIndex >= 0 && selectedIndex < segments.length);
 
-  /// The segment labels, left to right.
+  /// The segment labels, left to right. Still required with
+  /// [segmentBuilder] — it sets the segment **count**.
   final List<String> segments;
+
+  /// Builds a segment's content instead of the plain label — an icon, an
+  /// SVG, an icon + text row. Called with the segment index, whether it
+  /// is selected, and [foregroundColor]. Content is centered and scaled
+  /// down to fit its cell; it never sizes the control.
+  final Widget Function(
+    BuildContext context,
+    int index,
+    bool selected,
+    Color color,
+  )? segmentBuilder;
 
   /// Currently selected segment index.
   final int selectedIndex;
@@ -158,16 +171,22 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
                             borderRadius: BorderRadius.circular(height / 2),
                             onTap: () => onChanged(i),
                             child: Center(
-                              child: Text(
-                                segments[i],
-                                style: TextStyle(
-                                  color: foregroundColor,
-                                  fontSize: fontSize,
-                                  fontWeight: i == selectedIndex
-                                      ? FontWeight.w600
-                                      : FontWeight.w500,
-                                ),
-                              ),
+                              child: segmentBuilder != null
+                                  ? FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: segmentBuilder!(context, i,
+                                          i == selectedIndex, foregroundColor),
+                                    )
+                                  : Text(
+                                      segments[i],
+                                      style: TextStyle(
+                                        color: foregroundColor,
+                                        fontSize: fontSize,
+                                        fontWeight: i == selectedIndex
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
+                                      ),
+                                    ),
                             ),
                           ),
                         ),

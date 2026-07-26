@@ -45,13 +45,44 @@ class LiquidGlassButton extends StatelessWidget {
     this.fontSize = 16,
     this.fontWeight = FontWeight.w600,
     this.iconSize = 20,
+    this.child,
   });
 
-  /// Button label text.
+  /// A button whose content is entirely your own widget — an SVG, an
+  /// image, a badge row, two lines of text. [label] is unused (it is
+  /// filled with an empty string) and [icon] is dropped.
+  const LiquidGlassButton.custom({
+    super.key,
+    required Widget this.child,
+    this.onPressed,
+    this.width,
+    this.height = 48,
+    this.padding = const EdgeInsets.symmetric(horizontal: 20),
+    this.style,
+    this.visibility = true,
+    this.foregroundColor = Colors.white,
+    this.fontSize = 16,
+    this.fontWeight = FontWeight.w600,
+    this.iconSize = 20,
+  })  : label = '',
+        icon = null;
+
+  /// Button label text. Ignored when [child] is set.
   final String label;
 
-  /// Optional leading icon.
+  /// Optional leading icon. Ignored when [child] is set.
   final IconData? icon;
+
+  /// Custom content, replacing the [icon] + [label] row entirely — for
+  /// anything `Icon`/`Text` can't express (SVG, PNG, a badge, a
+  /// spinner). It is centered inside the button's [padding] and clipped
+  /// to the glass shape; it never sizes the button, which stays on
+  /// [width]/[height] so the lens geometry holds.
+  ///
+  /// A bare `Icon`/`Text` inside it inherits [foregroundColor],
+  /// [fontSize], [fontWeight] and [iconSize], so it matches the built-in
+  /// row by default. Give the widget its own color to paint it yourself.
+  final Widget? child;
 
   /// Tap callback.
   final VoidCallback? onPressed;
@@ -112,6 +143,47 @@ class LiquidGlassButton extends StatelessWidget {
     refraction: _defaultRefraction,
   );
 
+  /// The button's inner content: the caller's [child] when given, else
+  /// the built-in icon + label row.
+  ///
+  /// The child path installs the foreground as *ambient* theme data
+  /// rather than baking it in, so a bare `Icon`/`Text` matches the
+  /// built-in row while anything carrying its own color keeps it.
+  Widget _content() {
+    final Widget? custom = child;
+    if (custom == null) {
+      return Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, color: foregroundColor, size: iconSize),
+            const SizedBox(width: 8),
+          ],
+          Text(
+            label,
+            style: TextStyle(
+              color: foregroundColor,
+              fontSize: fontSize,
+              fontWeight: fontWeight,
+            ),
+          ),
+        ],
+      );
+    }
+    return IconTheme.merge(
+      data: IconThemeData(color: foregroundColor, size: iconSize),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(
+          color: foregroundColor,
+          fontSize: fontSize,
+          fontWeight: fontWeight,
+        ),
+        child: custom,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final LiquidGlassStyle resolved = defaultStyle.merge(style);
@@ -147,26 +219,7 @@ class LiquidGlassButton extends StatelessWidget {
             onTap: onPressed,
             child: Padding(
               padding: padding,
-              child: Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (icon != null) ...[
-                      Icon(icon, color: foregroundColor, size: iconSize),
-                      const SizedBox(width: 8),
-                    ],
-                    Text(
-                      label,
-                      style: TextStyle(
-                        color: foregroundColor,
-                        fontSize: fontSize,
-                        fontWeight: fontWeight,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              child: Center(child: _content()),
             ),
           ),
         ),

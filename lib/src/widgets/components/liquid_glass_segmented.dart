@@ -203,11 +203,14 @@ class LiquidGlassSegmented extends StatefulWidget {
     this.width = 280,
     this.height = 44,
     this.padding = 4,
+    this.segmentBuilder,
   })  : assert(segments.length > 0, 'Provide at least one segment'),
         assert(selectedIndex >= 0 && selectedIndex < segments.length,
             'selectedIndex out of range');
 
-  /// The segment labels.
+  /// The segment labels. Still required with [segmentBuilder] — it sets
+  /// the segment **count**; pass empty strings if the builder draws
+  /// everything.
   final List<String> segments;
 
   /// The selected segment index.
@@ -238,6 +241,19 @@ class LiquidGlassSegmented extends StatefulWidget {
   /// Inner padding between the capsule rim and the segment row (and the
   /// gap the pill keeps from the rim).
   final double padding;
+
+  /// Builds a segment's content instead of the plain label — an icon, an
+  /// SVG, an icon + text row. Called with the segment index, whether it
+  /// is selected, and the [labelStyle] color already resolved for that
+  /// state, so custom content follows the same palette the labels do.
+  /// Content is centered and scaled down to fit its cell; it never sizes
+  /// the capsule.
+  final Widget Function(
+    BuildContext context,
+    int index,
+    bool selected,
+    Color color,
+  )? segmentBuilder;
 
   @override
   State<LiquidGlassSegmented> createState() => _LiquidGlassSegmentedState();
@@ -421,16 +437,27 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
                           if (i != widget.selectedIndex) widget.onChanged(i);
                         },
                         child: Center(
-                          child: Text(
-                            widget.segments[i],
-                            style: TextStyle(
-                              color: widget.labelStyle.colorFor(
-                                  selected: i == widget.selectedIndex),
-                              fontSize: widget.labelStyle.fontSize,
-                              fontWeight: widget.labelStyle.weightFor(
-                                  selected: i == widget.selectedIndex),
-                            ),
-                          ),
+                          child: widget.segmentBuilder != null
+                              ? FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  child: widget.segmentBuilder!(
+                                    context,
+                                    i,
+                                    i == widget.selectedIndex,
+                                    widget.labelStyle.colorFor(
+                                        selected: i == widget.selectedIndex),
+                                  ),
+                                )
+                              : Text(
+                                  widget.segments[i],
+                                  style: TextStyle(
+                                    color: widget.labelStyle.colorFor(
+                                        selected: i == widget.selectedIndex),
+                                    fontSize: widget.labelStyle.fontSize,
+                                    fontWeight: widget.labelStyle.weightFor(
+                                        selected: i == widget.selectedIndex),
+                                  ),
+                                ),
                         ),
                       ),
                     ),

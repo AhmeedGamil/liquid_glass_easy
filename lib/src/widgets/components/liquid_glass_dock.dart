@@ -5,20 +5,36 @@ import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_app_icon.dart';
 
 /// Lightweight description of a single entry in [LiquidGlassDock].
 class LiquidGlassDockApp {
+  /// The entry's glyph. Ignored when [iconBuilder] is set.
   final IconData icon;
+
   final List<Color> gradient;
   final VoidCallback? onTap;
+
+  /// Draws the glyph instead of [icon] — an SVG, a PNG, a `CustomPaint`.
+  /// Boxed to the tile's glyph size so it never resizes the dock.
+  final LiquidGlassGlyphBuilder? iconBuilder;
 
   const LiquidGlassDockApp({
     required this.icon,
     this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
     this.onTap,
+    this.iconBuilder,
   });
+
+  /// An entry drawn entirely by [iconBuilder] — no [IconData] needed.
+  /// [icon] is filled with a placeholder that is never rendered.
+  const LiquidGlassDockApp.custom({
+    required LiquidGlassGlyphBuilder this.iconBuilder,
+    this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
+    this.onTap,
+  }) : icon = kLiquidGlassCustomGlyph;
 }
 
 /// A horizontal dock of app icons inside a single liquid-glass blob with
@@ -130,6 +146,7 @@ class LiquidGlassDock extends StatelessWidget {
               for (int i = 0; i < apps.length; i++) ...[
                 LiquidGlassAppIcon(
                   icon: apps[i].icon,
+                  iconBuilder: apps[i].iconBuilder,
                   gradient: apps[i].gradient,
                   size: iconSize,
                   onTap: apps[i].onTap,

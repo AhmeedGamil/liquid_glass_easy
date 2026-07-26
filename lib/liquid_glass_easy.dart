@@ -30,6 +30,11 @@ export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.d
 
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
+// Custom glyphs: the builder every icon slot accepts (SVG, PNG,
+// CustomPaint) and the state it is handed — resolved color, box size,
+// and whether this layer draws the selected state.
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_glyph.dart'
+    show LiquidGlassGlyph, LiquidGlassGlyphBuilder;
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_draggable.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_border_mode.dart';

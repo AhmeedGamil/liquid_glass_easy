@@ -5,6 +5,7 @@ import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// A compact one-touch control tile rendered as liquid glass.
@@ -31,10 +32,36 @@ class LiquidGlassControlTile extends StatelessWidget {
     this.refraction = _defaultRefraction,
     this.style,
     this.visibility = true,
+    this.iconBuilder,
   });
 
-  /// The tile glyph.
+  /// A tile whose glyph is drawn entirely by [iconBuilder] — no
+  /// [IconData] needed. [icon] is filled with a placeholder that is
+  /// never rendered.
+  const LiquidGlassControlTile.custom({
+    super.key,
+    required LiquidGlassGlyphBuilder this.iconBuilder,
+    required this.active,
+    this.label,
+    this.activeColor = const Color(0xFF34C759),
+    this.onTap,
+    this.size = 80,
+    this.shape,
+    this.appearance,
+    this.refraction = _defaultRefraction,
+    this.style,
+    this.visibility = true,
+  }) : icon = kLiquidGlassCustomGlyph;
+
+  /// The tile glyph. Ignored when [iconBuilder] is set.
   final IconData icon;
+
+  /// Draws the glyph instead of [icon] — an SVG, a PNG, a `CustomPaint`.
+  /// Receives the glyph color (white) and box (`size * 0.42`), plus
+  /// [active] as the glyph's `selected` flag so the artwork can change
+  /// with the tile's state. Boxed to that size, so it never resizes the
+  /// tile.
+  final LiquidGlassGlyphBuilder? iconBuilder;
 
   /// Whether the tile is in its "on" state.
   final bool active;
@@ -123,7 +150,13 @@ class LiquidGlassControlTile extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(icon, color: Colors.white, size: size * 0.42),
+                  if (iconBuilder == null)
+                    Icon(icon, color: Colors.white, size: size * 0.42)
+                  else
+                    liquidGlassBoxedGlyph(context, iconBuilder!,
+                        color: Colors.white,
+                        size: size * 0.42,
+                        selected: active),
                   if (label != null) ...[
                     const SizedBox(height: 4),
                     Text(

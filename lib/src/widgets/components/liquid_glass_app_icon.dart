@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../utils/liquid_glass_glyph.dart';
+
 /// A single app-icon tile drawn with a rounded-square gradient and
 /// centered glyph, optionally labelled. This widget is plain
 /// Material — it is meant to be placed *inside* a [LiquidGlass]
@@ -25,6 +27,11 @@ class LiquidGlassAppIcon extends StatelessWidget {
   /// Tap callback. When `null` the icon is non-interactive.
   final VoidCallback? onTap;
 
+  /// Draws the glyph instead of [icon] — an SVG, a PNG, a `CustomPaint`.
+  /// Receives [foregroundColor] and the glyph box (`size * 0.55`), and
+  /// its result is boxed to that size so it never resizes the tile.
+  final LiquidGlassGlyphBuilder? iconBuilder;
+
   const LiquidGlassAppIcon({
     super.key,
     required this.icon,
@@ -33,7 +40,21 @@ class LiquidGlassAppIcon extends StatelessWidget {
     this.foregroundColor = Colors.white,
     this.size = 56,
     this.onTap,
+    this.iconBuilder,
   });
+
+  /// A tile whose glyph is drawn entirely by [iconBuilder] — no
+  /// [IconData] needed. [icon] is filled with a placeholder that is
+  /// never rendered.
+  const LiquidGlassAppIcon.custom({
+    super.key,
+    required LiquidGlassGlyphBuilder this.iconBuilder,
+    this.label,
+    this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
+    this.foregroundColor = Colors.white,
+    this.size = 56,
+    this.onTap,
+  }) : icon = kLiquidGlassCustomGlyph;
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +78,12 @@ class LiquidGlassAppIcon extends StatelessWidget {
           ),
         ],
       ),
-      child: Icon(icon, color: foregroundColor, size: size * 0.55),
+      child: iconBuilder == null
+          ? Icon(icon, color: foregroundColor, size: size * 0.55)
+          : Center(
+              child: liquidGlassBoxedGlyph(context, iconBuilder!,
+                  color: foregroundColor, size: size * 0.55),
+            ),
     );
 
     final tapped = Material(

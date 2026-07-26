@@ -34,7 +34,8 @@ import '../../utils/liquid_glass_shape.dart';
 import '../bottom_nav_bar/liquid_glass_nav_bar_layout.dart'
     show LiquidGlassBottomNavBarLayout;
 import '../liquid_glass_morph_pill.dart' show liquidGlassMorphEnvelope;
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_bar.dart'
+    show LiquidGlassTabBarItem, buildLiquidGlassNavGlyph;
 import 'liquid_glass_styles.dart';
 
 /// Self-contained, drop-in **styled** animated liquid-glass bottom nav bar —
@@ -916,10 +917,12 @@ class _StyledShellTab extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            selected ? (item.selectedIcon ?? item.icon) : item.icon,
-            size: itemStyle.iconSize,
+          buildLiquidGlassNavGlyph(
+            context,
+            item,
             color: color,
+            size: itemStyle.iconSize,
+            selected: selected,
           ),
           if (item.label != null) ...[
             const SizedBox(height: 2),

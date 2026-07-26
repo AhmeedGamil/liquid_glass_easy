@@ -524,6 +524,33 @@ Each component is self-contained and styled through the same
 `LiquidGlassAppBar`, `LiquidGlassBottomNavBar`, `LiquidGlassTabBar`,
 `LiquidGlassScaffold`, `LiquidGlassJelly`.
 
+### Custom icons — SVG, PNG, anything
+
+Tabs aren't limited to `IconData`. `LiquidGlassTabBarItem.custom` draws its
+glyph through a builder, so any widget works — an `SvgPicture`, an
+`Image`, a `CustomPaint`:
+
+```dart
+LiquidGlassTabBarItem.custom(
+  label: 'Home',
+  iconBuilder: (context, i) => SvgPicture.asset(
+    i.selected ? 'assets/home_fill.svg' : 'assets/home.svg',
+    width: i.size,
+    height: i.size,
+    colorFilter: ColorFilter.mode(i.color, BlendMode.srcIn),
+  ),
+);
+```
+
+The builder is handed the color the bar already resolved for the layer it
+is drawing, the glyph box size, and whether that layer is the selected
+one. Tint with `i.color` and your artwork follows the selected /
+unselected palette **and** the morph pill's reveal — the glass-pill bar
+draws each tab twice per frame, once inside the pill and once outside it,
+and calls the builder for each. Multi-colour art can simply ignore the
+colour. `LiquidGlassButton` and `LiquidGlassTabBarAction` take a `child`
+for the same reason.
+
 ### Bottom nav bar — standalone with `.withImpeller`
 
 `LiquidGlassBottomNavBar` shows its animated, glass-refracting **morph

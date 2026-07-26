@@ -4,26 +4,88 @@ import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
+import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Description of a single tab in [LiquidGlassTabBar].
 class LiquidGlassTabBarItem {
-  /// Icon shown when the tab is unselected.
+  /// Icon shown when the tab is unselected. Ignored when [iconBuilder]
+  /// is set.
   final IconData icon;
 
-  /// Icon shown when the tab is selected (defaults to [icon]).
+  /// Icon shown when the tab is selected (defaults to [icon]). Ignored
+  /// when [iconBuilder] is set — the builder gets the selected state
+  /// instead and picks its own art.
   final IconData? selectedIcon;
 
   /// Optional label below the icon. When `null` the tab renders icon
   /// only, matching the modern liquid-glass minimal style.
   final String? label;
 
+  /// Draws the glyph instead of [icon] — for artwork Flutter's [Icon]
+  /// can't render (SVG, PNG, a `CustomPaint`, a badge). Honored by every
+  /// tier: the plain bar, the sliding bar, the glass-pill bar and the
+  /// tab bar.
+  ///
+  /// The builder receives the resolved color for the layer being drawn
+  /// and whether that layer is the selected one, so tinting with
+  /// [LiquidGlassGlyph.color] and switching art on
+  /// [LiquidGlassGlyph.selected] reproduces exactly what `icon` +
+  /// `selectedIcon` do — including the moving pill's reveal.
+  ///
+  /// ```dart
+  /// LiquidGlassTabBarItem.custom(
+  ///   label: 'Home',
+  ///   iconBuilder: (_, i) => SvgPicture.asset(
+  ///     i.selected ? 'assets/home_fill.svg' : 'assets/home.svg',
+  ///     width: i.size,
+  ///     height: i.size,
+  ///     colorFilter: ColorFilter.mode(i.color, BlendMode.srcIn),
+  ///   ),
+  /// )
+  /// ```
+  final LiquidGlassGlyphBuilder? iconBuilder;
+
   const LiquidGlassTabBarItem({
     required this.icon,
     this.selectedIcon,
     this.label,
+    this.iconBuilder,
   });
+
+  /// A tab drawn entirely by [iconBuilder] — no [IconData] needed.
+  /// [icon] is filled with a placeholder that is never rendered.
+  ///
+  /// Leave [label] out for an icon-only tab.
+  const LiquidGlassTabBarItem.custom({
+    required LiquidGlassGlyphBuilder this.iconBuilder,
+    this.label,
+  })  : icon = kLiquidGlassCustomGlyph,
+        selectedIcon = null;
+}
+
+/// Builds one tab glyph for any nav/tab tier: the item's
+/// [LiquidGlassTabBarItem.iconBuilder] when it has one, else the plain
+/// [Icon] — the single place either form becomes a widget, so no tier
+/// can drift from another.
+Widget buildLiquidGlassNavGlyph(
+  BuildContext context,
+  LiquidGlassTabBarItem item, {
+  required Color color,
+  required double size,
+  required bool selected,
+}) {
+  final LiquidGlassGlyphBuilder? builder = item.iconBuilder;
+  if (builder == null) {
+    return Icon(
+      selected ? (item.selectedIcon ?? item.icon) : item.icon,
+      size: size,
+      color: color,
+    );
+  }
+  return liquidGlassBoxedGlyph(context, builder,
+      color: color, size: size, selected: selected);
 }
 
 /// A floating "liquid glass" tab bar.
@@ -368,10 +430,12 @@ class _TabButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                selected ? (item.selectedIcon ?? item.icon) : item.icon,
-                size: iconSize,
+              buildLiquidGlassNavGlyph(
+                context,
+                item,
                 color: color,
+                size: iconSize,
+                selected: selected,
               ),
               if (item.label != null) ...[
                 const SizedBox(height: 2),
@@ -404,10 +468,33 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     this.size = 56,
     this.style,
     this.visibility = true,
+    this.child,
   });
 
-  /// The action glyph.
+  /// An action whose content is entirely your own widget — an SVG, an
+  /// image, a badge. [icon] is filled with a placeholder that is never
+  /// rendered.
+  const LiquidGlassTabBarAction.custom({
+    super.key,
+    required Widget this.child,
+    this.onTap,
+    this.foregroundColor = Colors.white,
+    this.size = 56,
+    this.style,
+    this.visibility = true,
+  }) : icon = kLiquidGlassCustomGlyph;
+
+  /// The action glyph. Ignored when [child] is set.
   final IconData icon;
+
+  /// Custom content replacing [icon]. Centered in the button and scaled
+  /// down when it exceeds it, so it never sizes the button — that stays
+  /// a [size]-diameter circle and the lens geometry holds.
+  ///
+  /// A bare `Icon`/`Text` inside it inherits [foregroundColor]; give the
+  /// widget its own color (or an `SvgPicture` its own `colorFilter`) to
+  /// paint it yourself.
+  final Widget? child;
 
   /// Tap callback.
   final VoidCallback? onTap;
@@ -484,7 +571,19 @@ class LiquidGlassTabBarAction extends StatelessWidget {
             customBorder: const CircleBorder(),
             onTap: onTap,
             child: Center(
-              child: Icon(icon, color: foregroundColor, size: size * 0.46),
+              // Boxed: the loose constraints from [Center] plus a
+              // scale-down keep custom content inside the circle instead
+              // of letting it drive the button's size.
+              child: child == null
+                  ? Icon(icon, color: foregroundColor, size: size * 0.46)
+                  : IconTheme.merge(
+                      data: IconThemeData(
+                          color: foregroundColor, size: size * 0.46),
+                      child: DefaultTextStyle.merge(
+                        style: TextStyle(color: foregroundColor),
+                        child: FittedBox(fit: BoxFit.scaleDown, child: child),
+                      ),
+                    ),
             ),
           ),
         ),
