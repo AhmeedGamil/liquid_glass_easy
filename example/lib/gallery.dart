@@ -6,6 +6,7 @@ import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
 import 'scaffold_demo.dart';
+import 'scaffold_svg_demo.dart';
 import 'slider_jelly_tuner.dart';
 import 'slider_toggle_page.dart';
 
@@ -94,6 +95,13 @@ class HomePage extends StatelessWidget {
       icon: Icons.dashboard_rounded,
       gradient: const [Color(0xFF7C5CFF), Color(0xFF4B2D7A)],
       builder: (_) => const ScaffoldDemo(),
+    ),
+    _Destination(
+      title: 'Scaffold + SVG Nav',
+      subtitle: 'The same bar, but every tab glyph is an SVG asset',
+      icon: Icons.image_rounded,
+      gradient: const [Color(0xFF4FB3FF), Color(0xFF7C5CFF)],
+      builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
       title: 'Slider & Toggle',

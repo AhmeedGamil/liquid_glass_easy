@@ -10,6 +10,7 @@ dependencies:
   flutter:
     sdk: flutter
 
+  flutter_svg: ^2.3.0
   liquid_glass_easy:
     path: ../
 
@@ -20,3 +21,7 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  assets:
+    # Outline + filled SVG pairs driving the "Scaffold + SVG Nav" demo.
+    - assets/icons/
