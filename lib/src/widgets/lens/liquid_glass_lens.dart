@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
+import '../utils/liquid_glass_press.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_blender.dart';
 import 'liquid_glass_lens_scope.dart';
@@ -80,6 +81,18 @@ class LiquidGlassLens extends StatefulWidget {
   /// `ImageFilter.isShaderFilterSupported`.
   final bool? useImpellerBackdrop;
 
+  /// Makes the lens deform under touch — press it and it compresses, drag
+  /// it and it elongates along the pull, pinches in the cross axis and
+  /// leans after your finger, then springs back with a wobble.
+  ///
+  /// The lens itself does not move; only its shape and its content deform.
+  /// `null` (the default) disables the behaviour entirely — no gesture
+  /// listener, no ticker, nothing added to the tree.
+  ///
+  /// Ignored inside a `LiquidGlassBlender`, whose metaball surface owns
+  /// its members' geometry.
+  final LiquidGlassPress? press;
+
   /// Content rendered on top of the glass, clipped to the lens shape.
   final Widget? child;
 
@@ -88,6 +101,7 @@ class LiquidGlassLens extends StatefulWidget {
     this.style = const LiquidGlassStyle(),
     this.visibility = true,
     this.useImpellerBackdrop,
+    this.press,
     this.child,
   });
 
@@ -95,7 +109,8 @@ class LiquidGlassLens extends StatefulWidget {
   State<LiquidGlassLens> createState() => _LiquidGlassLensState();
 }
 
-class _LiquidGlassLensState extends State<LiquidGlassLens> {
+class _LiquidGlassLensState extends State<LiquidGlassLens>
+    with SingleTickerProviderStateMixin {
   /// One-time debug notice when a lens has to degrade to frosted glass.
   static bool _warnedFrostedFallback = false;
 
@@ -142,11 +157,26 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
     }());
   }
 
+  /// Spring driver behind [LiquidGlassLens.press]. Created on first use, so
+  /// a lens without `press` never allocates a ticker.
+  LiquidGlassPressDriver? _pressDriver;
+
+  LiquidGlassPressDriver _ensurePressDriver(LiquidGlassPress spec) =>
+      (_pressDriver ??= LiquidGlassPressDriver(vsync: this, spec: spec))
+        ..spec = spec;
+
+  @override
+  void dispose() {
+    _pressDriver?.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     // When an ancestor LiquidGlassBlender is present, this lens stops
     // painting its own glass: it hands its geometry to the blender, which
-    // merges all member lenses into one metaball surface.
+    // merges all member lenses into one metaball surface. The blender owns
+    // its members' geometry, so `press` has nothing to deform here.
     final blenderScope = LiquidGlassBlenderScope.maybeOf(context);
     if (blenderScope != null) {
       return blenderScope.buildMember(
@@ -155,6 +185,73 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
         child: widget.child,
       );
     }
+
+    final LiquidGlassPress? press = widget.press;
+    if (press == null) {
+      return _buildGlass(context, LiquidGlassPressDeform.none, Size.zero);
+    }
+
+    // The lens takes its size from layout, so the rest size has to come
+    // from the incoming constraints — that is what the deformation is
+    // measured against, and what the child is laid out at.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final Size rest = constraints.biggest;
+        if (!rest.width.isFinite || !rest.height.isFinite || rest.isEmpty) {
+          // Unbounded or degenerate: nothing to deform against.
+          return _buildGlass(context, LiquidGlassPressDeform.none, Size.zero);
+        }
+
+        final driver = _ensurePressDriver(press)..restSize = rest;
+
+        return Listener(
+          // Translucent, never opaque: the press must not start swallowing
+          // taps that reached the content (or the UI behind) before.
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: (event) => driver.down(event.localPosition, rest),
+          // Accumulate deltas, not positions — the box is deforming under
+          // the finger, so a lens-local position would feed back on itself.
+          onPointerMove: (event) => driver.move(event.delta),
+          onPointerUp: (_) => driver.up(),
+          onPointerCancel: (_) => driver.up(),
+          child: SizedBox.fromSize(
+            size: rest,
+            child: ValueListenableBuilder<LiquidGlassPressDeform>(
+              valueListenable: driver,
+              builder: (context, deform, _) => liquidGlassPressBox(
+                deform: deform,
+                restSize: rest,
+                child: _buildGlass(context, deform, rest),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Builds the lens proper. [deform] is [LiquidGlassPressDeform.none] and
+  /// [restSize] is [Size.zero] whenever `press` is unset — in that case
+  /// every press-related branch below collapses to the original behaviour.
+  Widget _buildGlass(
+    BuildContext context,
+    LiquidGlassPressDeform deform,
+    Size restSize,
+  ) {
+    final bool deformed = !deform.isRest && !restSize.isEmpty;
+
+    // Cap the radius against the *deformed* size so a squeezed capsule
+    // stays a capsule instead of self-intersecting at the rim.
+    final LiquidGlassShape shape = deformed
+        ? liquidGlassPressShape(_shape, deform.sizeFrom(restSize))
+        : _shape;
+
+    // Pressing deepens the optics rather than popping the scale — this is
+    // the cue that reads as glass under pressure instead of rubber.
+    final LiquidGlassRefraction refraction = deform.pressAmount > 0
+        ? liquidGlassPressRefraction(
+            _refraction, widget.press!, deform.pressAmount)
+        : _refraction;
 
     final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
     // `true`/`null` (here or on the scope) → prefer Impeller, but only when
@@ -182,10 +279,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
         }).catchError((Object _) {});
       }
       return _FrostedGlassFallback(
-        shape: _shape,
+        shape: shape,
         appearance: _appearance,
         visible: widget.visibility,
-        child: widget.child,
+        child: widget.child == null
+            ? null
+            : liquidGlassPressChild(
+                deform: deform,
+                restSize: restSize,
+                child: widget.child!,
+              ),
       );
     }
 
@@ -197,13 +300,19 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
     final Size screenSize = MediaQuery.sizeOf(context);
     final double dpr = MediaQuery.devicePixelRatioOf(context);
 
+    // Clip at the deformed lens bounds, scale the content inside it: the
+    // child stretches as pixels but can never spill past the glass edge.
     final Widget? clippedChild = widget.child == null
         ? null
         : ClipRRect(
             borderRadius: BorderRadius.circular(
-              liquidGlassClipCornerRadius(_shape),
+              liquidGlassClipCornerRadius(shape),
             ),
-            child: widget.child,
+            child: liquidGlassPressChild(
+              deform: deform,
+              restSize: restSize,
+              child: widget.child!,
+            ),
           );
 
     // Instant show/hide: when hidden the glass paint is skipped
@@ -214,8 +323,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens> {
       mode: mode,
       mainShader: _mainShader!,
       borderShader: _borderShader,
-      shape: _shape,
-      refraction: _refraction,
+      shape: shape,
+      refraction: refraction,
       appearance: _appearance,
       borderAlpha: 1.0,
       glassEnabled: visible,

@@ -3,6 +3,7 @@ import 'package:meta/meta.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_press.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
@@ -338,21 +339,32 @@ class LiquidGlassBehavior {
   /// Programmatic controller for show/hide/reposition.
   final LiquidGlassController? controller;
 
+  /// Makes the lens deform under touch without moving it — press and it
+  /// compresses, drag and it elongates along the pull, pinches in the cross
+  /// axis and leans after the finger, then springs back with a wobble.
+  ///
+  /// `null` (the default) disables it completely: no gesture listener, no
+  /// ticker, and the lens config reaches the renderer untouched.
+  final LiquidGlassPress? press;
+
   const LiquidGlassBehavior({
     this.draggable = false,
     this.visibility = true,
     this.controller,
+    this.press,
   });
 
   LiquidGlassBehavior copyWith({
     bool? draggable,
     bool? visibility,
     LiquidGlassController? controller,
+    LiquidGlassPress? press,
   }) {
     return LiquidGlassBehavior(
       draggable: draggable ?? this.draggable,
       visibility: visibility ?? this.visibility,
       controller: controller ?? this.controller,
+      press: press ?? this.press,
     );
   }
 }

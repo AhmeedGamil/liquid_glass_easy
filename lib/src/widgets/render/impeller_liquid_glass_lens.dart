@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
+import '../utils/liquid_glass_press.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Impeller render path for a single lens, extracted from
@@ -45,6 +46,19 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
   /// Show/hide animation, owned by the coordinator.
   final Animation<double> animation;
 
+  /// Current touch deformation. [config] already carries the deformed size;
+  /// this supplies the matching origin shift and the child's pixel scale.
+  /// [LiquidGlassPressDeform.none] when no press is configured.
+  final LiquidGlassPressDeform pressDeform;
+
+  /// Spring driver fed by this lens's pointer events. Null disables the
+  /// press behaviour entirely — no `Listener` is added to the tree.
+  final LiquidGlassPressDriver? pressDriver;
+
+  /// The lens's undeformed size, used to lay the child out at rest before
+  /// scaling its pixels.
+  final Size pressRestSize;
+
   const ImpellerLiquidGlassLens({
     super.key,
     required this.config,
@@ -52,6 +66,9 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
     required this.shader,
     required this.touch,
     required this.animation,
+    this.pressDeform = LiquidGlassPressDeform.none,
+    this.pressDriver,
+    this.pressRestSize = Size.zero,
   });
 
   @override
@@ -155,9 +172,30 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
   /// Impeller path build — uses BackdropFilter + ImageFilter.shader so
   /// the shader reads the live backdrop directly. No RepaintBoundary
   /// capture required.
+  /// Feeds this lens's pointer events to the press springs. `Listener` (not
+  /// `GestureDetector`) so it never joins the gesture arena: it cannot steal
+  /// taps from the child's own buttons, nor fight the drag handler below it.
+  Widget _wrapPress(Widget child) {
+    final driver = widget.pressDriver;
+    if (driver == null) return child;
+    final Size rest = widget.pressRestSize;
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (event) => driver.down(event.localPosition, rest),
+      // Deltas, not positions: the lens is deforming under the finger.
+      onPointerMove: (event) => driver.move(event.delta),
+      onPointerUp: (_) => driver.up(),
+      onPointerCancel: (_) => driver.up(),
+      child: child,
+    );
+  }
+
   Widget _buildImpellerLens(
       BuildContext context, Offset lensPosition, double animValue) {
     final config = widget.config;
+    // `config` already carries the deformed size; shifting the origin here
+    // keeps the glass, its blur and its content on the same deformed rect.
+    lensPosition += widget.pressDeform.originShift;
     final useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
         config.effectiveAppearance.blur.sigmaY > 0;
     final shader = widget.shader;
@@ -243,16 +281,25 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
           width: config.geometry.width - config.effectiveShape.borderWidth / 2,
           height:
               config.geometry.height - config.effectiveShape.borderWidth / 2,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onPanUpdate: config.behavior.draggable
-                ? (details) {
-                    widget.touch.value += details.delta;
-                  }
-                : null,
-            child: liquidGlassClip(
-              shape: config.effectiveShape,
-              child: config.child ?? Container(color: Colors.transparent),
+          child: _wrapPress(
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onPanUpdate: config.behavior.draggable
+                  ? (details) {
+                      widget.touch.value += details.delta;
+                    }
+                  : null,
+              child: liquidGlassClip(
+                shape: config.effectiveShape,
+                // Clip at the deformed bounds, scale the content inside:
+                // the child stretches as pixels (never re-flows) and still
+                // cannot spill past the glass edge.
+                child: liquidGlassPressChild(
+                  deform: widget.pressDeform,
+                  restSize: widget.pressRestSize,
+                  child: config.child ?? Container(color: Colors.transparent),
+                ),
+              ),
             ),
           ),
         ),

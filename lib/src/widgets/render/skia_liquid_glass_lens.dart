@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_painter.dart';
+import '../utils/liquid_glass_press.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Skia / Web render path for a single lens, extracted from
@@ -56,6 +57,19 @@ class SkiaLiquidGlassLens extends StatelessWidget {
   /// else treats the capture as opaque. See [LiquidGlassPainter].
   final bool honorBackdropAlpha;
 
+  /// Current touch deformation. [config] already carries the deformed size;
+  /// this supplies the matching origin shift and the child's pixel scale.
+  /// [LiquidGlassPressDeform.none] when no press is configured.
+  final LiquidGlassPressDeform pressDeform;
+
+  /// Spring driver fed by this lens's pointer events. Null disables the
+  /// press behaviour entirely — no `Listener` is added to the tree.
+  final LiquidGlassPressDriver? pressDriver;
+
+  /// The lens's undeformed size, used to lay the child out at rest before
+  /// scaling its pixels.
+  final Size pressRestSize;
+
   const SkiaLiquidGlassLens({
     super.key,
     required this.config,
@@ -68,12 +82,36 @@ class SkiaLiquidGlassLens extends StatelessWidget {
     required this.animValue,
     this.imageRegion,
     this.honorBackdropAlpha = false,
+    this.pressDeform = LiquidGlassPressDeform.none,
+    this.pressDriver,
+    this.pressRestSize = Size.zero,
   });
+
+  /// Feeds this lens's pointer events to the press springs. `Listener` (not
+  /// `GestureDetector`) so it never joins the gesture arena: it cannot steal
+  /// taps from the child's own buttons, nor fight the drag handler below it.
+  Widget _wrapPress(Widget child) {
+    final driver = pressDriver;
+    if (driver == null) return child;
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (event) => driver.down(event.localPosition, pressRestSize),
+      // Deltas, not positions: the lens is deforming under the finger.
+      onPointerMove: (event) => driver.move(event.delta),
+      onPointerUp: (_) => driver.up(),
+      onPointerCancel: (_) => driver.up(),
+      child: child,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final bool useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
         config.effectiveAppearance.blur.sigmaY > 0;
+
+    // `config` already carries the deformed size; shifting the lens origin
+    // here keeps the shader, blur, rim and content on one deformed rect.
+    final Offset lensPosition = touch.value + pressDeform.originShift;
 
     return Stack(
       children: [
@@ -87,7 +125,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
               painter: (shader != null &&
                       (image != null || imageFallback != null))
                   ? LiquidGlassPainter(
-                      dragOffset: touch.value,
+                      dragOffset: lensPosition,
                       position: config.geometry.position,
                       lensWidth: config.geometry.width,
                       lensHeight: config.geometry.height,
@@ -137,8 +175,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             useBlur &&
             liquidGlassUsesRoundedClip(config.effectiveShape))
           Positioned(
-            left: touch.value.dx,
-            top: touch.value.dy,
+            left: lensPosition.dx,
+            top: lensPosition.dy,
             width: config.geometry.width,
             height: config.geometry.height,
             child: liquidGlassClip(
@@ -164,7 +202,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             child: CustomPaint(
               painter: LiquidGlassBorderPainter(
                 borderShader: borderShader!,
-                lensPosition: touch.value,
+                lensPosition: lensPosition,
                 lensWidth: config.geometry.width,
                 lensHeight: config.geometry.height,
                 magnification: (animValue) +
@@ -200,27 +238,37 @@ class SkiaLiquidGlassLens extends StatelessWidget {
         ValueListenableBuilder<Offset>(
           valueListenable: touch,
           builder: (context, offset, child) {
+            final Offset origin = offset + pressDeform.originShift;
             return Positioned(
-              left: offset.dx,
-              top: offset.dy,
+              left: origin.dx,
+              top: origin.dy,
               width:
                   config.geometry.width - config.effectiveShape.borderWidth / 2,
               height: config.geometry.height -
                   config.effectiveShape.borderWidth / 2,
-              child: GestureDetector(
-                behavior: HitTestBehavior
-                    .opaque, // ensures full area receives gestures
-                onPanUpdate: config.behavior.draggable
-                    ? (details) {
-                        touch.value += details.delta;
-                      }
-                    : null,
-                child: liquidGlassClip(
-                  shape: config.effectiveShape,
-                  child: config.child ??
-                      Container(
-                        color: Colors.transparent,
-                      ),
+              child: _wrapPress(
+                GestureDetector(
+                  behavior: HitTestBehavior
+                      .opaque, // ensures full area receives gestures
+                  onPanUpdate: config.behavior.draggable
+                      ? (details) {
+                          touch.value += details.delta;
+                        }
+                      : null,
+                  child: liquidGlassClip(
+                    shape: config.effectiveShape,
+                    // Clip at the deformed bounds, scale the content inside:
+                    // the child stretches as pixels (never re-flows) and
+                    // still cannot spill past the glass edge.
+                    child: liquidGlassPressChild(
+                      deform: pressDeform,
+                      restSize: pressRestSize,
+                      child: config.child ??
+                          Container(
+                            color: Colors.transparent,
+                          ),
+                    ),
+                  ),
                 ),
               ),
             );
