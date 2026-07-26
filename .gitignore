@@ -32,3 +32,6 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
+
+# Local-only test folder (not part of the published package)
+test/
