@@ -35,3 +35,8 @@ build/
 
 # Local-only test folder (not part of the published package)
 test/
+
+# Local agent / toolchain folders
+.agents/
+.codex/
+.fvm/
