@@ -126,8 +126,12 @@ class _NavScalePageState extends State<NavScalePage>
   void _setDown(bool down) {
     if (_down == down) return;
     _down = down;
+    final Ticker ticker = _ticker ??= createTicker(_onTick);
+    // Pressing again while the release is still settling is normal, and
+    // starting an already-active Ticker throws.
+    if (ticker.isActive) return;
     _lastTick = Duration.zero;
-    (_ticker ??= createTicker(_onTick)).start();
+    ticker.start();
   }
 
   void _onTick(Duration elapsed) {
