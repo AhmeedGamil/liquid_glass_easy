@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_press.dart';
+import '../utils/liquid_glass_elasticity.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_blender.dart';
 import 'liquid_glass_lens_scope.dart';
@@ -91,7 +91,7 @@ class LiquidGlassLens extends StatefulWidget {
   ///
   /// Ignored inside a `LiquidGlassBlender`, whose metaball surface owns
   /// its members' geometry.
-  final LiquidGlassPress? press;
+  final LiquidGlassElasticity? elasticity;
 
   /// Content rendered on top of the glass, clipped to the lens shape.
   final Widget? child;
@@ -101,7 +101,7 @@ class LiquidGlassLens extends StatefulWidget {
     this.style = const LiquidGlassStyle(),
     this.visibility = true,
     this.useImpellerBackdrop,
-    this.press,
+    this.elasticity,
     this.child,
   });
 
@@ -157,17 +157,17 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     }());
   }
 
-  /// Spring driver behind [LiquidGlassLens.press]. Created on first use, so
-  /// a lens without `press` never allocates a ticker.
-  LiquidGlassPressDriver? _pressDriver;
+  /// Spring driver behind [LiquidGlassLens.elasticity]. Created on first use, so
+  /// a lens without `elasticity` never allocates a ticker.
+  LiquidGlassElasticityDriver? _elasticityDriver;
 
-  LiquidGlassPressDriver _ensurePressDriver(LiquidGlassPress spec) =>
-      (_pressDriver ??= LiquidGlassPressDriver(vsync: this, spec: spec))
+  LiquidGlassElasticityDriver _ensureElasticityDriver(LiquidGlassElasticity spec) =>
+      (_elasticityDriver ??= LiquidGlassElasticityDriver(vsync: this, spec: spec))
         ..spec = spec;
 
   @override
   void dispose() {
-    _pressDriver?.dispose();
+    _elasticityDriver?.dispose();
     super.dispose();
   }
 
@@ -175,20 +175,13 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
   Widget build(BuildContext context) {
     // When an ancestor LiquidGlassBlender is present, this lens stops
     // painting its own glass: it hands its geometry to the blender, which
-    // merges all member lenses into one metaball surface. The blender owns
-    // its members' geometry, so `press` has nothing to deform here.
+    // merges all member lenses into one metaball surface.
     final blenderScope = LiquidGlassBlenderScope.maybeOf(context);
-    if (blenderScope != null) {
-      return blenderScope.buildMember(
-        style: widget.style,
-        visible: widget.visibility,
-        child: widget.child,
-      );
-    }
 
-    final LiquidGlassPress? press = widget.press;
-    if (press == null) {
-      return _buildGlass(context, LiquidGlassPressDeform.none, Size.zero);
+    final LiquidGlassElasticity? elasticity = widget.elasticity;
+    if (elasticity == null) {
+      return _buildInner(
+          context, blenderScope, LiquidGlassElasticityDeform.none, Size.zero);
     }
 
     // The lens takes its size from layout, so the rest size has to come
@@ -199,10 +192,11 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         final Size rest = constraints.biggest;
         if (!rest.width.isFinite || !rest.height.isFinite || rest.isEmpty) {
           // Unbounded or degenerate: nothing to deform against.
-          return _buildGlass(context, LiquidGlassPressDeform.none, Size.zero);
+          return _buildInner(context, blenderScope,
+              LiquidGlassElasticityDeform.none, Size.zero);
         }
 
-        final driver = _ensurePressDriver(press)..restSize = rest;
+        final driver = _ensureElasticityDriver(elasticity)..restSize = rest;
 
         return Listener(
           // Translucent, never opaque: the press must not start swallowing
@@ -216,12 +210,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
           onPointerCancel: (_) => driver.up(),
           child: SizedBox.fromSize(
             size: rest,
-            child: ValueListenableBuilder<LiquidGlassPressDeform>(
+            child: ValueListenableBuilder<LiquidGlassElasticityDeform>(
               valueListenable: driver,
-              builder: (context, deform, _) => liquidGlassPressBox(
+              builder: (context, deform, _) => liquidGlassElasticityBox(
                 deform: deform,
                 restSize: rest,
-                child: _buildGlass(context, deform, rest),
+                child: _buildInner(context, blenderScope, deform, rest),
               ),
             ),
           ),
@@ -230,12 +224,52 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     );
   }
 
-  /// Builds the lens proper. [deform] is [LiquidGlassPressDeform.none] and
-  /// [restSize] is [Size.zero] whenever `press` is unset — in that case
+  /// Routes to whichever thing this lens actually is — a blended member, or
+  /// a lens that paints its own glass — with the deformation already applied.
+  ///
+  /// Inside a [LiquidGlassBlender] the surrounding [liquidGlassElasticityBox]
+  /// has already resized this member's box, and the blender derives every
+  /// member's rect from the render tree — `MatrixUtils.transformRect` over
+  /// `member.getTransformTo(target)` — so the merged metaball silhouette
+  /// picks the deformation up on its own, radius cap included. A resized
+  /// member also notifies the registry from its `performLayout`, so the
+  /// surface repaints. All that is left here is the content transform.
+  ///
+  /// One thing does not survive the trip:
+  /// [LiquidGlassElasticityTuning.refractionBoost]. The blender refracts
+  /// through a single shared style for the whole merged surface, and its
+  /// per-member uniforms carry only geometry — so a press on one blob cannot
+  /// deepen its own optics without deepening every other blob's too. Geometry
+  /// (stretch, squeeze, lean, grip, holdScale, tapScale) and
+  /// [LiquidGlassElasticityTuning.childFollow] all behave normally.
+  Widget _buildInner(
+    BuildContext context,
+    LiquidGlassBlenderScope? blenderScope,
+    LiquidGlassElasticityDeform deform,
+    Size restSize,
+  ) {
+    if (blenderScope != null) {
+      return blenderScope.buildMember(
+        style: widget.style,
+        visible: widget.visibility,
+        child: widget.child == null
+            ? null
+            : liquidGlassElasticityChild(
+                deform: deform,
+                restSize: restSize,
+                child: widget.child!,
+              ),
+      );
+    }
+    return _buildGlass(context, deform, restSize);
+  }
+
+  /// Builds the lens proper. [deform] is [LiquidGlassElasticityDeform.none] and
+  /// [restSize] is [Size.zero] whenever `elasticity` is unset — in that case
   /// every press-related branch below collapses to the original behaviour.
   Widget _buildGlass(
     BuildContext context,
-    LiquidGlassPressDeform deform,
+    LiquidGlassElasticityDeform deform,
     Size restSize,
   ) {
     final bool deformed = !deform.isRest && !restSize.isEmpty;
@@ -243,14 +277,14 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // Cap the radius against the *deformed* size so a squeezed capsule
     // stays a capsule instead of self-intersecting at the rim.
     final LiquidGlassShape shape = deformed
-        ? liquidGlassPressShape(_shape, deform.sizeFrom(restSize))
+        ? liquidGlassElasticityShape(_shape, deform.sizeFrom(restSize))
         : _shape;
 
     // Pressing deepens the optics rather than popping the scale — this is
     // the cue that reads as glass under pressure instead of rubber.
     final LiquidGlassRefraction refraction = deform.pressAmount > 0
-        ? liquidGlassPressRefraction(
-            _refraction, widget.press!, deform.pressAmount)
+        ? liquidGlassElasticityRefraction(
+            _refraction, widget.elasticity!, deform.pressAmount)
         : _refraction;
 
     final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
@@ -284,7 +318,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         visible: widget.visibility,
         child: widget.child == null
             ? null
-            : liquidGlassPressChild(
+            : liquidGlassElasticityChild(
                 deform: deform,
                 restSize: restSize,
                 child: widget.child!,
@@ -308,7 +342,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
             borderRadius: BorderRadius.circular(
               liquidGlassClipCornerRadius(shape),
             ),
-            child: liquidGlassPressChild(
+            child: liquidGlassElasticityChild(
               deform: deform,
               restSize: restSize,
               child: widget.child!,

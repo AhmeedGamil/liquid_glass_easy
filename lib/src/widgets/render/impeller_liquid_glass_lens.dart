@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
-import '../utils/liquid_glass_press.dart';
+import '../utils/liquid_glass_elasticity.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Impeller render path for a single lens, extracted from
@@ -48,16 +48,16 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
 
   /// Current touch deformation. [config] already carries the deformed size;
   /// this supplies the matching origin shift and the child's pixel scale.
-  /// [LiquidGlassPressDeform.none] when no press is configured.
-  final LiquidGlassPressDeform pressDeform;
+  /// [LiquidGlassElasticityDeform.none] when no press is configured.
+  final LiquidGlassElasticityDeform elasticityDeform;
 
   /// Spring driver fed by this lens's pointer events. Null disables the
   /// press behaviour entirely — no `Listener` is added to the tree.
-  final LiquidGlassPressDriver? pressDriver;
+  final LiquidGlassElasticityDriver? elasticityDriver;
 
   /// The lens's undeformed size, used to lay the child out at rest before
   /// scaling its pixels.
-  final Size pressRestSize;
+  final Size elasticityRestSize;
 
   const ImpellerLiquidGlassLens({
     super.key,
@@ -66,9 +66,9 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
     required this.shader,
     required this.touch,
     required this.animation,
-    this.pressDeform = LiquidGlassPressDeform.none,
-    this.pressDriver,
-    this.pressRestSize = Size.zero,
+    this.elasticityDeform = LiquidGlassElasticityDeform.none,
+    this.elasticityDriver,
+    this.elasticityRestSize = Size.zero,
   });
 
   @override
@@ -175,10 +175,10 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
   /// Feeds this lens's pointer events to the press springs. `Listener` (not
   /// `GestureDetector`) so it never joins the gesture arena: it cannot steal
   /// taps from the child's own buttons, nor fight the drag handler below it.
-  Widget _wrapPress(Widget child) {
-    final driver = widget.pressDriver;
+  Widget _wrapElasticity(Widget child) {
+    final driver = widget.elasticityDriver;
     if (driver == null) return child;
-    final Size rest = widget.pressRestSize;
+    final Size rest = widget.elasticityRestSize;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) => driver.down(event.localPosition, rest),
@@ -195,7 +195,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     final config = widget.config;
     // `config` already carries the deformed size; shifting the origin here
     // keeps the glass, its blur and its content on the same deformed rect.
-    lensPosition += widget.pressDeform.originShift;
+    lensPosition += widget.elasticityDeform.originShift;
     final useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
         config.effectiveAppearance.blur.sigmaY > 0;
     final shader = widget.shader;
@@ -281,7 +281,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
           width: config.geometry.width - config.effectiveShape.borderWidth / 2,
           height:
               config.geometry.height - config.effectiveShape.borderWidth / 2,
-          child: _wrapPress(
+          child: _wrapElasticity(
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onPanUpdate: config.behavior.draggable
@@ -294,9 +294,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
                 // Clip at the deformed bounds, scale the content inside:
                 // the child stretches as pixels (never re-flows) and still
                 // cannot spill past the glass edge.
-                child: liquidGlassPressChild(
-                  deform: widget.pressDeform,
-                  restSize: widget.pressRestSize,
+                child: liquidGlassElasticityChild(
+                  deform: widget.elasticityDeform,
+                  restSize: widget.elasticityRestSize,
                   child: config.child ?? Container(color: Colors.transparent),
                 ),
               ),

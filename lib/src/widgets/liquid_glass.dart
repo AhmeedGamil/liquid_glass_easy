@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'liquid_glass_config.dart';
 import 'render/impeller_liquid_glass_lens.dart';
 import 'render/skia_liquid_glass_lens.dart';
-import 'utils/liquid_glass_press.dart';
+import 'utils/liquid_glass_elasticity.dart';
 
 export '../controllers/liquid_glass_controller.dart' show LiquidGlassController;
 export 'liquid_glass_config.dart'
@@ -84,14 +84,14 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
   late final ValueNotifier<Offset> _touchNotifier;
   late AnimationController _animController;
 
-  /// Spring driver behind [LiquidGlassBehavior.press]. Created on first use,
-  /// so a lens without `press` never allocates a ticker.
+  /// Spring driver behind [LiquidGlassBehavior.elasticity]. Created on first
+  /// use, so a lens without `elasticity` never allocates a ticker.
   ///
   /// Deliberately kept OUT of the position bookkeeping below: `_touchNotifier`
   /// and every clamp in [didUpdateWidget] resolve against the **rest** config
   /// only. The deformation is applied once, at the very end of [build], on
   /// the way to the render path — never stored, never fed back.
-  LiquidGlassPressDriver? _pressDriver;
+  LiquidGlassElasticityDriver? _ownedElasticityDriver;
   @override
   void initState() {
     super.initState();
@@ -273,14 +273,17 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
   @override
   void dispose() {
     widget.config.behavior.controller?.detach();
-    _pressDriver?.dispose();
+    // Only the driver this state created — an externally supplied one
+    // belongs to whoever handed it in.
+    _ownedElasticityDriver?.dispose();
     _touchNotifier.dispose();
     _animController.dispose();
     super.dispose();
   }
 
-  LiquidGlassPressDriver _ensurePressDriver(LiquidGlassPress spec) =>
-      (_pressDriver ??= LiquidGlassPressDriver(vsync: this, spec: spec))
+  LiquidGlassElasticityDriver _ensureElasticityDriver(LiquidGlassElasticity spec) =>
+      (_ownedElasticityDriver ??=
+          LiquidGlassElasticityDriver(vsync: this, spec: spec))
         ..spec = spec
         ..restSize = Size(
           widget.config.geometry.width,
@@ -291,18 +294,18 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
   Widget build(BuildContext context) {
     if (_animController.value >= 1) return const SizedBox.shrink();
 
-    final LiquidGlassPress? press = widget.config.behavior.press;
-    if (press == null) {
-      return _buildPath(widget.config, LiquidGlassPressDeform.none, null);
+    final LiquidGlassElasticity? elasticity = widget.config.behavior.elasticity;
+    if (elasticity == null) {
+      return _buildPath(widget.config, LiquidGlassElasticityDeform.none, null);
     }
 
     // Deform last: the rest config drives every layout decision above, and
     // only the copy handed to the render path carries the deformation.
-    final driver = _ensurePressDriver(press);
-    return ValueListenableBuilder<LiquidGlassPressDeform>(
+    final driver = _ensureElasticityDriver(elasticity);
+    return ValueListenableBuilder<LiquidGlassElasticityDeform>(
       valueListenable: driver,
       builder: (context, deform, _) => _buildPath(
-        liquidGlassPressConfig(widget.config, press, deform),
+        liquidGlassElasticityConfig(widget.config, elasticity, deform),
         deform,
         driver,
       ),
@@ -319,10 +322,10 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
   /// apply to the lens position and the child respectively.
   Widget _buildPath(
     LiquidGlass config,
-    LiquidGlassPressDeform deform,
-    LiquidGlassPressDriver? pressDriver,
+    LiquidGlassElasticityDeform deform,
+    LiquidGlassElasticityDriver? elasticityDriver,
   ) {
-    final Size pressRestSize = Size(
+    final Size elasticityRestSize = Size(
       widget.config.geometry.width,
       widget.config.geometry.height,
     );
@@ -334,9 +337,9 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
         shader: widget.sharedShader,
         touch: _touchNotifier,
         animation: _animController,
-        pressDeform: deform,
-        pressDriver: pressDriver,
-        pressRestSize: pressRestSize,
+        elasticityDeform: deform,
+        elasticityDriver: elasticityDriver,
+        elasticityRestSize: elasticityRestSize,
       );
     }
 
@@ -351,9 +354,9 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
       animValue: _animController.value,
       imageRegion: widget.sharedImageRegion,
       honorBackdropAlpha: widget.honorBackdropAlpha,
-      pressDeform: deform,
-      pressDriver: pressDriver,
-      pressRestSize: pressRestSize,
+      elasticityDeform: deform,
+      elasticityDriver: elasticityDriver,
+      elasticityRestSize: elasticityRestSize,
     );
   }
 }

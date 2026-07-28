@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import 'blended_nav_page.dart';
 import 'control_center_page.dart';
 import 'corner_style_page.dart';
 import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
-import 'press_tuner.dart';
+import 'nav_scale_page.dart';
+import 'elasticity_tuner.dart';
 import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
 import 'slider_jelly_tuner.dart';
@@ -105,6 +107,20 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
+      title: 'Glass Pill Nav + Elasticity',
+      subtitle: 'Jelly morph pill, with elasticity on the bar capsule',
+      icon: Icons.blur_circular_rounded,
+      gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
+      builder: (_) => const BlendedNavPage(),
+    ),
+    _Destination(
+      title: 'Nav Bar Scale (experiment)',
+      subtitle: 'Press the glass pill bar and the whole thing scales',
+      icon: Icons.zoom_out_map_rounded,
+      gradient: const [Color(0xFFFFB020), Color(0xFFB1462A)],
+      builder: (_) => const NavScalePage(),
+    ),
+    _Destination(
       title: 'Slider & Toggle',
       subtitle: 'Live glass sliders + switches',
       icon: Icons.toggle_on_rounded,
@@ -136,11 +152,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const SliderJellyTunerPage(),
     ),
     _Destination(
-      title: 'Press Tuner',
+      title: 'Elasticity Tuner',
       subtitle: 'Touch-deform a lens that never moves',
       icon: Icons.touch_app_rounded,
       gradient: const [Color(0xFF2DD4BF), Color(0xFF1E69DE)],
-      builder: (_) => const PressTunerPage(),
+      builder: (_) => const ElasticityTunerPage(),
     ),
   ];
 

@@ -47,8 +47,11 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_config.da
 // Touch deformation: press a lens and it compresses, drag it and it
 // elongates along the pull while pinching in the cross axis — four edges
 // sprung independently and anchored at the grab point.
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_press.dart'
-    show LiquidGlassPress, LiquidGlassPressDeform;
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_elasticity.dart'
+    show
+        LiquidGlassElasticity,
+        LiquidGlassElasticityDeform,
+        LiquidGlassElasticityTuning;
 
 // ── Public, customizable developer components ──────────────
 // Generic glass UI atoms a developer composes into their app.
