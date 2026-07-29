@@ -11,24 +11,32 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // jelly spring (LiquidGlassNavJellyConfig) and refracts the page behind
 // it.
 //
-// The BAR ITSELF HAS NO ELASTICITY. Only the side action below carries
-// it — that is an ordinary lens-anywhere widget, which listens for its
-// own touches. The bar cannot: its tab-gesture overlay is opaque and sits
+// The BAR ITSELF HAS NO ELASTICITY. Only the side actions carry it —
+// those are ordinary lens-anywhere widgets, which listen for their own
+// touches. The bar cannot: its tab-gesture overlay is opaque and sits
 // above the capsule, so the capsule's own lens never sees a pointer.
 // Wiring that up means the bar owning the gesture and feeding the
 // deformation itself, which was tried and then taken back out.
 //
-// WHY THERE IS NO BLENDER HERE
-// ----------------------------
-// It is the JELLY MORPH PILL specifically that rules out blending, not
-// the nav bar. This bar is built on the position-driven pipeline
-// (`LiquidGlassView.withPositionedLenses` with `LiquidGlass` configs for
-// the capsule and the moving pill) and it is full-screen: it composites
-// over the page behind it. `LiquidGlassBlender` merges bounded
+// WHAT BLENDS HERE, AND WHAT CANNOT
+// ---------------------------------
+// The two side actions blend with each other and each carry elasticity.
+// Drag the mic into the search: the outlines flow together into one
+// surface, and both still deform under the finger while merged.
+//
+// The BAR is not part of that, and it is the JELLY MORPH PILL that rules
+// it out rather than the bar. This bar is built on the position-driven
+// pipeline (`LiquidGlassView.withPositionedLenses` with `LiquidGlass`
+// configs for the capsule and the moving pill) and it is full-screen: it
+// composites over the page behind it. `LiquidGlassBlender` merges bounded
 // `LiquidGlassLens` *widgets*, and this path never runs
 // `LiquidGlassLens.build`, so it never registers with the blender scope.
-// The side action button below IS a lens-anywhere widget and does carry
-// elasticity — it just cannot metaball-merge with the bar.
+//
+// One thing does not survive a merge: the press-deepens-the-optics cue
+// (`refractionBoost`). The blender refracts the whole merged surface
+// through ONE shared style, so a press on one blob cannot deepen its own
+// optics without deepening the other's. Geometry — stretch, squeeze,
+// lean, grip, holdScale, tapScale — all behave normally.
 //
 // Drop `pillStyle.mode` (the plain `LiquidGlassBottomNavBar` constructor)
 // and the bar becomes a single lens that DOES blend — but then the pill
@@ -74,7 +82,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
     LiquidGlassTabBarItem(icon: Icons.person_rounded),
   ];
 
-  /// The side action's elasticity. The bar itself has none — see the note
+  /// The side actions' elasticity. The bar itself has none — see the note
   /// at the top of the file.
   static const LiquidGlassElasticity _actionElasticity =
       LiquidGlassElasticity(stretch: 3, lean: 3);
@@ -114,18 +122,59 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
             ),
           ),
 
-          // Side action — a lens-anywhere widget, so it gets elasticity
-          // the ordinary way.
+          // Side actions — lens-anywhere widgets, so they blend AND take
+          // elasticity. Drag the mic into the search and the two outlines
+          // flow together; keep dragging and they separate again.
           Align(
             alignment: Alignment.bottomRight,
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.only(right: 18, bottom: 32),
-                child: LiquidGlassTabBarAction(
-                  icon: Icons.search_rounded,
-                  size: 60,
-                  onTap: () {},
-                  elasticity: _elastic ? _actionElasticity : null,
+                padding: const EdgeInsets.only(right: 18, bottom: 28),
+                child: SizedBox(
+                  width: 108,
+                  height: 210,
+                  child: LiquidGlassBlender(
+                    // Wide enough that the two fuse before they touch, which
+                    // is the whole point of the merge.
+                    smoothness: 34,
+                    style: const LiquidGlassStyle(
+                      shape: LiquidGlassShape.continuousRoundedRectangle(
+                        cornerRadius: 30,
+                      ),
+                    ),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: LiquidGlassTabBarAction(
+                            icon: Icons.search_rounded,
+                            size: 60,
+                            onTap: () {},
+                            elasticity: _elastic ? _actionElasticity : null,
+                          ),
+                        ),
+                        // Draggable member. The blender reads every member's
+                        // rect through `getTransformTo`, so a Transform-based
+                        // drag is fine here — unlike a lens painting its own
+                        // glass, which reads screen-space FragCoord.
+                        Positioned(
+                          right: 0,
+                          bottom: 96,
+                          child: LiquidGlassDraggable(
+                            child: LiquidGlassTabBarAction(
+                              icon: Icons.mic_rounded,
+                              size: 60,
+                              onTap: () {},
+                              elasticity:
+                                  _elastic ? _actionElasticity : null,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -171,7 +220,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
               title: const Text('elasticity', style: TextStyle(fontSize: 13)),
               subtitle: Text(
                 _elastic
-                    ? 'the side action deforms on touch'
+                    ? 'the blended actions deform on touch'
                     : 'rigid glass (pill jelly still runs)',
                 style: TextStyle(
                   fontSize: 11,
