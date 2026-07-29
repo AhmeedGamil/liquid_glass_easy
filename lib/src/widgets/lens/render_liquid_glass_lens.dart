@@ -188,6 +188,23 @@ class RenderLiquidGlassLens extends RenderProxyBox
     markNeedsPaint();
   }
 
+
+  /// The lens outline as an RRect, stretched by [_shapeScale].
+  ///
+  /// The shader evaluates the shape at REST size and scales the domain, so the
+  /// corner it draws is ELLIPTICAL (`r*sx` by `r*sy`). A circular RRect crosses
+  /// that outline instead of matching it: near the cap apex it sits INSIDE the
+  /// glass and shaves the rim off entirely. `Radius.elliptical` is the same
+  /// curve the shader draws, so the two coincide.
+  RRect _outlineRRect(Rect rect) {
+    final double r = liquidGlassClipCornerRadius(_shape);
+    final double sx = _shapeScale.dx <= 0 ? 1.0 : _shapeScale.dx;
+    final double sy = _shapeScale.dy <= 0 ? 1.0 : _shapeScale.dy;
+    return (sx == 1.0 && sy == 1.0)
+        ? RRect.fromRectAndRadius(rect, Radius.circular(r))
+        : RRect.fromRectAndRadius(rect, Radius.elliptical(r * sx, r * sy));
+  }
+
   final LayerHandle<ClipRRectLayer> _clipLayerHandle =
       LayerHandle<ClipRRectLayer>();
   final LayerHandle<BackdropFilterLayer> _blurLayerHandle =
@@ -315,11 +332,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       honorBackdropAlpha: false,
     );
 
-    final double radius = liquidGlassClipCornerRadius(_shape);
-    final RRect localRRect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(radius),
-    );
+    final RRect localRRect = _outlineRRect(Offset.zero & size);
 
     _clipLayerHandle.layer = context.pushClipRRect(
       needsCompositing,
@@ -377,7 +390,6 @@ class RenderLiquidGlassLens extends RenderProxyBox
         MatrixUtils.transformPoint(getTransformTo(viewBox), Offset.zero);
     final Size viewSize = viewBox.size;
     final bool useBlur = _useBlur;
-    final double radius = liquidGlassClipCornerRadius(_shape);
 
     _packUniforms(
       _mainShader,
@@ -392,8 +404,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _mainShader.setImageSampler(0, image);
 
     final Rect viewSpaceRect = lensPosInView & size;
-    final RRect viewSpaceRRect =
-        RRect.fromRectAndRadius(viewSpaceRect, Radius.circular(radius));
+    final RRect viewSpaceRRect = _outlineRRect(viewSpaceRect);
 
     final ui.Canvas canvas = context.canvas;
     canvas
@@ -405,10 +416,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
     if (useBlur && liquidGlassUsesRoundedClip(_shape)) {
       // Backdrop blur above the refraction, clipped to the lens shape.
-      final RRect localRRect = RRect.fromRectAndRadius(
-        Offset.zero & size,
-        Radius.circular(radius),
-      );
+      final RRect localRRect = _outlineRRect(Offset.zero & size);
       _skiaBlurClipLayerHandle.layer = context.pushClipRRect(
         needsCompositing,
         offset,
