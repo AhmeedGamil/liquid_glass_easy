@@ -84,6 +84,10 @@ uniform float u_lightSpread;
 uniform vec2 u_imageOffset;
 uniform vec2 u_imageSize;
 
+// Deformed size / rest size, from elasticity. Must match the main shader's
+// value exactly or the rim stops hugging the fill.
+uniform vec2 u_shapeScale;
+
 out vec4 frag_color;
 
 #define REFRACTION_SHAPE    0
@@ -146,27 +150,34 @@ void main() {
     // Rounded rectangle. u_cornerStyle selects the corner SDF
     //   (2 = continuous, 1 = squircle, 0 = circular). Must mirror the main
     //   shader's branch exactly so the rim hugs the same outline as the fill.
-    float maxCorner      = min(u_lensWidth, u_lensHeight) * 0.5;
+    // Same rest-space evaluation as the main shader — see its comment.
+    vec2 shapeScale = max(u_shapeScale, vec2(1e-4));
+    vec2 restHalfPx = lensHalfSizePx / shapeScale;
+    vec2 fragRestPx = lensCenterPx + (fragPosPx - lensCenterPx) / shapeScale;
+
+    float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
 
     if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
         // Continuous (Apple capsule-style) corners.
-        vec2 reach = continuousRoundedRectReach(cornerRadiusPx, lensHalfSizePx);
+        vec2 reach = continuousRoundedRectReach(cornerRadiusPx, restHalfPx);
         shapeData = evaluateContinuousRoundedRect(
-            fragPosPx, lensCenterPx, lensHalfSizePx, cornerRadiusPx, reach);
+            fragRestPx, lensCenterPx, restHalfPx, cornerRadiusPx, reach);
     } else if (u_cornerStyle > 0.5 && cornerRadiusPx > 0.5) {
         // Squircle (Ln-norm) corners — smoothing fixed at full (1.0).
         vec2 zn = squircleCornerParams(cornerRadiusPx, 1.0, maxCorner);
         shapeData = evaluateSquircleRRect(
-            fragPosPx, lensCenterPx, lensHalfSizePx, zn.x, zn.y);
+            fragRestPx, lensCenterPx, restHalfPx, zn.x, zn.y);
     } else {
         shapeData = evaluateShape(
-            fragPosPx,
+            fragRestPx,
             lensCenterPx,
-            lensHalfSizePx,
+            restHalfPx,
             cornerRadiusPx
         );
     }
+
+    shapeData = shapeToScreen(shapeData, shapeScale);
 
     // =====================================================
     // Border (shared for both shapes)

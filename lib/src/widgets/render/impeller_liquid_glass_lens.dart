@@ -138,6 +138,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     packLiquidGlassUniforms(
       shader,
       shape: shape,
+      // Evaluate the shape at REST size: the deformation stretches the whole
+      // outline instead of leaving a fixed radius to grow flat runs.
+      shapeScale: widget.elasticityDeform.scaleFrom(widget.elasticityRestSize),
       scale: devicePixelRatio,
       resolution: resolution,
       lensPosition: lensPosition,

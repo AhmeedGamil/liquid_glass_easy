@@ -125,6 +125,10 @@ class SkiaLiquidGlassLens extends StatelessWidget {
               painter: (shader != null &&
                       (image != null || imageFallback != null))
                   ? LiquidGlassPainter(
+                      // Shape evaluated at REST size; the deformation stretches
+                      // the whole outline, not just the box around it.
+                      shapeScale:
+                          elasticityDeform.scaleFrom(elasticityRestSize),
                       dragOffset: lensPosition,
                       position: config.geometry.position,
                       lensWidth: config.geometry.width,
@@ -201,6 +205,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             ignoring: true,
             child: CustomPaint(
               painter: LiquidGlassBorderPainter(
+                // Must match the main pass or the rim leaves the fill.
+                shapeScale: elasticityDeform.scaleFrom(elasticityRestSize),
                 borderShader: borderShader!,
                 lensPosition: lensPosition,
                 lensWidth: config.geometry.width,

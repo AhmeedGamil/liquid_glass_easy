@@ -7,6 +7,9 @@ import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens_scope.dart'
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
+// Flutter only re-exports `internal` from foundation.dart on newer SDKs.
+// ignore: unnecessary_import
+import 'package:meta/meta.dart';
 
 // Main container that renders LiquidGlass lenses on top of a background
 class LiquidGlassView extends StatefulWidget {

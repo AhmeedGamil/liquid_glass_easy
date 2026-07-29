@@ -207,6 +207,38 @@ ShapeData evaluateShape(
 }
 
 /* ===========================
+   REST-SPACE SHAPE -> SCREEN SPACE
+   ---------------------------------------------------
+   Elasticity resizes a lens instead of transforming it, so a stretched
+   circle would keep its pixel radius and grow flat runs — a stadium, not
+   an ellipse. The fix is to evaluate the shape at its REST size in a
+   domain divided by `scale` (deformed / rest); the anisotropy then falls
+   out of the mapping and every corner style stretches correctly.
+
+   That leaves the SDF in rest units, while the AA ramp, the refraction
+   band and the rim are all measured in screen px. This maps it back:
+   d_screen = f / |grad_screen| with grad_screen = grad_rest / scale,
+   which is first-order exact — all those consumers need is the local
+   gradient.
+
+   The derivative method is already screen-space: dFdx/dFdy differentiate
+   w.r.t. the real fragment position however the SDF was parameterised, so
+   its gradient (and therefore orthoDist) needs no correction.
+   =========================== */
+ShapeData shapeToScreen(ShapeData d, vec2 scale){
+#if GLASS_GRAD_METHOD == GLASS_GRAD_DERIVATIVE
+    return d;
+#else
+    vec2  g  = d.grad / scale;
+    float gL = max(length(g), EPS);
+    d.orthoDist *= max(length(d.grad), EPS) / gL;
+    d.grad   = g;
+    d.normal = g / gL;
+    return d;
+#endif
+}
+
+/* ===========================
    Continuous-corner zone + exponent from (radius, smoothing).
    ---------------------------------------------------
    smoothing 0 → zone = r, n = 2 (plain circular corner).

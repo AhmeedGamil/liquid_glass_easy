@@ -81,6 +81,14 @@ void packLiquidGlassUniforms(
   /// shader has no coverage step and no such uniform.
   bool honorBackdropAlpha = true,
 
+  /// Deformed size ÷ rest size, when a touch deformation is running.
+  ///
+  /// [Offset.zero] and `(1, 1)` both mean "undeformed"; anything else makes
+  /// the shader evaluate the shape at its REST size in a domain divided by
+  /// this, so a stretched circle reads as an ellipse rather than growing
+  /// flat runs. Never scaled by [scale] — it is a ratio, not a length.
+  Offset shapeScale = const Offset(1, 1),
+
   /// Parent-space rectangle the bound texture covers, in logical px.
   /// Defaults (offset `(0,0)`, size == [resolution]) reproduce the old
   /// full-frame `refrPx / u_resolution` sampling. The Impeller path always
@@ -204,6 +212,12 @@ void packLiquidGlassUniforms(
     // on both backends.
     shader.setFloat(i++, scale);
   }
+
+  // u_shapeScale — LAST in both shaders, so it sits after the main-only pair
+  // above and the border shader's indices still line up. A ratio, so it is
+  // deliberately not multiplied by `scale`.
+  shader.setFloat(i++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx);
+  shader.setFloat(i++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
 }
 
 /// One lens's contribution to the metaball field, in the SAME logical-pixel

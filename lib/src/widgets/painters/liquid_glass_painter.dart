@@ -45,6 +45,11 @@ class LiquidGlassPainter extends CustomPainter {
 
   /// Top-left (in parent logical px) of the parent-space rectangle the
   /// captured [image] covers. `null` → full-frame capture (offset zero).
+  /// Deformed size / rest size while a touch deformation runs; `(1,1)` when
+  /// undeformed. Feeds `u_shapeScale` so the shape is evaluated at REST size
+  /// -- a stretched circle stays an ellipse instead of growing flat runs.
+  final Offset shapeScale;
+
   final Offset? imageOffset;
 
   /// Size (in parent logical px) of the parent-space rectangle the
@@ -84,6 +89,7 @@ class LiquidGlassPainter extends CustomPainter {
     required this.refractionType,
     required this.image,
     this.imageFallback,
+    this.shapeScale = const Offset(1, 1),
     this.imageOffset,
     this.imageSize,
     this.honorBackdropAlpha = false,
@@ -210,6 +216,9 @@ class LiquidGlassPainter extends CustomPainter {
     // edge-AA band is one logical pixel: pass 1.0 (Impeller passes dpr via
     // packLiquidGlassUniforms). Last uniform in liquid_glass.frag.
     shader.setFloat(index++, 1.0);
+    // u_shapeScale — last uniform; a ratio, so never scaled.
+    shader.setFloat(index++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx);
+    shader.setFloat(index++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
 
     shader.setImageSampler(0, sampledImage);
 
@@ -332,6 +341,11 @@ class LiquidGlassBorderPainter extends CustomPainter {
   final ui.Image? Function()? imageFallback;
 
   /// See [LiquidGlassPainter.imageOffset]. `null` → full-frame.
+  /// Deformed size / rest size while a touch deformation runs; `(1,1)` when
+  /// undeformed. Feeds `u_shapeScale` so the shape is evaluated at REST size
+  /// -- a stretched circle stays an ellipse instead of growing flat runs.
+  final Offset shapeScale;
+
   final Offset? imageOffset;
 
   /// See [LiquidGlassPainter.imageSize]. `null` → full-frame.
@@ -355,6 +369,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
     required this.borderAlpha,
     required this.image,
     this.imageFallback,
+    this.shapeScale = const Offset(1, 1),
     this.imageOffset,
     this.imageSize,
   });
@@ -453,7 +468,10 @@ class LiquidGlassBorderPainter extends CustomPainter {
       ..setFloat(index++, imgOffset.dx)
       ..setFloat(index++, imgOffset.dy)
       ..setFloat(index++, imgSize.width)
-      ..setFloat(index++, imgSize.height);
+      ..setFloat(index++, imgSize.height)
+      // u_shapeScale — must match the main pass or the rim leaves the fill.
+      ..setFloat(index++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx)
+      ..setFloat(index++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
 
     borderShader.setImageSampler(0, sampledImage);
 

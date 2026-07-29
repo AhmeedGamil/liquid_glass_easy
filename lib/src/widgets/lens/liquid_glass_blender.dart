@@ -5,6 +5,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+// Flutter only re-exports `internal` from foundation.dart on newer SDKs.
+// ignore: unnecessary_import
+import 'package:meta/meta.dart';
 
 import '../liquid_glass_style.dart';
 import '../painters/liquid_glass_uniforms.dart';

@@ -6,7 +6,6 @@ import 'package:flutter/widgets.dart';
 
 import '../liquid_glass_config.dart';
 import 'liquid_glass_jelly_spring.dart';
-import 'liquid_glass_shape.dart';
 
 /// Touch-driven **soft-body deformation** for a lens that does not move.
 ///
@@ -469,6 +468,20 @@ class LiquidGlassElasticityDeform {
         math.max(0.0, rest.width + widthDelta),
         math.max(0.0, rest.height + heightDelta),
       );
+
+  /// Deformed size ÷ [rest] size, as the shader's `u_shapeScale`.
+  ///
+  /// `(1, 1)` when undeformed. The shader evaluates the shape at REST size in
+  /// a domain divided by this, so the deformation stretches the whole outline
+  /// -- a circle becomes an ellipse instead of a stadium with flat runs.
+  Offset scaleFrom(Size rest) {
+    if (rest.isEmpty) return const Offset(1, 1);
+    final Size d = sizeFrom(rest);
+    return Offset(
+      d.width <= 0 ? 1.0 : d.width / rest.width,
+      d.height <= 0 ? 1.0 : d.height / rest.height,
+    );
+  }
 
   /// How far the deformed lens's top-left sits from the rest top-left.
   /// Negative on each axis when the leading edges push outward.
@@ -971,40 +984,16 @@ LiquidGlass liquidGlassElasticityConfig(
 
   final Size rest = Size(config.geometry.width, config.geometry.height);
   final Size size = deform.sizeFrom(rest);
-  final LiquidGlassShape shape =
-      liquidGlassElasticityShape(config.effectiveShape, size);
   final LiquidGlassRefraction refraction = liquidGlassElasticityRefraction(
       config.effectiveRefraction, spec, deform.pressAmount);
 
+  // The SHAPE is left exactly as authored. The shader evaluates it at rest
+  // size and divides the domain by `u_shapeScale`, so capping the radius
+  // against the deformed size here would shrink it a second time.
   return config.copyWith(
     geometry: config.geometry.copyWith(width: size.width, height: size.height),
-    shape: shape,
     refraction: refraction,
-    style: config.style?.copyWith(shape: shape, refraction: refraction),
-  );
-}
-
-/// Keeps a shape valid at a deformed [size] by capping its corner radius to
-/// half the shorter side — without this a squeezed capsule stops being a
-/// capsule and the rim self-intersects.
-///
-/// Applied only along the press path, so a lens with no [LiquidGlassElasticity]
-/// keeps its authored radius exactly.
-LiquidGlassShape liquidGlassElasticityShape(LiquidGlassShape shape, Size size) {
-  if (size.isEmpty) return shape;
-  final double cap = math.min(size.width, size.height) / 2;
-  if (shape.cornerRadius <= cap) return shape;
-  return LiquidGlassShape(
-    cornerStyle: shape.cornerStyle,
-    cornerRadius: cap,
-    clipQuality: shape.clipQuality,
-    borderWidth: shape.borderWidth,
-    borderColor: shape.borderColor,
-    lightIntensity: shape.lightIntensity,
-    lightColor: shape.lightColor,
-    lightDirection: shape.lightDirection,
-    lightMode: shape.lightMode,
-    borderType: shape.borderType,
+    style: config.style?.copyWith(refraction: refraction),
   );
 }
 

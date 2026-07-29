@@ -111,6 +111,10 @@ uniform float u_honorBackdropAlpha;
 // and the corners alias. Must be the LAST uniform (see packLiquidGlassUniforms).
 uniform float u_shapeAaPx;
 
+// Deformed size / rest size, from elasticity. (1,1) = undeformed, and the
+// whole rest-space path below then collapses to the original math.
+uniform vec2 u_shapeScale;
+
 
 out vec4 frag_color;
 
@@ -244,30 +248,38 @@ void main() {
     float shapeMask;
     ShapeData shapeData;
 
+    // Evaluate at REST size in a domain divided by the deformation, so a
+    // stretched circle becomes an ellipse instead of growing flat runs.
+    vec2 shapeScale = max(u_shapeScale, vec2(1e-4));
+    vec2 restHalfPx = lensHalfSizePx / shapeScale;
+    vec2 fragRestPx = lensCenterPx + (fragPx - lensCenterPx) / shapeScale;
+
     // Rounded rectangle. u_cornerStyle selects the corner SDF:
     //   2 = continuous (Apple capsule-style), 1 = squircle, 0 = circular.
-    float maxCorner      = min(u_lensWidth, u_lensHeight) * 0.5;
+    float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
 
     if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
         // Continuous (Apple capsule-style) corners.
-        vec2 reach = continuousRoundedRectReach(cornerRadiusPx, lensHalfSizePx);
+        vec2 reach = continuousRoundedRectReach(cornerRadiusPx, restHalfPx);
         shapeData = evaluateContinuousRoundedRect(
-            fragPx, lensCenterPx, lensHalfSizePx, cornerRadiusPx, reach);
+            fragRestPx, lensCenterPx, restHalfPx, cornerRadiusPx, reach);
     } else if (u_cornerStyle > 0.5 && cornerRadiusPx > 0.5) {
         // Squircle (Ln-norm) corners — smoothing fixed at full (1.0).
         vec2 zn = squircleCornerParams(cornerRadiusPx, 1.0, maxCorner);
         shapeData = evaluateSquircleRRect(
-            fragPx, lensCenterPx, lensHalfSizePx, zn.x, zn.y);
+            fragRestPx, lensCenterPx, restHalfPx, zn.x, zn.y);
     } else {
         shapeData = evaluateShape(
-            fragPx,
+            fragRestPx,
             lensCenterPx,
-            lensHalfSizePx,
+            restHalfPx,
             cornerRadiusPx
         );
     }
 
+    // Back to screen px — the AA ramp, the band and the rim all measure there.
+    shapeData   = shapeToScreen(shapeData, shapeScale);
     shapeDistPx = shapeData.orthoDist;
 
     // --- Shared antialiasing + mask ---

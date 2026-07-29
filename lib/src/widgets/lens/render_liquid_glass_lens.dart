@@ -45,6 +45,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required ui.FragmentShader mainShader,
     ui.FragmentShader? borderShader,
     required LiquidGlassShape shape,
+    Offset shapeScale = const Offset(1, 1),
     required LiquidGlassRefraction refraction,
     required LiquidGlassAppearance appearance,
     required double borderAlpha,
@@ -59,6 +60,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
         _mainShader = mainShader,
         _borderShader = borderShader,
         _shape = shape,
+        _shapeScale = shapeScale,
         _refraction = refraction,
         _appearance = appearance,
         _borderAlpha = borderAlpha,
@@ -95,6 +97,15 @@ class RenderLiquidGlassLens extends RenderProxyBox
   set shape(LiquidGlassShape value) {
     if (identical(_shape, value)) return;
     _shape = value;
+    markNeedsPaint();
+  }
+
+  /// Deformed size / rest size; `(1,1)` when undeformed. Drives the shader's
+  /// rest-space shape evaluation so a stretched circle stays an ellipse.
+  Offset _shapeScale;
+  set shapeScale(Offset value) {
+    if (_shapeScale == value) return;
+    _shapeScale = value;
     markNeedsPaint();
   }
 
@@ -232,6 +243,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     packLiquidGlassUniforms(
       shader,
       shape: _shape,
+      shapeScale: _shapeScale,
       scale: scale,
       resolution: resolution,
       lensPosition: lensPosition,

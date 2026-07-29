@@ -274,11 +274,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
   ) {
     final bool deformed = !deform.isRest && !restSize.isEmpty;
 
-    // Cap the radius against the *deformed* size so a squeezed capsule
-    // stays a capsule instead of self-intersecting at the rim.
-    final LiquidGlassShape shape = deformed
-        ? liquidGlassElasticityShape(_shape, deform.sizeFrom(restSize))
-        : _shape;
+    // The shape is passed through untouched. The shader evaluates it at REST
+    // size in a domain divided by `shapeScale`, so the whole outline stretches
+    // -- a circle becomes an ellipse rather than a stadium with flat runs.
+    final LiquidGlassShape shape = _shape;
+    final Offset shapeScale =
+        deformed ? deform.scaleFrom(restSize) : const Offset(1, 1);
 
     // Pressing deepens the optics rather than popping the scale — this is
     // the cue that reads as glass under pressure instead of rubber.
@@ -358,6 +359,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       mainShader: _mainShader!,
       borderShader: _borderShader,
       shape: shape,
+      shapeScale: shapeScale,
       refraction: refraction,
       appearance: _appearance,
       borderAlpha: 1.0,
@@ -375,6 +377,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final ui.FragmentShader mainShader;
   final ui.FragmentShader? borderShader;
   final LiquidGlassShape shape;
+  final Offset shapeScale;
   final LiquidGlassRefraction refraction;
   final LiquidGlassAppearance appearance;
   final double borderAlpha;
@@ -388,6 +391,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
     required this.mainShader,
     required this.borderShader,
     required this.shape,
+    required this.shapeScale,
     required this.refraction,
     required this.appearance,
     required this.borderAlpha,
@@ -405,6 +409,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       mainShader: mainShader,
       borderShader: borderShader,
       shape: shape,
+      shapeScale: shapeScale,
       refraction: refraction,
       appearance: appearance,
       borderAlpha: borderAlpha,
@@ -426,6 +431,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       ..mainShader = mainShader
       ..borderShader = borderShader
       ..shape = shape
+      ..shapeScale = shapeScale
       ..refraction = refraction
       ..appearance = appearance
       ..borderAlpha = borderAlpha
