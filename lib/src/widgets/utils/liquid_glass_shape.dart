@@ -348,6 +348,46 @@ Widget liquidGlassClip({
   );
 }
 
+/// Whether [shape] is clipped with an exact [Path] rather than an `RRect`.
+///
+/// True only for the squircle and continuous corner curves at
+/// [LiquidGlassClipQuality.exact] — a plain rounded rectangle's exact outline
+/// IS the `RRect`, so it stays on the cheaper path.
+bool liquidGlassUsesExactClipPath(LiquidGlassShape shape) =>
+    shape.clipQuality == LiquidGlassClipQuality.exact &&
+    liquidGlassClipCornerRadius(shape) > 0.5 &&
+    shape.cornerStyle != LiquidGlassCornerStyle.roundedRectangle;
+
+/// [shape]'s exact outline at [size], stretched by [scale].
+///
+/// Matches the SDF the shader draws, including the rest-space evaluation: the
+/// path is built at rest size and scaled, so the corner curve stretches whole
+/// rather than keeping a fixed radius on a deformed box.
+///
+/// Only meaningful when [liquidGlassUsesExactClipPath] is true; a plain
+/// rounded rectangle returns its `RRect` as a path.
+Path liquidGlassOutlinePath(
+  LiquidGlassShape shape,
+  Size size,
+  Offset scale,
+) {
+  final double r = liquidGlassClipCornerRadius(shape);
+  final double sx = scale.dx <= 0 ? 1.0 : scale.dx;
+  final double sy = scale.dy <= 0 ? 1.0 : scale.dy;
+  switch (shape.cornerStyle) {
+    case LiquidGlassCornerStyle.continuousRoundedRectangle:
+      return _liquidGlassScaledClipPath(size, sx, sy,
+          (rest) => liquidGlassContinuousRoundedRectPath(rest, r));
+    case LiquidGlassCornerStyle.squircle:
+      return _liquidGlassScaledClipPath(
+          size, sx, sy, (rest) => liquidGlassSquirclePath(rest, r, 1.0));
+    case LiquidGlassCornerStyle.roundedRectangle:
+      return Path()
+        ..addRRect(RRect.fromRectAndRadius(
+            Offset.zero & size, Radius.elliptical(r * sx, r * sy)));
+  }
+}
+
 /// Scales a rest-space clip path onto the deformed box.
 ///
 /// Mirrors the shader exactly: build the outline at REST size with the REST

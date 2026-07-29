@@ -216,8 +216,22 @@ class RenderLiquidGlassLens extends RenderProxyBox
         : RRect.fromRectAndRadius(rect, Radius.elliptical(r * sx, r * sy));
   }
 
+  /// [_outlineRRect]'s counterpart for the squircle and continuous curves,
+  /// whose outline an `RRect` can only approximate. Honors the shape's
+  /// [LiquidGlassClipQuality].
+  Path _outlinePath(Rect rect) =>
+      liquidGlassOutlinePath(_shape, rect.size, _clipScale)
+          .shift(rect.topLeft);
+
+  /// Whether this lens clips with [_outlinePath] instead of [_outlineRRect].
+  bool get _exactClip => liquidGlassUsesExactClipPath(_shape);
+
   final LayerHandle<ClipRRectLayer> _clipLayerHandle =
       LayerHandle<ClipRRectLayer>();
+  final LayerHandle<ClipPathLayer> _clipPathLayerHandle =
+      LayerHandle<ClipPathLayer>();
+  final LayerHandle<ClipPathLayer> _skiaBlurClipPathLayerHandle =
+      LayerHandle<ClipPathLayer>();
   final LayerHandle<BackdropFilterLayer> _blurLayerHandle =
       LayerHandle<BackdropFilterLayer>();
   final LayerHandle<BackdropFilterLayer> _shaderLayerHandle =
@@ -240,9 +254,11 @@ class RenderLiquidGlassLens extends RenderProxyBox
   @override
   void dispose() {
     _clipLayerHandle.layer = null;
+    _clipPathLayerHandle.layer = null;
     _blurLayerHandle.layer = null;
     _shaderLayerHandle.layer = null;
     _skiaBlurClipLayerHandle.layer = null;
+    _skiaBlurClipPathLayerHandle.layer = null;
     super.dispose();
   }
 
@@ -343,14 +359,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       honorBackdropAlpha: false,
     );
 
-    final RRect localRRect = _outlineRRect(Offset.zero & size);
-
-    _clipLayerHandle.layer = context.pushClipRRect(
-      needsCompositing,
-      offset,
-      Offset.zero & size,
-      localRRect,
-      (PaintingContext context, Offset offset) {
+    void paintGlass(PaintingContext context, Offset offset) {
         // Order matters: blur first (below), shader second (on top) —
         // stacked BackdropFilters chain, so the shader refracts the
         // already-blurred backdrop and draws its sharp border last.
@@ -370,9 +379,29 @@ class RenderLiquidGlassLens extends RenderProxyBox
         shaderLayer.filter = ui.ImageFilter.shader(_mainShader);
         context.pushLayer(
             shaderLayer, (PaintingContext context, Offset offset) {}, offset);
-      },
-      oldLayer: _clipLayerHandle.layer,
-    );
+    }
+
+    if (_exactClip) {
+      _clipLayerHandle.layer = null;
+      _clipPathLayerHandle.layer = context.pushClipPath(
+        needsCompositing,
+        offset,
+        Offset.zero & size,
+        _outlinePath(Offset.zero & size),
+        paintGlass,
+        oldLayer: _clipPathLayerHandle.layer,
+      );
+    } else {
+      _clipPathLayerHandle.layer = null;
+      _clipLayerHandle.layer = context.pushClipRRect(
+        needsCompositing,
+        offset,
+        Offset.zero & size,
+        _outlineRRect(Offset.zero & size),
+        paintGlass,
+        oldLayer: _clipLayerHandle.layer,
+      );
+    }
 
     // Child on top of the glass.
     super.paint(context, offset);
@@ -416,34 +445,56 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
     final Rect viewSpaceRect = lensPosInView & size;
     final RRect viewSpaceRRect = _outlineRRect(viewSpaceRect);
+    final Path? viewSpacePath = _exactClip ? _outlinePath(viewSpaceRect) : null;
 
     final ui.Canvas canvas = context.canvas;
     canvas
       ..save()
-      ..translate(offset.dx - lensPosInView.dx, offset.dy - lensPosInView.dy)
-      ..clipRRect(viewSpaceRRect)
-      ..drawRRect(viewSpaceRRect, Paint()..shader = _mainShader)
-      ..restore();
+      ..translate(offset.dx - lensPosInView.dx, offset.dy - lensPosInView.dy);
+    if (viewSpacePath != null) {
+      canvas
+        ..clipPath(viewSpacePath)
+        ..drawPath(viewSpacePath, Paint()..shader = _mainShader);
+    } else {
+      canvas
+        ..clipRRect(viewSpaceRRect)
+        ..drawRRect(viewSpaceRRect, Paint()..shader = _mainShader);
+    }
+    canvas.restore();
 
     if (useBlur && liquidGlassUsesRoundedClip(_shape)) {
       // Backdrop blur above the refraction, clipped to the lens shape.
-      final RRect localRRect = _outlineRRect(Offset.zero & size);
-      _skiaBlurClipLayerHandle.layer = context.pushClipRRect(
-        needsCompositing,
-        offset,
-        Offset.zero & size,
-        localRRect,
-        (PaintingContext context, Offset offset) {
-          final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
-          blurLayer.filter = ui.ImageFilter.blur(
-            sigmaX: _appearance.blur.sigmaX,
-            sigmaY: _appearance.blur.sigmaY,
-          );
-          context.pushLayer(
-              blurLayer, (PaintingContext context, Offset offset) {}, offset);
-        },
-        oldLayer: _skiaBlurClipLayerHandle.layer,
-      );
+      void paintBlur(PaintingContext context, Offset offset) {
+        final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
+        blurLayer.filter = ui.ImageFilter.blur(
+          sigmaX: _appearance.blur.sigmaX,
+          sigmaY: _appearance.blur.sigmaY,
+        );
+        context.pushLayer(
+            blurLayer, (PaintingContext context, Offset offset) {}, offset);
+      }
+
+      if (_exactClip) {
+        _skiaBlurClipLayerHandle.layer = null;
+        _skiaBlurClipPathLayerHandle.layer = context.pushClipPath(
+          needsCompositing,
+          offset,
+          Offset.zero & size,
+          _outlinePath(Offset.zero & size),
+          paintBlur,
+          oldLayer: _skiaBlurClipPathLayerHandle.layer,
+        );
+      } else {
+        _skiaBlurClipPathLayerHandle.layer = null;
+        _skiaBlurClipLayerHandle.layer = context.pushClipRRect(
+          needsCompositing,
+          offset,
+          Offset.zero & size,
+          _outlineRRect(Offset.zero & size),
+          paintBlur,
+          oldLayer: _skiaBlurClipLayerHandle.layer,
+        );
+      }
 
       // Sharp border pass on top of the blur.
       final ui.FragmentShader? borderShader = _borderShader;
@@ -462,7 +513,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
           ..save()
           ..translate(
               offset.dx - lensPosInView.dx, offset.dy - lensPosInView.dy)
-          ..drawRRect(viewSpaceRRect, Paint()..shader = borderShader)
+          ..drawPath(viewSpacePath ?? (Path()..addRRect(viewSpaceRRect)),
+              Paint()..shader = borderShader)
           ..restore();
       }
     } else {
