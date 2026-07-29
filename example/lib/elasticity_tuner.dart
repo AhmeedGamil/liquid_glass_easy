@@ -198,6 +198,48 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
             (v) => _set(_elasticity.copyWith(maxPull: v)),
           ),
           const SizedBox(height: 6),
+          // A/B for the stretched outline. The rim is one logical pixel, so
+          // the only way to judge it is to flip this WHILE dragging.
+          //
+          //   legacy  fixed pixel radius on the deformed box -- a stretched
+          //           circle grows flat runs and reads as a stadium.
+          //   shader  the shader stretches the outline but the clips stay
+          //           circular, so they cross it and shave the rim off at a
+          //           cap apex. The broken middle state.
+          //   full    both stretch. Shipped.
+          Row(
+            children: [
+              const SizedBox(
+                width: 92,
+                child: Text('outline',
+                    style: TextStyle(fontSize: 13, color: Colors.white70)),
+              ),
+              Expanded(
+                child: SegmentedButton<LiquidGlassElasticityOutline>(
+                  showSelectedIcon: false,
+                  style: const ButtonStyle(
+                    visualDensity: VisualDensity.compact,
+                    textStyle: WidgetStatePropertyAll(TextStyle(fontSize: 11)),
+                  ),
+                  segments: const [
+                    ButtonSegment(
+                        value: LiquidGlassElasticityOutline.legacy,
+                        label: Text('legacy')),
+                    ButtonSegment(
+                        value: LiquidGlassElasticityOutline.shaderOnly,
+                        label: Text('shader')),
+                    ButtonSegment(
+                        value: LiquidGlassElasticityOutline.full,
+                        label: Text('full')),
+                  ],
+                  selected: {debugLiquidGlassElasticityOutline},
+                  onSelectionChanged: (v) => setState(
+                      () => debugLiquidGlassElasticityOutline = v.first),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
           // Not a slider: the lock is a choice of three, and `copyWith`
           // cannot put a null back, so each option rebuilds the spec.
           Row(

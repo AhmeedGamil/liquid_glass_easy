@@ -204,7 +204,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // The shader stretches the OUTLINE, so the clip has to stretch with it or
     // the blur beneath leaks past the glass edge at the corners.
     final Offset clipScale =
-        widget.elasticityDeform.scaleFrom(widget.elasticityRestSize);
+        widget.elasticityDeform.clipScaleFrom(widget.elasticityRestSize);
     final shader = widget.shader;
     final dpr = MediaQuery.devicePixelRatioOf(context);
 

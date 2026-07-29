@@ -51,7 +51,10 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_elasticity.dart
     show
         LiquidGlassElasticity,
         LiquidGlassElasticityDeform,
-        LiquidGlassElasticityTuning;
+        LiquidGlassElasticityTuning,
+        // Debug-only A/B for the stretched outline; ships as `full`.
+        LiquidGlassElasticityOutline,
+        debugLiquidGlassElasticityOutline;
 
 // ── Public, customizable developer components ──────────────
 // Generic glass UI atoms a developer composes into their app.

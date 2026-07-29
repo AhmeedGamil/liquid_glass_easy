@@ -475,6 +475,10 @@ class LiquidGlassElasticityDeform {
   /// a domain divided by this, so the deformation stretches the whole outline
   /// -- a circle becomes an ellipse instead of a stadium with flat runs.
   Offset scaleFrom(Size rest) {
+    if (debugLiquidGlassElasticityOutline ==
+        LiquidGlassElasticityOutline.legacy) {
+      return const Offset(1, 1);
+    }
     if (rest.isEmpty) return const Offset(1, 1);
     final Size d = sizeFrom(rest);
     return Offset(
@@ -482,6 +486,17 @@ class LiquidGlassElasticityDeform {
       d.height <= 0 ? 1.0 : d.height / rest.height,
     );
   }
+
+  /// [scaleFrom], but for the CLIPS rather than the shader.
+  ///
+  /// Identical in normal use. They part company only under
+  /// [LiquidGlassElasticityOutline.shaderOnly], which stretches the shader's
+  /// outline while pinning the clips circular -- the combination that eats the
+  /// rim at a cap apex.
+  Offset clipScaleFrom(Size rest) =>
+      debugLiquidGlassElasticityOutline == LiquidGlassElasticityOutline.full
+          ? scaleFrom(rest)
+          : const Offset(1, 1);
 
   /// How far the deformed lens's top-left sits from the rest top-left.
   /// Negative on each axis when the leading edges push outward.
@@ -505,6 +520,32 @@ class LiquidGlassElasticityDeform {
   int get hashCode => Object.hash(left, right, top, bottom, childScaleX,
       childScaleY, childTranslateX, childTranslateY, pressAmount);
 }
+
+
+/// How much of the stretched-outline behaviour is active. **Debug only.**
+///
+/// Exists so the fix can be judged against what it replaced on a running
+/// device -- a rim is one logical pixel wide, and the difference is not
+/// something a screenshot settles.
+enum LiquidGlassElasticityOutline {
+  /// Pre-fix. The shape keeps its authored pixel radius against the DEFORMED
+  /// box, so a stretched circle grows flat runs and reads as a stadium.
+  legacy,
+
+  /// The shader stretches the outline, but the clips stay circular. They then
+  /// CROSS rather than nest: near a cap apex the clip sits inside the glass
+  /// and shaves the rim off. This is the intermediate state, kept because it
+  /// is the one that looks broken and is worth being able to point at.
+  shaderOnly,
+
+  /// Shader and clips both stretch. The shipped behaviour.
+  full,
+}
+
+/// Switches [LiquidGlassElasticityOutline]. **Debug only** -- ships as
+/// [LiquidGlassElasticityOutline.full] and nothing in the package writes it.
+LiquidGlassElasticityOutline debugLiquidGlassElasticityOutline =
+    LiquidGlassElasticityOutline.full;
 
 /// Owns the physics behind [LiquidGlassElasticity]: five springs (one per edge,
 /// plus one tracking the press itself) driven by a `Ticker`.

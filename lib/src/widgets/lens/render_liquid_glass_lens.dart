@@ -46,6 +46,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     ui.FragmentShader? borderShader,
     required LiquidGlassShape shape,
     Offset shapeScale = const Offset(1, 1),
+    Offset clipScale = const Offset(1, 1),
     required LiquidGlassRefraction refraction,
     required LiquidGlassAppearance appearance,
     required double borderAlpha,
@@ -61,6 +62,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
         _borderShader = borderShader,
         _shape = shape,
         _shapeScale = shapeScale,
+        _clipScale = clipScale,
         _refraction = refraction,
         _appearance = appearance,
         _borderAlpha = borderAlpha,
@@ -106,6 +108,15 @@ class RenderLiquidGlassLens extends RenderProxyBox
   set shapeScale(Offset value) {
     if (_shapeScale == value) return;
     _shapeScale = value;
+    markNeedsPaint();
+  }
+
+  /// The clips' scale. Same as [_shapeScale] normally; pinned to `(1,1)` under
+  /// the shader-only debug mode so the mismatch can be seen.
+  Offset _clipScale;
+  set clipScale(Offset value) {
+    if (_clipScale == value) return;
+    _clipScale = value;
     markNeedsPaint();
   }
 
@@ -198,8 +209,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// curve the shader draws, so the two coincide.
   RRect _outlineRRect(Rect rect) {
     final double r = liquidGlassClipCornerRadius(_shape);
-    final double sx = _shapeScale.dx <= 0 ? 1.0 : _shapeScale.dx;
-    final double sy = _shapeScale.dy <= 0 ? 1.0 : _shapeScale.dy;
+    final double sx = _clipScale.dx <= 0 ? 1.0 : _clipScale.dx;
+    final double sy = _clipScale.dy <= 0 ? 1.0 : _clipScale.dy;
     return (sx == 1.0 && sy == 1.0)
         ? RRect.fromRectAndRadius(rect, Radius.circular(r))
         : RRect.fromRectAndRadius(rect, Radius.elliptical(r * sx, r * sy));
