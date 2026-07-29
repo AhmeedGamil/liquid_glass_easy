@@ -185,6 +185,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             height: config.geometry.height,
             child: liquidGlassClip(
               shape: config.effectiveShape,
+              shapeScale: elasticityDeform.scaleFrom(elasticityRestSize),
               child: BackdropFilter(
                 filter: ui.ImageFilter.blur(
                   sigmaX:
@@ -263,6 +264,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       : null,
                   child: liquidGlassClip(
                     shape: config.effectiveShape,
+                    shapeScale:
+                        elasticityDeform.scaleFrom(elasticityRestSize),
                     // Clip at the deformed bounds, scale the content inside:
                     // the child stretches as pixels (never re-flows) and
                     // still cannot spill past the glass edge.

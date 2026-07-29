@@ -201,6 +201,10 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     lensPosition += widget.elasticityDeform.originShift;
     final useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
         config.effectiveAppearance.blur.sigmaY > 0;
+    // The shader stretches the OUTLINE, so the clip has to stretch with it or
+    // the blur beneath leaks past the glass edge at the corners.
+    final Offset clipScale =
+        widget.elasticityDeform.scaleFrom(widget.elasticityRestSize);
     final shader = widget.shader;
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
@@ -245,6 +249,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
               ignoring: true,
               child: liquidGlassClip(
                 shape: config.effectiveShape,
+                shapeScale: clipScale,
                 child: BackdropFilter(
                   filter: ui.ImageFilter.blur(
                     sigmaX: config.effectiveAppearance.blur.sigmaX,
@@ -269,6 +274,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
             ignoring: true,
             child: liquidGlassClip(
               shape: config.effectiveShape,
+              shapeScale: clipScale,
               child: BackdropFilter(
                 filter: ui.ImageFilter.shader(shader),
                 child: const SizedBox.expand(),
@@ -294,6 +300,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
                   : null,
               child: liquidGlassClip(
                 shape: config.effectiveShape,
+                shapeScale: clipScale,
                 // Clip at the deformed bounds, scale the content inside:
                 // the child stretches as pixels (never re-flows) and still
                 // cannot spill past the glass edge.

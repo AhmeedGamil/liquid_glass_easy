@@ -315,6 +315,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       }
       return _FrostedGlassFallback(
         shape: shape,
+        shapeScale: shapeScale,
         appearance: _appearance,
         visible: widget.visibility,
         child: widget.child == null
@@ -337,12 +338,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
 
     // Clip at the deformed lens bounds, scale the content inside it: the
     // child stretches as pixels but can never spill past the glass edge.
+    final double clipRadius = liquidGlassClipCornerRadius(shape);
     final Widget? clippedChild = widget.child == null
         ? null
         : ClipRRect(
-            borderRadius: BorderRadius.circular(
-              liquidGlassClipCornerRadius(shape),
-            ),
+            // Elliptical while deformed, so the clip follows the stretched
+            // outline the shader draws instead of a fixed-radius rounded rect.
+            borderRadius: deformed
+                ? BorderRadius.all(Radius.elliptical(
+                    clipRadius * shapeScale.dx, clipRadius * shapeScale.dy))
+                : BorderRadius.circular(clipRadius),
             child: liquidGlassElasticityChild(
               deform: deform,
               restSize: restSize,
@@ -452,12 +457,16 @@ class _FrostedGlassFallback extends StatelessWidget {
   final LiquidGlassShape shape;
   final LiquidGlassAppearance appearance;
   final bool visible;
+
+  /// Deformed size / rest size; `(1,1)` when undeformed.
+  final Offset shapeScale;
   final Widget? child;
 
   const _FrostedGlassFallback({
     required this.shape,
     required this.appearance,
     required this.visible,
+    this.shapeScale = const Offset(1, 1),
     this.child,
   });
 
@@ -468,7 +477,13 @@ class _FrostedGlassFallback extends StatelessWidget {
     if (!visible) return const SizedBox.shrink();
 
     final double radius = liquidGlassClipCornerRadius(shape);
-    final BorderRadius borderRadius = BorderRadius.circular(radius);
+    // Elliptical while deformed, so the frosted lens stretches its OUTLINE
+    // the same way the refracting one does.
+    final BorderRadius borderRadius =
+        (shapeScale.dx == 1.0 && shapeScale.dy == 1.0)
+            ? BorderRadius.circular(radius)
+            : BorderRadius.all(Radius.elliptical(
+                radius * shapeScale.dx, radius * shapeScale.dy));
     // Without refraction, blur is what sells "glass" — give it a floor
     // so a lens configured with zero blur still reads as frosted.
     final double sigmaX =

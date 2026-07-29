@@ -312,58 +312,103 @@ bool liquidGlassUsesRoundedClip(LiquidGlassShape shape) => true;
 Widget liquidGlassClip({
   required LiquidGlassShape shape,
   required Widget child,
+  Offset shapeScale = const Offset(1, 1),
 }) {
   final double radius = liquidGlassClipCornerRadius(shape);
+  final double sx = shapeScale.dx <= 0 ? 1.0 : shapeScale.dx;
+  final double sy = shapeScale.dy <= 0 ? 1.0 : shapeScale.dy;
   if (radius > 0.5 && shape.clipQuality == LiquidGlassClipQuality.exact) {
     switch (shape.cornerStyle) {
       case LiquidGlassCornerStyle.continuousRoundedRectangle:
         return ClipPath(
-          clipper: _LiquidGlassContinuousClipper(radius: radius),
+          clipper: _LiquidGlassContinuousClipper(
+              radius: radius, scaleX: sx, scaleY: sy),
           child: child,
         );
       case LiquidGlassCornerStyle.squircle:
         return ClipPath(
           // Full, fixed smoothing — matches the shader's squircle branch.
-          clipper: _LiquidGlassSquircleClipper(radius: radius, smoothing: 1.0),
+          clipper: _LiquidGlassSquircleClipper(
+              radius: radius, smoothing: 1.0, scaleX: sx, scaleY: sy),
           child: child,
         );
       case LiquidGlassCornerStyle.roundedRectangle:
-        // The exact clip is just the circular RRect below.
+        // The exact clip is just the (possibly elliptical) RRect below.
         break;
     }
   }
+  // Elliptical radii under deformation: the shader stretches the OUTLINE, so
+  // a circular clip would sit outside the glass and leak the blur beneath it.
+  // ClipRRect takes this natively, so the fast RRect clip is kept.
   return ClipRRect(
-    borderRadius: BorderRadius.circular(radius),
+    borderRadius: (sx == 1.0 && sy == 1.0)
+        ? BorderRadius.circular(radius)
+        : BorderRadius.all(Radius.elliptical(radius * sx, radius * sy)),
     child: child,
   );
+}
+
+/// Scales a rest-space clip path onto the deformed box.
+///
+/// Mirrors the shader exactly: build the outline at REST size with the REST
+/// radius, then stretch it. Scaling the PATH (rather than clipping a fixed
+/// radius to the deformed box) is what keeps a stretched circle elliptical
+/// for every corner style.
+Path _liquidGlassScaledClipPath(
+  Size size,
+  double scaleX,
+  double scaleY,
+  Path Function(Size rest) build,
+) {
+  if (scaleX == 1.0 && scaleY == 1.0) return build(size);
+  final Path rest = build(Size(size.width / scaleX, size.height / scaleY));
+  return rest.transform(
+      (Matrix4.identity()..scaleByDouble(scaleX, scaleY, 1, 1)).storage);
 }
 
 class _LiquidGlassSquircleClipper extends CustomClipper<Path> {
   final double radius;
   final double smoothing;
+  final double scaleX;
+  final double scaleY;
   const _LiquidGlassSquircleClipper({
     required this.radius,
     required this.smoothing,
+    this.scaleX = 1,
+    this.scaleY = 1,
   });
 
   @override
-  Path getClip(Size size) =>
-      liquidGlassSquirclePath(size, radius, smoothing);
+  Path getClip(Size size) => _liquidGlassScaledClipPath(size, scaleX, scaleY,
+      (rest) => liquidGlassSquirclePath(rest, radius, smoothing));
 
   @override
   bool shouldReclip(_LiquidGlassSquircleClipper old) =>
-      old.radius != radius || old.smoothing != smoothing;
+      old.radius != radius ||
+      old.smoothing != smoothing ||
+      old.scaleX != scaleX ||
+      old.scaleY != scaleY;
 }
 
 class _LiquidGlassContinuousClipper extends CustomClipper<Path> {
   final double radius;
-  const _LiquidGlassContinuousClipper({required this.radius});
+  final double scaleX;
+  final double scaleY;
+  const _LiquidGlassContinuousClipper({
+    required this.radius,
+    this.scaleX = 1,
+    this.scaleY = 1,
+  });
 
   @override
-  Path getClip(Size size) => liquidGlassContinuousRoundedRectPath(size, radius);
+  Path getClip(Size size) => _liquidGlassScaledClipPath(size, scaleX, scaleY,
+      (rest) => liquidGlassContinuousRoundedRectPath(rest, radius));
 
   @override
-  bool shouldReclip(_LiquidGlassContinuousClipper old) => old.radius != radius;
+  bool shouldReclip(_LiquidGlassContinuousClipper old) =>
+      old.radius != radius ||
+      old.scaleX != scaleX ||
+      old.scaleY != scaleY;
 }
 
 /// The continuous-curvature (squircle) outline — the SAME L^n superellipse the
