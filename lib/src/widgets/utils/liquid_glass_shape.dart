@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 
 import 'liquid_glass_border_mode.dart';
 import 'liquid_glass_light_mode.dart';
@@ -317,7 +318,7 @@ Widget liquidGlassClip({
   final double radius = liquidGlassClipCornerRadius(shape);
   final double sx = shapeScale.dx <= 0 ? 1.0 : shapeScale.dx;
   final double sy = shapeScale.dy <= 0 ? 1.0 : shapeScale.dy;
-  if (radius > 0.5 && shape.clipQuality == LiquidGlassClipQuality.exact) {
+  if (liquidGlassUsesExactClipPath(shape)) {
     switch (shape.cornerStyle) {
       case LiquidGlassCornerStyle.continuousRoundedRectangle:
         return ClipPath(
@@ -353,6 +354,7 @@ Widget liquidGlassClip({
 /// True only for the squircle and continuous corner curves at
 /// [LiquidGlassClipQuality.exact] — a plain rounded rectangle's exact outline
 /// IS the `RRect`, so it stays on the cheaper path.
+@internal
 bool liquidGlassUsesExactClipPath(LiquidGlassShape shape) =>
     shape.clipQuality == LiquidGlassClipQuality.exact &&
     liquidGlassClipCornerRadius(shape) > 0.5 &&
@@ -366,6 +368,7 @@ bool liquidGlassUsesExactClipPath(LiquidGlassShape shape) =>
 ///
 /// Only meaningful when [liquidGlassUsesExactClipPath] is true; a plain
 /// rounded rectangle returns its `RRect` as a path.
+@internal
 Path liquidGlassOutlinePath(
   LiquidGlassShape shape,
   Size size,
