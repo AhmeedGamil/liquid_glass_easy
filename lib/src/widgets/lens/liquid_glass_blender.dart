@@ -248,6 +248,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
     required LiquidGlassStyle style,
     required bool visible,
     Widget? child,
+    Offset shapeScale = const Offset(1, 1),
   }) {
     final shape =
         style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
@@ -264,6 +265,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
       registry: _registry,
       shape: shape,
       visible: visible,
+      shapeScale: shapeScale,
       child: visible ? clippedChild : null,
     );
   }
@@ -305,12 +307,14 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
     required this.registry,
     required this.shape,
     required this.visible,
+    required this.shapeScale,
     super.child,
   });
 
   final _LiquidGlassBlenderRegistry registry;
   final LiquidGlassShape shape;
   final bool visible;
+  final Offset shapeScale;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -318,6 +322,7 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
       registry: registry,
       shape: shape,
       visible: visible,
+      shapeScale: shapeScale,
     );
   }
 
@@ -329,7 +334,8 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
     renderObject
       ..registry = registry
       ..shape = shape
-      ..visible = visible;
+      ..visible = visible
+      ..shapeScale = shapeScale;
   }
 }
 
@@ -338,13 +344,29 @@ class _RenderLiquidGlassBlenderMember extends RenderProxyBox {
     required _LiquidGlassBlenderRegistry registry,
     required LiquidGlassShape shape,
     required bool visible,
+    Offset shapeScale = const Offset(1, 1),
   })  : _registry = registry,
         _shape = shape,
-        _visible = visible;
+        _visible = visible,
+        _shapeScale = shapeScale;
 
   _LiquidGlassBlenderRegistry _registry;
   LiquidGlassShape _shape;
   bool _visible;
+  Offset _shapeScale;
+
+  /// This member's touch deformation as deformed ÷ rest.
+  ///
+  /// Layout already hands the blender the DEFORMED size, so this is the one
+  /// thing it cannot infer: without it the shader would stretch a fixed pixel
+  /// radius over a resized box and a squeezed circle would read as a stadium.
+  Offset get shapeScale => _shapeScale;
+  set shapeScale(Offset value) {
+    if (_shapeScale == value) return;
+    _shapeScale = value;
+    _registry.memberChanged();
+    markNeedsPaint();
+  }
 
   _LiquidGlassBlenderRegistry get registry => _registry;
   set registry(_LiquidGlassBlenderRegistry value) {
@@ -714,6 +736,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
                   cornerStyle: l.cornerStyle,
                   blend: l.blend,
                   sides: l.sides,
+                  shapeScale: l.shapeScale,
                 ))
             .toList(growable: false)
         : _lensesIn(members, null);
@@ -941,6 +964,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         cornerStyle: member.shape.cornerStyle.index,
         blend: blend,
         sides: sides,
+        shapeScale: member.shapeScale,
       );
     }, growable: false);
   }

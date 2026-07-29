@@ -232,6 +232,7 @@ class MetaballLensUniform {
     this.cornerStyle = 0,
     this.blend = 0.0,
     this.sides = const [0.0, 0.0, 0.0, 0.0],
+    this.shapeScale = const Offset(1, 1),
   });
 
   /// Lens centre in logical px.
@@ -258,6 +259,14 @@ class MetaballLensUniform {
   /// from neighbour proximity. The shader rounds a continuous lens's corner
   /// when either of the two sides it joins is active. Passed in `u_lensSidesN`.
   final List<double> sides;
+
+  /// This lens's touch deformation as deformed ÷ rest, per axis.
+  ///
+  /// `(1, 1)` is undeformed. The shader evaluates the lens at its REST size in
+  /// a domain divided by this, so the whole outline stretches — a squeezed
+  /// circle stays an ellipse instead of growing flat runs. Packed into
+  /// `meta.y`; see [_packMetaballScale].
+  final Offset shapeScale;
 }
 
 /// Maximum lenses the metaball shader (`metaball_glass.frag`) unions.
@@ -334,14 +343,14 @@ void packMetaballGlassUniforms(
     }
   }
 
-  // u_lensMeta0..5 — (cornerRadius px, enabled flag, corner style, packedSides).
+  // u_lensMeta0..5 — (cornerRadius px, packedScale, corner style, packedSides).
   // packedSides folds the four per-side activations into the spare slot (was the
   // debug-only `blend`) — see _packMetaballSides — so the separate u_lensSides
   // array is gone (one fewer binding per lens).
   for (int n = 0; n < kMetaballMaxLenses; n++) {
     if (n < lenses.length) {
       shader.setFloat(i++, lenses[n].cornerRadius * scale);
-      shader.setFloat(i++, 1.0);
+      shader.setFloat(i++, _packMetaballScale(lenses[n].shapeScale));
       shader.setFloat(i++, lenses[n].cornerStyle.toDouble());
       shader.setFloat(i++, _packMetaballSides(lenses[n].sides));
     } else {
@@ -430,6 +439,22 @@ void packMetaballGlassUniforms(
 /// `r + l*32 + d*1024 + u*32768` (max ≈ 2^20, exact in a 32-bit float — but NOT
 /// fp16-safe, hence the metaball shader's highp requirement). 5 bits is ample
 /// for a soft morph weight.
+/// Packs a per-lens elasticity scale into one float for `meta.y`.
+///
+/// Two 11-bit values, radix 2048, over `0.5..2.0` — the same shape as
+/// [_packMetaballSides]. Peaks at 2^22-1, two bits under float32's exact
+/// integer range, and the shader's `unpackScale` mirrors it.
+///
+/// `0` is reserved as the UNDEFORMED sentinel. Without it `1.0` would quantise
+/// to `0.99988`, giving every lens in the app a tiny domain scale and making
+/// "no elasticity" no longer bit-identical to the previous output.
+double _packMetaballScale(Offset s) {
+  if (s.dx == 1.0 && s.dy == 1.0) return 0;
+  int q(double v) =>
+      1 + ((v.clamp(0.5, 2.0) - 0.5) / 1.5 * 2046).round();
+  return (q(s.dx) + q(s.dy) * 2048).toDouble();
+}
+
 double _packMetaballSides(List<double> sides) {
   int q(double v) => (v.clamp(0.0, 1.0) * 31.0).round();
   return (q(sides[0]) +

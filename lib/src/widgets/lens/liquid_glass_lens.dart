@@ -252,6 +252,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       return blenderScope.buildMember(
         style: widget.style,
         visible: widget.visibility,
+        // Layout has already resized this member's box; the SCALE is the part
+        // the blender cannot infer from it, and the metaball needs it to
+        // evaluate the lens at its rest size.
+        shapeScale: restSize.isEmpty
+            ? const Offset(1, 1)
+            : deform.scaleFrom(restSize),
         child: widget.child == null
             ? null
             : liquidGlassElasticityChild(

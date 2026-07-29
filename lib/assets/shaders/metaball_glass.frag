@@ -90,7 +90,11 @@ uniform vec4 u_lens2;
 uniform vec4 u_lens3;
 uniform vec4 u_lens4;
 uniform vec4 u_lens5;
-// u_lensMetaN = (cornerRadius px, enabled[>0.5], cornerStyle, packedSides).
+// u_lensMetaN = (cornerRadius px, packedScale, cornerStyle, packedSides).
+//   packedScale is this lens's elasticity (deformed/rest) as two 11-bit values
+//   — see unpackScale; 0 means undeformed. It took over the old `enabled` slot:
+//   an absent lens is packed all-zero, so u_lensN.z (half-width) already IS the
+//   enabled bit and every guard reads that instead.
 //   packedSides packs the four per-side blend activations (right,left,down,up;
 //   each 0..1) at 5 bits each into one float — see unpackSides(). This folds the
 //   old separate u_lensSidesN vec4 into the spare meta slot (was the debug-only
@@ -232,26 +236,62 @@ float smoothUnion(float a, float b, float k) {
 // hugging the outline. The squircle branch below is intentionally exposed
 // so the look can be evaluated on device; expect bridge distortion when
 // two squircle lenses fuse near their corners.
+// Per-lens elasticity scale (deformed / rest), unpacked from meta.y.
+// Two 11-bit values, radix 2048, over 0.5..2.0 — same scheme as unpackSides.
+// 0 is the UNDEFORMED sentinel so a lens without elasticity is bit-identical
+// to the pre-elasticity output rather than landing on 0.99988.
+vec2 unpackScale(float p) {
+    if (p <= 0.0) return vec2(1.0);
+    float y = floor(p / 2048.0);
+    float x = p - y * 2048.0;
+    return (vec2(x, y) - 1.0) / 2046.0 * 1.5 + 0.5;
+}
+
+// The lens's REST half-size and this fragment in the lens's REST space.
+// Evaluating there and letting the scale map the result back stretches the
+// whole outline, so a squeezed circle is an ellipse and not a stadium —
+// exactly what liquid_glass.frag does with u_shapeScale.
+void lensRestSpace(vec2 p, vec4 lens, vec2 s, out vec2 halfSize, out vec2 pRest) {
+    halfSize = max(lens.zw / s, vec2(EPS));
+    pRest    = lens.xy + (p - lens.xy) / s;
+}
+
+// Rest-space distance back to screen px, so every member reaches smoothUnion
+// in the SAME metric. Without this, u_smoothness means a different bridge
+// width per member and the merged value stops being a distance.
+// Direction from the centre stands in for the surface normal: exact when the
+// scale is isotropic, and sub-pixel off near a corner diagonal.
+float lensToScreen(float dRest, vec2 p, vec4 lens, vec2 s) {
+    vec2 rel = p - lens.xy;
+    float L = length(rel);
+    if (L < EPS) return dRest * min(s.x, s.y);
+    return dRest * length((rel / L) * s);
+}
+
 float lensDistance(vec2 p, vec4 lens, vec4 meta) {
-    vec2 halfSize  = max(lens.zw, vec2(EPS));
+    vec2 s = unpackScale(meta.y);
+    vec2 halfSize, pRest;
+    lensRestSpace(p, lens, s, halfSize, pRest);
     float maxCorner = min(halfSize.x, halfSize.y);
     float r = min(meta.x, maxCorner);
 
+    float d;
     // Continuous (Apple capsule-style) corners. RAW here; the per-corner morph
     // lives in lensDistanceMorph (used by field only).
     if (meta.z > 1.5 && r > 0.5) {
         vec2 reach = continuousRoundedRectReach(r, halfSize);
-        return continuousRoundedRectShape(p, lens.xy, halfSize, r, reach);
+        d = continuousRoundedRectShape(pRest, lens.xy, halfSize, r, reach);
     }
-
     // Squircle (Ln-norm) corners — full, fixed smoothing (1.0), matching the
     // single-lens squircle branch in liquid_glass.frag.
-    if (meta.z > 0.5 && meta.z < 1.5 && r > 0.5) {
+    else if (meta.z > 0.5 && meta.z < 1.5 && r > 0.5) {
         vec2 zn = squircleCornerParams(r, 1.0, maxCorner);
-        return squircleShape(p, lens.xy, halfSize, zn.x, zn.y);
+        d = squircleShape(pRest, lens.xy, halfSize, zn.x, zn.y);
     }
-
-    return roundedRectangleShape(p, lens.xy, halfSize, r);
+    else {
+        d = roundedRectangleShape(pRest, lens.xy, halfSize, r);
+    }
+    return lensToScreen(d, p, lens, s);
 }
 
 // Analytic gradient DIRECTION (unit) of one lens, from rounded-rect geometry —
@@ -277,7 +317,9 @@ vec2 lensGradDir(vec2 p, vec4 lens, vec4 meta) {
 float lensDistanceMorph(vec2 p, vec4 lens, vec4 meta, vec4 sides) {
     float base = lensDistance(p, lens, meta);
     if (meta.z < 1.5) return base;                       // only continuous morphs
-    vec2 halfSize = max(lens.zw, vec2(EPS));
+    vec2 s = unpackScale(meta.y);
+    vec2 halfSize, pRest;
+    lensRestSpace(p, lens, s, halfSize, pRest);
     float r = min(meta.x, min(halfSize.x, halfSize.y));
     vec2 rel = p - lens.xy;
     // Which corner is this fragment in → the two sides it joins.
@@ -285,7 +327,8 @@ float lensDistanceMorph(vec2 p, vec4 lens, vec4 meta, vec4 sides) {
     float yAct = (rel.y > 0.0) ? sides.z : sides.w;      // down  : up
     float w = max(xAct, yAct);                           // either side rounds it
     if (w < 0.001) return base;
-    float rrect = roundedRectangleShape(p, lens.xy, halfSize, r);
+    float rrect = lensToScreen(
+        roundedRectangleShape(pRest, lens.xy, halfSize, r), p, lens, s);
     return mix(base, rrect, w);
 }
 
@@ -318,21 +361,24 @@ float lensDistanceBlend(vec2 p, vec4 lens, vec4 meta) {
 // corner, and nowhere else. Squircle/circular lenses are unchanged.
 float lensDistanceContFlat(vec2 p, vec4 lens, vec4 meta) {
     if (meta.z > 1.5) {
-        vec2 halfSize = max(lens.zw, vec2(EPS));
+        vec2 s = unpackScale(meta.y);
+        vec2 halfSize, pRest;
+        lensRestSpace(p, lens, s, halfSize, pRest);
         float r = min(meta.x, min(halfSize.x, halfSize.y));
-        return roundedRectangleShape(p, lens.xy, halfSize, r);
+        return lensToScreen(
+            roundedRectangleShape(pRest, lens.xy, halfSize, r), p, lens, s);
     }
     return lensDistance(p, lens, meta);
 }
 
 float field(vec2 p) {
     float d = 1e9;
-    if (u_lensMeta0.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens0, u_lensMeta0, unpackSides(u_lensMeta0.w)), u_smoothness);
-    if (u_lensMeta1.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens1, u_lensMeta1, unpackSides(u_lensMeta1.w)), u_smoothness);
-    if (u_lensMeta2.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens2, u_lensMeta2, unpackSides(u_lensMeta2.w)), u_smoothness);
-    if (u_lensMeta3.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens3, u_lensMeta3, unpackSides(u_lensMeta3.w)), u_smoothness);
-    if (u_lensMeta4.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens4, u_lensMeta4, unpackSides(u_lensMeta4.w)), u_smoothness);
-    if (u_lensMeta5.y > 0.5) d = smoothUnion(d, lensDistanceMorph(p, u_lens5, u_lensMeta5, unpackSides(u_lensMeta5.w)), u_smoothness);
+    if (u_lens0.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens0, u_lensMeta0, unpackSides(u_lensMeta0.w)), u_smoothness);
+    if (u_lens1.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens1, u_lensMeta1, unpackSides(u_lensMeta1.w)), u_smoothness);
+    if (u_lens2.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens2, u_lensMeta2, unpackSides(u_lensMeta2.w)), u_smoothness);
+    if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens3, u_lensMeta3, unpackSides(u_lensMeta3.w)), u_smoothness);
+    if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens4, u_lensMeta4, unpackSides(u_lensMeta4.w)), u_smoothness);
+    if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens5, u_lensMeta5, unpackSides(u_lensMeta5.w)), u_smoothness);
     return d;
 }
 
@@ -341,12 +387,12 @@ float field(vec2 p) {
 // reach the exposed convex corners. Identical to field() for squircle/circular.
 float fieldEik(vec2 p) {
     float d = 1e9;
-    if (u_lensMeta0.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens0, u_lensMeta0), u_smoothness);
-    if (u_lensMeta1.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens1, u_lensMeta1), u_smoothness);
-    if (u_lensMeta2.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens2, u_lensMeta2), u_smoothness);
-    if (u_lensMeta3.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens3, u_lensMeta3), u_smoothness);
-    if (u_lensMeta4.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens4, u_lensMeta4), u_smoothness);
-    if (u_lensMeta5.y > 0.5) d = smoothUnion(d, lensDistanceBlend(p, u_lens5, u_lensMeta5), u_smoothness);
+    if (u_lens0.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens0, u_lensMeta0), u_smoothness);
+    if (u_lens1.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens1, u_lensMeta1), u_smoothness);
+    if (u_lens2.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens2, u_lensMeta2), u_smoothness);
+    if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens3, u_lensMeta3), u_smoothness);
+    if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens4, u_lensMeta4), u_smoothness);
+    if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens5, u_lensMeta5), u_smoothness);
     return d;
 }
 
@@ -355,12 +401,12 @@ float fieldEik(vec2 p) {
 // lenses — only the continuous ones differ.
 float fieldContFlat(vec2 p) {
     float d = 1e9;
-    if (u_lensMeta0.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens0, u_lensMeta0), u_smoothness);
-    if (u_lensMeta1.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens1, u_lensMeta1), u_smoothness);
-    if (u_lensMeta2.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens2, u_lensMeta2), u_smoothness);
-    if (u_lensMeta3.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens3, u_lensMeta3), u_smoothness);
-    if (u_lensMeta4.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens4, u_lensMeta4), u_smoothness);
-    if (u_lensMeta5.y > 0.5) d = smoothUnion(d, lensDistanceContFlat(p, u_lens5, u_lensMeta5), u_smoothness);
+    if (u_lens0.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens0, u_lensMeta0), u_smoothness);
+    if (u_lens1.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens1, u_lensMeta1), u_smoothness);
+    if (u_lens2.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens2, u_lensMeta2), u_smoothness);
+    if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens3, u_lensMeta3), u_smoothness);
+    if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens4, u_lensMeta4), u_smoothness);
+    if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens5, u_lensMeta5), u_smoothness);
     return d;
 }
 
@@ -371,12 +417,12 @@ float fieldContFlat(vec2 p) {
 // blend only, so separated lenses keep the original two-sided hard rim.
 float fieldHard(vec2 p) {
     float d = 1e9;
-    if (u_lensMeta0.y > 0.5) d = min(d, lensDistance(p, u_lens0, u_lensMeta0));
-    if (u_lensMeta1.y > 0.5) d = min(d, lensDistance(p, u_lens1, u_lensMeta1));
-    if (u_lensMeta2.y > 0.5) d = min(d, lensDistance(p, u_lens2, u_lensMeta2));
-    if (u_lensMeta3.y > 0.5) d = min(d, lensDistance(p, u_lens3, u_lensMeta3));
-    if (u_lensMeta4.y > 0.5) d = min(d, lensDistance(p, u_lens4, u_lensMeta4));
-    if (u_lensMeta5.y > 0.5) d = min(d, lensDistance(p, u_lens5, u_lensMeta5));
+    if (u_lens0.z > 0.0) d = min(d, lensDistance(p, u_lens0, u_lensMeta0));
+    if (u_lens1.z > 0.0) d = min(d, lensDistance(p, u_lens1, u_lensMeta1));
+    if (u_lens2.z > 0.0) d = min(d, lensDistance(p, u_lens2, u_lensMeta2));
+    if (u_lens3.z > 0.0) d = min(d, lensDistance(p, u_lens3, u_lensMeta3));
+    if (u_lens4.z > 0.0) d = min(d, lensDistance(p, u_lens4, u_lensMeta4));
+    if (u_lens5.z > 0.0) d = min(d, lensDistance(p, u_lens5, u_lensMeta5));
     return d;
 }
 
@@ -451,7 +497,7 @@ ShapeData evaluateField(vec2 fragPx) {
 // Influence-weighted centroid: the magnification / radial-light anchor that
 // flows with the merged shape instead of snapping between fixed centers.
 void accumulateAnchor(vec4 lens, vec4 meta, vec2 p, inout vec2 acc, inout float wsum) {
-    if (meta.y < 0.5) return;
+    if (lens.z <= 0.0) return;
     float w = exp(-max(lensDistance(p, lens, meta), 0.0) / max(u_smoothness, EPS));
     acc  += lens.xy * w;
     wsum += w;
@@ -495,7 +541,7 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 sides,
                       inout float smoothSdf, inout float hardSdf,
                       inout vec2 anchorAcc, inout float anchorW,
                       inout vec2 gradAcc) {
-    if (meta.y < 0.5) return;
+    if (lens.z <= 0.0) return;
 
     // The one raw SDF for this lens — shared by all three accumulators.
     float base = lensDistance(p, lens, meta);
@@ -512,14 +558,17 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 sides,
     // reusing `base` instead of recomputing lensDistance().
     float dMorph = base;
     if (meta.z > 1.5) {                                  // only continuous morphs
-        vec2 halfSize = max(lens.zw, vec2(EPS));
+        vec2 s = unpackScale(meta.y);
+        vec2 halfSize, pRest;
+        lensRestSpace(p, lens, s, halfSize, pRest);
         float r = min(meta.x, min(halfSize.x, halfSize.y));
         vec2 rel = p - lens.xy;
         float xAct = (rel.x > 0.0) ? sides.x : sides.y;  // right : left
         float yAct = (rel.y > 0.0) ? sides.z : sides.w;  // down  : up
         float wMorph = max(xAct, yAct);                  // either side rounds it
         if (wMorph >= 0.001) {
-            float rrect = roundedRectangleShape(p, lens.xy, halfSize, r);
+            float rrect = lensToScreen(
+                roundedRectangleShape(pRest, lens.xy, halfSize, r), p, lens, s);
             dMorph = mix(base, rrect, wMorph);
         }
     }
