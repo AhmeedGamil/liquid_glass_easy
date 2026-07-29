@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
+import 'tuner_widgets.dart';
+
 // =============================================================
 // Glass Pill Nav + Elasticity
 //
@@ -82,10 +84,15 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
     LiquidGlassTabBarItem(icon: Icons.person_rounded),
   ];
 
-  /// The side actions' elasticity. The bar itself has none — see the note
-  /// at the top of the file.
+  /// The FIXED action's elasticity, left alone so the sliders below have
+  /// something to be compared against in the same view.
   static const LiquidGlassElasticity _actionElasticity =
       LiquidGlassElasticity(stretch: 3, lean: 3);
+
+  /// The DRAGGABLE action's elasticity — what the sliders drive. Starts at
+  /// the same values as the fixed one, so the two only diverge once a slider
+  /// is touched.
+  LiquidGlassElasticity _movable = _actionElasticity;
 
   @override
   Widget build(BuildContext context) {
@@ -167,7 +174,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                         icon: Icons.mic_rounded,
                         size: 60,
                         onTap: () {},
-                        elasticity: _elastic ? _actionElasticity : null,
+                        elasticity: _elastic ? _movable : null,
                       ),
                     ),
                   ),
@@ -195,36 +202,94 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
     );
   }
 
+  void _set(LiquidGlassElasticity next) => setState(() => _movable = next);
+
   Widget _controls() {
+    final s = _movable;
     return SafeArea(
       child: Container(
-        margin: const EdgeInsets.fromLTRB(16, 56, 16, 0),
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+        margin: const EdgeInsets.fromLTRB(16, 52, 16, 0),
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+        // Bounded + scrollable: the panel sits over the feed, and it must not
+        // grow far enough down to cover the blobs it is tuning.
+        constraints: const BoxConstraints(maxHeight: 400),
         decoration: BoxDecoration(
           color: const Color(0xCC15102B),
           borderRadius: BorderRadius.circular(22),
           border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SwitchListTile.adaptive(
-              value: _elastic,
-              onChanged: (v) => setState(() => _elastic = v),
-              dense: true,
-              contentPadding: EdgeInsets.zero,
-              title: const Text('elasticity', style: TextStyle(fontSize: 13)),
-              subtitle: Text(
-                _elastic
-                    ? 'the blended actions deform on touch'
-                    : 'rigid glass (pill jelly still runs)',
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.white.withValues(alpha: 0.6),
+        child: Material(
+          type: MaterialType.transparency,
+          child: ListView(
+            padding: EdgeInsets.zero,
+            children: [
+              SwitchListTile.adaptive(
+                value: _elastic,
+                onChanged: (v) => setState(() => _elastic = v),
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                title:
+                    const Text('elasticity', style: TextStyle(fontSize: 13)),
+                subtitle: Text(
+                  _elastic
+                      ? 'the blended actions deform on touch'
+                      : 'rigid glass (pill jelly still runs)',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.white.withValues(alpha: 0.6),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const Divider(height: 12),
+              Row(
+                children: [
+                  const TunerPanelTitle('MIC (draggable)'),
+                  const Spacer(),
+                  TextButton(
+                    onPressed: () => _set(_actionElasticity),
+                    style: TextButton.styleFrom(
+                      visualDensity: VisualDensity.compact,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    child:
+                        const Text('reset', style: TextStyle(fontSize: 11.5)),
+                  ),
+                ],
+              ),
+              Text(
+                'Drives the draggable one only. The search button stays at '
+                'the defaults, so the two can be felt against each other.',
+                style: TextStyle(
+                  fontSize: 10.5,
+                  height: 1.3,
+                  color: Colors.white.withValues(alpha: 0.45),
+                ),
+              ),
+              const SizedBox(height: 6),
+              TunerParamSlider('stretch', s.stretch, 0, 80,
+                  s.stretch.toStringAsFixed(0),
+                  (v) => _set(s.copyWith(stretch: v))),
+              TunerParamSlider('squeeze', s.squeeze, 0, 1,
+                  s.squeeze.toStringAsFixed(2),
+                  (v) => _set(s.copyWith(squeeze: v))),
+              TunerParamSlider('lean', s.lean, 0, 1, s.lean.toStringAsFixed(2),
+                  (v) => _set(s.copyWith(lean: v))),
+              TunerParamSlider('grip', s.grip, 0, 1, s.grip.toStringAsFixed(2),
+                  (v) => _set(s.copyWith(grip: v))),
+              // Signed: right of zero the glass swells under the finger, left
+              // of zero it yields inward. Fractions of the button's own size,
+              // so they read the same whatever `size` the action is given.
+              TunerParamSlider('holdScale', s.holdScale, -0.4, 0.4,
+                  s.holdScale.toStringAsFixed(3),
+                  (v) => _set(s.copyWith(holdScale: v))),
+              TunerParamSlider('tapScale', s.tapScale, -0.4, 0.4,
+                  s.tapScale.toStringAsFixed(3),
+                  (v) => _set(s.copyWith(tapScale: v))),
+              TunerParamSlider('maxPull', s.maxPull, 10, 300,
+                  s.maxPull.toStringAsFixed(0),
+                  (v) => _set(s.copyWith(maxPull: v))),
+            ],
+          ),
         ),
       ),
     );
