@@ -125,57 +125,53 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
           // Side actions — lens-anywhere widgets, so they blend AND take
           // elasticity. Drag the mic into the search and the two outlines
           // flow together; keep dragging and they separate again.
-          Align(
-            alignment: Alignment.bottomRight,
+          // FULL-BLEED on purpose. The blender's clip region is
+          // `union.inflate(margin).intersect(fullRect)`, where `fullRect` is
+          // its OWN rect — so a box around it is a wall the drag cannot cross,
+          // and the merged surface would be cut mid-gesture. Filling costs
+          // nothing: that clip is a cost bound, recomputed each paint from the
+          // live member rects, so the expensive pass stays as tight as the
+          // blobs are however large the blender is.
+          LiquidGlassBlender(
+            // Wide enough that the two fuse before they touch, which is the
+            // whole point of the merge.
+            smoothness: 34,
+            style: const LiquidGlassStyle(
+              shape: LiquidGlassShape.continuousRoundedRectangle(
+                cornerRadius: 30,
+              ),
+            ),
             child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(right: 18, bottom: 28),
-                child: SizedBox(
-                  width: 108,
-                  height: 210,
-                  child: LiquidGlassBlender(
-                    // Wide enough that the two fuse before they touch, which
-                    // is the whole point of the merge.
-                    smoothness: 34,
-                    style: const LiquidGlassStyle(
-                      shape: LiquidGlassShape.continuousRoundedRectangle(
-                        cornerRadius: 30,
-                      ),
-                    ),
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Positioned(
-                          right: 0,
-                          bottom: 0,
-                          child: LiquidGlassTabBarAction(
-                            icon: Icons.search_rounded,
-                            size: 60,
-                            onTap: () {},
-                            elasticity: _elastic ? _actionElasticity : null,
-                          ),
-                        ),
-                        // Draggable member. The blender reads every member's
-                        // rect through `getTransformTo`, so a Transform-based
-                        // drag is fine here — unlike a lens painting its own
-                        // glass, which reads screen-space FragCoord.
-                        Positioned(
-                          right: 0,
-                          bottom: 96,
-                          child: LiquidGlassDraggable(
-                            child: LiquidGlassTabBarAction(
-                              icon: Icons.mic_rounded,
-                              size: 60,
-                              onTap: () {},
-                              elasticity:
-                                  _elastic ? _actionElasticity : null,
-                            ),
-                          ),
-                        ),
-                      ],
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    right: 18,
+                    bottom: 28,
+                    child: LiquidGlassTabBarAction(
+                      icon: Icons.search_rounded,
+                      size: 60,
+                      onTap: () {},
+                      elasticity: _elastic ? _actionElasticity : null,
                     ),
                   ),
-                ),
+                  // Draggable member. The blender reads every member's rect
+                  // through `getTransformTo`, so a Transform-based drag is fine
+                  // here — unlike a lens painting its own glass, which reads
+                  // screen-space FragCoord and would count it twice.
+                  Positioned(
+                    right: 18,
+                    bottom: 124,
+                    child: LiquidGlassDraggable(
+                      child: LiquidGlassTabBarAction(
+                        icon: Icons.mic_rounded,
+                        size: 60,
+                        onTap: () {},
+                        elasticity: _elastic ? _actionElasticity : null,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
