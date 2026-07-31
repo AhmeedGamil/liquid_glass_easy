@@ -123,6 +123,25 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
   final _LiquidGlassBlenderRegistry _registry = _LiquidGlassBlenderRegistry();
   ui.FragmentShader? _shader;
 
+  /// One-time debug notice when the merge is impossible and the members have
+  /// to stand on their own.
+  static bool _warnedSolo = false;
+
+  void _warnSoloOnce() {
+    assert(() {
+      if (!_warnedSolo) {
+        _warnedSolo = true;
+        debugPrint(
+          'LiquidGlassBlender: the merged surface needs a backdrop to '
+          'refract, and there is none (no Impeller and no ancestor '
+          'LiquidGlassView). Each member falls back to its own frosted '
+          '(blur + tint) glass and they no longer fuse.',
+        );
+      }
+      return true;
+    }());
+  }
+
   /// Which backend [_shader] was compiled for. The two entries differ only in
   /// the merged-field gradient: Impeller uses the derivative 1-tap
   /// (metaball_glass.frag), Skia uses the 5-tap (metaball_glass_skia.frag, which
@@ -160,13 +179,20 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
             true) &&
         ui.ImageFilter.isShaderFilterSupported;
 
+    // Impeller reads the live backdrop, so it always can. The Skia path
+    // samples a captured image, which only a LiquidGlassView produces — with
+    // no view there is nothing to refract and the merged pass would paint
+    // nothing at all. Decided at BUILD time so members can see it.
+    final bool canBlend = useImpeller || lensScope != null;
+    if (!canBlend) _warnSoloOnce();
+
     _ensureShader(useImpeller);
 
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
       children: [
-        if (_shader != null)
+        if (_shader != null && canBlend)
           Positioned.fill(
             child: _LiquidGlassBlenderSurface(
               registry: _registry,
@@ -183,6 +209,8 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
           ),
         LiquidGlassBlenderScope(
           registry: _registry,
+          canBlend: canBlend,
+          style: widget.style,
           child: widget.child,
         ),
       ],
@@ -233,14 +261,42 @@ class LiquidGlassBlenderScope extends InheritedWidget {
   const LiquidGlassBlenderScope({
     super.key,
     required _LiquidGlassBlenderRegistry registry,
+    required this.canBlend,
+    required this.style,
     required super.child,
   }) : _registry = registry;
 
   final _LiquidGlassBlenderRegistry _registry;
 
+  /// Whether the merged surface can actually be drawn. False on Skia / web
+  /// with no ancestor `LiquidGlassView`: there is no captured backdrop to
+  /// refract, so the metaball pass has nothing to sample. Members read this
+  /// and keep their own glass instead of surrendering it to a pass that will
+  /// never paint.
+  final bool canBlend;
+
+  /// The group's material. A blend refracts every member through this one
+  /// style, so a member's own appearance is never read — which means a member
+  /// falling back on its own has to take the tint from here or render clear.
+  final LiquidGlassStyle style;
+
   static LiquidGlassBlenderScope? maybeOf(BuildContext context) {
     return context
         .dependOnInheritedWidgetOfExactType<LiquidGlassBlenderScope>();
+  }
+
+  /// The style a member should paint itself with when [canBlend] is false.
+  ///
+  /// Shape from the MEMBER (it is what makes one blob differ from the next),
+  /// material from the GROUP (where a blend's tint is set). Neither direction
+  /// of [LiquidGlassStyle.merge] splits them this way — it moves shape and
+  /// appearance together — so build it explicitly.
+  LiquidGlassStyle soloStyleFor(LiquidGlassStyle memberStyle) {
+    return LiquidGlassStyle(
+      shape: memberStyle.shape ?? style.shape,
+      appearance: style.appearance,
+      refraction: style.refraction,
+    );
   }
 
   /// Replaces a lens's individual glass pass with a registered geometry node.
@@ -272,7 +328,9 @@ class LiquidGlassBlenderScope extends InheritedWidget {
 
   @override
   bool updateShouldNotify(LiquidGlassBlenderScope oldWidget) {
-    return _registry != oldWidget._registry;
+    return _registry != oldWidget._registry ||
+        canBlend != oldWidget.canBlend ||
+        style != oldWidget.style;
   }
 }
 

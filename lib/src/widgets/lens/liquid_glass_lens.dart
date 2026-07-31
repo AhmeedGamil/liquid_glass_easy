@@ -248,6 +248,18 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     LiquidGlassElasticityDeform deform,
     Size restSize,
   ) {
+    // A blender that cannot paint (Skia / web with no LiquidGlassView) must
+    // not take this lens's glass with it: hand nothing over, and render solo
+    // below with the GROUP's material so the tint still lands.
+    if (blenderScope != null && !blenderScope.canBlend) {
+      return _buildGlass(
+        context,
+        deform,
+        restSize,
+        style: blenderScope.soloStyleFor(widget.style),
+      );
+    }
+
     if (blenderScope != null) {
       return blenderScope.buildMember(
         style: widget.style,
@@ -273,17 +285,29 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
   /// Builds the lens proper. [deform] is [LiquidGlassElasticityDeform.none] and
   /// [restSize] is [Size.zero] whenever `elasticity` is unset — in that case
   /// every press-related branch below collapses to the original behaviour.
+  ///
+  /// [style] overrides this lens's own — used by a member standing in for a
+  /// blend that cannot paint, where the material belongs to the group.
   Widget _buildGlass(
     BuildContext context,
     LiquidGlassElasticityDeform deform,
-    Size restSize,
-  ) {
+    Size restSize, {
+    LiquidGlassStyle? style,
+  }) {
     final bool deformed = !deform.isRest && !restSize.isEmpty;
+
+    final LiquidGlassAppearance appearance =
+        style?.appearance ?? _appearance;
+    final LiquidGlassRefraction baseRefraction =
+        style?.refraction ?? _refraction;
 
     // The shape is passed through untouched. The shader evaluates it at REST
     // size in a domain divided by `shapeScale`, so the whole outline stretches
     // -- a circle becomes an ellipse rather than a stadium with flat runs.
-    final LiquidGlassShape shape = _shape;
+    final LiquidGlassShape shape = style == null
+        ? _shape
+        : (style.shape ??
+            const LiquidGlassShape.continuousRoundedRectangle());
     final Offset shapeScale =
         deformed ? deform.scaleFrom(restSize) : const Offset(1, 1);
     // Clips can be pinned circular independently, to reproduce the state where
@@ -295,8 +319,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // the cue that reads as glass under pressure instead of rubber.
     final LiquidGlassRefraction refraction = deform.pressAmount > 0
         ? liquidGlassElasticityRefraction(
-            _refraction, widget.elasticity!, deform.pressAmount)
-        : _refraction;
+            baseRefraction, widget.elasticity!, deform.pressAmount)
+        : baseRefraction;
 
     final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
     // `true`/`null` (here or on the scope) → prefer Impeller, but only when
@@ -326,7 +350,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       return _FrostedGlassFallback(
         shape: shape,
         shapeScale: shapeScale,
-        appearance: _appearance,
+        appearance: appearance,
         visible: widget.visibility,
         child: widget.child == null
             ? null
@@ -377,7 +401,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       shapeScale: shapeScale,
       clipScale: clipScale,
       refraction: refraction,
-      appearance: _appearance,
+      appearance: appearance,
       borderAlpha: 1.0,
       glassEnabled: visible,
       screenSize: screenSize,
