@@ -262,6 +262,11 @@ void lensRestSpace(vec2 p, vec4 lens, vec2 s, out vec2 halfSize, out vec2 pRest)
 // Direction from the centre stands in for the surface normal: exact when the
 // scale is isotropic, and sub-pixel off near a corner diagonal.
 float lensToScreen(float dRest, vec2 p, vec4 lens, vec2 s) {
+    // Undeformed: return the distance untouched. Falling through would
+    // multiply by length(normalize(rel)) — 1.0 only to within a rounding
+    // error, so a lens with no elasticity would stop being bit-identical to
+    // the pre-elasticity output for the sake of no effect at all.
+    if (s.x == 1.0 && s.y == 1.0) return dRest;
     vec2 rel = p - lens.xy;
     float L = length(rel);
     if (L < EPS) return dRest * min(s.x, s.y);
