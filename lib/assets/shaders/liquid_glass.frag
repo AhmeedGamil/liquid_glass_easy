@@ -250,9 +250,16 @@ void main() {
 
     // Evaluate at REST size in a domain divided by the deformation, so a
     // stretched circle becomes an ellipse instead of growing flat runs.
-    vec2 shapeScale = max(u_shapeScale, vec2(1e-4));
-    vec2 restHalfPx = lensHalfSizePx / shapeScale;
-    vec2 fragRestPx = lensCenterPx + (fragPx - lensCenterPx) / shapeScale;
+    // Pass the geometry through UNTOUCHED when there is no deformation.
+    // (p - c)/1 + c is not guaranteed to round-trip to p, so mapping anyway
+    // would shift every undeformed lens by an ulp for no effect. A zero
+    // uniform (never set) reads as undeformed rather than as a huge scale.
+    bool deformed = u_shapeScale.x > 0.0 && u_shapeScale.y > 0.0 &&
+                    (u_shapeScale.x != 1.0 || u_shapeScale.y != 1.0);
+    vec2 shapeScale = deformed ? max(u_shapeScale, vec2(1e-4)) : vec2(1.0);
+    vec2 restHalfPx = deformed ? lensHalfSizePx / shapeScale : lensHalfSizePx;
+    vec2 fragRestPx =
+        deformed ? lensCenterPx + (fragPx - lensCenterPx) / shapeScale : fragPx;
 
     // Rounded rectangle. u_cornerStyle selects the corner SDF:
     //   2 = continuous (Apple capsule-style), 1 = squircle, 0 = circular.

@@ -151,9 +151,16 @@ void main() {
     //   (2 = continuous, 1 = squircle, 0 = circular). Must mirror the main
     //   shader's branch exactly so the rim hugs the same outline as the fill.
     // Same rest-space evaluation as the main shader — see its comment.
-    vec2 shapeScale = max(u_shapeScale, vec2(1e-4));
-    vec2 restHalfPx = lensHalfSizePx / shapeScale;
-    vec2 fragRestPx = lensCenterPx + (fragPosPx - lensCenterPx) / shapeScale;
+    // Pass the geometry through UNTOUCHED when there is no deformation.
+    // (p - c)/1 + c is not guaranteed to round-trip to p, so mapping anyway
+    // would shift every undeformed lens by an ulp for no effect. A zero
+    // uniform (never set) reads as undeformed rather than as a huge scale.
+    bool deformed = u_shapeScale.x > 0.0 && u_shapeScale.y > 0.0 &&
+                    (u_shapeScale.x != 1.0 || u_shapeScale.y != 1.0);
+    vec2 shapeScale = deformed ? max(u_shapeScale, vec2(1e-4)) : vec2(1.0);
+    vec2 restHalfPx = deformed ? lensHalfSizePx / shapeScale : lensHalfSizePx;
+    vec2 fragRestPx =
+        deformed ? lensCenterPx + (fragPosPx - lensCenterPx) / shapeScale : fragPosPx;
 
     float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
