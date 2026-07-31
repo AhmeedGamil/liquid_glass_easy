@@ -312,9 +312,11 @@ class _ListRow extends StatelessWidget {
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
 
+  // Not `blending.jpg` — three other demos already use that one, and this
+  // page reads better against something it does not share.
   static const String _url =
       'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets'
-      '/main/blending.jpg';
+      '/main/socotra_tree_2.jpg';
 
   static const Widget _fallback = DecoratedBox(
     decoration: BoxDecoration(
