@@ -706,9 +706,16 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
     final double wB = _lerp(0.5, gy, grip);
     final double wT = _lerp(0.5, 1 - gy, grip);
 
-    // 1. Elongation along each pull axis, split by grab proximity.
-    final double gainX = s.stretch * ux.abs();
-    final double gainY = s.stretch * uy.abs();
+    // 1. Elongation along each pull axis, split by grab proximity — SIGNED
+    // by whether the pull leaves the grabbed edge or drives into it.
+    //
+    // The model is that the finger grips the surface and the far side lags.
+    // Grab an edge and pull away and the body elongates; push the same edge
+    // toward the middle and the far side still lags, so the body has to
+    // COMPRESS. Using the magnitude alone made both stretch, which reads as
+    // the shape inflating whichever way you shove it.
+    final double gainX = _axisGain(s.stretch, ux, gx, grip);
+    final double gainY = _axisGain(s.stretch, uy, gy, grip);
     double dl = gainX * wL;
     double dr = gainX * wR;
     double dt = gainY * wT;
@@ -725,8 +732,18 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
     // 3. Volume: solve (w + gainX)·(h - lossH) = w·h for the give-back,
     // then scale it by `squeeze`. Self-scaling, so a wide pill pinches by
     // the same *proportion* as a small square.
-    final double lossH = s.squeeze * h * gainX / (w + gainX);
-    final double lossW = s.squeeze * w * gainY / (h + gainY);
+    //
+    // Signed both ways: a NEGATIVE gain makes the loss negative too, so the
+    // cross axis bulges outward instead of pinching in. Compression pushing
+    // the body sideways falls out of the same equation.
+    //
+    // The denominators are floored because a gain can now be negative: on a
+    // lens narrower than `stretch`, `w + gainX` would reach zero and the
+    // give-back would explode through the edge floors.
+    final double lossH =
+        s.squeeze * h * gainX / math.max(w + gainX, w * 0.25);
+    final double lossW =
+        s.squeeze * w * gainY / math.max(h + gainY, h * 0.25);
     dt -= lossH * wT;
     db -= lossH * wB;
     dl -= lossW * wL;
@@ -1048,3 +1065,28 @@ double _tanh(double x) {
 }
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
+
+/// Signed elongation for one axis: `+` stretches, `-` compresses.
+///
+/// [u] is the saturated pull on this axis and [g] the grab point on it
+/// (`0`–`1`). A pull that leaves the grabbed edge stretches the body; one that
+/// drives that edge toward the middle compresses it, because the far side lags
+/// either way.
+///
+/// How *directional* that is fades with two things, so the rule never snaps:
+///
+///  * how far off-centre the grab is — a grab on the exact middle has no near
+///    edge to push into, so it stretches symmetrically whichever way it goes,
+///  * [grip], which is already the parameter saying whether the grab point
+///    matters at all.
+///
+/// At `grip: 0` this is exactly `stretch * u.abs()` — the behaviour before
+/// compression existed — so that setting is the way back to it.
+double _axisGain(double stretch, double u, double g, double grip) {
+  final double offCentre = 2 * g - 1; // -1 at the min edge, +1 at the max
+  final double directional = grip * offCentre.abs();
+  if (directional <= 0) return stretch * u.abs();
+  // +1 when the pull leaves the grabbed edge, -1 when it drives into it.
+  final double outward = (u.sign * offCentre.sign);
+  return stretch * u.abs() * _lerp(1.0, outward, directional);
+}
