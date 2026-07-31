@@ -4,54 +4,38 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Glass Pill Nav + Elasticity
+// Blended Actions + Elasticity
 //
 //   flutter run -t lib/blended_nav_page.dart   (standalone)
 //   …or open it from the home menu.
 //
-// The real glass-refracting morph pill: it slides between tabs with the
-// jelly spring (LiquidGlassNavJellyConfig) and refracts the page behind
-// it.
+// Two lens-anywhere glass buttons that BLEND with each other and each
+// carry elasticity. Drag the mic into the search: the outlines flow
+// together into one surface, and both still deform under the finger while
+// merged. The sliders drive the draggable one only, so a value can be
+// felt against an unchanged reference in the same view.
 //
-// The BAR ITSELF HAS NO ELASTICITY. Only the side actions carry it —
-// those are ordinary lens-anywhere widgets, which listen for their own
-// touches. The bar cannot: its tab-gesture overlay is opaque and sits
-// above the capsule, so the capsule's own lens never sees a pointer.
-// Wiring that up means the bar owning the gesture and feeding the
-// deformation itself, which was tried and then taken back out.
-//
-// WHAT BLENDS HERE, AND WHAT CANNOT
-// ---------------------------------
-// The two side actions blend with each other and each carry elasticity.
-// Drag the mic into the search: the outlines flow together into one
-// surface, and both still deform under the finger while merged.
-//
-// The BAR is not part of that, and it is the JELLY MORPH PILL that rules
-// it out rather than the bar. This bar is built on the position-driven
-// pipeline (`LiquidGlassView.withPositionedLenses` with `LiquidGlass`
-// configs for the capsule and the moving pill) and it is full-screen: it
-// composites over the page behind it. `LiquidGlassBlender` merges bounded
-// `LiquidGlassLens` *widgets*, and this path never runs
-// `LiquidGlassLens.build`, so it never registers with the blender scope.
+// The blender is FULL-BLEED on purpose. Its clip region is
+// `union.inflate(margin).intersect(fullRect)`, where `fullRect` is its OWN
+// rect — so a box around it is a wall the drag cannot cross, and the
+// merged surface would be cut mid-gesture. Filling costs nothing: that
+// clip is a cost bound, recomputed each paint from the live member rects,
+// so the expensive pass stays as tight as the blobs are.
 //
 // One thing does not survive a merge: the press-deepens-the-optics cue
 // (`refractionBoost`). The blender refracts the whole merged surface
 // through ONE shared style, so a press on one blob cannot deepen its own
 // optics without deepening the other's. Geometry — stretch, squeeze,
 // lean, grip, holdScale, tapScale — all behave normally.
-//
-// Drop `pillStyle.mode` (the plain `LiquidGlassBottomNavBar` constructor)
-// and the bar becomes a single lens that DOES blend — but then the pill
-// is a highlight, not glass.
 // =============================================================
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const _GlassPillNavApp());
+  runApp(const _BlendedActionsApp());
 }
 
-class _GlassPillNavApp extends StatelessWidget {
-  const _GlassPillNavApp();
+class _BlendedActionsApp extends StatelessWidget {
+  const _BlendedActionsApp();
 
   @override
   Widget build(BuildContext context) {
@@ -63,8 +47,8 @@ class _GlassPillNavApp extends StatelessWidget {
   }
 }
 
-/// The glass-pill bottom nav bar (jelly morph pill) with
-/// [LiquidGlassElasticity] on its capsule, plus an elastic side action.
+/// Two blended glass actions, both carrying [LiquidGlassElasticity], with
+/// the draggable one's spec on sliders.
 class BlendedNavPage extends StatefulWidget {
   const BlendedNavPage({super.key});
 
@@ -73,16 +57,8 @@ class BlendedNavPage extends StatefulWidget {
 }
 
 class _BlendedNavPageState extends State<BlendedNavPage> {
-  int _index = 0;
   bool _elastic = true;
   bool _showControls = false;
-
-  static const List<LiquidGlassTabBarItem> _items = [
-    LiquidGlassTabBarItem(icon: Icons.play_circle_fill_rounded),
-    LiquidGlassTabBarItem(icon: Icons.grid_view_rounded),
-    LiquidGlassTabBarItem(icon: Icons.favorite_rounded),
-    LiquidGlassTabBarItem(icon: Icons.person_rounded),
-  ];
 
   /// The FIXED action's elasticity, left alone so the sliders below have
   /// something to be compared against in the same view.
@@ -101,7 +77,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          _Feed(index: _index),
+          const _Feed(index: 1),
           const DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
@@ -109,23 +85,6 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                 end: Alignment.bottomCenter,
                 colors: [Color(0x00000000), Color(0x99000000)],
               ),
-            ),
-          ),
-
-          // The glass pill bar. `withImpeller` is the bodyless variant:
-          // drop it as the LAST child of a Stack over the page and the
-          // capsule + pill sample the live backdrop directly.
-          LiquidGlassBottomNavBar.withImpeller(
-            items: _items,
-            selectedIndex: _index,
-            onChanged: (i) => setState(() => _index = i),
-            width: 260,
-            height: 64,
-            pillStyle: const LiquidGlassNavPillStyle(
-              // THIS is the glass pill: a real refracting lens that morphs
-              // as it travels. `jelly` is left at its default on purpose —
-              // that is the on-device-tuned iOS squash & stretch.
-              mode: LiquidGlassPillMode.impellerOnly,
             ),
           ),
 

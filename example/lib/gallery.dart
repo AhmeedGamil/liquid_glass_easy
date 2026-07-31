@@ -6,7 +6,6 @@ import 'corner_style_page.dart';
 import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
-import 'nav_scale_page.dart';
 import 'elasticity_tuner.dart';
 import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
@@ -107,18 +106,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
-      title: 'Glass Pill Nav + Elasticity',
-      subtitle: 'Jelly morph pill, with elasticity on the bar capsule',
+      title: 'Blended Actions + Elasticity',
+      subtitle: 'Two glass buttons that fuse, both deforming under touch',
       icon: Icons.blur_circular_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
       builder: (_) => const BlendedNavPage(),
-    ),
-    _Destination(
-      title: 'Nav Bar Scale (experiment)',
-      subtitle: 'Press the glass pill bar and the whole thing scales',
-      icon: Icons.zoom_out_map_rounded,
-      gradient: const [Color(0xFFFFB020), Color(0xFFB1462A)],
-      builder: (_) => const NavScalePage(),
     ),
     _Destination(
       title: 'Slider & Toggle',
