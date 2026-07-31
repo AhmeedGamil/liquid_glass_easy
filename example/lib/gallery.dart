@@ -106,8 +106,8 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
-      title: 'Blended Actions + Elasticity',
-      subtitle: 'Two glass buttons that fuse, both deforming under touch',
+      title: 'Blended List + Elasticity',
+      subtitle: 'Stretch a glass tile until it fuses with the one next to it',
       icon: Icons.blur_circular_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
       builder: (_) => const BlendedNavPage(),

@@ -4,38 +4,42 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Blended Actions + Elasticity
+// Blended List + Elasticity
 //
 //   flutter run -t lib/blended_nav_page.dart   (standalone)
 //   …or open it from the home menu.
 //
-// Two lens-anywhere glass buttons that BLEND with each other and each
-// carry elasticity. Drag the mic into the search: the outlines flow
-// together into one surface, and both still deform under the finger while
-// merged. The sliders drive the draggable one only, so a value can be
-// felt against an unchanged reference in the same view.
+// A vertical list of four glass tiles and a round action, ALL members of one
+// LiquidGlassBlender. Nothing here is draggable: the tiles sit at fixed
+// positions, close enough that DEFORMING one is what reaches its neighbour.
+// Press and pull a tile and watch it stretch into the one above or below —
+// the merge is caused by the elasticity rather than by moving anything.
+//
+// The sliders drive the LIST only. The action on the right stays at the
+// defaults, so a value can be felt against an unchanged reference on the
+// same screen.
 //
 // The blender is FULL-BLEED on purpose. Its clip region is
 // `union.inflate(margin).intersect(fullRect)`, where `fullRect` is its OWN
-// rect — so a box around it is a wall the drag cannot cross, and the
-// merged surface would be cut mid-gesture. Filling costs nothing: that
-// clip is a cost bound, recomputed each paint from the live member rects,
-// so the expensive pass stays as tight as the blobs are.
+// rect — so a box around it is a wall the deformation cannot cross, and the
+// merged surface would be cut mid-gesture. Filling costs nothing: that clip
+// is a cost bound, recomputed each paint from the live member rects, so the
+// expensive pass stays as tight as the blobs are.
 //
 // One thing does not survive a merge: the press-deepens-the-optics cue
-// (`refractionBoost`). The blender refracts the whole merged surface
-// through ONE shared style, so a press on one blob cannot deepen its own
-// optics without deepening the other's. Geometry — stretch, squeeze,
-// lean, grip, holdScale, tapScale — all behave normally.
+// (`refractionBoost`). The blender refracts the whole merged surface through
+// ONE shared style, so a press on one tile cannot deepen its own optics
+// without deepening every other member's. Geometry — stretch, squeeze, lean,
+// grip, holdScale, tapScale — all behave normally.
 // =============================================================
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const _BlendedActionsApp());
+  runApp(const _BlendedListApp());
 }
 
-class _BlendedActionsApp extends StatelessWidget {
-  const _BlendedActionsApp();
+class _BlendedListApp extends StatelessWidget {
+  const _BlendedListApp();
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +51,8 @@ class _BlendedActionsApp extends StatelessWidget {
   }
 }
 
-/// Two blended glass actions, both carrying [LiquidGlassElasticity], with
-/// the draggable one's spec on sliders.
+/// A blended vertical list plus one action, every member carrying
+/// [LiquidGlassElasticity], with the list's spec on sliders.
 class BlendedNavPage extends StatefulWidget {
   const BlendedNavPage({super.key});
 
@@ -60,15 +64,33 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   bool _elastic = true;
   bool _showControls = false;
 
-  /// The FIXED action's elasticity, left alone so the sliders below have
-  /// something to be compared against in the same view.
+  /// The ACTION's elasticity, left alone so the sliders have something to be
+  /// compared against on the same screen.
   static const LiquidGlassElasticity _actionElasticity =
       LiquidGlassElasticity(stretch: 3, lean: 3);
 
-  /// The DRAGGABLE action's elasticity — what the sliders drive. Starts at
-  /// the same values as the fixed one, so the two only diverge once a slider
-  /// is touched.
-  LiquidGlassElasticity _movable = _actionElasticity;
+  /// The LIST's default: more stretch than the action, because reaching the
+  /// next tile is the point here.
+  static const LiquidGlassElasticity _listDefault =
+      LiquidGlassElasticity(stretch: 22, lean: 0.5);
+
+  /// The LIST's elasticity — what the sliders drive.
+  LiquidGlassElasticity _list = _listDefault;
+
+  static const List<IconData> _listIcons = [
+    Icons.wb_sunny_rounded,
+    Icons.water_drop_rounded,
+    Icons.air_rounded,
+    Icons.nightlight_round,
+  ];
+
+  static const double _tile = 62;
+
+  /// Gap between tiles. Deliberately small: `stretch` only has to reach a
+  /// little way before the outlines fuse, which is the whole demonstration.
+  static const double _gap = 18;
+
+  void _set(LiquidGlassElasticity next) => setState(() => _list = next);
 
   @override
   Widget build(BuildContext context) {
@@ -77,64 +99,48 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _Feed(index: 1),
-          const DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.center,
-                end: Alignment.bottomCenter,
-                colors: [Color(0x00000000), Color(0x99000000)],
-              ),
-            ),
-          ),
+          const _Backdrop(),
 
-          // Side actions — lens-anywhere widgets, so they blend AND take
-          // elasticity. Drag the mic into the search and the two outlines
-          // flow together; keep dragging and they separate again.
-          // FULL-BLEED on purpose. The blender's clip region is
-          // `union.inflate(margin).intersect(fullRect)`, where `fullRect` is
-          // its OWN rect — so a box around it is a wall the drag cannot cross,
-          // and the merged surface would be cut mid-gesture. Filling costs
-          // nothing: that clip is a cost bound, recomputed each paint from the
-          // live member rects, so the expensive pass stays as tight as the
-          // blobs are however large the blender is.
+          // Every member lives in ONE blender: the four list tiles and the
+          // action. Full-bleed — see the note at the top of the file.
           LiquidGlassBlender(
-            // Wide enough that the two fuse before they touch, which is the
-            // whole point of the merge.
-            smoothness: 34,
+            // Enough that neighbouring tiles start reaching for each other
+            // slightly before their outlines actually touch.
+            smoothness: 26,
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
-                cornerRadius: 30,
+                cornerRadius: 22,
               ),
             ),
             child: SafeArea(
               child: Stack(
-                clipBehavior: Clip.none,
                 children: [
-                  Positioned(
-                    right: 18,
-                    bottom: 28,
+                  // The list, centred vertically, left of middle.
+                  Align(
+                    alignment: const Alignment(-0.62, 0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        for (int i = 0; i < _listIcons.length; i++) ...[
+                          if (i > 0) const SizedBox(height: _gap),
+                          _ListTile(
+                            icon: _listIcons[i],
+                            size: _tile,
+                            elasticity: _elastic ? _list : null,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+
+                  // The action, centred vertically on the right.
+                  Align(
+                    alignment: const Alignment(0.82, 0),
                     child: LiquidGlassTabBarAction(
                       icon: Icons.search_rounded,
                       size: 60,
                       onTap: () {},
                       elasticity: _elastic ? _actionElasticity : null,
-                    ),
-                  ),
-                  // Draggable member. The blender reads every member's rect
-                  // through `getTransformTo`, so a Transform-based drag is fine
-                  // here — unlike a lens painting its own glass, which reads
-                  // screen-space FragCoord and would count it twice.
-                  Positioned(
-                    right: 18,
-                    bottom: 124,
-                    child: LiquidGlassDraggable(
-                      child: LiquidGlassTabBarAction(
-                        icon: Icons.mic_rounded,
-                        size: 60,
-                        onTap: () {},
-                        elasticity: _elastic ? _movable : null,
-                      ),
                     ),
                   ),
                 ],
@@ -161,16 +167,14 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
     );
   }
 
-  void _set(LiquidGlassElasticity next) => setState(() => _movable = next);
-
   Widget _controls() {
-    final s = _movable;
+    final s = _list;
     return SafeArea(
       child: Container(
         margin: const EdgeInsets.fromLTRB(16, 52, 16, 0),
         padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-        // Bounded + scrollable: the panel sits over the feed, and it must not
-        // grow far enough down to cover the blobs it is tuning.
+        // Bounded + scrollable: the panel must not grow down over the tiles
+        // it is tuning.
         constraints: const BoxConstraints(maxHeight: 400),
         decoration: BoxDecoration(
           color: const Color(0xCC15102B),
@@ -191,8 +195,8 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                     const Text('elasticity', style: TextStyle(fontSize: 13)),
                 subtitle: Text(
                   _elastic
-                      ? 'the blended actions deform on touch'
-                      : 'rigid glass (pill jelly still runs)',
+                      ? 'every member deforms on touch'
+                      : 'rigid glass (members still blend by proximity)',
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.white.withValues(alpha: 0.6),
@@ -202,10 +206,10 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
               const Divider(height: 12),
               Row(
                 children: [
-                  const TunerPanelTitle('MIC (draggable)'),
+                  const TunerPanelTitle('LIST'),
                   const Spacer(),
                   TextButton(
-                    onPressed: () => _set(_actionElasticity),
+                    onPressed: () => _set(_listDefault),
                     style: TextButton.styleFrom(
                       visualDensity: VisualDensity.compact,
                       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -216,8 +220,10 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                 ],
               ),
               Text(
-                'Drives the draggable one only. The search button stays at '
-                'the defaults, so the two can be felt against each other.',
+                'Drives the four tiles only. Pull one toward its neighbour '
+                'and the outlines fuse — the merge comes from the stretch, '
+                'nothing moves. The action on the right stays at the defaults '
+                'as a reference.',
                 style: TextStyle(
                   fontSize: 10.5,
                   height: 1.3,
@@ -236,8 +242,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
               TunerParamSlider('grip', s.grip, 0, 1, s.grip.toStringAsFixed(2),
                   (v) => _set(s.copyWith(grip: v))),
               // Signed: right of zero the glass swells under the finger, left
-              // of zero it yields inward. Fractions of the button's own size,
-              // so they read the same whatever `size` the action is given.
+              // of zero it yields inward. Fractions of the tile's own size.
               TunerParamSlider('holdScale', s.holdScale, -0.4, 0.4,
                   s.holdScale.toStringAsFixed(3),
                   (v) => _set(s.copyWith(holdScale: v))),
@@ -253,65 +258,73 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
       ),
     );
   }
-
 }
 
-/// A busy, high-contrast feed so the pill and capsule have something
-/// worth refracting. Scrolls under the bar.
-class _Feed extends StatelessWidget {
-  final int index;
-  const _Feed({required this.index});
+/// One tile of the vertical list — a plain [LiquidGlassLens], so it registers
+/// with the surrounding blender and carries its own elasticity.
+class _ListTile extends StatelessWidget {
+  final IconData icon;
+  final double size;
+  final LiquidGlassElasticity? elasticity;
 
-  static const List<List<Color>> _palettes = [
-    [Color(0xFFFF6B9D), Color(0xFFFFC46B)],
-    [Color(0xFF6EE7F9), Color(0xFF7C5CFF)],
-    [Color(0xFF34D399), Color(0xFF0E7C8C)],
-    [Color(0xFFF59E0B), Color(0xFFEF4444)],
-  ];
+  const _ListTile({
+    required this.icon,
+    required this.size,
+    required this.elasticity,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final List<Color> palette = _palettes[index % _palettes.length];
-    return ScrollConfiguration(
-      // Android's stretch overscroll lifts content into its own layer, and
-      // a BackdropFilter lens above it then reads a black backdrop.
-      behavior: const MaterialScrollBehavior().copyWith(overscroll: false),
-      child: GridView.builder(
-        padding: const EdgeInsets.fromLTRB(16, 80, 16, 190),
-        itemCount: 30,
-        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 2,
-          mainAxisSpacing: 14,
-          crossAxisSpacing: 14,
-          childAspectRatio: 0.82,
+    return SizedBox(
+      width: size,
+      height: size,
+      child: LiquidGlassLens(
+        elasticity: elasticity,
+        style: const LiquidGlassStyle(
+          shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 22),
         ),
-        itemBuilder: (context, i) {
-          final double t = (i % 7) / 6;
-          return DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(22),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color.lerp(palette[0], palette[1], t)!,
-                  Color.lerp(palette[1], palette[0], t)!,
-                ],
-              ),
-            ),
-            child: Center(
-              child: Text(
-                '${i + 1}',
-                style: TextStyle(
-                  fontSize: 34,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white.withValues(alpha: 0.35),
-                ),
-              ),
-            ),
-          );
-        },
+        child: Center(child: Icon(icon, color: Colors.white, size: 26)),
       ),
+    );
+  }
+}
+
+/// Busy, high-contrast detail so the refraction has something to bend.
+///
+/// The photo is the one the other blending demos use; the gradient stands in
+/// while it loads and if the network is unavailable, so the page is never a
+/// flat void.
+class _Backdrop extends StatelessWidget {
+  const _Backdrop();
+
+  static const String _url =
+      'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets'
+      '/main/blending.jpg';
+
+  static const Widget _fallback = DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFFFF6B9D),
+          Color(0xFF7C5CFF),
+          Color(0xFF34D399),
+          Color(0xFFFFC46B),
+        ],
+      ),
+    ),
+    child: SizedBox.expand(),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.network(
+      _url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => _fallback,
+      loadingBuilder: (context, child, progress) =>
+          progress == null ? child : _fallback,
     );
   }
 }
