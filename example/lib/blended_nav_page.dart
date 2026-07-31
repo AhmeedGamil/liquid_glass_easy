@@ -9,11 +9,14 @@ import 'tuner_widgets.dart';
 //   flutter run -t lib/blended_nav_page.dart   (standalone)
 //   …or open it from the home menu.
 //
-// A vertical list of four glass tiles and a round action, ALL members of one
-// LiquidGlassBlender. Nothing here is draggable: the tiles sit at fixed
-// positions, close enough that DEFORMING one is what reaches its neighbour.
-// Press and pull a tile and watch it stretch into the one above or below —
-// the merge is caused by the elasticity rather than by moving anything.
+// ONE glass lens holding a four-row list, plus a round action — both members
+// of one LiquidGlassBlender. The rows are ordinary widgets INSIDE the lens,
+// so deforming the glass carries them with it rather than each row having
+// glass of its own.
+//
+// Nothing here is draggable. The two members sit at fixed positions, and the
+// only thing that can close the gap between them is the deformation itself:
+// pull the list toward the action and the outlines fuse.
 //
 // The sliders drive the LIST only. The action on the right stays at the
 // defaults, so a value can be felt against an unchanged reference on the
@@ -51,7 +54,7 @@ class _BlendedListApp extends StatelessWidget {
   }
 }
 
-/// A blended vertical list plus one action, every member carrying
+/// A blended list lens plus one action, both carrying
 /// [LiquidGlassElasticity], with the list's spec on sliders.
 class BlendedNavPage extends StatefulWidget {
   const BlendedNavPage({super.key});
@@ -70,25 +73,23 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
       LiquidGlassElasticity(stretch: 3, lean: 3);
 
   /// The LIST's default: more stretch than the action, because reaching the
-  /// next tile is the point here.
+  /// action across the gap is the point here.
   static const LiquidGlassElasticity _listDefault =
       LiquidGlassElasticity(stretch: 22, lean: 0.5);
 
   /// The LIST's elasticity — what the sliders drive.
   LiquidGlassElasticity _list = _listDefault;
 
-  static const List<IconData> _listIcons = [
-    Icons.wb_sunny_rounded,
-    Icons.water_drop_rounded,
-    Icons.air_rounded,
-    Icons.nightlight_round,
+  static const List<(IconData, String)> _rows = [
+    (Icons.wb_sunny_rounded, 'Daylight'),
+    (Icons.water_drop_rounded, 'Humidity'),
+    (Icons.air_rounded, 'Wind'),
+    (Icons.nightlight_round, 'Night'),
   ];
 
-  static const double _tile = 62;
-
-  /// Gap between tiles. Deliberately small: `stretch` only has to reach a
-  /// little way before the outlines fuse, which is the whole demonstration.
-  static const double _gap = 18;
+  static const double _listWidth = 208;
+  static const double _rowHeight = 52;
+  static const double _listPadding = 10;
 
   void _set(LiquidGlassElasticity next) => setState(() => _list = next);
 
@@ -115,21 +116,33 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
             child: SafeArea(
               child: Stack(
                 children: [
-                  // The list, centred vertically, left of middle.
+                  // The list: ONE lens, four rows inside it. The rows are
+                  // ordinary widgets — deforming the glass carries them with
+                  // it (childFollow), which is the thing to watch.
                   Align(
-                    alignment: const Alignment(-0.62, 0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        for (int i = 0; i < _listIcons.length; i++) ...[
-                          if (i > 0) const SizedBox(height: _gap),
-                          _ListTile(
-                            icon: _listIcons[i],
-                            size: _tile,
-                            elasticity: _elastic ? _list : null,
+                    alignment: const Alignment(-0.55, 0),
+                    child: SizedBox(
+                      width: _listWidth,
+                      height: _rowHeight * _rows.length + _listPadding * 2,
+                      child: LiquidGlassLens(
+                        elasticity: _elastic ? _list : null,
+                        style: const LiquidGlassStyle(
+                          shape: LiquidGlassShape.continuousRoundedRectangle(
+                            cornerRadius: 26,
                           ),
-                        ],
-                      ],
+                        ),
+                        child: Padding(
+                          padding:
+                              const EdgeInsets.symmetric(vertical: _listPadding),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (final row in _rows)
+                                _ListRow(icon: row.$1, label: row.$2),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
 
@@ -220,10 +233,10 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                 ],
               ),
               Text(
-                'Drives the four tiles only. Pull one toward its neighbour '
-                'and the outlines fuse — the merge comes from the stretch, '
-                'nothing moves. The action on the right stays at the defaults '
-                'as a reference.',
+                'Drives the list lens only. Pull it toward the action and the '
+                'outlines fuse — the merge comes from the stretch, nothing '
+                'moves. Watch the rows travel with the glass: that is '
+                'childFollow. The action stays at the defaults as a reference.',
                 style: TextStyle(
                   fontSize: 10.5,
                   height: 1.3,
@@ -260,30 +273,32 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   }
 }
 
-/// One tile of the vertical list — a plain [LiquidGlassLens], so it registers
-/// with the surrounding blender and carries its own elasticity.
-class _ListTile extends StatelessWidget {
+/// One row inside the list lens. A plain widget: it is the lens's child, so
+/// the deformation carries it rather than it deforming on its own.
+class _ListRow extends StatelessWidget {
   final IconData icon;
-  final double size;
-  final LiquidGlassElasticity? elasticity;
+  final String label;
 
-  const _ListTile({
-    required this.icon,
-    required this.size,
-    required this.elasticity,
-  });
+  const _ListRow({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: size,
-      height: size,
-      child: LiquidGlassLens(
-        elasticity: elasticity,
-        style: const LiquidGlassStyle(
-          shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 22),
-        ),
-        child: Center(child: Icon(icon, color: Colors.white, size: 26)),
+      height: 52,
+      child: Row(
+        children: [
+          const SizedBox(width: 18),
+          Icon(icon, color: Colors.white, size: 21),
+          const SizedBox(width: 14),
+          Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
       ),
     );
   }

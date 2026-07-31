@@ -107,7 +107,7 @@ class HomePage extends StatelessWidget {
     ),
     _Destination(
       title: 'Blended List + Elasticity',
-      subtitle: 'Stretch a glass tile until it fuses with the one next to it',
+      subtitle: 'A glass list panel that stretches until it fuses with a button',
       icon: Icons.blur_circular_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
       builder: (_) => const BlendedNavPage(),
