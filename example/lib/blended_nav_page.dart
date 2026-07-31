@@ -126,7 +126,6 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                       icon: Icons.search_rounded,
                       size: 60,
                       onTap: () {},
-                      style: _actionGlass,
                       elasticity: _elastic ? _actionElasticity : null,
                     ),
                   ),
@@ -248,28 +247,13 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
 /// Glass over a light field is light, so white content would wash out.
 const Color _ink = Color(0xFF1B1B22);
 
-/// Shared material. Set per lens now rather than once on a blender: with the
-/// members independent, each one carries its own look.
-///
-/// Milky rather than clear — over a pale field, transparent glass is nearly
-/// invisible, and the silhouette is the thing this page exists to show.
-const LiquidGlassAppearance _tint =
-    LiquidGlassAppearance(color: Color(0x8CFFFFFF));
-
-/// The list panel's look. It needs a shape of its own; a round action does
-/// NOT — see [_actionGlass].
+/// The list panel's look. Milky rather than clear — over a pale field,
+/// transparent glass is nearly invisible, and the silhouette is the thing
+/// this page exists to show.
 const LiquidGlassStyle _listGlass = LiquidGlassStyle(
   shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 26),
-  appearance: _tint,
+  appearance: LiquidGlassAppearance(color: Color(0x8CFFFFFF)),
 );
-
-/// The action's look — appearance ONLY, deliberately no shape.
-///
-/// LiquidGlassTabBarAction derives its circle from `resolved.shape ??
-/// roundedRectangle(cornerRadius: size / 2, …)`, so supplying any shape here
-/// replaces it — and takes the action's tuned rim (border width, light angle,
-/// optical saturation) with it. Leaving it null keeps both.
-const LiquidGlassStyle _actionGlass = LiquidGlassStyle(appearance: _tint);
 
 /// One row inside the list lens. A plain widget: it is the lens's child, so
 /// the deformation carries it rather than it deforming on its own.
