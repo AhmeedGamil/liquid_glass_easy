@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
-import '../utils/liquid_glass_elasticity.dart';
+import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Impeller render path for a single lens, extracted from
@@ -48,16 +48,16 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
 
   /// Current touch deformation. [config] already carries the deformed size;
   /// this supplies the matching origin shift and the child's pixel scale.
-  /// [LiquidGlassElasticityDeform.none] when no press is configured.
-  final LiquidGlassElasticityDeform elasticityDeform;
+  /// [LiquidGlassFlexDeform.none] when no press is configured.
+  final LiquidGlassFlexDeform flexDeform;
 
   /// Spring driver fed by this lens's pointer events. Null disables the
   /// press behaviour entirely — no `Listener` is added to the tree.
-  final LiquidGlassElasticityDriver? elasticityDriver;
+  final LiquidGlassFlexDriver? flexDriver;
 
   /// The lens's undeformed size, used to lay the child out at rest before
   /// scaling its pixels.
-  final Size elasticityRestSize;
+  final Size flexRestSize;
 
   const ImpellerLiquidGlassLens({
     super.key,
@@ -66,9 +66,9 @@ class ImpellerLiquidGlassLens extends StatefulWidget {
     required this.shader,
     required this.touch,
     required this.animation,
-    this.elasticityDeform = LiquidGlassElasticityDeform.none,
-    this.elasticityDriver,
-    this.elasticityRestSize = Size.zero,
+    this.flexDeform = LiquidGlassFlexDeform.none,
+    this.flexDriver,
+    this.flexRestSize = Size.zero,
   });
 
   @override
@@ -140,7 +140,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       shape: shape,
       // Evaluate the shape at REST size: the deformation stretches the whole
       // outline instead of leaving a fixed radius to grow flat runs.
-      shapeScale: widget.elasticityDeform.scaleFrom(widget.elasticityRestSize),
+      shapeScale: widget.flexDeform.scaleFrom(widget.flexRestSize),
       scale: devicePixelRatio,
       resolution: resolution,
       lensPosition: lensPosition,
@@ -178,10 +178,10 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
   /// Feeds this lens's pointer events to the press springs. `Listener` (not
   /// `GestureDetector`) so it never joins the gesture arena: it cannot steal
   /// taps from the child's own buttons, nor fight the drag handler below it.
-  Widget _wrapElasticity(Widget child) {
-    final driver = widget.elasticityDriver;
+  Widget _wrapFlex(Widget child) {
+    final driver = widget.flexDriver;
     if (driver == null) return child;
-    final Size rest = widget.elasticityRestSize;
+    final Size rest = widget.flexRestSize;
     return Listener(
       behavior: HitTestBehavior.translucent,
       onPointerDown: (event) => driver.down(event.localPosition, rest),
@@ -198,13 +198,13 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     final config = widget.config;
     // `config` already carries the deformed size; shifting the origin here
     // keeps the glass, its blur and its content on the same deformed rect.
-    lensPosition += widget.elasticityDeform.originShift;
+    lensPosition += widget.flexDeform.originShift;
     final useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
         config.effectiveAppearance.blur.sigmaY > 0;
     // The shader stretches the OUTLINE, so the clip has to stretch with it or
     // the blur beneath leaks past the glass edge at the corners.
     final Offset clipScale =
-        widget.elasticityDeform.clipScaleFrom(widget.elasticityRestSize);
+        widget.flexDeform.clipScaleFrom(widget.flexRestSize);
     final shader = widget.shader;
     final dpr = MediaQuery.devicePixelRatioOf(context);
 
@@ -290,7 +290,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
           width: config.geometry.width - config.effectiveShape.borderWidth / 2,
           height:
               config.geometry.height - config.effectiveShape.borderWidth / 2,
-          child: _wrapElasticity(
+          child: _wrapFlex(
             GestureDetector(
               behavior: HitTestBehavior.opaque,
               onPanUpdate: config.behavior.draggable
@@ -304,9 +304,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
                 // Clip at the deformed bounds, scale the content inside:
                 // the child stretches as pixels (never re-flows) and still
                 // cannot spill past the glass edge.
-                child: liquidGlassElasticityChild(
-                  deform: widget.elasticityDeform,
-                  restSize: widget.elasticityRestSize,
+                child: liquidGlassFlexChild(
+                  deform: widget.flexDeform,
+                  restSize: widget.flexRestSize,
                   child: config.child ?? Container(color: Colors.transparent),
                 ),
               ),

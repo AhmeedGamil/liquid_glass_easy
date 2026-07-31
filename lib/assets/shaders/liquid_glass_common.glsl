@@ -209,7 +209,7 @@ ShapeData evaluateShape(
 /* ===========================
    REST-SPACE SHAPE -> SCREEN SPACE
    ---------------------------------------------------
-   Elasticity resizes a lens instead of transforming it, so a stretched
+   The flex resizes a lens instead of transforming it, so a stretched
    circle would keep its pixel radius and grow flat runs — a stadium, not
    an ellipse. The fix is to evaluate the shape at its REST size in a
    domain divided by `scale` (deformed / rest); the anisotropy then falls

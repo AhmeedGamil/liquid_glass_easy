@@ -4,9 +4,9 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Elasticity Tuner — a live playground for LiquidGlassElasticity.
+// Flex Tuner — a live playground for LiquidGlassFlex.
 //
-//   flutter run -t lib/elasticity_tuner.dart   (standalone)
+//   flutter run -t lib/flex_tuner.dart   (standalone)
 //   …or open it from the home menu.
 //
 // Press and drag any of the three lenses below. None of them move: the
@@ -20,35 +20,35 @@ import 'tuner_widgets.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const _ElasticityTunerApp());
+  runApp(const _FlexTunerApp());
 }
 
-class _ElasticityTunerApp extends StatelessWidget {
-  const _ElasticityTunerApp();
+class _FlexTunerApp extends StatelessWidget {
+  const _FlexTunerApp();
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const ElasticityTunerPage(),
+      home: const FlexTunerPage(),
     );
   }
 }
 
-/// Live tuner for [LiquidGlassElasticity] — the touch-driven soft-body
+/// Live tuner for [LiquidGlassFlex] — the touch-driven soft-body
 /// deformation on [LiquidGlassLens].
-class ElasticityTunerPage extends StatefulWidget {
-  const ElasticityTunerPage({super.key});
+class FlexTunerPage extends StatefulWidget {
+  const FlexTunerPage({super.key});
 
   @override
-  State<ElasticityTunerPage> createState() => _ElasticityTunerPageState();
+  State<FlexTunerPage> createState() => _FlexTunerPageState();
 }
 
-class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
-  LiquidGlassElasticity _elasticity = const LiquidGlassElasticity();
+class _FlexTunerPageState extends State<FlexTunerPage> {
+  LiquidGlassFlex _flex = const LiquidGlassFlex();
 
-  void _set(LiquidGlassElasticity next) => setState(() => _elasticity = next);
+  void _set(LiquidGlassFlex next) => setState(() => _flex = next);
 
   @override
   Widget build(BuildContext context) {
@@ -58,7 +58,7 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
         appBar: AppBar(
           backgroundColor: Colors.transparent,
           elevation: 0,
-          title: const Text('Elasticity Tuner'),
+          title: const Text('Flex Tuner'),
         ),
         body: SafeArea(
           top: false,
@@ -76,7 +76,7 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
               children: [
                 const _Hint(),
                 const SizedBox(height: 20),
-                _Stage(elasticity: _elasticity),
+                _Stage(flex: _flex),
                 const SizedBox(height: 24),
                 _presets(),
                 const SizedBox(height: 16),
@@ -88,7 +88,7 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
                 const SizedBox(height: 16),
                 TunerCodeCard(
                   snippet: _snippet(),
-                  onReset: () => _set(const LiquidGlassElasticity()),
+                  onReset: () => _set(const LiquidGlassFlex()),
                 ),
               ],
             ),
@@ -99,8 +99,8 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
   }
 
   Widget _presets() {
-    Widget chip(String label, LiquidGlassElasticity value) {
-      final bool active = _elasticity == value;
+    Widget chip(String label, LiquidGlassFlex value) {
+      final bool active = _flex == value;
       return OutlinedButton(
         onPressed: () => _set(value),
         style: OutlinedButton.styleFrom(
@@ -119,10 +119,10 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
       spacing: 8,
       runSpacing: 8,
       children: [
-        chip('subtle', const LiquidGlassElasticity.subtle()),
-        chip('default', const LiquidGlassElasticity()),
-        chip('uniform', const LiquidGlassElasticity.uniform()),
-        chip('pronounced', const LiquidGlassElasticity.pronounced()),
+        chip('subtle', const LiquidGlassFlex.subtle()),
+        chip('default', const LiquidGlassFlex()),
+        chip('uniform', const LiquidGlassFlex.uniform()),
+        chip('pronounced', const LiquidGlassFlex.pronounced()),
       ],
     );
   }
@@ -136,35 +136,35 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
           const SizedBox(height: 8),
           TunerParamSlider(
             'stretch',
-            _elasticity.stretch,
+            _flex.stretch,
             0,
             80,
-            _elasticity.stretch.toStringAsFixed(0),
-            (v) => _set(_elasticity.copyWith(stretch: v)),
+            _flex.stretch.toStringAsFixed(0),
+            (v) => _set(_flex.copyWith(stretch: v)),
           ),
           TunerParamSlider(
             'squeeze',
-            _elasticity.squeeze,
+            _flex.squeeze,
             0,
             1,
-            _elasticity.squeeze.toStringAsFixed(2),
-            (v) => _set(_elasticity.copyWith(squeeze: v)),
+            _flex.squeeze.toStringAsFixed(2),
+            (v) => _set(_flex.copyWith(squeeze: v)),
           ),
           TunerParamSlider(
             'lean',
-            _elasticity.lean,
+            _flex.lean,
             0,
             1,
-            _elasticity.lean.toStringAsFixed(2),
-            (v) => _set(_elasticity.copyWith(lean: v)),
+            _flex.lean.toStringAsFixed(2),
+            (v) => _set(_flex.copyWith(lean: v)),
           ),
           TunerParamSlider(
             'grip',
-            _elasticity.grip,
+            _flex.grip,
             0,
             1,
-            _elasticity.grip.toStringAsFixed(2),
-            (v) => _set(_elasticity.copyWith(grip: v)),
+            _flex.grip.toStringAsFixed(2),
+            (v) => _set(_flex.copyWith(grip: v)),
           ),
           // Both signed: right of zero the glass swells on touch, left of
           // zero it yields inward. Fractions, so they read the same on the
@@ -175,27 +175,27 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
           // second one on its own.
           TunerParamSlider(
             'holdScale',
-            _elasticity.holdScale,
+            _flex.holdScale,
             -0.4,
             0.4,
-            _elasticity.holdScale.toStringAsFixed(3),
-            (v) => _set(_elasticity.copyWith(holdScale: v)),
+            _flex.holdScale.toStringAsFixed(3),
+            (v) => _set(_flex.copyWith(holdScale: v)),
           ),
           TunerParamSlider(
             'tapScale',
-            _elasticity.tapScale,
+            _flex.tapScale,
             -0.4,
             0.4,
-            _elasticity.tapScale.toStringAsFixed(3),
-            (v) => _set(_elasticity.copyWith(tapScale: v)),
+            _flex.tapScale.toStringAsFixed(3),
+            (v) => _set(_flex.copyWith(tapScale: v)),
           ),
           TunerParamSlider(
             'maxPull',
-            _elasticity.maxPull,
+            _flex.maxPull,
             10,
             300,
-            _elasticity.maxPull.toStringAsFixed(0),
-            (v) => _set(_elasticity.copyWith(maxPull: v)),
+            _flex.maxPull.toStringAsFixed(0),
+            (v) => _set(_flex.copyWith(maxPull: v)),
           ),
           const SizedBox(height: 6),
           // Pull an edge away from the middle and the body stretches either
@@ -205,14 +205,14 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
           // pull's magnitude alone drove it and the shape grew whichever way
           // it was pushed.
           SwitchListTile.adaptive(
-            value: _elasticity.compressInward,
-            onChanged: (v) => _set(_elasticity.copyWith(compressInward: v)),
+            value: _flex.compressInward,
+            onChanged: (v) => _set(_flex.copyWith(compressInward: v)),
             dense: true,
             contentPadding: EdgeInsets.zero,
             title: const Text('compressInward',
                 style: TextStyle(fontSize: 13)),
             subtitle: Text(
-              _elasticity.compressInward
+              _flex.compressInward
                   ? 'pushing an edge inward squashes the body'
                   : 'magnitude only — it grows whichever way you push',
               style: const TextStyle(fontSize: 10.5, color: Colors.white38),
@@ -235,7 +235,7 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
                     style: TextStyle(fontSize: 13, color: Colors.white70)),
               ),
               Expanded(
-                child: SegmentedButton<LiquidGlassElasticityOutline>(
+                child: SegmentedButton<LiquidGlassFlexOutline>(
                   showSelectedIcon: false,
                   style: const ButtonStyle(
                     visualDensity: VisualDensity.compact,
@@ -243,18 +243,18 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
                   ),
                   segments: const [
                     ButtonSegment(
-                        value: LiquidGlassElasticityOutline.legacy,
+                        value: LiquidGlassFlexOutline.legacy,
                         label: Text('legacy')),
                     ButtonSegment(
-                        value: LiquidGlassElasticityOutline.shaderOnly,
+                        value: LiquidGlassFlexOutline.shaderOnly,
                         label: Text('shader')),
                     ButtonSegment(
-                        value: LiquidGlassElasticityOutline.full,
+                        value: LiquidGlassFlexOutline.full,
                         label: Text('full')),
                   ],
-                  selected: {debugLiquidGlassElasticityOutline},
+                  selected: {debugLiquidGlassFlexOutline},
                   onSelectionChanged: (v) => setState(
-                      () => debugLiquidGlassElasticityOutline = v.first),
+                      () => debugLiquidGlassFlexOutline = v.first),
                 ),
               ),
             ],
@@ -282,7 +282,7 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
                     ButtonSegment(value: 2, label: Text('vert')),
                   ],
                   selected: {
-                    switch (_elasticity.lockAxis) {
+                    switch (_flex.lockAxis) {
                       null => 0,
                       Axis.horizontal => 1,
                       Axis.vertical => 2,
@@ -304,16 +304,16 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
 
   /// Rebuilds the spec with an explicit [axis], which `copyWith` cannot do
   /// for the `null` ("free") case — a null argument there means "keep".
-  LiquidGlassElasticity _withLock(Axis? axis) => LiquidGlassElasticity(
-        stretch: _elasticity.stretch,
-        squeeze: _elasticity.squeeze,
-        lean: _elasticity.lean,
-        grip: _elasticity.grip,
-        holdScale: _elasticity.holdScale,
-        tapScale: _elasticity.tapScale,
-        maxPull: _elasticity.maxPull,
+  LiquidGlassFlex _withLock(Axis? axis) => LiquidGlassFlex(
+        stretch: _flex.stretch,
+        squeeze: _flex.squeeze,
+        lean: _flex.lean,
+        grip: _flex.grip,
+        holdScale: _flex.holdScale,
+        tapScale: _flex.tapScale,
+        maxPull: _flex.maxPull,
         lockAxis: axis,
-        tuning: _elasticity.tuning,
+        tuning: _flex.tuning,
       );
 
   Widget _contentCard() {
@@ -325,18 +325,18 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
           const SizedBox(height: 8),
           TunerParamSlider(
             'childFollow',
-            _elasticity.childFollow,
+            _flex.childFollow,
             0,
             1,
-            _elasticity.childFollow.toStringAsFixed(2),
+            _flex.childFollow.toStringAsFixed(2),
             (v) => _set(_tune(childFollow: v)),
           ),
           TunerParamSlider(
             'refraction',
-            _elasticity.refractionBoost,
+            _flex.refractionBoost,
             0,
             0.6,
-            _elasticity.refractionBoost.toStringAsFixed(2),
+            _flex.refractionBoost.toStringAsFixed(2),
             (v) => _set(_tune(refractionBoost: v)),
           ),
         ],
@@ -353,26 +353,26 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
           const SizedBox(height: 8),
           TunerParamSlider(
             'stiffness',
-            _elasticity.stiffness,
+            _flex.stiffness,
             80,
             700,
-            _elasticity.stiffness.toStringAsFixed(0),
+            _flex.stiffness.toStringAsFixed(0),
             (v) => _set(_tune(stiffness: v)),
           ),
           TunerParamSlider(
             'damping',
-            _elasticity.damping,
+            _flex.damping,
             6,
             50,
-            _elasticity.damping.toStringAsFixed(0),
+            _flex.damping.toStringAsFixed(0),
             (v) => _set(_tune(damping: v)),
           ),
           TunerParamSlider(
             'release',
-            _elasticity.releaseDamping,
+            _flex.releaseDamping,
             4,
             50,
-            _elasticity.releaseDamping.toStringAsFixed(0),
+            _flex.releaseDamping.toStringAsFixed(0),
             (v) => _set(_tune(releaseDamping: v)),
           ),
         ],
@@ -382,15 +382,15 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
 
   /// The five set-once knobs live in a group, so tweaking one goes through
   /// the group's own copyWith rather than the spec's.
-  LiquidGlassElasticity _tune({
+  LiquidGlassFlex _tune({
     double? childFollow,
     double? refractionBoost,
     double? stiffness,
     double? damping,
     double? releaseDamping,
   }) {
-    return _elasticity.copyWith(
-      tuning: _elasticity.tuning.copyWith(
+    return _flex.copyWith(
+      tuning: _flex.tuning.copyWith(
         childFollow: childFollow,
         refractionBoost: refractionBoost,
         stiffness: stiffness,
@@ -401,23 +401,25 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
   }
 
   String _snippet() {
-    final p = _elasticity;
+    final p = _flex;
     return 'LiquidGlassLens(\n'
-        '  elasticity: const LiquidGlassElasticity(\n'
-        '    stretch: ${p.stretch.toStringAsFixed(0)},\n'
-        '    squeeze: ${p.squeeze.toStringAsFixed(2)},\n'
-        '    lean: ${p.lean.toStringAsFixed(2)},\n'
-        '    grip: ${p.grip.toStringAsFixed(2)},\n'
-        '    holdScale: ${p.holdScale.toStringAsFixed(3)},\n'
-        '    tapScale: ${p.tapScale.toStringAsFixed(3)},\n'
-        '    maxPull: ${p.maxPull.toStringAsFixed(0)},\n'
-        '${p.lockAxis == null ? '' : '    lockAxis: ${p.lockAxis},\n'}'
-        '    tuning: LiquidGlassElasticityTuning(\n'
-        '      childFollow: ${p.childFollow.toStringAsFixed(2)},\n'
-        '      refractionBoost: ${p.refractionBoost.toStringAsFixed(2)},\n'
-        '      stiffness: ${p.stiffness.toStringAsFixed(0)},\n'
-        '      damping: ${p.damping.toStringAsFixed(0)},\n'
-        '      releaseDamping: ${p.releaseDamping.toStringAsFixed(0)},\n'
+        '  touch: const LiquidGlassTouch.flexing(\n'
+        '    LiquidGlassFlex(\n'
+        '      stretch: ${p.stretch.toStringAsFixed(0)},\n'
+        '      squeeze: ${p.squeeze.toStringAsFixed(2)},\n'
+        '      lean: ${p.lean.toStringAsFixed(2)},\n'
+        '      grip: ${p.grip.toStringAsFixed(2)},\n'
+        '      holdScale: ${p.holdScale.toStringAsFixed(3)},\n'
+        '      tapScale: ${p.tapScale.toStringAsFixed(3)},\n'
+        '      maxPull: ${p.maxPull.toStringAsFixed(0)},\n'
+        '${p.lockAxis == null ? '' : '      lockAxis: ${p.lockAxis},\n'}'
+        '      tuning: LiquidGlassFlexTuning(\n'
+        '        childFollow: ${p.childFollow.toStringAsFixed(2)},\n'
+        '        refractionBoost: ${p.refractionBoost.toStringAsFixed(2)},\n'
+        '        stiffness: ${p.stiffness.toStringAsFixed(0)},\n'
+        '        damping: ${p.damping.toStringAsFixed(0)},\n'
+        '        releaseDamping: ${p.releaseDamping.toStringAsFixed(0)},\n'
+        '      ),\n'
         '    ),\n'
         '  ),\n'
         '  child: ...,\n'
@@ -447,8 +449,8 @@ class _Hint extends StatelessWidget {
 /// capsule (watch the radius stay valid) and a small square (watch the
 /// grab-point asymmetry).
 class _Stage extends StatelessWidget {
-  final LiquidGlassElasticity elasticity;
-  const _Stage({required this.elasticity});
+  final LiquidGlassFlex flex;
+  const _Stage({required this.flex});
 
   @override
   Widget build(BuildContext context) {
@@ -458,7 +460,7 @@ class _Stage extends StatelessWidget {
           height: 150,
           width: double.infinity,
           child: LiquidGlassLens(
-            elasticity: elasticity,
+            touch: LiquidGlassTouch.flexing(flex),
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
                 cornerRadius: 34,
@@ -496,7 +498,7 @@ class _Stage extends StatelessWidget {
               child: SizedBox(
                 height: 62,
                 child: LiquidGlassLens(
-                  elasticity: elasticity,
+                  touch: LiquidGlassTouch.flexing(flex),
                   style: const LiquidGlassStyle(
                     // Radius > half-height on purpose: the press path caps
                     // it against the deformed size, so a squeezed capsule
@@ -527,7 +529,7 @@ class _Stage extends StatelessWidget {
               width: 82,
               height: 82,
               child: LiquidGlassLens(
-                elasticity: elasticity,
+                touch: LiquidGlassTouch.flexing(flex),
                 style: const LiquidGlassStyle(
                   shape: LiquidGlassShape.continuousRoundedRectangle(
                     cornerRadius: 24,

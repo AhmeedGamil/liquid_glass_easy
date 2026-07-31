@@ -111,7 +111,7 @@ uniform float u_honorBackdropAlpha;
 // and the corners alias. Must be the LAST uniform (see packLiquidGlassUniforms).
 uniform float u_shapeAaPx;
 
-// Deformed size / rest size, from elasticity. (1,1) = undeformed, and the
+// Deformed size / rest size, from the flex. (1,1) = undeformed, and the
 // whole rest-space path below then collapses to the original math.
 uniform vec2 u_shapeScale;
 

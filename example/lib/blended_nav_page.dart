@@ -4,7 +4,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Blended List + Elasticity
+// Blended List + Flex
 //
 //   flutter run -t lib/blended_nav_page.dart   (standalone)
 //   …or open it from the home menu.
@@ -55,7 +55,7 @@ class _BlendedListApp extends StatelessWidget {
 }
 
 /// A blended list lens plus one action — two members of one
-/// [LiquidGlassBlender], both carrying [LiquidGlassElasticity], with the
+/// [LiquidGlassBlender], both carrying [LiquidGlassFlex], with the
 /// list's spec on sliders.
 class BlendedNavPage extends StatefulWidget {
   const BlendedNavPage({super.key});
@@ -65,21 +65,21 @@ class BlendedNavPage extends StatefulWidget {
 }
 
 class _BlendedNavPageState extends State<BlendedNavPage> {
-  bool _elastic = true;
+  bool _flexing = true;
   bool _showControls = false;
 
-  /// The ACTION's elasticity, left alone so the sliders have something to be
+  /// The ACTION's flex, left alone so the sliders have something to be
   /// compared against on the same screen.
-  static const LiquidGlassElasticity _actionElasticity =
-      LiquidGlassElasticity(stretch: 3, lean: 3);
+  static const LiquidGlassFlex _actionFlex =
+      LiquidGlassFlex(stretch: 3, lean: 3);
 
   /// The LIST's default: more stretch than the action, so the deformation is
   /// obvious on a panel this size.
-  static const LiquidGlassElasticity _listDefault =
-      LiquidGlassElasticity(stretch: 22, lean: 0.5);
+  static const LiquidGlassFlex _listDefault =
+      LiquidGlassFlex(stretch: 22, lean: 0.5);
 
-  /// The LIST's elasticity — what the sliders drive.
-  LiquidGlassElasticity _list = _listDefault;
+  /// The LIST's flex — what the sliders drive.
+  LiquidGlassFlex _list = _listDefault;
 
   static const List<(IconData, String)> _rows = [
     (Icons.wb_sunny_rounded, 'Daylight'),
@@ -92,7 +92,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   static const double _rowHeight = 52;
   static const double _listPadding = 10;
 
-  void _set(LiquidGlassElasticity next) => setState(() => _list = next);
+  void _set(LiquidGlassFlex next) => setState(() => _list = next);
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +117,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                       width: _listWidth,
                       height: _rowHeight * _rows.length + _listPadding * 2,
                       child: LiquidGlassLens(
-                        elasticity: _elastic ? _list : null,
+                        touch: _flexing ? LiquidGlassTouch.flexing(_list) : null,
                         // Shape only: the material comes from the blender.
                         style: const LiquidGlassStyle(
                           shape: LiquidGlassShape.continuousRoundedRectangle(
@@ -148,7 +148,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                       icon: Icons.search_rounded,
                       size: 60,
                       onTap: () {},
-                      elasticity: _elastic ? _actionElasticity : null,
+                      touch: _flexing ? const LiquidGlassTouch.flexing(_actionFlex) : null,
                     ),
                   ),
                 ],
@@ -196,14 +196,14 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
             padding: EdgeInsets.zero,
             children: [
               SwitchListTile.adaptive(
-                value: _elastic,
-                onChanged: (v) => setState(() => _elastic = v),
+                value: _flexing,
+                onChanged: (v) => setState(() => _flexing = v),
                 dense: true,
                 contentPadding: EdgeInsets.zero,
                 title:
-                    const Text('elasticity', style: TextStyle(fontSize: 13)),
+                    const Text('flex', style: TextStyle(fontSize: 13)),
                 subtitle: Text(
-                  _elastic
+                  _flexing
                       ? 'every member deforms on touch'
                       : 'rigid glass (members still blend by proximity)',
                   style: TextStyle(

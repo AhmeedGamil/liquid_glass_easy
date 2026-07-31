@@ -3,7 +3,7 @@ import 'package:meta/meta.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
-import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_elasticity.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_touch.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
@@ -345,26 +345,26 @@ class LiquidGlassBehavior {
   ///
   /// `null` (the default) disables it completely: no gesture listener, no
   /// ticker, and the lens config reaches the renderer untouched.
-  final LiquidGlassElasticity? elasticity;
+  final LiquidGlassTouch? touch;
 
   const LiquidGlassBehavior({
     this.draggable = false,
     this.visibility = true,
     this.controller,
-    this.elasticity,
+    this.touch,
   });
 
   LiquidGlassBehavior copyWith({
     bool? draggable,
     bool? visibility,
     LiquidGlassController? controller,
-    LiquidGlassElasticity? elasticity,
+    LiquidGlassTouch? touch,
   }) {
     return LiquidGlassBehavior(
       draggable: draggable ?? this.draggable,
       visibility: visibility ?? this.visibility,
       controller: controller ?? this.controller,
-      elasticity: elasticity ?? this.elasticity,
+      touch: touch ?? this.touch,
     );
   }
 }

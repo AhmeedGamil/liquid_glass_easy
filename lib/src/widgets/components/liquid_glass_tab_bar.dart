@@ -4,7 +4,7 @@ import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_elasticity.dart';
+import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
@@ -116,7 +116,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.unselectedItemColor = Colors.white70,
     this.iconSize = 24,
     this.fontSize = 10.5,
-    this.elasticity,
+    this.touch,
   })  : assert(items.length >= 2 && items.length <= 5,
             'Tab bars use 2–5 tabs'),
         assert(selectedIndex >= 0 && selectedIndex < items.length);
@@ -175,7 +175,7 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// `null` (the default) disables it entirely: no gesture listener, no
   /// ticker. Works inside a `LiquidGlassBlender` too, where deforming this
   /// bar reshapes the merged silhouette it shares with its neighbours.
-  final LiquidGlassElasticity? elasticity;
+  final LiquidGlassTouch? touch;
 
   static const LiquidGlassAppearance _defaultAppearance =
       LiquidGlassAppearance(
@@ -208,7 +208,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
-        elasticity: elasticity,
+        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,
@@ -286,7 +286,7 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
     this.unselectedItemColor = Colors.white70,
     this.iconSize = 24,
     this.fontSize = 10.5,
-    this.elasticity,
+    this.touch,
   })  : assert(items.length >= 2 && items.length <= 5,
             'Tab bars use 2–5 tabs'),
         assert(selectedIndex >= 0 && selectedIndex < items.length);
@@ -316,8 +316,8 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
   final double iconSize;
   final double fontSize;
 
-  /// See [LiquidGlassTabBar.elasticity].
-  final LiquidGlassElasticity? elasticity;
+  /// See [LiquidGlassTabBar.touch].
+  final LiquidGlassTouch? touch;
 
   @override
   Widget build(BuildContext context) {
@@ -327,7 +327,7 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
-        elasticity: elasticity,
+        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: appearance,
@@ -486,7 +486,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     this.style,
     this.visibility = true,
     this.child,
-    this.elasticity,
+    this.touch,
   });
 
   /// An action whose content is entirely your own widget — an SVG, an
@@ -500,7 +500,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     this.size = 56,
     this.style,
     this.visibility = true,
-    this.elasticity,
+    this.touch,
   }) : icon = kLiquidGlassCustomGlyph;
 
   /// The action glyph. Ignored when [child] is set.
@@ -536,8 +536,8 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   final bool visibility;
 
   /// Makes the button deform under touch without moving it. See
-  /// [LiquidGlassTabBar.elasticity]; `null` disables it entirely.
-  final LiquidGlassElasticity? elasticity;
+  /// [LiquidGlassTabBar.touch]; `null` disables it entirely.
+  final LiquidGlassTouch? touch;
 
   static const LiquidGlassAppearance _defaultAppearance =
       LiquidGlassAppearance(
@@ -581,7 +581,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
       width: size,
       height: size,
       child: LiquidGlassLens(
-        elasticity: elasticity,
+        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,

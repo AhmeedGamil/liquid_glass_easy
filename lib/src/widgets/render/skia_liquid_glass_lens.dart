@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_painter.dart';
-import '../utils/liquid_glass_elasticity.dart';
+import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Skia / Web render path for a single lens, extracted from
@@ -59,16 +59,16 @@ class SkiaLiquidGlassLens extends StatelessWidget {
 
   /// Current touch deformation. [config] already carries the deformed size;
   /// this supplies the matching origin shift and the child's pixel scale.
-  /// [LiquidGlassElasticityDeform.none] when no press is configured.
-  final LiquidGlassElasticityDeform elasticityDeform;
+  /// [LiquidGlassFlexDeform.none] when no press is configured.
+  final LiquidGlassFlexDeform flexDeform;
 
   /// Spring driver fed by this lens's pointer events. Null disables the
   /// press behaviour entirely — no `Listener` is added to the tree.
-  final LiquidGlassElasticityDriver? elasticityDriver;
+  final LiquidGlassFlexDriver? flexDriver;
 
   /// The lens's undeformed size, used to lay the child out at rest before
   /// scaling its pixels.
-  final Size elasticityRestSize;
+  final Size flexRestSize;
 
   const SkiaLiquidGlassLens({
     super.key,
@@ -82,20 +82,20 @@ class SkiaLiquidGlassLens extends StatelessWidget {
     required this.animValue,
     this.imageRegion,
     this.honorBackdropAlpha = false,
-    this.elasticityDeform = LiquidGlassElasticityDeform.none,
-    this.elasticityDriver,
-    this.elasticityRestSize = Size.zero,
+    this.flexDeform = LiquidGlassFlexDeform.none,
+    this.flexDriver,
+    this.flexRestSize = Size.zero,
   });
 
   /// Feeds this lens's pointer events to the press springs. `Listener` (not
   /// `GestureDetector`) so it never joins the gesture arena: it cannot steal
   /// taps from the child's own buttons, nor fight the drag handler below it.
-  Widget _wrapElasticity(Widget child) {
-    final driver = elasticityDriver;
+  Widget _wrapFlex(Widget child) {
+    final driver = flexDriver;
     if (driver == null) return child;
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (event) => driver.down(event.localPosition, elasticityRestSize),
+      onPointerDown: (event) => driver.down(event.localPosition, flexRestSize),
       // Deltas, not positions: the lens is deforming under the finger.
       onPointerMove: (event) => driver.move(event.delta),
       onPointerUp: (_) => driver.up(),
@@ -111,7 +111,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
 
     // `config` already carries the deformed size; shifting the lens origin
     // here keeps the shader, blur, rim and content on one deformed rect.
-    final Offset lensPosition = touch.value + elasticityDeform.originShift;
+    final Offset lensPosition = touch.value + flexDeform.originShift;
 
     return Stack(
       children: [
@@ -128,7 +128,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       // Shape evaluated at REST size; the deformation stretches
                       // the whole outline, not just the box around it.
                       shapeScale:
-                          elasticityDeform.scaleFrom(elasticityRestSize),
+                          flexDeform.scaleFrom(flexRestSize),
                       dragOffset: lensPosition,
                       position: config.geometry.position,
                       lensWidth: config.geometry.width,
@@ -185,7 +185,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             height: config.geometry.height,
             child: liquidGlassClip(
               shape: config.effectiveShape,
-              shapeScale: elasticityDeform.clipScaleFrom(elasticityRestSize),
+              shapeScale: flexDeform.clipScaleFrom(flexRestSize),
               child: BackdropFilter(
                 filter: ui.ImageFilter.blur(
                   sigmaX:
@@ -207,7 +207,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             child: CustomPaint(
               painter: LiquidGlassBorderPainter(
                 // Must match the main pass or the rim leaves the fill.
-                shapeScale: elasticityDeform.clipScaleFrom(elasticityRestSize),
+                shapeScale: flexDeform.clipScaleFrom(flexRestSize),
                 borderShader: borderShader!,
                 lensPosition: lensPosition,
                 lensWidth: config.geometry.width,
@@ -245,7 +245,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
         ValueListenableBuilder<Offset>(
           valueListenable: touch,
           builder: (context, offset, child) {
-            final Offset origin = offset + elasticityDeform.originShift;
+            final Offset origin = offset + flexDeform.originShift;
             return Positioned(
               left: origin.dx,
               top: origin.dy,
@@ -253,7 +253,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                   config.geometry.width - config.effectiveShape.borderWidth / 2,
               height: config.geometry.height -
                   config.effectiveShape.borderWidth / 2,
-              child: _wrapElasticity(
+              child: _wrapFlex(
                 GestureDetector(
                   behavior: HitTestBehavior
                       .opaque, // ensures full area receives gestures
@@ -265,13 +265,13 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                   child: liquidGlassClip(
                     shape: config.effectiveShape,
                     shapeScale:
-                        elasticityDeform.clipScaleFrom(elasticityRestSize),
+                        flexDeform.clipScaleFrom(flexRestSize),
                     // Clip at the deformed bounds, scale the content inside:
                     // the child stretches as pixels (never re-flows) and
                     // still cannot spill past the glass edge.
-                    child: liquidGlassElasticityChild(
-                      deform: elasticityDeform,
-                      restSize: elasticityRestSize,
+                    child: liquidGlassFlexChild(
+                      deform: flexDeform,
+                      restSize: flexRestSize,
                       child: config.child ??
                           Container(
                             color: Colors.transparent,

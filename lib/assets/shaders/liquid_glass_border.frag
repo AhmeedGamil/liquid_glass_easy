@@ -84,7 +84,7 @@ uniform float u_lightSpread;
 uniform vec2 u_imageOffset;
 uniform vec2 u_imageSize;
 
-// Deformed size / rest size, from elasticity. Must match the main shader's
+// Deformed size / rest size, from the flex. Must match the main shader's
 // value exactly or the rim stops hugging the fill.
 uniform vec2 u_shapeScale;
 

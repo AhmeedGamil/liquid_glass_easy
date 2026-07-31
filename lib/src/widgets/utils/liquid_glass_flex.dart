@@ -42,7 +42,7 @@ import 'liquid_glass_jelly_spring.dart';
 /// signed: positive swells, negative yields inward.
 ///
 /// A press also deepens the optics
-/// ([LiquidGlassElasticityTuning.refractionBoost]), which is what makes the
+/// ([LiquidGlassFlexTuning.refractionBoost]), which is what makes the
 /// surface read as glass being compressed rather than as a rubber button
 /// popping.
 ///
@@ -51,12 +51,12 @@ import 'liquid_glass_jelly_spring.dart';
 /// Everything you would reach for while dialling in a feel is a direct
 /// parameter. The five that are set once and forgotten — content follow,
 /// optical boost, and the three spring constants — live in
-/// [LiquidGlassElasticityTuning] behind [tuning], so they stay out of the
+/// [LiquidGlassFlexTuning] behind [tuning], so they stay out of the
 /// way without being out of reach.
 ///
 /// ```dart
 /// LiquidGlassLens(
-///   elasticity: const LiquidGlassElasticity(),
+///   touch: const LiquidGlassTouch.flexing(LiquidGlassFlex()),
 ///   style: const LiquidGlassStyle(
 ///     shape: LiquidGlassShape.roundedRectangle(cornerRadius: 28),
 ///   ),
@@ -64,7 +64,7 @@ import 'liquid_glass_jelly_spring.dart';
 /// )
 /// ```
 @immutable
-class LiquidGlassElasticity {
+class LiquidGlassFlex {
   /// Peak elongation along the pull axis, in logical pixels, reached as the
   /// drag saturates at [maxPull].
   final double stretch;
@@ -109,7 +109,7 @@ class LiquidGlassElasticity {
   /// **Positive grows it**, the way a glass control swells under a press:
   /// `0.03` makes it 3% bigger on both axes. **Negative compresses it**, for
   /// a surface that yields inward instead. `0` leaves the size alone and lets
-  /// [LiquidGlassElasticityTuning.refractionBoost] carry the press on its own.
+  /// [LiquidGlassFlexTuning.refractionBoost] carry the press on its own.
   ///
   /// This is the *tap-and-hold* response: it arrives on a spring and stays
   /// for as long as you hold. For the response to a quick click, see
@@ -166,24 +166,24 @@ class LiquidGlassElasticity {
 
   /// The set-once knobs: content follow, optical boost, spring constants.
   /// Kept out of this constructor so the ones that matter stay visible.
-  final LiquidGlassElasticityTuning tuning;
+  final LiquidGlassFlexTuning tuning;
 
-  /// See [LiquidGlassElasticityTuning.childFollow].
+  /// See [LiquidGlassFlexTuning.childFollow].
   double get childFollow => tuning.childFollow;
 
-  /// See [LiquidGlassElasticityTuning.refractionBoost].
+  /// See [LiquidGlassFlexTuning.refractionBoost].
   double get refractionBoost => tuning.refractionBoost;
 
-  /// See [LiquidGlassElasticityTuning.stiffness].
+  /// See [LiquidGlassFlexTuning.stiffness].
   double get stiffness => tuning.stiffness;
 
-  /// See [LiquidGlassElasticityTuning.damping].
+  /// See [LiquidGlassFlexTuning.damping].
   double get damping => tuning.damping;
 
-  /// See [LiquidGlassElasticityTuning.releaseDamping].
+  /// See [LiquidGlassFlexTuning.releaseDamping].
   double get releaseDamping => tuning.releaseDamping;
 
-  const LiquidGlassElasticity({
+  const LiquidGlassFlex({
     this.stretch = 11,
     this.squeeze = 0.70,
     this.lean = 0.70,
@@ -193,12 +193,12 @@ class LiquidGlassElasticity {
     this.tapScale = 0.020,
     this.maxPull = 48,
     this.lockAxis,
-    this.tuning = const LiquidGlassElasticityTuning(),
+    this.tuning = const LiquidGlassFlexTuning(),
   });
 
   /// Barely-there deformation for large surfaces (cards, sheets, bars),
   /// where a big wobble would look wrong.
-  const LiquidGlassElasticity.subtle()
+  const LiquidGlassFlex.subtle()
       : stretch = 6,
         squeeze = 0.8,
         lean = 0.25,
@@ -208,7 +208,7 @@ class LiquidGlassElasticity {
         tapScale = 0.010,
         maxPull = 60,
         lockAxis = null,
-        tuning = const LiquidGlassElasticityTuning(
+        tuning = const LiquidGlassFlexTuning(
           refractionBoost: 0.1,
           stiffness: 340,
           damping: 26,
@@ -229,7 +229,7 @@ class LiquidGlassElasticity {
   /// a rubber sheet than to pressed glass. Reach for it when the lens
   /// should feel uniformly squishy and the touch point is not meant to
   /// matter.
-  const LiquidGlassElasticity.uniform()
+  const LiquidGlassFlex.uniform()
       : stretch = 4.7,
         squeeze = 0.33,
         lean = 1.37,
@@ -239,7 +239,7 @@ class LiquidGlassElasticity {
         tapScale = 0.03,
         maxPull = 26,
         lockAxis = null,
-        tuning = const LiquidGlassElasticityTuning(
+        tuning = const LiquidGlassFlexTuning(
           refractionBoost: 0,
           stiffness: 158,
           damping: 22,
@@ -248,7 +248,7 @@ class LiquidGlassElasticity {
 
   /// Loose, obviously-soft deformation for small controls (buttons, chips,
   /// app icons) where the jelly is the point.
-  const LiquidGlassElasticity.pronounced()
+  const LiquidGlassFlex.pronounced()
       : stretch = 22,
         squeeze = 0.65,
         lean = 0.45,
@@ -258,7 +258,7 @@ class LiquidGlassElasticity {
         tapScale = 0.035,
         maxPull = 40,
         lockAxis = null,
-        tuning = const LiquidGlassElasticityTuning(
+        tuning = const LiquidGlassFlexTuning(
           refractionBoost: 0.22,
           stiffness: 280,
           damping: 20,
@@ -267,7 +267,7 @@ class LiquidGlassElasticity {
 
   /// Mirrors the constructor. To change one of the set-once knobs, go
   /// through the group: `copyWith(tuning: e.tuning.copyWith(damping: 20))`.
-  LiquidGlassElasticity copyWith({
+  LiquidGlassFlex copyWith({
     double? stretch,
     double? squeeze,
     double? lean,
@@ -277,9 +277,9 @@ class LiquidGlassElasticity {
     double? tapScale,
     double? maxPull,
     Axis? lockAxis,
-    LiquidGlassElasticityTuning? tuning,
+    LiquidGlassFlexTuning? tuning,
   }) {
-    return LiquidGlassElasticity(
+    return LiquidGlassFlex(
       stretch: stretch ?? this.stretch,
       squeeze: squeeze ?? this.squeeze,
       lean: lean ?? this.lean,
@@ -296,7 +296,7 @@ class LiquidGlassElasticity {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassElasticity &&
+      other is LiquidGlassFlex &&
           other.stretch == stretch &&
           other.squeeze == squeeze &&
           other.lean == lean &&
@@ -313,7 +313,7 @@ class LiquidGlassElasticity {
       compressInward, holdScale, tapScale, maxPull, lockAxis, tuning);
 }
 
-/// The knobs of [LiquidGlassElasticity] that are set once and then left
+/// The knobs of [LiquidGlassFlex] that are set once and then left
 /// alone — grouped so they stay out of the main constructor.
 ///
 /// Reach for them when the *feel* is right but something else is off: the
@@ -321,7 +321,7 @@ class LiquidGlassElasticity {
 /// ([refractionBoost]), or the settle is too tight or too loose (the three
 /// spring constants).
 @immutable
-class LiquidGlassElasticityTuning {
+class LiquidGlassFlexTuning {
   /// How strongly the lens's content follows the deformation, `0`–`1`.
   ///
   /// The child is always laid out at the lens's **rest** size and then
@@ -345,7 +345,7 @@ class LiquidGlassElasticityTuning {
   /// that is what produces the recoil wobble when you let go.
   final double releaseDamping;
 
-  const LiquidGlassElasticityTuning({
+  const LiquidGlassFlexTuning({
     this.childFollow = 1,
     this.refractionBoost = 0.15,
     this.stiffness = 320,
@@ -353,14 +353,14 @@ class LiquidGlassElasticityTuning {
     this.releaseDamping = 17,
   });
 
-  LiquidGlassElasticityTuning copyWith({
+  LiquidGlassFlexTuning copyWith({
     double? childFollow,
     double? refractionBoost,
     double? stiffness,
     double? damping,
     double? releaseDamping,
   }) {
-    return LiquidGlassElasticityTuning(
+    return LiquidGlassFlexTuning(
       childFollow: childFollow ?? this.childFollow,
       refractionBoost: refractionBoost ?? this.refractionBoost,
       stiffness: stiffness ?? this.stiffness,
@@ -372,7 +372,7 @@ class LiquidGlassElasticityTuning {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassElasticityTuning &&
+      other is LiquidGlassFlexTuning &&
           other.childFollow == childFollow &&
           other.refractionBoost == refractionBoost &&
           other.stiffness == stiffness &&
@@ -384,12 +384,12 @@ class LiquidGlassElasticityTuning {
       childFollow, refractionBoost, stiffness, damping, releaseDamping);
 }
 
-/// One resolved frame of [LiquidGlassElasticity] deformation.
+/// One resolved frame of [LiquidGlassFlex] deformation.
 ///
 /// The four edge values are how far each edge has moved **outward** from
 /// rest, in logical pixels; negative means the edge has moved inward.
 @immutable
-class LiquidGlassElasticityDeform {
+class LiquidGlassFlexDeform {
   /// Outward travel of the left edge (grows the lens leftward).
   final double left;
 
@@ -405,7 +405,7 @@ class LiquidGlassElasticityDeform {
   /// Horizontal component of the content's transform.
   ///
   /// Together with [childTranslateX] this is the **glass's own** map,
-  /// blended toward identity by [LiquidGlassElasticity.childFollow]. See
+  /// blended toward identity by [LiquidGlassFlex.childFollow]. See
   /// [childTransform].
   final double childScaleX;
 
@@ -420,10 +420,10 @@ class LiquidGlassElasticityDeform {
   final double childTranslateY;
 
   /// Smoothed "finger is down" amount, `0`–`1`. Drives
-  /// [LiquidGlassElasticity.refractionBoost].
+  /// [LiquidGlassFlex.refractionBoost].
   final double pressAmount;
 
-  const LiquidGlassElasticityDeform({
+  const LiquidGlassFlexDeform({
     required this.left,
     required this.right,
     required this.top,
@@ -436,7 +436,7 @@ class LiquidGlassElasticityDeform {
   });
 
   /// The untouched, fully settled state.
-  static const LiquidGlassElasticityDeform none = LiquidGlassElasticityDeform(
+  static const LiquidGlassFlexDeform none = LiquidGlassFlexDeform(
     left: 0,
     right: 0,
     top: 0,
@@ -450,7 +450,7 @@ class LiquidGlassElasticityDeform {
 
   /// The content's transform, anchored at the **deformed** box's top-left.
   ///
-  /// At [LiquidGlassElasticity.childFollow] `1` this is *literally* the map
+  /// At [LiquidGlassFlex.childFollow] `1` this is *literally* the map
   /// the glass performs on itself, so the content cannot drift away from the
   /// surface — they are the same transform, not two tuned approximations.
   ///
@@ -500,8 +500,8 @@ class LiquidGlassElasticityDeform {
   /// a domain divided by this, so the deformation stretches the whole outline
   /// -- a circle becomes an ellipse instead of a stadium with flat runs.
   Offset scaleFrom(Size rest) {
-    if (debugLiquidGlassElasticityOutline ==
-        LiquidGlassElasticityOutline.legacy) {
+    if (debugLiquidGlassFlexOutline ==
+        LiquidGlassFlexOutline.legacy) {
       return const Offset(1, 1);
     }
     if (rest.isEmpty) return const Offset(1, 1);
@@ -515,11 +515,11 @@ class LiquidGlassElasticityDeform {
   /// [scaleFrom], but for the CLIPS rather than the shader.
   ///
   /// Identical in normal use. They part company only under
-  /// [LiquidGlassElasticityOutline.shaderOnly], which stretches the shader's
+  /// [LiquidGlassFlexOutline.shaderOnly], which stretches the shader's
   /// outline while pinning the clips circular -- the combination that eats the
   /// rim at a cap apex.
   Offset clipScaleFrom(Size rest) =>
-      debugLiquidGlassElasticityOutline == LiquidGlassElasticityOutline.full
+      debugLiquidGlassFlexOutline == LiquidGlassFlexOutline.full
           ? scaleFrom(rest)
           : const Offset(1, 1);
 
@@ -530,7 +530,7 @@ class LiquidGlassElasticityDeform {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassElasticityDeform &&
+      other is LiquidGlassFlexDeform &&
           other.left == left &&
           other.right == right &&
           other.top == top &&
@@ -552,7 +552,7 @@ class LiquidGlassElasticityDeform {
 /// Exists so the fix can be judged against what it replaced on a running
 /// device -- a rim is one logical pixel wide, and the difference is not
 /// something a screenshot settles.
-enum LiquidGlassElasticityOutline {
+enum LiquidGlassFlexOutline {
   /// Pre-fix. The shape keeps its authored pixel radius against the DEFORMED
   /// box, so a stretched circle grows flat runs and reads as a stadium.
   legacy,
@@ -567,16 +567,16 @@ enum LiquidGlassElasticityOutline {
   full,
 }
 
-/// Switches [LiquidGlassElasticityOutline]. **Debug only** -- ships as
-/// [LiquidGlassElasticityOutline.full] and nothing in the package writes it.
-LiquidGlassElasticityOutline debugLiquidGlassElasticityOutline =
-    LiquidGlassElasticityOutline.full;
+/// Switches [LiquidGlassFlexOutline]. **Debug only** -- ships as
+/// [LiquidGlassFlexOutline.full] and nothing in the package writes it.
+LiquidGlassFlexOutline debugLiquidGlassFlexOutline =
+    LiquidGlassFlexOutline.full;
 
-/// Owns the physics behind [LiquidGlassElasticity]: five springs (one per edge,
+/// Owns the physics behind [LiquidGlassFlex]: five springs (one per edge,
 /// plus one tracking the press itself) driven by a `Ticker`.
 ///
 /// Feed it pointer events — [down], [move], [up] — keep [restSize] current,
-/// and listen to [value] for the resolved [LiquidGlassElasticityDeform]. While
+/// and listen to [value] for the resolved [LiquidGlassFlexDeform]. While
 /// nothing is touching the lens the ticker is stopped, so an idle lens
 /// costs nothing.
 ///
@@ -584,22 +584,22 @@ LiquidGlassElasticityOutline debugLiquidGlassElasticityOutline =
 /// share one tuning so the motion stays coherent, but because their targets
 /// differ they settle slightly out of phase — the lens jiggles back to rest
 /// instead of snapping as one rigid block.
-class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDeform> {
-  LiquidGlassElasticityDriver({
+class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
+  LiquidGlassFlexDriver({
     required TickerProvider vsync,
-    required LiquidGlassElasticity spec,
+    required LiquidGlassFlex spec,
   })  : _vsync = vsync,
         _spec = spec,
-        super(LiquidGlassElasticityDeform.none);
+        super(LiquidGlassFlexDeform.none);
 
   final TickerProvider _vsync;
 
-  LiquidGlassElasticity _spec;
+  LiquidGlassFlex _spec;
 
   /// Live tuning. Changing it does not interrupt an in-flight deformation;
   /// the springs simply chase the new targets.
-  LiquidGlassElasticity get spec => _spec;
-  set spec(LiquidGlassElasticity value) {
+  LiquidGlassFlex get spec => _spec;
+  set spec(LiquidGlassFlex value) {
     if (_spec == value) return;
     _spec = value;
     if (_running) _retarget();
@@ -680,7 +680,7 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
   ///
   /// If the gesture was a **tap** — released inside [kLongPressTimeout]
   /// without dragging past [kTouchSlop], which is what Flutter's own tap
-  /// recognizer accepts — the [LiquidGlassElasticity.tapScale] pulse is fired
+  /// recognizer accepts — the [LiquidGlassFlex.tapScale] pulse is fired
   /// here. Anything longer or draggier was a hold or a drag, and only the
   /// hold response applies.
   void up() {
@@ -907,14 +907,14 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
       _ticker?.stop();
       _running = false;
       _lastTick = Duration.zero;
-      value = LiquidGlassElasticityDeform.none;
+      value = LiquidGlassFlexDeform.none;
       return;
     }
 
     value = _resolve();
   }
 
-  LiquidGlassElasticityDeform _resolve() {
+  LiquidGlassFlexDeform _resolve() {
     final double w = restSize.width;
     final double h = restSize.height;
     final double f = _spec.childFollow.clamp(0.0, 1.0);
@@ -923,11 +923,11 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
     // `childFollow` — not a scale about some separately-chosen anchor. At
     // f == 1 the two transforms are the same expression, so the content
     // cannot drift off the surface however hard the lens is pulled. See
-    // [LiquidGlassElasticityDeform.childTransform] for the derivation.
+    // [LiquidGlassFlexDeform.childTransform] for the derivation.
     final double glassX = w > 0 ? (w + _l + _r) / w : 1.0;
     final double glassY = h > 0 ? (h + _t + _b) / h : 1.0;
 
-    return LiquidGlassElasticityDeform(
+    return LiquidGlassFlexDeform(
       left: _l,
       right: _r,
       top: _t,
@@ -960,18 +960,18 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
 /// re-spaces — only the painted result is transformed.
 ///
 /// The box is pinned to the deformed box's **top-left**, because that is the
-/// origin [LiquidGlassElasticityDeform.childTransform] is expressed from. Any
+/// origin [LiquidGlassFlexDeform.childTransform] is expressed from. Any
 /// other alignment would offset the content out from under the glass.
 ///
 /// The wrappers are emitted **even at rest** (as an identity transform).
 /// Swapping them in and out with the deformation would change the widget
 /// tree's shape mid-gesture, and Flutter would unmount everything below —
 /// including the `GestureDetector` tracking the finger, which drops the tap.
-/// Only a lens with no elasticity at all skips them, via [restSize] being
+/// Only a lens with no flex at all skips them, via [restSize] being
 /// empty, and that is a decision that never changes while the lens lives.
-Widget liquidGlassElasticityChild({
+Widget liquidGlassFlexChild({
   required Widget child,
-  required LiquidGlassElasticityDeform deform,
+  required LiquidGlassFlexDeform deform,
   required Size restSize,
 }) {
   if (restSize.isEmpty) return child;
@@ -1000,11 +1000,11 @@ Widget liquidGlassElasticityChild({
 /// actually refract at the deformed dimensions.
 ///
 /// Emitted unconditionally — at rest it is simply a `Positioned` at the rest
-/// rect. See [liquidGlassElasticityChild] for why the shape must not change
+/// rect. See [liquidGlassFlexChild] for why the shape must not change
 /// when the deformation starts.
-Widget liquidGlassElasticityBox({
+Widget liquidGlassFlexBox({
   required Widget child,
-  required LiquidGlassElasticityDeform deform,
+  required LiquidGlassFlexDeform deform,
   required Size restSize,
 }) {
   final Size deformed = deform.sizeFrom(restSize);
@@ -1027,15 +1027,15 @@ Widget liquidGlassElasticityBox({
 /// A press is not a scale-up here — it is a slight inset plus *more*
 /// refraction, which is what makes the surface read as glass being
 /// compressed rather than as a rubber button popping. [amount] is the
-/// smoothed press scalar from [LiquidGlassElasticityDeform.pressAmount].
+/// smoothed press scalar from [LiquidGlassFlexDeform.pressAmount].
 ///
 /// [LiquidGlassRefraction.magnification] always responds. The legacy
 /// `distortion` is only boosted when no [LiquidGlassRefractionType] is
 /// configured, because a configured type carries its own strength and
 /// overrides that field.
-LiquidGlassRefraction liquidGlassElasticityRefraction(
+LiquidGlassRefraction liquidGlassFlexRefraction(
   LiquidGlassRefraction refraction,
-  LiquidGlassElasticity spec,
+  LiquidGlassFlex spec,
   double amount,
 ) {
   final double k = spec.refractionBoost * amount.clamp(0.0, 1.0);
@@ -1056,18 +1056,18 @@ LiquidGlassRefraction liquidGlassElasticityRefraction(
 /// `effectiveRefraction` read the style first whenever one is set.
 ///
 /// The lens's *position* is deliberately untouched: it is carried separately
-/// as [LiquidGlassElasticityDeform.originShift] so the deformation never leaks
+/// as [LiquidGlassFlexDeform.originShift] so the deformation never leaks
 /// into the position bookkeeping that resolves and clamps the rest layout.
-LiquidGlass liquidGlassElasticityConfig(
+LiquidGlass liquidGlassFlexConfig(
   LiquidGlass config,
-  LiquidGlassElasticity spec,
-  LiquidGlassElasticityDeform deform,
+  LiquidGlassFlex spec,
+  LiquidGlassFlexDeform deform,
 ) {
   if (deform.isRest && deform.pressAmount <= 0) return config;
 
   final Size rest = Size(config.geometry.width, config.geometry.height);
   final Size size = deform.sizeFrom(rest);
-  final LiquidGlassRefraction refraction = liquidGlassElasticityRefraction(
+  final LiquidGlassRefraction refraction = liquidGlassFlexRefraction(
       config.effectiveRefraction, spec, deform.pressAmount);
 
   // The SHAPE is left exactly as authored. The shader evaluates it at rest
@@ -1080,7 +1080,7 @@ LiquidGlass liquidGlassElasticityConfig(
   );
 }
 
-/// Hyperbolic tangent — the saturation curve behind [LiquidGlassElasticity.maxPull].
+/// Hyperbolic tangent — the saturation curve behind [LiquidGlassFlex.maxPull].
 /// Not in `dart:math`, so it is derived from `exp` here.
 double _tanh(double x) {
   if (x > 20) return 1;

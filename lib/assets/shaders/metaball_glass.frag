@@ -91,7 +91,7 @@ uniform vec4 u_lens3;
 uniform vec4 u_lens4;
 uniform vec4 u_lens5;
 // u_lensMetaN = (cornerRadius px, packedScale, cornerStyle, packedSides).
-//   packedScale is this lens's elasticity (deformed/rest) as two 11-bit values
+//   packedScale is this lens's flex (deformed/rest) as two 11-bit values
 //   — see unpackScale; 0 means undeformed. It took over the old `enabled` slot:
 //   an absent lens is packed all-zero, so u_lensN.z (half-width) already IS the
 //   enabled bit and every guard reads that instead.
@@ -236,10 +236,10 @@ float smoothUnion(float a, float b, float k) {
 // hugging the outline. The squircle branch below is intentionally exposed
 // so the look can be evaluated on device; expect bridge distortion when
 // two squircle lenses fuse near their corners.
-// Per-lens elasticity scale (deformed / rest), unpacked from meta.y.
+// Per-lens flex scale (deformed / rest), unpacked from meta.y.
 // Two 11-bit values, radix 2048, over 0.5..2.0 — same scheme as unpackSides.
-// 0 is the UNDEFORMED sentinel so a lens without elasticity is bit-identical
-// to the pre-elasticity output rather than landing on 0.99988.
+// 0 is the UNDEFORMED sentinel so a lens without flex is bit-identical
+// to the pre-flex output rather than landing on 0.99988.
 vec2 unpackScale(float p) {
     if (p <= 0.0) return vec2(1.0);
     float y = floor(p / 2048.0);
@@ -264,8 +264,8 @@ void lensRestSpace(vec2 p, vec4 lens, vec2 s, out vec2 halfSize, out vec2 pRest)
 float lensToScreen(float dRest, vec2 p, vec4 lens, vec2 s) {
     // Undeformed: return the distance untouched. Falling through would
     // multiply by length(normalize(rel)) — 1.0 only to within a rounding
-    // error, so a lens with no elasticity would stop being bit-identical to
-    // the pre-elasticity output for the sake of no effect at all.
+    // error, so a lens with no flex would stop being bit-identical to
+    // the pre-flex output for the sake of no effect at all.
     if (s.x == 1.0 && s.y == 1.0) return dRest;
     vec2 rel = p - lens.xy;
     float L = length(rel);

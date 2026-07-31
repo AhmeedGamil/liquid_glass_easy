@@ -29,7 +29,10 @@ export 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
 
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
+// The two clip helpers are shared between the widget-level clip and the
+// render object's own, so they are library-wide but not API.
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart'
+    hide liquidGlassOutlinePath, liquidGlassUsesExactClipPath;
 // Custom glyphs: the builder every icon slot accepts (SVG, PNG,
 // CustomPaint) and the state it is handed — resolved color, box size,
 // and whether this layer draws the selected state.
@@ -44,17 +47,19 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.da
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_spring.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_config.dart';
-// Touch deformation: press a lens and it compresses, drag it and it
-// elongates along the pull while pinching in the cross axis — four edges
+// How a surface answers a finger. LiquidGlassTouch is the group; today it
+// carries the flex — press a lens and it compresses, drag it and it
+// elongates along the pull while pinching in the cross axis, four edges
 // sprung independently and anchored at the grab point.
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_elasticity.dart'
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_touch.dart';
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_flex.dart'
     show
-        LiquidGlassElasticity,
-        LiquidGlassElasticityDeform,
-        LiquidGlassElasticityTuning,
+        LiquidGlassFlex,
+        LiquidGlassFlexDeform,
+        LiquidGlassFlexTuning,
         // Debug-only A/B for the stretched outline; ships as `full`.
-        LiquidGlassElasticityOutline,
-        debugLiquidGlassElasticityOutline;
+        LiquidGlassFlexOutline,
+        debugLiquidGlassFlexOutline;
 
 // ── Public, customizable developer components ──────────────
 // Generic glass UI atoms a developer composes into their app.

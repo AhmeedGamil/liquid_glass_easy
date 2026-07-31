@@ -6,7 +6,7 @@ import 'corner_style_page.dart';
 import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
-import 'elasticity_tuner.dart';
+import 'flex_tuner.dart';
 import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
 import 'slider_jelly_tuner.dart';
@@ -106,7 +106,7 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
-      title: 'Blended List + Elasticity',
+      title: 'Blended List + Flex',
       subtitle: 'A glass list panel that stretches until it fuses with a button',
       icon: Icons.blur_circular_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
@@ -144,11 +144,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const SliderJellyTunerPage(),
     ),
     _Destination(
-      title: 'Elasticity Tuner',
+      title: 'Flex Tuner',
       subtitle: 'Touch-deform a lens that never moves',
       icon: Icons.touch_app_rounded,
       gradient: const [Color(0xFF2DD4BF), Color(0xFF1E69DE)],
-      builder: (_) => const ElasticityTunerPage(),
+      builder: (_) => const FlexTunerPage(),
     ),
   ];
 

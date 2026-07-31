@@ -439,7 +439,7 @@ void packMetaballGlassUniforms(
 /// `r + l*32 + d*1024 + u*32768` (max ≈ 2^20, exact in a 32-bit float — but NOT
 /// fp16-safe, hence the metaball shader's highp requirement). 5 bits is ample
 /// for a soft morph weight.
-/// Packs a per-lens elasticity scale into one float for `meta.y`.
+/// Packs a per-lens flex scale into one float for `meta.y`.
 ///
 /// Two 11-bit values, radix 2048, over `0.5..2.0` — the same shape as
 /// [_packMetaballSides]. Peaks at 2^22-1, two bits under float32's exact
@@ -447,7 +447,7 @@ void packMetaballGlassUniforms(
 ///
 /// `0` is reserved as the UNDEFORMED sentinel. Without it `1.0` would quantise
 /// to `0.99988`, giving every lens in the app a tiny domain scale and making
-/// "no elasticity" no longer bit-identical to the previous output.
+/// "no flex" no longer bit-identical to the previous output.
 double _packMetaballScale(Offset s) {
   if (s.dx == 1.0 && s.dy == 1.0) return 0;
   int q(double v) =>
