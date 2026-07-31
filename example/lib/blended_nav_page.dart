@@ -96,17 +96,17 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF07040F),
+      backgroundColor: _Backdrop.tone,
       body: Stack(
         fit: StackFit.expand,
         children: [
           const _Backdrop(),
 
-          // Every member lives in ONE blender: the four list tiles and the
-          // action. Full-bleed — see the note at the top of the file.
+          // Both members live in ONE blender: the list lens and the action.
+          // Full-bleed — see the note at the top of the file.
           LiquidGlassBlender(
-            // Enough that neighbouring tiles start reaching for each other
-            // slightly before their outlines actually touch.
+            // Enough that the two start reaching for each other slightly
+            // before their outlines actually touch.
             smoothness: 26,
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
@@ -167,7 +167,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
               child: IconButton(
                 icon: Icon(
                     _showControls ? Icons.close_rounded : Icons.tune_rounded),
-                color: Colors.white,
+                color: _ink,
                 onPressed: () =>
                     setState(() => _showControls = !_showControls),
               ),
@@ -273,6 +273,9 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   }
 }
 
+/// Glass over a light field is light, so white content would wash out.
+const Color _ink = Color(0xFF1B1B22);
+
 /// One row inside the list lens. A plain widget: it is the lens's child, so
 /// the deformation carries it rather than it deforming on its own.
 class _ListRow extends StatelessWidget {
@@ -288,12 +291,12 @@ class _ListRow extends StatelessWidget {
       child: Row(
         children: [
           const SizedBox(width: 18),
-          Icon(icon, color: Colors.white, size: 21),
+          Icon(icon, color: _ink, size: 21),
           const SizedBox(width: 14),
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white,
+              color: _ink,
               fontSize: 15,
               fontWeight: FontWeight.w600,
             ),
@@ -304,44 +307,19 @@ class _ListRow extends StatelessWidget {
   }
 }
 
-/// Busy, high-contrast detail so the refraction has something to bend.
+/// A flat, slightly-off-white field.
 ///
-/// The photo is the one the other blending demos use; the gradient stands in
-/// while it loads and if the network is unavailable, so the page is never a
-/// flat void.
+/// Deliberately plain. Busy detail is what you want to judge REFRACTION, but
+/// it hides the thing this page is about — the silhouette. Against one calm
+/// tone the outline reads exactly: where it stretches, where it squashes, and
+/// where two members fuse. The trade is that there is almost nothing behind
+/// the glass to bend, so the refraction itself is barely visible here.
 class _Backdrop extends StatelessWidget {
   const _Backdrop();
 
-  // Not `blending.jpg` — three other demos already use that one, and this
-  // page reads better against something it does not share.
-  static const String _url =
-      'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets'
-      '/main/socotra_tree_2.jpg';
-
-  static const Widget _fallback = DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFFF6B9D),
-          Color(0xFF7C5CFF),
-          Color(0xFF34D399),
-          Color(0xFFFFC46B),
-        ],
-      ),
-    ),
-    child: SizedBox.expand(),
-  );
+  static const Color tone = Color(0xFFDCDCE1);
 
   @override
-  Widget build(BuildContext context) {
-    return Image.network(
-      _url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _fallback,
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : _fallback,
-    );
-  }
+  Widget build(BuildContext context) =>
+      const ColoredBox(color: tone, child: SizedBox.expand());
 }
