@@ -87,7 +87,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
     (Icons.nightlight_round, 'Night'),
   ];
 
-  static const double _listWidth = 208;
+  static const double _listWidth = 184;
   static const double _rowHeight = 52;
   static const double _listPadding = 10;
 
@@ -108,9 +108,18 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
             // Enough that the two start reaching for each other slightly
             // before their outlines actually touch.
             smoothness: 26,
+            // The merged surface's material. The tint lives HERE, not on the
+            // members: a blend refracts everything through one shared style,
+            // so a colour set per member would never be read.
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
                 cornerRadius: 22,
+              ),
+              appearance: LiquidGlassAppearance(
+                // Milky rather than clear — over a pale field, transparent
+                // glass is nearly invisible, and the silhouette is the thing
+                // this page exists to show.
+                color: Color(0x8CFFFFFF),
               ),
             ),
             child: SafeArea(
