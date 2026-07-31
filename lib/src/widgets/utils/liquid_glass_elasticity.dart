@@ -46,7 +46,7 @@ import 'liquid_glass_jelly_spring.dart';
 /// surface read as glass being compressed rather than as a rubber button
 /// popping.
 ///
-/// ## Only eight knobs
+/// ## Only nine knobs
 ///
 /// Everything you would reach for while dialling in a feel is a direct
 /// parameter. The five that are set once and forgotten — content follow,
@@ -83,6 +83,24 @@ class LiquidGlassElasticity {
   /// `0` — every edge shares the deformation equally, wherever you touched.
   /// `1` — the edges nearest your finger take all of it.
   final double grip;
+
+  /// Whether driving the grabbed edge **into** the body compresses it.
+  ///
+  /// The deformation assumes the finger grips the surface and the far side
+  /// lags. Pull an edge away from the middle and the body elongates. Push
+  /// that same edge inward and the far side still lags, so with this on the
+  /// body **squashes** — and [squeeze] then bulges the cross axis outward,
+  /// since its give-back is signed both ways.
+  ///
+  /// `false` restores the original response, where the pull's *magnitude*
+  /// drove the elongation and the shape grew whichever way it was pushed.
+  /// That path is bit-identical to the pre-compression behaviour, not an
+  /// approximation of it.
+  ///
+  /// How directional it is fades with how far off-centre the grab is and
+  /// with [grip]: a grab on the exact middle has no near edge to push into,
+  /// so it stretches symmetrically either way regardless of this flag.
+  final bool compressInward;
 
   /// How much the lens resizes **while the finger stays down**, before any
   /// drag — a **signed fraction** of its own size, weighted toward the grab
@@ -147,7 +165,7 @@ class LiquidGlassElasticity {
   final Axis? lockAxis;
 
   /// The set-once knobs: content follow, optical boost, spring constants.
-  /// Kept out of this constructor so the seven that matter stay visible.
+  /// Kept out of this constructor so the ones that matter stay visible.
   final LiquidGlassElasticityTuning tuning;
 
   /// See [LiquidGlassElasticityTuning.childFollow].
@@ -170,6 +188,7 @@ class LiquidGlassElasticity {
     this.squeeze = 0.70,
     this.lean = 0.70,
     this.grip = 0.70,
+    this.compressInward = true,
     this.holdScale = 0.030,
     this.tapScale = 0.020,
     this.maxPull = 48,
@@ -184,6 +203,7 @@ class LiquidGlassElasticity {
         squeeze = 0.8,
         lean = 0.25,
         grip = 0.5,
+        compressInward = true,
         holdScale = 0.015,
         tapScale = 0.010,
         maxPull = 60,
@@ -214,6 +234,7 @@ class LiquidGlassElasticity {
         squeeze = 0.33,
         lean = 1.37,
         grip = 0,
+        compressInward = true,
         holdScale = 0.05,
         tapScale = 0.03,
         maxPull = 26,
@@ -232,6 +253,7 @@ class LiquidGlassElasticity {
         squeeze = 0.65,
         lean = 0.45,
         grip = 0.85,
+        compressInward = true,
         holdScale = 0.05,
         tapScale = 0.035,
         maxPull = 40,
@@ -250,6 +272,7 @@ class LiquidGlassElasticity {
     double? squeeze,
     double? lean,
     double? grip,
+    bool? compressInward,
     double? holdScale,
     double? tapScale,
     double? maxPull,
@@ -261,6 +284,7 @@ class LiquidGlassElasticity {
       squeeze: squeeze ?? this.squeeze,
       lean: lean ?? this.lean,
       grip: grip ?? this.grip,
+      compressInward: compressInward ?? this.compressInward,
       holdScale: holdScale ?? this.holdScale,
       tapScale: tapScale ?? this.tapScale,
       maxPull: maxPull ?? this.maxPull,
@@ -277,6 +301,7 @@ class LiquidGlassElasticity {
           other.squeeze == squeeze &&
           other.lean == lean &&
           other.grip == grip &&
+          other.compressInward == compressInward &&
           other.holdScale == holdScale &&
           other.tapScale == tapScale &&
           other.maxPull == maxPull &&
@@ -284,8 +309,8 @@ class LiquidGlassElasticity {
           other.tuning == tuning;
 
   @override
-  int get hashCode => Object.hash(stretch, squeeze, lean, grip, holdScale,
-      tapScale, maxPull, lockAxis, tuning);
+  int get hashCode => Object.hash(stretch, squeeze, lean, grip,
+      compressInward, holdScale, tapScale, maxPull, lockAxis, tuning);
 }
 
 /// The knobs of [LiquidGlassElasticity] that are set once and then left
@@ -714,8 +739,8 @@ class LiquidGlassElasticityDriver extends ValueNotifier<LiquidGlassElasticityDef
     // toward the middle and the far side still lags, so the body has to
     // COMPRESS. Using the magnitude alone made both stretch, which reads as
     // the shape inflating whichever way you shove it.
-    final double gainX = _axisGain(s.stretch, ux, gx, grip);
-    final double gainY = _axisGain(s.stretch, uy, gy, grip);
+    final double gainX = _axisGain(s.stretch, ux, gx, grip, s.compressInward);
+    final double gainY = _axisGain(s.stretch, uy, gy, grip, s.compressInward);
     double dl = gainX * wL;
     double dr = gainX * wR;
     double dt = gainY * wT;
@@ -1082,7 +1107,11 @@ double _lerp(double a, double b, double t) => a + (b - a) * t;
 ///
 /// At `grip: 0` this is exactly `stretch * u.abs()` — the behaviour before
 /// compression existed — so that setting is the way back to it.
-double _axisGain(double stretch, double u, double g, double grip) {
+double _axisGain(
+    double stretch, double u, double g, double grip, bool compressInward) {
+  // Magnitude only — the original response, reproduced exactly rather than
+  // approached, so `compressInward: false` is a true way back.
+  if (!compressInward) return stretch * u.abs();
   final double offCentre = 2 * g - 1; // -1 at the min edge, +1 at the max
   final double directional = grip * offCentre.abs();
   if (directional <= 0) return stretch * u.abs();

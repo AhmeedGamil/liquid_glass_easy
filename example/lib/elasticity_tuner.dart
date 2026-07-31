@@ -198,6 +198,26 @@ class _ElasticityTunerPageState extends State<ElasticityTunerPage> {
             (v) => _set(_elasticity.copyWith(maxPull: v)),
           ),
           const SizedBox(height: 6),
+          // Pull an edge away from the middle and the body stretches either
+          // way. The switch is about the OTHER direction: driving that edge
+          // inward. On, the far side lags and the body squashes (and squeeze
+          // bulges the cross axis); off is the original response, where the
+          // pull's magnitude alone drove it and the shape grew whichever way
+          // it was pushed.
+          SwitchListTile.adaptive(
+            value: _elasticity.compressInward,
+            onChanged: (v) => _set(_elasticity.copyWith(compressInward: v)),
+            dense: true,
+            contentPadding: EdgeInsets.zero,
+            title: const Text('compressInward',
+                style: TextStyle(fontSize: 13)),
+            subtitle: Text(
+              _elasticity.compressInward
+                  ? 'pushing an edge inward squashes the body'
+                  : 'magnitude only — it grows whichever way you push',
+              style: const TextStyle(fontSize: 10.5, color: Colors.white38),
+            ),
+          ),
           // A/B for the stretched outline. The rim is one logical pixel, so
           // the only way to judge it is to flip this WHILE dragging.
           //
