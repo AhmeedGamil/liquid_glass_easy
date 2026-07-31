@@ -106,8 +106,8 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
-      title: 'Blended List + Elasticity',
-      subtitle: 'A glass list panel that stretches until it fuses with a button',
+      title: 'Glass List + Elasticity',
+      subtitle: 'A glass list panel that deforms, rows and all, under a finger',
       icon: Icons.blur_circular_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
       builder: (_) => const BlendedNavPage(),

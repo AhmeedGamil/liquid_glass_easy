@@ -4,36 +4,24 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Blended List + Elasticity
+// Glass List + Elasticity
 //
 //   flutter run -t lib/blended_nav_page.dart   (standalone)
 //   …or open it from the home menu.
 //
-// ONE glass lens holding a four-row list, plus a round action — both members
-// of one LiquidGlassBlender. The rows are ordinary widgets INSIDE the lens,
-// so deforming the glass carries them with it rather than each row having
-// glass of its own.
+// ONE glass lens holding a four-row list, and a round action beside it. The
+// rows are ordinary widgets INSIDE the lens, so deforming the glass carries
+// them with it rather than each row having glass of its own — that is
+// childFollow, visible in the same gesture as the stretch.
 //
-// Nothing here is draggable. The two members sit at fixed positions, and the
-// only thing that can close the gap between them is the deformation itself:
-// pull the list toward the action and the outlines fuse.
+// The sliders drive the LIST only. The action stays at the defaults, so a
+// value can be felt against an unchanged reference on the same screen.
 //
-// The sliders drive the LIST only. The action on the right stays at the
-// defaults, so a value can be felt against an unchanged reference on the
-// same screen.
-//
-// The blender is FULL-BLEED on purpose. Its clip region is
-// `union.inflate(margin).intersect(fullRect)`, where `fullRect` is its OWN
-// rect — so a box around it is a wall the deformation cannot cross, and the
-// merged surface would be cut mid-gesture. Filling costs nothing: that clip
-// is a cost bound, recomputed each paint from the live member rects, so the
-// expensive pass stays as tight as the blobs are.
-//
-// One thing does not survive a merge: the press-deepens-the-optics cue
-// (`refractionBoost`). The blender refracts the whole merged surface through
-// ONE shared style, so a press on one tile cannot deepen its own optics
-// without deepening every other member's. Geometry — stretch, squeeze, lean,
-// grip, holdScale, tapScale — all behave normally.
+// The backdrop is deliberately plain. Busy detail is what you want to judge
+// REFRACTION, and it is the wrong thing here — it hides the silhouette,
+// which is what this page is about. The trade is that there is almost
+// nothing behind the glass to bend, so the refraction itself is barely
+// visible on this page; the demos that exist to show it keep their photos.
 // =============================================================
 
 void main() {
@@ -72,8 +60,8 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   static const LiquidGlassElasticity _actionElasticity =
       LiquidGlassElasticity(stretch: 3, lean: 3);
 
-  /// The LIST's default: more stretch than the action, because reaching the
-  /// action across the gap is the point here.
+  /// The LIST's default: more stretch than the action, so the deformation is
+  /// obvious on a panel this size.
   static const LiquidGlassElasticity _listDefault =
       LiquidGlassElasticity(stretch: 22, lean: 0.5);
 
@@ -102,27 +90,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
         children: [
           const _Backdrop(),
 
-          // Both members live in ONE blender: the list lens and the action.
-          // Full-bleed — see the note at the top of the file.
-          LiquidGlassBlender(
-            // Enough that the two start reaching for each other slightly
-            // before their outlines actually touch.
-            smoothness: 26,
-            // The merged surface's material. The tint lives HERE, not on the
-            // members: a blend refracts everything through one shared style,
-            // so a colour set per member would never be read.
-            style: const LiquidGlassStyle(
-              shape: LiquidGlassShape.continuousRoundedRectangle(
-                cornerRadius: 22,
-              ),
-              appearance: LiquidGlassAppearance(
-                // Milky rather than clear — over a pale field, transparent
-                // glass is nearly invisible, and the silhouette is the thing
-                // this page exists to show.
-                color: Color(0x8CFFFFFF),
-              ),
-            ),
-            child: SafeArea(
+          SafeArea(
               child: Stack(
                 children: [
                   // The list: ONE lens, four rows inside it. The rows are
@@ -135,11 +103,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                       height: _rowHeight * _rows.length + _listPadding * 2,
                       child: LiquidGlassLens(
                         elasticity: _elastic ? _list : null,
-                        style: const LiquidGlassStyle(
-                          shape: LiquidGlassShape.continuousRoundedRectangle(
-                            cornerRadius: 26,
-                          ),
-                        ),
+                        style: _glass,
                         child: Padding(
                           padding:
                               const EdgeInsets.symmetric(vertical: _listPadding),
@@ -162,11 +126,11 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                       icon: Icons.search_rounded,
                       size: 60,
                       onTap: () {},
+                      style: _glass,
                       elasticity: _elastic ? _actionElasticity : null,
                     ),
                   ),
-                ],
-              ),
+              ],
             ),
           ),
 
@@ -242,10 +206,9 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                 ],
               ),
               Text(
-                'Drives the list lens only. Pull it toward the action and the '
-                'outlines fuse — the merge comes from the stretch, nothing '
-                'moves. Watch the rows travel with the glass: that is '
-                'childFollow. The action stays at the defaults as a reference.',
+                'Drives the list lens only. Watch the rows travel with the '
+                'glass as it deforms — that is childFollow. The action stays '
+                'at the defaults as a reference.',
                 style: TextStyle(
                   fontSize: 10.5,
                   height: 1.3,
@@ -284,6 +247,16 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
 
 /// Glass over a light field is light, so white content would wash out.
 const Color _ink = Color(0xFF1B1B22);
+
+/// Shared material. Set per lens now rather than once on a blender: with the
+/// members independent, each one carries its own look.
+///
+/// Milky rather than clear — over a pale field, transparent glass is nearly
+/// invisible, and the silhouette is the thing this page exists to show.
+const LiquidGlassStyle _glass = LiquidGlassStyle(
+  shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 26),
+  appearance: LiquidGlassAppearance(color: Color(0x8CFFFFFF)),
+);
 
 /// One row inside the list lens. A plain widget: it is the lens's child, so
 /// the deformation carries it rather than it deforming on its own.
