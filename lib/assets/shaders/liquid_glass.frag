@@ -289,6 +289,12 @@ void main() {
     shapeData   = shapeToScreen(shapeData, shapeScale);
     shapeDistPx = shapeData.orthoDist;
 
+    // Refraction's depth, in the same px as the thickness it divides by. Raw
+    // `sdf` is REST px when deformed, so the backdrop zooms with the pull.
+    // Undeformed keeps `sdf` verbatim: orthoDist divides by a length that is
+    // only approximately 1, and unused must stay bit-identical.
+    float refrDistPx = deformed ? shapeData.orthoDist : shapeData.sdf;
+
     // --- Shared antialiasing + mask ---
     shapeMask = computeShapeMask(shapeDistPx);
 
@@ -360,7 +366,7 @@ void main() {
         refrPx = computeRefractedPosition(
             magPx,
             opticalNormal,
-            shapeData.sdf,
+            refrDistPx,
             u_distortionThicknessPx,
             u_refractionIndex,
             u_distortion,
@@ -373,7 +379,7 @@ void main() {
         refrPx = computeShapeRefraction(
             magPx,
             shapeData.normal,
-            shapeData.sdf,
+            refrDistPx,
             u_distortionThicknessPx,
             distortionFactor,
             u_magnification,

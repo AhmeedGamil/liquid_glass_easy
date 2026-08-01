@@ -186,6 +186,10 @@ void main() {
 
     shapeData = shapeToScreen(shapeData, shapeScale);
 
+    // Refraction's depth, in the same px as the thickness it divides by — keep
+    // in sync with liquid_glass.frag, whose sample this one has to match.
+    float refrDistPx = deformed ? shapeData.orthoDist : shapeData.sdf;
+
     // =====================================================
     // Border (shared for both shapes)
     // =====================================================
@@ -240,7 +244,7 @@ void main() {
             refrPx = computeRefractedPosition(
                 magPx,
                 opticalNormal,
-                shapeData.sdf,
+                refrDistPx,
                 u_distortionThicknessPx,
                 u_refractionIndex,
                 u_distortion,
@@ -253,7 +257,7 @@ void main() {
             refrPx = computeShapeRefraction(
                 magPx,
                 shapeData.normal,
-                shapeData.sdf,
+                refrDistPx,
                 u_distortionThicknessPx,
                 distortionFactor,
                 u_magnification,
