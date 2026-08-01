@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 
 import '../liquid_glass_config.dart';
 import 'liquid_glass_jelly_spring.dart';
+import 'liquid_glass_refraction_type.dart';
 
 /// Touch-driven **soft-body deformation** for a lens that does not move.
 ///
@@ -330,8 +331,12 @@ class LiquidGlassFlexTuning {
   /// (best for dense text), `1` makes it fully rubbery.
   final double childFollow;
 
-  /// How much deeper the glass refracts while pressed, as a fraction.
-  /// `0.15` means magnification and distortion rise by up to 15%.
+  /// How much harder the glass BENDS while pressed, as a fraction. `0.15`
+  /// means the refraction strength rises by up to 15% at full press.
+  ///
+  /// Deliberately does not touch [LiquidGlassRefraction.magnification], which
+  /// zooms the backdrop rather than bending it — that reads as the content
+  /// sliding under your finger, not as glass under pressure.
   final double refractionBoost;
 
   /// Edge spring stiffness.
@@ -1029,10 +1034,15 @@ Widget liquidGlassFlexBox({
 /// compressed rather than as a rubber button popping. [amount] is the
 /// smoothed press scalar from [LiquidGlassFlexDeform.pressAmount].
 ///
-/// [LiquidGlassRefraction.magnification] always responds. The legacy
-/// `distortion` is only boosted when no [LiquidGlassRefractionType] is
-/// configured, because a configured type carries its own strength and
-/// overrides that field.
+/// Only the BENDING responds. [LiquidGlassRefraction.magnification] is left
+/// alone: it is not a refraction depth but a straight zoom of the backdrop
+/// about the lens centre, so raising it slid the content behind the glass —
+/// the press became a scale-up after all, of the picture instead of the frame.
+///
+/// Which dial carries it depends on the configuration: the legacy `distortion`
+/// when no [LiquidGlassRefractionType] is set, otherwise the type's own
+/// strength via [LiquidGlassRefractionType.withEffectFactor], since a type
+/// overrides the legacy field entirely.
 LiquidGlassRefraction liquidGlassFlexRefraction(
   LiquidGlassRefraction refraction,
   LiquidGlassFlex spec,
@@ -1040,11 +1050,12 @@ LiquidGlassRefraction liquidGlassFlexRefraction(
 ) {
   final double k = spec.refractionBoost * amount.clamp(0.0, 1.0);
   if (k <= 0) return refraction;
+  final LiquidGlassRefractionType? type = refraction.refractionType;
   return refraction.copyWith(
-    magnification: refraction.magnification * (1 + k),
-    distortion: refraction.refractionType == null
-        ? refraction.distortion * (1 + k)
-        : null,
+    // Legacy controls only when no type is configured; a type overrides them
+    // and carries its own strength, so scale that instead.
+    distortion: type == null ? refraction.distortion * (1 + k) : null,
+    refractionType: type?.withEffectFactor(1 + k),
   );
 }
 
