@@ -6,6 +6,7 @@ import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
+import '../utils/liquid_glass_touch.dart';
 
 /// A pill-shaped action button rendered as liquid glass.
 ///
@@ -45,6 +46,7 @@ class LiquidGlassButton extends StatelessWidget {
     this.fontSize = 16,
     this.fontWeight = FontWeight.w600,
     this.iconSize = 20,
+    this.touch,
     this.child,
   });
 
@@ -64,6 +66,7 @@ class LiquidGlassButton extends StatelessWidget {
     this.fontSize = 16,
     this.fontWeight = FontWeight.w600,
     this.iconSize = 20,
+    this.touch,
   })  : label = '',
         icon = null;
 
@@ -107,6 +110,16 @@ class LiquidGlassButton extends StatelessWidget {
 
   /// Whether the button is shown; toggling animates the glass in/out.
   final bool visibility;
+
+  /// How the button answers a finger — see [LiquidGlassTouch].
+  ///
+  /// With a [LiquidGlassTouch.flex] the glass deforms under the press
+  /// instead of only rippling: it swells under your finger, elongates if
+  /// you drag, and springs back on release. The button does not move.
+  ///
+  /// `null` (the default) leaves the glass rigid — no gesture listener, no
+  /// ticker, nothing added to the tree.
+  final LiquidGlassTouch? touch;
 
   /// Color of the label text and icon.
   final Color foregroundColor;
@@ -204,6 +217,7 @@ class LiquidGlassButton extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
+        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,

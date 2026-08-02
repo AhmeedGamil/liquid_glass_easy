@@ -116,7 +116,6 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.unselectedItemColor = Colors.white70,
     this.iconSize = 24,
     this.fontSize = 10.5,
-    this.touch,
   })  : assert(items.length >= 2 && items.length <= 5,
             'Tab bars use 2–5 tabs'),
         assert(selectedIndex >= 0 && selectedIndex < items.length);
@@ -168,15 +167,6 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// Label font size (labels show only when an item has a label).
   final double fontSize;
 
-  /// Makes the bar deform under touch without moving it — press and it
-  /// swells, drag and it elongates along the pull while pinching in the
-  /// cross axis, then springs back.
-  ///
-  /// `null` (the default) disables it entirely: no gesture listener, no
-  /// ticker. Works inside a `LiquidGlassBlender` too, where deforming this
-  /// bar reshapes the merged silhouette it shares with its neighbours.
-  final LiquidGlassTouch? touch;
-
   static const LiquidGlassAppearance _defaultAppearance =
       LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
@@ -208,7 +198,6 @@ class LiquidGlassTabBar extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
-        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,
@@ -286,7 +275,6 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
     this.unselectedItemColor = Colors.white70,
     this.iconSize = 24,
     this.fontSize = 10.5,
-    this.touch,
   })  : assert(items.length >= 2 && items.length <= 5,
             'Tab bars use 2–5 tabs'),
         assert(selectedIndex >= 0 && selectedIndex < items.length);
@@ -316,9 +304,6 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
   final double iconSize;
   final double fontSize;
 
-  /// See [LiquidGlassTabBar.touch].
-  final LiquidGlassTouch? touch;
-
   @override
   Widget build(BuildContext context) {
     final LiquidGlassShape effectiveShape = shape ?? _tabBarShape(height);
@@ -327,7 +312,6 @@ class LiquidGlassAnimatedTabBar extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
-        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: appearance,
@@ -535,8 +519,9 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   /// Whether the button is shown; toggling animates the glass in/out.
   final bool visibility;
 
-  /// Makes the button deform under touch without moving it. See
-  /// [LiquidGlassTabBar.touch]; `null` disables it entirely.
+  /// Makes the button deform under touch without moving it — press and it
+  /// swells, drag and it elongates along the pull, then springs back. See
+  /// [LiquidGlassTouch]; `null` (the default) disables it entirely.
   final LiquidGlassTouch? touch;
 
   static const LiquidGlassAppearance _defaultAppearance =
@@ -581,7 +566,6 @@ class LiquidGlassTabBarAction extends StatelessWidget {
       width: size,
       height: size,
       child: LiquidGlassLens(
-        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,

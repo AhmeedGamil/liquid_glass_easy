@@ -6,6 +6,7 @@ import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
+import '../utils/liquid_glass_touch.dart';
 
 /// A floating, drop-in liquid-glass **app bar** — a translucent bar with
 /// an optional [leading] widget, a [title], and trailing [actions], all
@@ -48,6 +49,7 @@ class LiquidGlassAppBar extends StatelessWidget {
     this.visibility = true,
     this.foregroundColor = Colors.white,
     this.fontSize = 18,
+    this.touch,
   });
 
   /// Leading widget (typically a menu or back button), shown at the
@@ -89,6 +91,16 @@ class LiquidGlassAppBar extends StatelessWidget {
 
   /// Whether the bar is shown; toggling animates the glass in/out.
   final bool visibility;
+
+  /// How the bar answers a finger — see [LiquidGlassTouch].
+  ///
+  /// With a [LiquidGlassTouch.flex] the whole bar deforms as one body under
+  /// a press or a drag, then springs back. The bar does not move.
+  ///
+  /// `null` (the default) leaves the glass rigid — no gesture listener, no
+  /// ticker, nothing added to the tree. A bar is a large surface, so prefer
+  /// a restrained spec such as [LiquidGlassFlex.subtle] if you enable it.
+  final LiquidGlassTouch? touch;
 
   /// Color applied to icons and text inside the bar.
   final Color foregroundColor;
@@ -139,6 +151,7 @@ class LiquidGlassAppBar extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
+        touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
           appearance: resolved.appearance,
