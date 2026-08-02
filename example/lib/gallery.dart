@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'blended_nav_page.dart';
+import 'touch_page.dart';
 import 'control_center_page.dart';
 import 'corner_style_page.dart';
 import 'lens_image_page.dart';
@@ -106,11 +106,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
-      title: 'Blended List + Flex',
-      subtitle: 'A glass list panel that stretches until it fuses with a button',
-      icon: Icons.blur_circular_rounded,
+      title: 'Touch',
+      subtitle: 'Press and drag a glass list — it deforms without moving',
+      icon: Icons.touch_app_rounded,
       gradient: const [Color(0xFF0E7C8C), Color(0xFF3A1E7A)],
-      builder: (_) => const BlendedNavPage(),
+      builder: (_) => const TouchPage(),
     ),
     _Destination(
       title: 'Slider & Toggle',

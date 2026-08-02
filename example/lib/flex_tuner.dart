@@ -313,7 +313,7 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
         tapScale: _flex.tapScale,
         maxPull: _flex.maxPull,
         lockAxis: axis,
-        tuning: _flex.tuning,
+        advanced: _flex.advanced,
       );
 
   Widget _contentCard() {
@@ -401,7 +401,7 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
     double? releaseDamping,
   }) {
     return _flex.copyWith(
-      tuning: _flex.tuning.copyWith(
+      advanced: _flex.advanced.copyWith(
         childFollow: childFollow,
         refractionBoost: refractionBoost,
         magnificationBoost: magnificationBoost,
@@ -415,8 +415,8 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
   String _snippet() {
     final p = _flex;
     return 'LiquidGlassLens(\n'
-        '  touch: const LiquidGlassTouch.flexing(\n'
-        '    LiquidGlassFlex(\n'
+        '  touch: const LiquidGlassTouch(\n'
+        '    flex: LiquidGlassFlex(\n'
         '      stretch: ${p.stretch.toStringAsFixed(0)},\n'
         '      squeeze: ${p.squeeze.toStringAsFixed(2)},\n'
         '      lean: ${p.lean.toStringAsFixed(2)},\n'
@@ -425,7 +425,7 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
         '      tapScale: ${p.tapScale.toStringAsFixed(3)},\n'
         '      maxPull: ${p.maxPull.toStringAsFixed(0)},\n'
         '${p.lockAxis == null ? '' : '      lockAxis: ${p.lockAxis},\n'}'
-        '      tuning: LiquidGlassFlexTuning(\n'
+        '      advanced: LiquidGlassFlexAdvanced(\n'
         '        childFollow: ${p.childFollow.toStringAsFixed(2)},\n'
         '        refractionBoost: ${p.refractionBoost.toStringAsFixed(2)},\n'
         '${p.magnificationBoost == 0 ? '' : '        magnificationBoost: ${p.magnificationBoost.toStringAsFixed(2)},\n'}'
@@ -473,7 +473,7 @@ class _Stage extends StatelessWidget {
           height: 150,
           width: double.infinity,
           child: LiquidGlassLens(
-            touch: LiquidGlassTouch.flexing(flex),
+            touch: LiquidGlassTouch(flex: flex),
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
                 cornerRadius: 34,
@@ -511,7 +511,7 @@ class _Stage extends StatelessWidget {
               child: SizedBox(
                 height: 62,
                 child: LiquidGlassLens(
-                  touch: LiquidGlassTouch.flexing(flex),
+                  touch: LiquidGlassTouch(flex: flex),
                   style: const LiquidGlassStyle(
                     // Radius > half-height on purpose: the press path caps
                     // it against the deformed size, so a squeezed capsule
@@ -542,7 +542,7 @@ class _Stage extends StatelessWidget {
               width: 82,
               height: 82,
               child: LiquidGlassLens(
-                touch: LiquidGlassTouch.flexing(flex),
+                touch: LiquidGlassTouch(flex: flex),
                 style: const LiquidGlassStyle(
                   shape: LiquidGlassShape.continuousRoundedRectangle(
                     cornerRadius: 24,
