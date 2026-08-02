@@ -56,7 +56,7 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_flex.dart'
     show
         LiquidGlassFlex,
         LiquidGlassFlexDeform,
-        LiquidGlassFlexTuning,
+        LiquidGlassFlexAdvanced,
         // Debug-only A/B for the stretched outline; ships as `full`.
         LiquidGlassFlexOutline,
         debugLiquidGlassFlexOutline;

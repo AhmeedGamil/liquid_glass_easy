@@ -93,8 +93,10 @@ class LiquidGlassLens extends StatefulWidget {
   /// `null` (the default) disables the behaviour entirely — no gesture
   /// listener, no ticker, nothing added to the tree.
   ///
-  /// Ignored inside a `LiquidGlassBlender`, whose metaball surface owns
-  /// its members' geometry.
+  /// Honored inside a `LiquidGlassBlender`: the merged metaball silhouette
+  /// picks a member's deformation up from its resized box. Only
+  /// [LiquidGlassFlexAdvanced.refractionBoost] does not survive the merge —
+  /// see `_buildInner`.
   final LiquidGlassTouch? touch;
 
   /// Content rendered on top of the glass, clipped to the lens shape.
@@ -206,12 +208,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
           // Translucent, never opaque: the press must not start swallowing
           // taps that reached the content (or the UI behind) before.
           behavior: HitTestBehavior.translucent,
-          onPointerDown: (event) => driver.down(event.localPosition, rest),
+          // The pointer id goes with every event: a Listener reports all of
+          // them, and the driver holds one finger's worth of state.
+          onPointerDown: (event) =>
+              driver.down(event.localPosition, rest, pointer: event.pointer),
           // Accumulate deltas, not positions — the box is deforming under
           // the finger, so a lens-local position would feed back on itself.
-          onPointerMove: (event) => driver.move(event.delta),
-          onPointerUp: (_) => driver.up(),
-          onPointerCancel: (_) => driver.up(),
+          onPointerMove: (event) =>
+              driver.move(event.delta, pointer: event.pointer),
+          onPointerUp: (event) => driver.up(pointer: event.pointer),
+          onPointerCancel: (event) => driver.up(pointer: event.pointer),
           child: SizedBox.fromSize(
             size: rest,
             child: ValueListenableBuilder<LiquidGlassFlexDeform>(
@@ -240,12 +246,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
   /// surface repaints. All that is left here is the content transform.
   ///
   /// One thing does not survive the trip:
-  /// [LiquidGlassFlexTuning.refractionBoost]. The blender refracts
+  /// [LiquidGlassFlexAdvanced.refractionBoost]. The blender refracts
   /// through a single shared style for the whole merged surface, and its
   /// per-member uniforms carry only geometry — so a press on one blob cannot
   /// deepen its own optics without deepening every other blob's too. Geometry
   /// (stretch, squeeze, lean, grip, holdScale, tapScale) and
-  /// [LiquidGlassFlexTuning.childFollow] all behave normally.
+  /// [LiquidGlassFlexAdvanced.childFollow] all behave normally.
   Widget _buildInner(
     BuildContext context,
     LiquidGlassBlenderScope? blenderScope,

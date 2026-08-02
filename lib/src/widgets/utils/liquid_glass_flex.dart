@@ -43,7 +43,7 @@ import 'liquid_glass_refraction_type.dart';
 /// signed: positive swells, negative yields inward.
 ///
 /// A press also deepens the optics
-/// ([LiquidGlassFlexTuning.refractionBoost]), which is what makes the
+/// ([LiquidGlassFlexAdvanced.refractionBoost]), which is what makes the
 /// surface read as glass being compressed rather than as a rubber button
 /// popping.
 ///
@@ -52,12 +52,12 @@ import 'liquid_glass_refraction_type.dart';
 /// Everything you would reach for while dialling in a feel is a direct
 /// parameter. The five that are set once and forgotten — content follow,
 /// optical boost, and the three spring constants — live in
-/// [LiquidGlassFlexTuning] behind [tuning], so they stay out of the
+/// [LiquidGlassFlexAdvanced] behind [advanced], so they stay out of the
 /// way without being out of reach.
 ///
 /// ```dart
 /// LiquidGlassLens(
-///   touch: const LiquidGlassTouch.flexing(LiquidGlassFlex()),
+///   touch: const LiquidGlassTouch(flex: LiquidGlassFlex()),
 ///   style: const LiquidGlassStyle(
 ///     shape: LiquidGlassShape.roundedRectangle(cornerRadius: 28),
 ///   ),
@@ -110,7 +110,7 @@ class LiquidGlassFlex {
   /// **Positive grows it**, the way a glass control swells under a press:
   /// `0.03` makes it 3% bigger on both axes. **Negative compresses it**, for
   /// a surface that yields inward instead. `0` leaves the size alone and lets
-  /// [LiquidGlassFlexTuning.refractionBoost] carry the press on its own.
+  /// [LiquidGlassFlexAdvanced.refractionBoost] carry the press on its own.
   ///
   /// This is the *tap-and-hold* response: it arrives on a spring and stays
   /// for as long as you hold. For the response to a quick click, see
@@ -167,37 +167,44 @@ class LiquidGlassFlex {
 
   /// The set-once knobs: content follow, optical boost, spring constants.
   /// Kept out of this constructor so the ones that matter stay visible.
-  final LiquidGlassFlexTuning tuning;
+  final LiquidGlassFlexAdvanced advanced;
 
-  /// See [LiquidGlassFlexTuning.childFollow].
-  double get childFollow => tuning.childFollow;
+  /// See [LiquidGlassFlexAdvanced.childFollow].
+  double get childFollow => advanced.childFollow;
 
-  /// See [LiquidGlassFlexTuning.refractionBoost].
-  double get refractionBoost => tuning.refractionBoost;
+  /// See [LiquidGlassFlexAdvanced.refractionBoost].
+  double get refractionBoost => advanced.refractionBoost;
 
-  /// See [LiquidGlassFlexTuning.magnificationBoost].
-  double get magnificationBoost => tuning.magnificationBoost;
+  /// See [LiquidGlassFlexAdvanced.magnificationBoost].
+  double get magnificationBoost => advanced.magnificationBoost;
 
-  /// See [LiquidGlassFlexTuning.stiffness].
-  double get stiffness => tuning.stiffness;
+  /// See [LiquidGlassFlexAdvanced.stiffness].
+  double get stiffness => advanced.stiffness;
 
-  /// See [LiquidGlassFlexTuning.damping].
-  double get damping => tuning.damping;
+  /// See [LiquidGlassFlexAdvanced.damping].
+  double get damping => advanced.damping;
 
-  /// See [LiquidGlassFlexTuning.releaseDamping].
-  double get releaseDamping => tuning.releaseDamping;
+  /// See [LiquidGlassFlexAdvanced.releaseDamping].
+  double get releaseDamping => advanced.releaseDamping;
 
+  /// The shipped feel: the blended-list spec, at a [stretch] of 13.
+  ///
+  /// Dialled in on a real panel rather than derived — a list-sized lens that
+  /// deforms visibly under a drag without leaving its own footprint, leans
+  /// half as far as it stretches, and swells slightly under a press.
+  /// [compressInward] is on, so driving the grabbed edge into the body
+  /// squashes it rather than inflating it whichever way it is shoved.
   const LiquidGlassFlex({
-    this.stretch = 11,
+    this.stretch = 13,
     this.squeeze = 0.70,
-    this.lean = 0.70,
+    this.lean = 0.50,
     this.grip = 0.70,
     this.compressInward = true,
     this.holdScale = 0.030,
     this.tapScale = 0.020,
     this.maxPull = 48,
     this.lockAxis,
-    this.tuning = const LiquidGlassFlexTuning(),
+    this.advanced = const LiquidGlassFlexAdvanced(),
   });
 
   /// Barely-there deformation for large surfaces (cards, sheets, bars),
@@ -212,7 +219,7 @@ class LiquidGlassFlex {
         tapScale = 0.010,
         maxPull = 60,
         lockAxis = null,
-        tuning = const LiquidGlassFlexTuning(
+        advanced = const LiquidGlassFlexAdvanced(
           refractionBoost: 0.1,
           stiffness: 340,
           damping: 26,
@@ -243,7 +250,7 @@ class LiquidGlassFlex {
         tapScale = 0.03,
         maxPull = 26,
         lockAxis = null,
-        tuning = const LiquidGlassFlexTuning(
+        advanced = const LiquidGlassFlexAdvanced(
           refractionBoost: 0,
           stiffness: 158,
           damping: 22,
@@ -262,7 +269,7 @@ class LiquidGlassFlex {
         tapScale = 0.035,
         maxPull = 40,
         lockAxis = null,
-        tuning = const LiquidGlassFlexTuning(
+        advanced = const LiquidGlassFlexAdvanced(
           refractionBoost: 0.22,
           stiffness: 280,
           damping: 20,
@@ -270,7 +277,7 @@ class LiquidGlassFlex {
         );
 
   /// Mirrors the constructor. To change one of the set-once knobs, go
-  /// through the group: `copyWith(tuning: e.tuning.copyWith(damping: 20))`.
+  /// through the group: `copyWith(advanced: e.advanced.copyWith(damping: 20))`.
   LiquidGlassFlex copyWith({
     double? stretch,
     double? squeeze,
@@ -281,7 +288,7 @@ class LiquidGlassFlex {
     double? tapScale,
     double? maxPull,
     Axis? lockAxis,
-    LiquidGlassFlexTuning? tuning,
+    LiquidGlassFlexAdvanced? advanced,
   }) {
     return LiquidGlassFlex(
       stretch: stretch ?? this.stretch,
@@ -293,7 +300,7 @@ class LiquidGlassFlex {
       tapScale: tapScale ?? this.tapScale,
       maxPull: maxPull ?? this.maxPull,
       lockAxis: lockAxis ?? this.lockAxis,
-      tuning: tuning ?? this.tuning,
+      advanced: advanced ?? this.advanced,
     );
   }
 
@@ -310,11 +317,11 @@ class LiquidGlassFlex {
           other.tapScale == tapScale &&
           other.maxPull == maxPull &&
           other.lockAxis == lockAxis &&
-          other.tuning == tuning;
+          other.advanced == advanced;
 
   @override
   int get hashCode => Object.hash(stretch, squeeze, lean, grip,
-      compressInward, holdScale, tapScale, maxPull, lockAxis, tuning);
+      compressInward, holdScale, tapScale, maxPull, lockAxis, advanced);
 }
 
 /// The knobs of [LiquidGlassFlex] that are set once and then left
@@ -325,7 +332,7 @@ class LiquidGlassFlex {
 /// ([refractionBoost]), or the settle is too tight or too loose (the three
 /// spring constants).
 @immutable
-class LiquidGlassFlexTuning {
+class LiquidGlassFlexAdvanced {
   /// How strongly the lens's content follows the deformation, `0`–`1`.
   ///
   /// The child is always laid out at the lens's **rest** size and then
@@ -364,7 +371,7 @@ class LiquidGlassFlexTuning {
   /// that is what produces the recoil wobble when you let go.
   final double releaseDamping;
 
-  const LiquidGlassFlexTuning({
+  const LiquidGlassFlexAdvanced({
     this.childFollow = 1,
     this.refractionBoost = 0.15,
     this.magnificationBoost = 0,
@@ -373,7 +380,7 @@ class LiquidGlassFlexTuning {
     this.releaseDamping = 17,
   });
 
-  LiquidGlassFlexTuning copyWith({
+  LiquidGlassFlexAdvanced copyWith({
     double? childFollow,
     double? refractionBoost,
     double? magnificationBoost,
@@ -381,7 +388,7 @@ class LiquidGlassFlexTuning {
     double? damping,
     double? releaseDamping,
   }) {
-    return LiquidGlassFlexTuning(
+    return LiquidGlassFlexAdvanced(
       childFollow: childFollow ?? this.childFollow,
       refractionBoost: refractionBoost ?? this.refractionBoost,
       magnificationBoost: magnificationBoost ?? this.magnificationBoost,
@@ -394,7 +401,7 @@ class LiquidGlassFlexTuning {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassFlexTuning &&
+      other is LiquidGlassFlexAdvanced &&
           other.childFollow == childFollow &&
           other.refractionBoost == refractionBoost &&
           other.magnificationBoost == magnificationBoost &&
@@ -603,6 +610,11 @@ LiquidGlassFlexOutline debugLiquidGlassFlexOutline =
 /// nothing is touching the lens the ticker is stopped, so an idle lens
 /// costs nothing.
 ///
+/// **One finger at a time.** Each method takes the `PointerEvent.pointer`
+/// id, and the first finger down owns the lens until it lifts. Extra
+/// touches are dropped rather than blended in — the state here is one grab
+/// point and one pull, so there is no second finger to model.
+///
 /// The four edges spring **independently** toward their own targets. They
 /// share one tuning so the motion stays coherent, but because their targets
 /// differ they settle slightly out of phase — the lens jiggles back to rest
@@ -649,6 +661,16 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
 
   bool _down = false;
 
+  /// The pointer that owns the current press, `null` when the lens is free.
+  ///
+  /// There is one grab point and one accumulated pull here — a second finger
+  /// has nowhere to live. `Listener` reports every pointer, so without an
+  /// owner the newest touch would reset [_grab] and throw away the first
+  /// finger's [_pull] mid-gesture, and whichever finger lifted FIRST would
+  /// end the press for all of them. So the first pointer down claims the
+  /// lens and holds it until it lifts; the rest are ignored outright.
+  int? _owner;
+
   // Edge spring state — position and velocity per edge, in pixels.
   double _l = 0, _r = 0, _t = 0, _b = 0;
   double _lv = 0, _rv = 0, _tv = 0, _bv = 0;
@@ -676,8 +698,14 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
   bool get isPressed => _down;
 
   /// Begins a press. [local] is the touch position in lens-local
-  /// coordinates and [size] the lens's rest size.
-  void down(Offset local, Size size) {
+  /// coordinates, [size] the lens's rest size, and [pointer] the id of the
+  /// finger — `PointerEvent.pointer`.
+  ///
+  /// A second finger landing on a lens that is already held is ignored: see
+  /// [_owner].
+  void down(Offset local, Size size, {required int pointer}) {
+    if (_down && pointer != _owner) return;
+    _owner = pointer;
     restSize = size;
     _grab = size.isEmpty
         ? const Offset(0.5, 0.5)
@@ -692,9 +720,10 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     _start();
   }
 
-  /// Accumulates a drag delta. No-op unless a press is active.
-  void move(Offset delta) {
-    if (!_down) return;
+  /// Accumulates a drag delta. No-op unless [pointer] is the finger that
+  /// owns the active press — another finger's travel is not this lens's.
+  void move(Offset delta, {required int pointer}) {
+    if (!_down || pointer != _owner) return;
     _pull += delta;
     _retarget();
   }
@@ -706,11 +735,17 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
   /// recognizer accepts — the [LiquidGlassFlex.tapScale] pulse is fired
   /// here. Anything longer or draggier was a hold or a drag, and only the
   /// hold response applies.
-  void up() {
-    if (!_down) return;
+  ///
+  /// Only the owning [pointer] can end the press. Another finger lifting off
+  /// a lens it never held leaves the deformation exactly where it is.
+  void up({required int pointer}) {
+    if (!_down || pointer != _owner) return;
     final bool wasTap = _pull.distance <= kTouchSlop &&
         DateTime.now().difference(_downAt) <= kLongPressTimeout;
     _down = false;
+    // Released to the next press, not to a finger already resting on the
+    // glass: that one's `down` was ignored, so it never becomes the owner.
+    _owner = null;
     _pull = Offset.zero;
     if (wasTap && _spec.tapScale != 0) _tap = 1;
     _retarget();
@@ -1053,8 +1088,8 @@ Widget liquidGlassFlexBox({
 /// smoothed press scalar from [LiquidGlassFlexDeform.pressAmount].
 ///
 /// Two independent knobs, because they are two different effects.
-/// [LiquidGlassFlexTuning.refractionBoost] bends harder;
-/// [LiquidGlassFlexTuning.magnificationBoost] zooms the backdrop about the
+/// [LiquidGlassFlexAdvanced.refractionBoost] bends harder;
+/// [LiquidGlassFlexAdvanced.magnificationBoost] zooms the backdrop about the
 /// lens centre. Only the first is on by default — magnification is not a
 /// refraction depth, and raising it reads as the content behind the glass
 /// sliding, i.e. a scale-up of the picture instead of the frame.

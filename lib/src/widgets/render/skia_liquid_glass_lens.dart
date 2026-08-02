@@ -95,11 +95,15 @@ class SkiaLiquidGlassLens extends StatelessWidget {
     if (driver == null) return child;
     return Listener(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: (event) => driver.down(event.localPosition, flexRestSize),
+      // Every event carries its pointer id: the driver holds one finger's
+      // worth of state, and a Listener reports all of them.
+      onPointerDown: (event) => driver.down(event.localPosition, flexRestSize,
+          pointer: event.pointer),
       // Deltas, not positions: the lens is deforming under the finger.
-      onPointerMove: (event) => driver.move(event.delta),
-      onPointerUp: (_) => driver.up(),
-      onPointerCancel: (_) => driver.up(),
+      onPointerMove: (event) =>
+          driver.move(event.delta, pointer: event.pointer),
+      onPointerUp: (event) => driver.up(pointer: event.pointer),
+      onPointerCancel: (event) => driver.up(pointer: event.pointer),
       child: child,
     );
   }
