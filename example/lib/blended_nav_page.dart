@@ -97,12 +97,10 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: _Backdrop.tone,
+      backgroundColor: _pageTone,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          const _Backdrop(),
-
           // Both members live in ONE blender: the list lens and the action.
           // Full-bleed — see the note at the top of the file.
  SafeArea(
@@ -122,6 +120,7 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                         style: const LiquidGlassStyle(
                           shape: LiquidGlassShape.continuousRoundedRectangle(
                             cornerRadius: 26,
+                            borderColor: _rim,
                           ),
                         ),
                         child: Padding(
@@ -139,14 +138,32 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
                     ),
                   ),
 
-                  // The action, centred vertically on the right. No style:
-                  // its own default already gives the circle, and the tint
-                  // it would carry is the blender's to set.
+                  // The action, centred vertically on the right. Its default
+                  // style is kept whole and only the shape is replaced —
+                  // the same circle the widget derives (radius = size / 2),
+                  // restated here because a gray rim has to be named.
                   Align(
                     alignment: const Alignment(0.82, 0),
                     child: LiquidGlassTabBarAction(
                       icon: Icons.search_rounded,
                       size: 60,
+                      style: LiquidGlassTabBarAction.defaultStyle.copyWith(
+                        shape: const LiquidGlassShape.roundedRectangle(
+                          cornerRadius: 30,
+                          borderWidth: 1.2,
+                          borderColor: _rim,
+                          lightIntensity: 1.1,
+                          lightDirection: 80,
+                          borderType: OpticalBorder(
+                            borderSaturation: 1.2,
+                            ambientIntensity: 1.0,
+                            borderSolidity: 0.35,
+                          ),
+                        ),
+                      ),
+                      // Same ink as the rows: one merged surface, one glyph
+                      // colour across both members.
+                      foregroundColor: _ink,
                       onTap: () {},
                       touch: _flexing ? const LiquidGlassTouch.flexing(_actionFlex) : null,
                     ),
@@ -161,9 +178,9 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
               child: IconButton(
                 icon: Icon(
                     _showControls ? Icons.close_rounded : Icons.tune_rounded),
-                // Sits on the photo, not on glass, so it takes the photo's
-                // contrast rather than the panel's.
-                color: Colors.white,
+                // Sits on the page, not on glass — ink, or it disappears
+                // into the off-white.
+                color: _ink,
                 onPressed: () =>
                     setState(() => _showControls = !_showControls),
               ),
@@ -269,9 +286,17 @@ class _BlendedNavPageState extends State<BlendedNavPage> {
   }
 }
 
-/// The merged surface is milky white whatever the photo does behind it, so
-/// the content on top of it is ink.
+/// The page: a flat off-white, no photo. White, but held back from the
+/// full glare of it.
+const Color _pageTone = Color(0xFFEDEAF0);
+
+/// The content on the glass. The surface stays light, so it is ink.
 const Color _ink = Color(0xFF1B1B22);
+
+/// Both rims. On a flat page there is nothing for the glass to refract, so
+/// the outline is what draws the shape — a solid gray rather than the
+/// light/shadow pair the border would otherwise derive.
+const Color _rim = Color(0xFF8E8E99);
 
 /// One row inside the list lens. A plain widget: it is the lens's child, so
 /// the deformation carries it rather than it deforming on its own.
@@ -304,44 +329,3 @@ class _ListRow extends StatelessWidget {
   }
 }
 
-/// Busy, high-contrast detail so the refraction has something to bend.
-///
-/// The gradient stands in while the photo loads and if the network is
-/// unavailable, so the page is never a flat void.
-class _Backdrop extends StatelessWidget {
-  const _Backdrop();
-
-  /// Shown behind the photo, so the first frame is never black.
-  static const Color tone = Color(0xFF2A1C3D);
-
-  static const String _url =
-      'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets'
-      '/main/blending.jpg';
-
-  static const Widget _fallback = DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFFFF6B9D),
-          Color(0xFF7C5CFF),
-          Color(0xFF34D399),
-          Color(0xFFFFC46B),
-        ],
-      ),
-    ),
-    child: SizedBox.expand(),
-  );
-
-  @override
-  Widget build(BuildContext context) {
-    return Image.network(
-      _url,
-      fit: BoxFit.cover,
-      errorBuilder: (_, __, ___) => _fallback,
-      loadingBuilder: (context, child, progress) =>
-          progress == null ? child : _fallback,
-    );
-  }
-}

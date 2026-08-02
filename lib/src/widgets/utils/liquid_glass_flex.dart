@@ -175,6 +175,9 @@ class LiquidGlassFlex {
   /// See [LiquidGlassFlexTuning.refractionBoost].
   double get refractionBoost => tuning.refractionBoost;
 
+  /// See [LiquidGlassFlexTuning.magnificationBoost].
+  double get magnificationBoost => tuning.magnificationBoost;
+
   /// See [LiquidGlassFlexTuning.stiffness].
   double get stiffness => tuning.stiffness;
 
@@ -334,10 +337,21 @@ class LiquidGlassFlexTuning {
   /// How much harder the glass BENDS while pressed, as a fraction. `0.15`
   /// means the refraction strength rises by up to 15% at full press.
   ///
-  /// Deliberately does not touch [LiquidGlassRefraction.magnification], which
-  /// zooms the backdrop rather than bending it — that reads as the content
-  /// sliding under your finger, not as glass under pressure.
+  /// Only the bending. The separate [magnificationBoost] carries the zoom,
+  /// because they are different effects and only one of them is refraction.
   final double refractionBoost;
+
+  /// How much the backdrop is ZOOMED while pressed, as a fraction of
+  /// [LiquidGlassRefraction.magnification]. `0.15` magnifies what is behind
+  /// the glass by up to 15% at full press.
+  ///
+  /// **Off by default**, and deliberately separate from [refractionBoost].
+  /// Magnification is not a refraction depth — it scales the content behind
+  /// the lens about its centre, so a press reads as the background sliding
+  /// rather than as glass bending. Apple keys lensing to a surface's SIZE,
+  /// not to a finger being down, and its press cue is light instead. Turn
+  /// this up only if you want that zoom on purpose.
+  final double magnificationBoost;
 
   /// Edge spring stiffness.
   final double stiffness;
@@ -353,6 +367,7 @@ class LiquidGlassFlexTuning {
   const LiquidGlassFlexTuning({
     this.childFollow = 1,
     this.refractionBoost = 0.15,
+    this.magnificationBoost = 0,
     this.stiffness = 320,
     this.damping = 24,
     this.releaseDamping = 17,
@@ -361,6 +376,7 @@ class LiquidGlassFlexTuning {
   LiquidGlassFlexTuning copyWith({
     double? childFollow,
     double? refractionBoost,
+    double? magnificationBoost,
     double? stiffness,
     double? damping,
     double? releaseDamping,
@@ -368,6 +384,7 @@ class LiquidGlassFlexTuning {
     return LiquidGlassFlexTuning(
       childFollow: childFollow ?? this.childFollow,
       refractionBoost: refractionBoost ?? this.refractionBoost,
+      magnificationBoost: magnificationBoost ?? this.magnificationBoost,
       stiffness: stiffness ?? this.stiffness,
       damping: damping ?? this.damping,
       releaseDamping: releaseDamping ?? this.releaseDamping,
@@ -380,13 +397,14 @@ class LiquidGlassFlexTuning {
       other is LiquidGlassFlexTuning &&
           other.childFollow == childFollow &&
           other.refractionBoost == refractionBoost &&
+          other.magnificationBoost == magnificationBoost &&
           other.stiffness == stiffness &&
           other.damping == damping &&
           other.releaseDamping == releaseDamping;
 
   @override
-  int get hashCode => Object.hash(
-      childFollow, refractionBoost, stiffness, damping, releaseDamping);
+  int get hashCode => Object.hash(childFollow, refractionBoost,
+      magnificationBoost, stiffness, damping, releaseDamping);
 }
 
 /// One resolved frame of [LiquidGlassFlex] deformation.
@@ -1034,10 +1052,12 @@ Widget liquidGlassFlexBox({
 /// compressed rather than as a rubber button popping. [amount] is the
 /// smoothed press scalar from [LiquidGlassFlexDeform.pressAmount].
 ///
-/// Only the BENDING responds. [LiquidGlassRefraction.magnification] is left
-/// alone: it is not a refraction depth but a straight zoom of the backdrop
-/// about the lens centre, so raising it slid the content behind the glass —
-/// the press became a scale-up after all, of the picture instead of the frame.
+/// Two independent knobs, because they are two different effects.
+/// [LiquidGlassFlexTuning.refractionBoost] bends harder;
+/// [LiquidGlassFlexTuning.magnificationBoost] zooms the backdrop about the
+/// lens centre. Only the first is on by default — magnification is not a
+/// refraction depth, and raising it reads as the content behind the glass
+/// sliding, i.e. a scale-up of the picture instead of the frame.
 ///
 /// Which dial carries it depends on the configuration: the legacy `distortion`
 /// when no [LiquidGlassRefractionType] is set, otherwise the type's own
@@ -1048,14 +1068,20 @@ LiquidGlassRefraction liquidGlassFlexRefraction(
   LiquidGlassFlex spec,
   double amount,
 ) {
-  final double k = spec.refractionBoost * amount.clamp(0.0, 1.0);
-  if (k <= 0) return refraction;
+  final double t = amount.clamp(0.0, 1.0);
+  final double k = spec.refractionBoost * t;
+  final double m = spec.magnificationBoost * t;
+  if (k <= 0 && m <= 0) return refraction;
   final LiquidGlassRefractionType? type = refraction.refractionType;
   return refraction.copyWith(
     // Legacy controls only when no type is configured; a type overrides them
     // and carries its own strength, so scale that instead.
-    distortion: type == null ? refraction.distortion * (1 + k) : null,
-    refractionType: type?.withEffectFactor(1 + k),
+    distortion:
+        k > 0 && type == null ? refraction.distortion * (1 + k) : null,
+    refractionType: k > 0 ? type?.withEffectFactor(1 + k) : null,
+    // Null leaves it untouched, which is the default: magnificationBoost is 0
+    // unless a caller asks for the zoom.
+    magnification: m > 0 ? refraction.magnification * (1 + m) : null,
   );
 }
 

@@ -339,6 +339,16 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
             _flex.refractionBoost.toStringAsFixed(2),
             (v) => _set(_tune(refractionBoost: v)),
           ),
+          // Off at 0. Watch the BACKDROP, not the outline — this zooms what
+          // is behind the glass rather than bending it.
+          TunerParamSlider(
+            'magnification',
+            _flex.magnificationBoost,
+            0,
+            0.6,
+            _flex.magnificationBoost.toStringAsFixed(2),
+            (v) => _set(_tune(magnificationBoost: v)),
+          ),
         ],
       ),
     );
@@ -380,11 +390,12 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
     );
   }
 
-  /// The five set-once knobs live in a group, so tweaking one goes through
-  /// the group's own copyWith rather than the spec's.
+  /// The set-once knobs live in a group, so tweaking one goes through the
+  /// group's own copyWith rather than the spec's.
   LiquidGlassFlex _tune({
     double? childFollow,
     double? refractionBoost,
+    double? magnificationBoost,
     double? stiffness,
     double? damping,
     double? releaseDamping,
@@ -393,6 +404,7 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
       tuning: _flex.tuning.copyWith(
         childFollow: childFollow,
         refractionBoost: refractionBoost,
+        magnificationBoost: magnificationBoost,
         stiffness: stiffness,
         damping: damping,
         releaseDamping: releaseDamping,
@@ -416,6 +428,7 @@ class _FlexTunerPageState extends State<FlexTunerPage> {
         '      tuning: LiquidGlassFlexTuning(\n'
         '        childFollow: ${p.childFollow.toStringAsFixed(2)},\n'
         '        refractionBoost: ${p.refractionBoost.toStringAsFixed(2)},\n'
+        '${p.magnificationBoost == 0 ? '' : '        magnificationBoost: ${p.magnificationBoost.toStringAsFixed(2)},\n'}'
         '        stiffness: ${p.stiffness.toStringAsFixed(0)},\n'
         '        damping: ${p.damping.toStringAsFixed(0)},\n'
         '        releaseDamping: ${p.releaseDamping.toStringAsFixed(0)},\n'
