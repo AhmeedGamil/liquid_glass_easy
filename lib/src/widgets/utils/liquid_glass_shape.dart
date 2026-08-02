@@ -405,8 +405,9 @@ Path _liquidGlassScaledClipPath(
 ) {
   if (scaleX == 1.0 && scaleY == 1.0) return build(size);
   final Path rest = build(Size(size.width / scaleX, size.height / scaleY));
-  return rest.transform(
-      (Matrix4.identity()..scaleByDouble(scaleX, scaleY, 1, 1)).storage);
+  // `diagonal3Values`, not `scaleByDouble`: the latter needs vector_math 2.2.0
+  // (Flutter 3.35+), and would fail to COMPILE for everyone below that.
+  return rest.transform(Matrix4.diagonal3Values(scaleX, scaleY, 1).storage);
 }
 
 class _LiquidGlassSquircleClipper extends CustomClipper<Path> {
