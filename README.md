@@ -16,6 +16,10 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 </p>
 
 <p>
+  <img src="showcases/liquid_glass_flex.gif" width="36%" alt="Liquid Glass Flex — touch deformation"/>
+</p>
+
+<p>
   <img src="showcases/liquid_glass_slider.gif" width="49%" alt="Liquid Glass Slider"/>
   <img src="showcases/liquid_glass_toggle.gif" width="49%" alt="Liquid Glass Toggle"/>
 </p>
@@ -31,28 +35,78 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 
 ---
 
-## What's New in 3.2
+## Building Blocks
 
-### Sharper, faster blending on both backends
+| Block | API | What it does |
+|---|---|---|
+| **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with `LiquidGlassStyle`: shape, appearance, refraction. |
+| **Touch** | `LiquidGlassTouch` | How glass answers a finger. Carries `LiquidGlassFlex`: press and it swells, drag and it deforms, release and it springs back. |
+| **Jelly** | `LiquidGlassJelly` | Squash-and-stretch motion driven by a value, tuned by `LiquidGlassJellyConfig` — the physics behind the slider thumb and nav pill. |
+| **Blend** | `LiquidGlassBlender` | Merges 2–6 lenses into one surface, joined by a smooth metaball bridge. |
+| **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
+| **Components** | `LiquidGlassSlider`, `LiquidGlassToggle`, `LiquidGlassButton`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassBottomNavBar`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
 
-3.2 is a rendering pass focused on the `LiquidGlassBlender` and the engine split:
+---
 
-- **Per-backend shaders.** The single-lens shaders now ship a backend-specific
-  build: Impeller keeps the hardware-derivative gradient, while Skia/web loads a
-  dedicated entry with an **analytic gradient** (`dFdx` is invalid SkSL). Programs
-  are cached per backend and resolved automatically — no API change needed.
-- **Skia blend quality + blur.** The metaball blend on Skia now uses an analytic
-  merged-field gradient and has **in-shader blur re-enabled**, with chromatic
-  aberration applied *before* the blur to match Impeller.
-- **Cheaper blend on Impeller.** The engine-blur backdrop pass is now clipped to
-  the **tight glass region** instead of the whole surface, so the costly pass only
-  covers where the merged glass actually is.
-- **`debugClipBounds`** — a new diagnostic flag on `LiquidGlassBlender` that
-  outlines the backdrop clip region (off by default).
+### Render paths — Impeller, Skia, and the fallback
 
-## What's New in 3.1
+`LiquidGlassLens` resolves the best path for the engine your app is running on.
+The widget tree you write is **identical** in every case:
 
-### `LiquidGlassBlender` — fuse lenses into one liquid surface
+| Engine / setup | Behavior |
+|----------------|----------|
+| **Impeller** (Flutter's default on modern iOS/Android) | The lens refracts the **live backdrop** — whatever your app painted behind it. **No `LiquidGlassView` and no background widget needed at all.** Just drop the lens over any UI. |
+| **Skia** with an ancestor `LiquidGlassView` (+ `backgroundWidget`) | The lens refracts the view's **captured background**, wherever it sits inside the view's `child`. |
+| **Skia** without a view | Refraction isn't possible, so the lens gracefully degrades to a **frosted** look (backdrop blur + tint + border) and logs a one-time debug notice. |
+
+> In short: **on Impeller it just works anywhere**; on Skia you wrap your
+> content in a `LiquidGlassView` to give the lens a background to refract.
+
+---
+
+### Touch — glass that answers a finger
+
+Pass a `touch:` and the lens becomes a **soft body**. Press it and it swells
+under your finger; drag it and it elongates along the pull, pinches in the
+cross axis, leans after your thumb, then springs back with a wobble. The lens
+never *moves* — only its shape and its content deform.
+
+<p>
+  <img src="showcases/liquid_glass_flex.gif" width="36%" alt="Liquid Glass Flex — touch deformation"/>
+</p>
+
+```dart
+LiquidGlassLens(
+  touch: const LiquidGlassTouch(
+    flex: LiquidGlassFlex(),
+  ),
+  style: const LiquidGlassStyle(
+    shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 26),
+  ),
+  child: myContent,
+)
+```
+
+`touch` is a **group**, not a single effect: it carries the whole response a
+surface has to a finger, so a control's feel travels as one value the way its
+whole look travels as a `LiquidGlassStyle`. Today it holds `flex` — the
+deformation — and further members land as new fields, not as a new parameter
+on every component.
+
+The four edges spring **independently**, so the half nearest your finger
+deforms more than the far half — the asymmetry a scale transform cannot
+produce. `grip` controls how localized that is (`0` = symmetric wherever you
+touch, `1` = fully local), `squeeze` takes the along-axis gain back out of the
+cross axis so an elongated lens genuinely gets thinner, and `lean` slides the
+body after the finger. `.subtle()`, `.uniform()` and `.pronounced()` are tuned
+starting points.
+
+`null` — the default — adds **nothing** to the tree: no gesture listener, no
+ticker, no cost.
+
+---
+
+### Blend — fuse lenses into one liquid surface
 
 Wrap two to six `LiquidGlassLens` descendants in a `LiquidGlassBlender` and their
 silhouettes merge into a single liquid glass surface: as neighbouring lenses
@@ -86,102 +140,31 @@ the captured background (place it inside a `LiquidGlassView`).
 > though — the value is left unrestricted so you can push it if you want; just
 > expect it to diverge from the Impeller look at high sigmas.
 
-## What's New in 3.0
+---
 
-Version 3.0 is a major step toward a simpler, more flexible API.
+### What each component needs
 
-### `LiquidGlassLens` — a lens you can place *anywhere*
+On **Impeller** every component refracts the live backdrop and works **anywhere**
+with no setup. The difference shows on **Skia**: some refract the *app* content
+behind them (so they need an ancestor `LiquidGlassView`), while others supply
+their own background and work anywhere on both engines.
 
-The headline change. The previous lens API was **position-driven**: you declared
-a `LiquidGlassView`, gave it a `backgroundWidget`, and listed lenses with
-explicit `width` / `height` / `position` values.
-
-`LiquidGlassLens` is **layout-driven** instead. Drop it anywhere in your widget
-tree — inside a `Row`, a `ListView`, a `Stack`, a `Card` — and it is exactly
-where layout puts it and exactly as big as its constraints/child make it. No
-position, no width/height parameters.
-
-```dart
-SizedBox(
-  width: 220,
-  height: 120,
-  child: LiquidGlassLens(
-    style: const LiquidGlassStyle(
-      shape: LiquidGlassShape.squircle(cornerRadius: 36),
-    ),
-    child: const Center(child: Text('glass')),
-  ),
-)
-```
-
-### Works on **both Impeller and Skia**
-
-`LiquidGlassLens` automatically resolves the best render path for the engine
-your app is running on — the widget tree you write is **identical** in every
-case:
-
-| Engine / setup | Behavior |
-|----------------|----------|
-| **Impeller** (Flutter's default on modern iOS/Android) | The lens refracts the **live backdrop** — whatever your app painted behind it. **No `LiquidGlassView` and no background widget needed at all.** Just drop the lens over any UI. |
-| **Skia** with an ancestor `LiquidGlassView` (+ `backgroundWidget`) | The lens refracts the view's **captured background**, wherever it sits inside the view's `child`. |
-| **Skia** without a view | Refraction isn't possible, so the lens gracefully degrades to a **frosted** look (backdrop blur + tint + border) and logs a one-time debug notice. |
-
-> In short: **on Impeller it just works anywhere**; on Skia you wrap your
-> content in a `LiquidGlassView` to give the lens a background to refract.
-
-### `LiquidGlassStyle` — one styling vocabulary
-
-Every glass surface — the lens, the components, the nav pill — is described
-with a single reusable descriptor: **shape + appearance + refraction**.
-
-```dart
-const LiquidGlassStyle(
-  shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 24),
-  appearance: LiquidGlassAppearance(color: Color(0x22FFFFFF)),
-  refraction: LiquidGlassRefraction(distortion: 0.08, distortionWidth: 28),
-);
-```
-
-### Drop-in glass components
-
-Ready-made widgets, each built on `LiquidGlassLens` with tuned defaults. On
-**Impeller** they all refract the live backdrop and work **anywhere** with no
-setup. The difference shows on **Skia**: some components refract the *app*
-content behind them (so they need an ancestor `LiquidGlassView`), while others
-supply their own background and work anywhere on both engines.
-
-- `LiquidGlassButton` — refracts the content behind it. Anywhere on Impeller; on Skia place it inside a `LiquidGlassView` (frosted fallback without one).
-- `LiquidGlassSlider` — jelly thumb that refracts the track as it moves. Self-contained: it owns its background, so it works **anywhere** on both Impeller and Skia — no `LiquidGlassView` needed.
-- `LiquidGlassToggle` — refracts its own track. Self-contained, so it works **anywhere** on both Impeller and Skia — no `LiquidGlassView` needed.
-- `LiquidGlassAppBar` — refracts the content behind it. Anywhere on Impeller; needs a `LiquidGlassView` on Skia.
-- `LiquidGlassBottomNavBar` — refracts the content behind it. On Skia, use it inside a `LiquidGlassScaffold` (which provides the `LiquidGlassView`). To place it **anywhere** on Impeller, use the `LiquidGlassBottomNavBar.withImpeller(...)` constructor.
-- `LiquidGlassTabBar` — refracts the content behind it. Anywhere on Impeller; needs a `LiquidGlassView` on Skia.
-- `LiquidGlassScaffold` — a Scaffold-style layout that owns the glass pipeline (its own `LiquidGlassView`), so its child lenses refract the body **anywhere** on both engines.
-- `LiquidGlassDraggable` — a drag wrapper for any lens; inherits whatever the lens it wraps requires.
-- `LiquidGlassJelly` — the squash/stretch physics as a reusable widget; inherits whatever the content it wraps requires.
-
-### Why the change?
-
-The old API made you describe a lens as a fixed element, pinned by explicit
-`width` / `height` / `position`, inside a `LiquidGlassView` with a
-`backgroundWidget`. That fought Flutter's layout model — it wasn't
-flexible or scalable for Impeller and Skia, and you always had to supply a
-background for Impeller, even though the engine can already render the live
-backdrop on its own.
-
-`LiquidGlassLens` flips this around. It is a normal layout widget: it sizes and
-positions itself like anything else in the tree, and it's compatible with both
-Impeller and Skia. On Impeller it works anywhere — it refracts the live backdrop
-with no `LiquidGlassView` and no background widget at all, though you can still
-place it inside a `LiquidGlassView` if you want to support Impeller and Skia
-together: on Impeller it uses the backdrop filter and on Skia it captures the
-background, and the lens handles both automatically. On Skia, wrap it in a
-`LiquidGlassView` with a `backgroundWidget` and it refracts that captured
-background.
+| Component | Skia requirement |
+|---|---|
+| `LiquidGlassSlider` | **None** — self-contained, it owns its background. Works anywhere on both engines. |
+| `LiquidGlassToggle` | **None** — refracts its own track. Works anywhere on both engines. |
+| `LiquidGlassScaffold` | **None** — it *is* the pipeline; its child lenses refract the body on both engines. |
+| `LiquidGlassButton` | Needs an ancestor `LiquidGlassView` (frosted fallback without one). |
+| `LiquidGlassAppBar` | Needs an ancestor `LiquidGlassView`. |
+| `LiquidGlassTabBar` | Needs an ancestor `LiquidGlassView`. |
+| `LiquidGlassBottomNavBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassBottomNavBar.withImpeller(...)`. |
+| `LiquidGlassDraggable`, `LiquidGlassJelly` | Inherit whatever the lens or content they wrap requires. |
 
 > **Migration note:** the old position-driven lens API (`LiquidGlass`) is
 > **no longer used** — it has been replaced by `LiquidGlassLens`. Write new code
 > against `LiquidGlassLens` and the drop-in components.
+>
+> Per-release history lives in [CHANGELOG.md](CHANGELOG.md).
 
 ---
 
@@ -197,14 +180,13 @@ to your UI.
 
 ## Features
 
+The systems above are *what* you build with. These are the qualities they all
+share:
+
 - **True liquid glass visuals** — real-glass look and physics with fluid transparency, soft highlights, and light-bending refraction.
-- **Lens-anywhere** — `LiquidGlassLens` is layout-driven; place it anywhere in the tree with no position/size params.
-- **Liquid blending** — `LiquidGlassBlender` fuses 2–6 lenses into one metaball surface (not yet optimized for Skia).
-- **Impeller *and* Skia** — auto-resolved render paths: live backdrop on Impeller, captured background on Skia, frosted fallback otherwise.
-- **Real-time lens rendering** — distortion, blur, tint, and refraction react instantly as content moves behind the glass.
+- **Real-time rendering** — distortion, blur, tint, and refraction react instantly as content moves behind the glass.
 - **Custom shapes** — circular rounded rectangles, iOS-style squircles, or Apple-style continuous-corner capsules.
 - **Two border modes** — stylized `ClassicBorder` or background-tinted `OpticalBorder`.
-- **Drop-in components** — buttons, sliders, toggles, app/tab/nav bars, scaffold.
 - **Shader-driven, GPU-accelerated** — smooth, high-FPS performance.
 - **Cross-platform** — Android, iOS, Web, macOS, and Windows.
 
@@ -214,7 +196,7 @@ to your UI.
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^3.2.0
+  liquid_glass_easy: ^3.5.0
 ```
 
 ```bash
