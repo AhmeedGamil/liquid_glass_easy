@@ -144,6 +144,12 @@ class LiquidGlassScaffold extends StatelessWidget {
         useSync: useSync,
         useImpellerBackdrop: useImpellerBackdrop,
         realTimeCapture: realTimeCapture,
+        // The bar's outer pipeline also carries OUR overlay slots. If any of
+        // them is a lens it needs a live capture even while the pill is
+        // hidden; with none, the capture can sleep at rest.
+        outerNeedsRealtime: appBar != null ||
+            bottomNavigationBarAction != null ||
+            lenses.isNotEmpty,
       );
     }
 

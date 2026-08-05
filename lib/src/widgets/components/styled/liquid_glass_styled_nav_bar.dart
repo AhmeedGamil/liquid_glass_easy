@@ -35,7 +35,10 @@ import '../bottom_nav_bar/liquid_glass_nav_bar_layout.dart'
     show LiquidGlassBottomNavBarLayout;
 import '../liquid_glass_morph_pill.dart' show liquidGlassMorphEnvelope;
 import '../liquid_glass_tab_bar.dart'
-    show LiquidGlassTabBarItem, buildLiquidGlassNavGlyph;
+    show
+        LiquidGlassTabBarItem,
+        buildLiquidGlassNavGlyph,
+        buildLiquidGlassNavLabel;
 import 'liquid_glass_styles.dart';
 
 /// Self-contained, drop-in **styled** animated liquid-glass bottom nav bar —
@@ -816,6 +819,8 @@ class _StyledNavShell extends StatelessWidget {
                     layout: layout,
                     itemStyle: itemStyle,
                     forceSelected: true,
+                    // The layer the glass pill covers.
+                    underPill: true,
                   ),
                 ),
               ),
@@ -865,6 +870,9 @@ class _StyledIconRow extends StatelessWidget {
   final bool forceSelected;
   final bool forceUnselected;
 
+  /// True when this row IS the inside-the-pill layer.
+  final bool underPill;
+
   const _StyledIconRow({
     required this.items,
     required this.layout,
@@ -872,6 +880,7 @@ class _StyledIconRow extends StatelessWidget {
     this.selectedIndex,
     this.forceSelected = false,
     this.forceUnselected = false,
+    this.underPill = false,
   });
 
   @override
@@ -890,6 +899,7 @@ class _StyledIconRow extends StatelessWidget {
                     : forceUnselected
                         ? false
                         : i == selectedIndex,
+                underPill: underPill,
               ),
             ),
         ],
@@ -902,11 +912,13 @@ class _StyledShellTab extends StatelessWidget {
   final LiquidGlassTabBarItem item;
   final LiquidGlassNavBarItemStyle itemStyle;
   final bool selected;
+  final bool underPill;
 
   const _StyledShellTab({
     required this.item,
     required this.itemStyle,
     required this.selected,
+    this.underPill = false,
   });
 
   @override
@@ -923,16 +935,18 @@ class _StyledShellTab extends StatelessWidget {
             color: color,
             size: itemStyle.iconSize,
             selected: selected,
+            underPill: underPill,
           ),
           if (item.label != null) ...[
             const SizedBox(height: 2),
-            Text(
-              item.label!,
-              style: TextStyle(
-                fontSize: itemStyle.labelFontSize,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: color,
-              ),
+            buildLiquidGlassNavLabel(
+              context,
+              item,
+              color: color,
+              fontSize: itemStyle.labelFontSize,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              selected: selected,
+              underPill: underPill,
             ),
           ],
         ],

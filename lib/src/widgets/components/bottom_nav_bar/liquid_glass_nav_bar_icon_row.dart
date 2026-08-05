@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../liquid_glass_tab_bar.dart'
-    show LiquidGlassTabBarItem, buildLiquidGlassNavGlyph;
+    show
+        LiquidGlassTabBarItem,
+        buildLiquidGlassNavGlyph,
+        buildLiquidGlassNavLabel;
 import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
@@ -15,11 +18,17 @@ class LiquidGlassNavTabCell extends StatelessWidget {
   final bool selected;
   final LiquidGlassNavItemStyle style;
 
+  /// True when this cell belongs to the copy drawn inside the moving
+  /// pill. Forwarded to a custom icon or label builder as
+  /// [LiquidGlassGlyph.underPill].
+  final bool underPill;
+
   const LiquidGlassNavTabCell({
     super.key,
     required this.item,
     required this.selected,
     this.style = const LiquidGlassNavItemStyle(),
+    this.underPill = false,
   });
 
   @override
@@ -35,16 +44,18 @@ class LiquidGlassNavTabCell extends StatelessWidget {
             color: color,
             size: style.iconSize,
             selected: selected,
+            underPill: underPill,
           ),
           if (item.label != null) ...[
             SizedBox(height: style.iconLabelGap),
-            Text(
-              item.label!,
-              style: TextStyle(
-                fontSize: style.labelFontSize,
-                fontWeight: style.fontWeightFor(selected: selected),
-                color: color,
-              ),
+            buildLiquidGlassNavLabel(
+              context,
+              item,
+              color: color,
+              fontSize: style.labelFontSize,
+              fontWeight: style.fontWeightFor(selected: selected),
+              selected: selected,
+              underPill: underPill,
             ),
           ],
         ],
@@ -119,6 +130,11 @@ class NavBarIconRow extends StatelessWidget {
   /// "outside-the-pill" layer.
   final bool forceUnselected;
 
+  /// True when this row IS the inside-the-pill layer. Kept separate from
+  /// [forceSelected]: the single-pass fallback also renders a cell
+  /// selected, but nothing is under a pill there.
+  final bool underPill;
+
   const NavBarIconRow({
     super.key,
     required this.items,
@@ -127,6 +143,7 @@ class NavBarIconRow extends StatelessWidget {
     this.selectedIndex,
     this.forceSelected = false,
     this.forceUnselected = false,
+    this.underPill = false,
   });
 
   @override
@@ -145,6 +162,7 @@ class NavBarIconRow extends StatelessWidget {
                         ? false
                         : i == selectedIndex,
                 style: itemStyle,
+                underPill: underPill,
               ),
             ),
         ],

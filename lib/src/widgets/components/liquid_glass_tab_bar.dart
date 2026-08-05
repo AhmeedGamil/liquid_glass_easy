@@ -48,11 +48,21 @@ class LiquidGlassTabBarItem {
   /// ```
   final LiquidGlassGlyphBuilder? iconBuilder;
 
+  /// Draws the label instead of the plain `Text`, with the same state the
+  /// icon builder gets — resolved colour, selected, and whether this is
+  /// the copy under the moving pill. Use it to let the label react the
+  /// way the glyph does; leave it null for the standard label.
+  ///
+  /// [label] is still what decides whether a tab HAS a label, so set both
+  /// when using a builder.
+  final LiquidGlassLabelBuilder? labelBuilder;
+
   const LiquidGlassTabBarItem({
     required this.icon,
     this.selectedIcon,
     this.label,
     this.iconBuilder,
+    this.labelBuilder,
   });
 
   /// A tab drawn entirely by [iconBuilder] — no [IconData] needed.
@@ -62,6 +72,7 @@ class LiquidGlassTabBarItem {
   const LiquidGlassTabBarItem.custom({
     required LiquidGlassGlyphBuilder this.iconBuilder,
     this.label,
+    this.labelBuilder,
   })  : icon = kLiquidGlassCustomGlyph,
         selectedIcon = null;
 }
@@ -76,6 +87,7 @@ Widget buildLiquidGlassNavGlyph(
   required Color color,
   required double size,
   required bool selected,
+  bool underPill = false,
 }) {
   final LiquidGlassGlyphBuilder? builder = item.iconBuilder;
   if (builder == null) {
@@ -86,7 +98,40 @@ Widget buildLiquidGlassNavGlyph(
     );
   }
   return liquidGlassBoxedGlyph(context, builder,
-      color: color, size: size, selected: selected);
+      color: color, size: size, selected: selected, underPill: underPill);
+}
+
+/// Builds one tab label for any nav/tab tier: the item's
+/// [LiquidGlassTabBarItem.labelBuilder] when it has one, else the plain
+/// [Text] — the label counterpart of [buildLiquidGlassNavGlyph], and the
+/// single place either form becomes a widget.
+///
+/// Only call this for an item that HAS a label.
+Widget buildLiquidGlassNavLabel(
+  BuildContext context,
+  LiquidGlassTabBarItem item, {
+  required Color color,
+  required double fontSize,
+  required FontWeight fontWeight,
+  required bool selected,
+  bool underPill = false,
+}) {
+  final LiquidGlassLabelBuilder? builder = item.labelBuilder;
+  if (builder == null) {
+    return Text(
+      item.label!,
+      style: TextStyle(
+        fontSize: fontSize,
+        fontWeight: fontWeight,
+        color: color,
+      ),
+    );
+  }
+  return liquidGlassBoxedLabel(context, builder,
+      color: color,
+      fontSize: fontSize,
+      selected: selected,
+      underPill: underPill);
 }
 
 /// A floating "liquid glass" tab bar.
@@ -440,13 +485,13 @@ class _TabButton extends StatelessWidget {
               ),
               if (item.label != null) ...[
                 const SizedBox(height: 2),
-                Text(
-                  item.label!,
-                  style: TextStyle(
-                    fontSize: fontSize,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: color,
-                  ),
+                buildLiquidGlassNavLabel(
+                  context,
+                  item,
+                  color: color,
+                  fontSize: fontSize,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  selected: selected,
                 ),
               ],
             ],

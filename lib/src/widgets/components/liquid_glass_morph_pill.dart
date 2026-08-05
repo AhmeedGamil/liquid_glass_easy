@@ -110,6 +110,22 @@ LiquidGlass buildLiquidGlassMorphPill({
   /// without taking over the whole tuned default shape.
   double defaultBorderWidth = 1.0,
 
+  /// Scales the refraction band's **width** as the pill grows into its
+  /// final size. `1.0` (the default) leaves it exactly as authored.
+  ///
+  /// The band is a distance inward from the rim, so a width authored for
+  /// the full-size pill is a much larger *proportion* of a small one —
+  /// at the start of a morph it can reach past the pill's own half-height
+  /// and swallow the whole surface. Feeding the pill's current size ratio
+  /// here keeps the band proportional throughout, arriving at the
+  /// authored value once the pill is full size.
+  ///
+  /// Applies to whichever width is in play: the legacy
+  /// [LiquidGlassRefraction.distortionWidth], or the width inside a
+  /// [LiquidGlassRefractionType] when one is set (including
+  /// [OpticalRefraction.refractionWidth]).
+  double refractionWidthScale = 1.0,
+
   /// Optional content rendered INSIDE the lens, on top of the glass
   /// passes (e.g. a solid rest handle drawn over the glass pill). The
   /// child also receives touches, so it can carry the control's
@@ -132,11 +148,25 @@ LiquidGlass buildLiquidGlassMorphPill({
           borderSolidity: 0.5,
         ),
       );
-  final LiquidGlassRefraction refraction = style?.refraction ??
+  final LiquidGlassRefraction authoredRefraction = style?.refraction ??
       const LiquidGlassRefraction(
         distortion: 0.12,
         distortionWidth: 18,
       );
+  // Keep the band proportional to the pill. A configured
+  // LiquidGlassRefractionType owns its own width, so scale it there;
+  // otherwise scale the legacy distortionWidth the shader falls back to.
+  final LiquidGlassRefraction refraction = refractionWidthScale == 1.0
+      ? authoredRefraction
+      : (authoredRefraction.refractionType != null
+          ? authoredRefraction.copyWith(
+              refractionType: authoredRefraction.refractionType!
+                  .withWidthFactor(refractionWidthScale),
+            )
+          : authoredRefraction.copyWith(
+              distortionWidth:
+                  authoredRefraction.distortionWidth * refractionWidthScale,
+            ));
   final LiquidGlassAppearance appearance = style?.appearance ??
       LiquidGlassAppearance(
         color: Colors.white.withAlpha(28),

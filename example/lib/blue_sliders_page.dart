@@ -17,7 +17,7 @@ import 'tuner_widgets.dart';
 const Color kSliderBlue = Color(0xFF0A84FF);
 
 /// Slimmer track than the default 8px.
-const double kSliderTrackHeight = 4;
+const double kSliderTrackHeight = 6;
 
 /// Glass thumb look with **no blur**. The tuned default thumb style bakes
 /// in a `LiquidGlassBlur(1.5, 1.5)`; passing an explicit style replaces
@@ -28,7 +28,7 @@ const LiquidGlassStyle kNoBlurThumb = LiquidGlassStyle(
   // clean capsule as the pill grows/jellies (it clamps to half-height).
   shape: LiquidGlassShape.continuousRoundedRectangle(
     cornerRadius: 100,
-    borderWidth: 0,
+    borderWidth: 0.4,
     lightIntensity: 1,
     lightDirection: 80,
     borderType: OpticalBorder(

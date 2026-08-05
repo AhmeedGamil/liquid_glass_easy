@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'touch_page.dart';
+import 'blue_sliders_page.dart';
 import 'control_center_page.dart';
 import 'corner_style_page.dart';
 import 'lens_image_page.dart';
@@ -11,6 +12,7 @@ import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
 import 'slider_jelly_tuner.dart';
 import 'slider_toggle_page.dart';
+import 'split_nav_page.dart';
 
 // =============================================================
 // Liquid Glass Easy - example gallery.
@@ -106,6 +108,13 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ScaffoldSvgDemo(),
     ),
     _Destination(
+      title: 'Split Nav Bar',
+      subtitle: 'Ink-dark tab capsule + a detached search circle',
+      icon: Icons.splitscreen_rounded,
+      gradient: const [Color(0xFFFF3B30), Color(0xFF7A1410)],
+      builder: (_) => const SplitNavPage(),
+    ),
+    _Destination(
       title: 'Touch',
       subtitle: 'Press and drag a glass list — it deforms without moving',
       icon: Icons.touch_app_rounded,
@@ -118,6 +127,13 @@ class HomePage extends StatelessWidget {
       icon: Icons.toggle_on_rounded,
       gradient: const [Color(0xFF2DD4BF), Color(0xFF0E8C7E)],
       builder: (_) => const SliderTogglePage(),
+    ),
+    _Destination(
+      title: 'Blue Sliders',
+      subtitle: 'Blue-filled sliders on a slim track, blur-free thumb',
+      icon: Icons.tune_rounded,
+      gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
+      builder: (_) => const BlueSlidersPage(),
     ),
     _Destination(
       title: 'Corner Styles',

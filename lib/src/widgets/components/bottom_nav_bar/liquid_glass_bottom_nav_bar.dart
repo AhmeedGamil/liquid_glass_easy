@@ -229,6 +229,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
     bool useSync = true,
     bool? useImpellerBackdrop,
     bool realTimeCapture = true,
+    bool outerNeedsRealtime = false,
   }) {
     final base = navLayout;
     final layout = LiquidGlassBottomNavBarLayout(
@@ -253,6 +254,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       barPosition: resolveBarPosition(bottomInset: bottomInset),
       itemStyle: itemStyle,
       showSelectionPill: pillStyle.show,
+      outerNeedsRealtime: outerNeedsRealtime,
       outerChild: outerChild,
       backgroundColor: backgroundColor,
       barShape: barStyle.shape,
@@ -262,6 +264,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
       pillRefraction: glassStyle.refraction,
+      pillAnchorMagnification: pillStyle.anchorMagnification,
       pillEnableInnerRadiusTransparent:
           glassStyle.appearance.enableInnerRadiusTransparent,
       pillShape: glassStyle.shape,

@@ -86,6 +86,21 @@ LiquidGlass buildLiquidGlassSliderThumb({
   final pillW = layout.thumbWidth + extraW + deltaW;
   final pillH = layout.thumbHeight + extraH + deltaH;
 
+  // The refraction band is a distance inward from the rim, so it competes
+  // with the pill's THICKNESS, not its length. The jelly drives both axes,
+  // but only the height one matters here: squash the thumb and a band
+  // authored for the full thickness keeps its absolute width, so it eats a
+  // steadily larger share of what is left and the glass reads solid.
+  // Thinning it by the same ratio the height lost keeps it proportional.
+  //
+  // Measured against the height BEFORE the jelly (rest + grow), so the
+  // band is exactly as authored at rest and while merely growing — this
+  // only ever engages on the deformation. Capped at 1 so a stretch
+  // overshoot cannot push it past the authored width.
+  final double baseH = layout.thumbHeight + extraH;
+  final double refractionScale =
+      baseH > 0 ? (pillH / baseH).clamp(0.0, 1.0) : 1.0;
+
   // Center of the rest thumb at this value, in track-local
   // coordinates. The grown pill expands evenly outward from there.
   final thumbCenterXInTrack = value * layout.travel;
@@ -109,6 +124,7 @@ LiquidGlass buildLiquidGlassSliderThumb({
     bottom: bottom,
     extraHeight: 0,
     style: style,
+    refractionWidthScale: refractionScale,
     // The slider thumb defaults to the Apple continuous rounded rectangle
     // (honored only when the caller doesn't supply an explicit shape).
     defaultCornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,

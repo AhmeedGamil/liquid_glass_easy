@@ -202,6 +202,8 @@ class _AnimatedBottomNavBarContentState
               item: item,
               selected: forceSelected,
               style: widget.itemStyle,
+              // The selected copy IS the inside-the-pill layer here.
+              underPill: forceSelected,
             ),
           ),
       ],

@@ -199,7 +199,21 @@ class _ToggleRow extends StatelessWidget {
               style: const TextStyle(fontSize: 14.5, color: Colors.white)),
           const Spacer(),
           LiquidGlassToggle(
+            layout: LiquidGlassToggleLayout(pinchedHeight: 20),
             value: value,
+            style: LiquidGlassStyle(
+              shape: LiquidGlassShape.continuousRoundedRectangle(borderWidth: 0.3,lightDirection: 39, borderType: OpticalBorder(lightSpread: 0.3,borderSaturation: 0,)),
+              refraction: LiquidGlassRefraction(
+                magnification: 1,
+                distortion: 0.05,
+                distortionWidth: 10,
+                chromaticAberration: 0.003
+              ),
+              appearance: LiquidGlassAppearance(
+                //color: Colors.white.withOpacity(0.15),
+                blur: const LiquidGlassBlur(sigmaX: 0.7, sigmaY: 0.7),
+              ),
+            ),
             onChanged: onChanged,
             activeColor: activeColor,
           ),

@@ -80,8 +80,9 @@ class _CornerStylePageState extends State<CornerStylePage> {
         refraction: const LiquidGlassRefraction(
           distortion: 0.1,
           distortionWidth: 24,
+          magnification: 0.5
         ),
-        appearance: LiquidGlassAppearance(color: Colors.white.withAlpha(20)),
+        appearance: LiquidGlassAppearance(color: Colors.white.withAlpha(20),blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2)),
       );
 
   @override

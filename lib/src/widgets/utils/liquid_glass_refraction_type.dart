@@ -11,6 +11,14 @@ sealed class LiquidGlassRefractionType {
   /// Scales the visible effect while preserving calculation semantics.
   LiquidGlassRefractionType withEffectFactor(double factor);
 
+  /// Scales [width] only, leaving the strength dials alone.
+  ///
+  /// For a surface that grows into its final size, the band has to grow
+  /// with it — a width authored for the full-size glass is a huge
+  /// proportion of a small one, so it would swallow the whole surface at
+  /// the start of the animation.
+  LiquidGlassRefractionType withWidthFactor(double factor);
+
   /// Whether this selects the physical optical calculation.
   bool get isOptical => this is OpticalRefraction;
 }
@@ -35,6 +43,12 @@ class StandardRefraction extends LiquidGlassRefractionType {
   StandardRefraction withEffectFactor(double factor) => StandardRefraction(
         distortion: distortion * factor,
         distortionWidth: distortionWidth,
+      );
+
+  @override
+  StandardRefraction withWidthFactor(double factor) => StandardRefraction(
+        distortion: distortion,
+        distortionWidth: distortionWidth * factor,
       );
 }
 
@@ -73,5 +87,12 @@ class OpticalRefraction extends LiquidGlassRefractionType {
         refraction: 1.0 + (refraction - 1.0) * factor,
         refractionWidth: refractionWidth,
         depth: depth * factor,
+      );
+
+  @override
+  OpticalRefraction withWidthFactor(double factor) => OpticalRefraction(
+        refraction: refraction,
+        refractionWidth: refractionWidth * factor,
+        depth: depth,
       );
 }

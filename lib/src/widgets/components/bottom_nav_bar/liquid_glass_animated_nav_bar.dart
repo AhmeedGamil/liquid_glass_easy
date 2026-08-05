@@ -53,6 +53,21 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// selected tab is colored via the shell's `selectedIndex`.
   final bool showSelectionPill;
 
+  /// Whether the OUTER pipeline must keep capturing even while the glass
+  /// pill is hidden.
+  ///
+  /// The outer view exists to composite the moving pill, but the host's own
+  /// lens-anywhere widgets — an app bar, a side action, extra `lenses` —
+  /// also live in it and refract its capture. When there are none, the
+  /// capture has nothing to feed the moment the pill is gone, and running it
+  /// rasterizes the whole page every frame for a view that composites
+  /// nothing. That is the difference between the glass-pill bar and the
+  /// plain one on an idle screen.
+  ///
+  /// `false` (the default) lets the capture stop at rest and wake with the
+  /// pill. Hosts that put lenses in [outerChild] must pass `true`.
+  final bool outerNeedsRealtime;
+
   /// Bar geometry (size, position, padding). The bottom margin should
   /// already include any safe-area inset.
   final LiquidGlassBottomNavBarLayout layout;
@@ -112,6 +127,19 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// Magnification of the content seen through the glass pill.
   final double pillMagnification;
 
+  /// Cancels the pill's magnification on the icon layer so the glyphs
+  /// hold still as the pill travels. See
+  /// [LiquidGlassNavPillStyle.anchorMagnification].
+  final bool pillAnchorMagnification;
+
+  /// The magnification actually in force on the pill: [pillRefraction]'s
+  /// when a full refraction config supersedes the flat knobs, else
+  /// [pillMagnification] — resolved the same way
+  /// `buildLiquidGlassBottomNavPill` resolves it, so the correction can
+  /// never disagree with the lens it is correcting.
+  double get _effectivePillMagnification =>
+      pillRefraction?.magnification ?? pillMagnification;
+
   /// When `true`, the glass pill's inner area is transparent.
   final bool pillEnableInnerRadiusTransparent;
 
@@ -168,6 +196,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     required this.layout,
     this.itemStyle = const LiquidGlassNavItemStyle(),
     this.showSelectionPill = true,
+    this.outerNeedsRealtime = false,
     this.outerLenses = const [],
     this.outerChild,
     this.backgroundColor,
@@ -181,6 +210,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.pillDistortionWidth = 10,
     this.pillRefraction,
     this.pillMagnification = 1,
+    this.pillAnchorMagnification = false,
     this.pillEnableInnerRadiusTransparent = false,
     this.pillShape,
     this.pillColor = const Color(0x1CFFFFFF),
@@ -801,7 +831,15 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             controller: _outerViewController,
             pixelRatio: widget.pixelRatio,
             useSync: widget.useSync,
-            realTimeCapture: true,
+            // Only capture while there is something to composite. With the
+            // pill hidden and no host lenses this view rasterizes the whole
+            // page every frame and draws nothing with it — the reason an
+            // idle glass-pill bar cost far more than the plain one.
+            //
+            // `LiquidGlassView.didUpdateWidget` syncs its enabled flag when
+            // this flips, and the morph ticker rebuilds on every tick, so
+            // the capture wakes on the same frame the pill appears.
+            realTimeCapture: glassOn || widget.outerNeedsRealtime,
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
             backgroundWidget: _buildInner(
@@ -963,6 +1001,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
               layout: layout,
               left: _barLeft,
               bottom: _effBottomMargin,
+              magnification: widget._effectivePillMagnification,
+              anchorMagnification: widget.pillAnchorMagnification,
               highlightFrac: pillFrac,
               highlightWidth: pillW,
               highlightHeight: pillH,
