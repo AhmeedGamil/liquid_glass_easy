@@ -65,7 +65,6 @@ class LiquidGlassNavItemStyle {
   FontWeight fontWeightFor({required bool selected}) =>
       selected ? selectedFontWeight : unselectedFontWeight;
 
-
   LiquidGlassNavItemStyle copyWith({
     Color? selectedColor,
     Color? unselectedColor,
@@ -141,31 +140,6 @@ class LiquidGlassNavPillStyle {
   /// [mode]s only). `1` = none.
   final double magnification;
 
-  /// Holds the icons **still** under a magnifying glass pill (glass
-  /// [mode]s only). Default `false` — the bar renders exactly as it
-  /// always has.
-  ///
-  /// A magnification other than `1` scales what the pill covers about the
-  /// **pill's own centre**, and that centre travels. Content sitting `u`
-  /// away from it is drawn at `u · magnification`, so as the pill
-  /// approaches a tab its glyph is pulled toward the pill and released
-  /// again as it leaves — the icons appear to swim, and the copy under
-  /// the pill sits offset from the copy outside it.
-  ///
-  /// Setting this `true` pre-scales the inside-the-pill row — icons and
-  /// labels together — by `1 / magnification` about that same centre,
-  /// which the pill's magnification then undoes exactly. The glyphs land
-  /// at their true size and position wherever the pill happens to be.
-  /// The clip itself is left alone: it has to stay on the pill's real
-  /// outline, since the glass only bends what it covers and a grown mask
-  /// would simply hang outside the pill.
-  ///
-  /// Only the glyph layer is corrected. The bar capsule and the page
-  /// behind it are still magnified, so the bar keeps reading smaller
-  /// through the glass — which is the reason to use a magnification below
-  /// `1` in the first place.
-  final bool anchorMagnification;
-
   /// When `true`, the glass pill's inner area is transparent (glass
   /// [mode]s only).
   final bool enableInnerRadiusTransparent;
@@ -233,7 +207,6 @@ class LiquidGlassNavPillStyle {
     this.distortion = 0.06,
     this.distortionWidth = 10,
     this.magnification = 1,
-    this.anchorMagnification = false,
     this.enableInnerRadiusTransparent = false,
     this.shape,
     this.glassStyle,
@@ -272,7 +245,6 @@ class LiquidGlassNavPillStyle {
     double? distortion,
     double? distortionWidth,
     double? magnification,
-    bool? anchorMagnification,
     bool? enableInnerRadiusTransparent,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
@@ -293,7 +265,6 @@ class LiquidGlassNavPillStyle {
       distortion: distortion ?? this.distortion,
       distortionWidth: distortionWidth ?? this.distortionWidth,
       magnification: magnification ?? this.magnification,
-      anchorMagnification: anchorMagnification ?? this.anchorMagnification,
       enableInnerRadiusTransparent:
           enableInnerRadiusTransparent ?? this.enableInnerRadiusTransparent,
       shape: shape ?? this.shape,

@@ -7,6 +7,7 @@ import '../../utils/liquid_glass_jelly_resolver.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_morph_pill.dart';
 import 'liquid_glass_slider_layout.dart';
+import 'liquid_glass_slider_touch.dart';
 
 /// Builds the moving glass thumb at the requested track position.
 /// Place the result in the OUTER `LiquidGlassView`'s `children:`
@@ -53,6 +54,11 @@ LiquidGlass buildLiquidGlassSliderThumb({
   /// Optional content rendered inside the lens, above the glass (e.g.
   /// the white rest handle + its gesture surface).
   Widget? child,
+
+  /// **Experimental.** When supplied, this deformation is used instead of
+  /// the jelly's — the [LiquidGlassSliderTouch] model. The jelly springs
+  /// are not consulted at all; the caller simply stops ticking them.
+  LiquidGlassSliderTouchDeform? touchDeform,
 }) {
   final f = growFraction.clamp(0.0, 1.0);
   final extraW = layout.thumbExtraWidth * f;
@@ -79,9 +85,12 @@ LiquidGlass buildLiquidGlassSliderThumb({
     alongFloor: -layout.thumbWidth * 0.45,
     crossFloor: -layout.thumbHeight * 0.4,
   );
-  final double deltaW = deform.along;
-  final double deltaH = deform.cross;
-  final double centerBiasX = deform.bias;
+  // The experimental touch model replaces the jelly's output wholesale,
+  // lean included — it carries its own, split from the elongation rather
+  // than sprung separately.
+  final double deltaW = touchDeform?.along ?? deform.along;
+  final double deltaH = touchDeform?.cross ?? deform.cross;
+  final double centerBiasX = touchDeform?.bias ?? deform.bias;
 
   final pillW = layout.thumbWidth + extraW + deltaW;
   final pillH = layout.thumbHeight + extraH + deltaH;

@@ -127,19 +127,6 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// Magnification of the content seen through the glass pill.
   final double pillMagnification;
 
-  /// Cancels the pill's magnification on the icon layer so the glyphs
-  /// hold still as the pill travels. See
-  /// [LiquidGlassNavPillStyle.anchorMagnification].
-  final bool pillAnchorMagnification;
-
-  /// The magnification actually in force on the pill: [pillRefraction]'s
-  /// when a full refraction config supersedes the flat knobs, else
-  /// [pillMagnification] — resolved the same way
-  /// `buildLiquidGlassBottomNavPill` resolves it, so the correction can
-  /// never disagree with the lens it is correcting.
-  double get _effectivePillMagnification =>
-      pillRefraction?.magnification ?? pillMagnification;
-
   /// When `true`, the glass pill's inner area is transparent.
   final bool pillEnableInnerRadiusTransparent;
 
@@ -210,7 +197,6 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.pillDistortionWidth = 10,
     this.pillRefraction,
     this.pillMagnification = 1,
-    this.pillAnchorMagnification = false,
     this.pillEnableInnerRadiusTransparent = false,
     this.pillShape,
     this.pillColor = const Color(0x1CFFFFFF),
@@ -1001,8 +987,6 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
               layout: layout,
               left: _barLeft,
               bottom: _effBottomMargin,
-              magnification: widget._effectivePillMagnification,
-              anchorMagnification: widget.pillAnchorMagnification,
               highlightFrac: pillFrac,
               highlightWidth: pillW,
               highlightHeight: pillH,

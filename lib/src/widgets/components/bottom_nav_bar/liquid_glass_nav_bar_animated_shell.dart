@@ -69,16 +69,6 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   /// Absolute bottom inset of the bar. Defaults to `layout.bottomMargin`.
   final double? bottom;
 
-  /// The moving glass pill's magnification, so the inside-the-pill layer
-  /// can cancel it when [anchorMagnification] is set. `1` is a no-op.
-  final double magnification;
-
-  /// Pre-scales the inside-the-pill layer by `1 / magnification` about
-  /// the pill's centre, so the glass magnification lands the glyphs back
-  /// on their true size and position instead of dragging them along as
-  /// the pill travels. See [LiquidGlassNavPillStyle.anchorMagnification].
-  final bool anchorMagnification;
-
   const LiquidGlassAnimatedBottomNavBarShell({
     super.key,
     required this.items,
@@ -90,8 +80,6 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
     this.highlightHeight,
     this.left,
     this.bottom,
-    this.magnification = 1,
-    this.anchorMagnification = false,
   });
 
   @override
@@ -151,15 +139,11 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
                     pillRect: _pillRect(),
                     pillRadius: highlightHeight! / 2,
                   ),
-                  child: _cancelMagnification(
-                    NavBarIconRow(
-                      items: items,
-                      layout: layout,
-                      itemStyle: itemStyle,
-                      forceSelected: true,
-                      // The layer the glass pill covers.
-                      underPill: true,
-                    ),
+                  child: NavBarIconRow(
+                    items: items,
+                    layout: layout,
+                    itemStyle: itemStyle,
+                    forceSelected: true,
                   ),
                 ),
               ),
@@ -188,34 +172,6 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
         padding: EdgeInsets.only(bottom: effBottom),
         child: innerStack,
       ),
-    );
-  }
-
-  /// Pre-applies the inverse of the pill's magnification to the
-  /// inside-the-pill layer, so the glass puts it back exactly where it
-  /// started. Returns [child] untouched — the very same widget, no extra
-  /// node in the tree — unless [anchorMagnification] is on and there is a
-  /// magnification to cancel.
-  ///
-  /// Applied **inside** the clip, to the row alone. The mask has to stay
-  /// on the pill's real outline: the glass only bends what it covers, so
-  /// a scaled-up clip would simply hang outside the pill with nothing to
-  /// shrink it back — revealing the selected copy beyond the glass.
-  ///
-  /// The scale is taken about the pill's centre because that is the point
-  /// the shader magnifies about (`magPx = lensCenter + (frag −
-  /// lensCenter) / m`), so `1 / m` about the same centre is its exact
-  /// inverse — at any pill position, which is what stops the drift.
-  Widget _cancelMagnification(Widget child) {
-    final double m = magnification;
-    if (!anchorMagnification || m <= 0 || m == 1) return child;
-    final Offset c = _pillRect().center;
-    return Transform(
-      transform: Matrix4.identity()
-        ..translateByDouble(c.dx, c.dy, 0, 1)
-        ..scaleByDouble(1 / m, 1 / m, 1, 1)
-        ..translateByDouble(-c.dx, -c.dy, 0, 1),
-      child: child,
     );
   }
 

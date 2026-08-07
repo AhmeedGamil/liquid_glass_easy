@@ -24,28 +24,10 @@ class LiquidGlassGlyph {
   /// entry).
   final bool selected;
 
-  /// Whether this layer is the copy drawn **inside the moving selection
-  /// pill** — the one the pill reveals as it travels. Always `false` on
-  /// hosts with no moving pill, and on the outside-the-pill copy.
-  ///
-  /// Both copies are drawn for **every** tab each frame, so this is
-  /// `true` for all of them on that layer; the pill's clip decides which
-  /// is actually visible, exactly as it does for [selected]. Use it to
-  /// give the revealed art its own treatment — a larger glyph under the
-  /// glass, say — rather than only its own colour.
-  ///
-  /// Whatever it returns is still boxed to [size], so a bigger size only
-  /// survives if the host's `iconSize` (or `labelFontSize`) is at least
-  /// that large. The box is what keeps the two copies laid out
-  /// identically, which is what lets the pill's clip cut between them
-  /// without the art stepping at the seam.
-  final bool underPill;
-
   const LiquidGlassGlyph({
     required this.color,
     required this.size,
     this.selected = false,
-    this.underPill = false,
   });
 }
 
@@ -92,7 +74,6 @@ Widget liquidGlassBoxedGlyph(
   required Color color,
   required double size,
   bool selected = false,
-  bool underPill = false,
 }) {
   return SizedBox(
     width: size,
@@ -101,75 +82,7 @@ Widget liquidGlassBoxedGlyph(
       fit: BoxFit.scaleDown,
       child: builder(
         context,
-        LiquidGlassGlyph(
-          color: color,
-          size: size,
-          selected: selected,
-          underPill: underPill,
-        ),
-      ),
-    ),
-  );
-}
-
-/// Builds a tab's **label**, anywhere the package would otherwise draw
-/// its plain `Text`.
-///
-/// Handed the same [LiquidGlassGlyph] the icon builder gets — same
-/// resolved [LiquidGlassGlyph.color], same [LiquidGlassGlyph.selected],
-/// same [LiquidGlassGlyph.underPill] — so a label can follow its icon
-/// into the pill instead of being the one part that cannot react.
-/// [LiquidGlassGlyph.size] carries the resolved **font size** for the
-/// layer rather than an icon box.
-///
-/// ```dart
-/// labelBuilder: (context, l) => Text(
-///   'Home',
-///   style: TextStyle(
-///     fontSize: l.underPill ? 12 : 10,
-///     color: l.color,
-///   ),
-/// )
-/// ```
-typedef LiquidGlassLabelBuilder = Widget Function(
-  BuildContext context,
-  LiquidGlassGlyph label,
-);
-
-/// The line box a custom label is fitted into, as a multiple of the
-/// resolved font size.
-///
-/// Labels need the same fixed box the glyphs get, and for the same
-/// reason: the inside- and outside-the-pill copies of a tab must lay out
-/// identically or the reveal steps at the seam. A label free to change
-/// its font size would change its cell's height with it and drag the
-/// icon above it along. Comfortably clears a line of text at the box's
-/// font size, so a label that does not grow is never scaled.
-const double kLiquidGlassLabelLineBox = 1.45;
-
-/// Runs [builder] and **boxes** the result to one line at [fontSize],
-/// scaling down anything larger — the label counterpart of
-/// [liquidGlassBoxedGlyph].
-Widget liquidGlassBoxedLabel(
-  BuildContext context,
-  LiquidGlassLabelBuilder builder, {
-  required Color color,
-  required double fontSize,
-  bool selected = false,
-  bool underPill = false,
-}) {
-  return SizedBox(
-    height: fontSize * kLiquidGlassLabelLineBox,
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: builder(
-        context,
-        LiquidGlassGlyph(
-          color: color,
-          size: fontSize,
-          selected: selected,
-          underPill: underPill,
-        ),
+        LiquidGlassGlyph(color: color, size: size, selected: selected),
       ),
     ),
   );

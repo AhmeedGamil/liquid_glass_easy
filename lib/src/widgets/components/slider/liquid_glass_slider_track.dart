@@ -47,8 +47,20 @@ class LiquidGlassSliderTrack extends StatelessWidget {
   /// Current value in 0..1.
   final double value;
 
+  /// Where the thumb is being **drawn**, when that differs from [value] —
+  /// motion models that tow the handle behind the finger pass it here so
+  /// the fill (and the rest thumb) stay attached to the pill instead of
+  /// leading it to the finger. Purely visual: every callback still speaks
+  /// [value]. `null` means they coincide.
+  final double? displayValue;
+
   /// Notified continuously while the user drags.
   final ValueChanged<double> onChanged;
+
+  /// The unclamped position under the finger, in value units, reported on
+  /// every drag update. Optional: only motion models that care about the
+  /// overrun past an end need it.
+  final ValueChanged<double>? onRawChanged;
 
   /// Notified when the user starts a drag (or taps).
   final ValueChanged<double>? onChangeStart;
@@ -78,7 +90,9 @@ class LiquidGlassSliderTrack extends StatelessWidget {
   const LiquidGlassSliderTrack({
     super.key,
     required this.value,
+    this.displayValue,
     required this.onChanged,
+    this.onRawChanged,
     this.onChangeStart,
     this.onChangeEnd,
     this.showRestThumb = true,
@@ -89,16 +103,25 @@ class LiquidGlassSliderTrack extends StatelessWidget {
   });
 
   void _handle(double localX) {
-    final clamped = (localX / layout.width).clamp(0.0, 1.0);
-    onChanged(clamped);
+    final raw = localX / layout.width;
+    // The raw, UNCLAMPED position under the finger, reported alongside the
+    // clamped value. Past the ends of the track it keeps going, which is
+    // the only record of how far the finger has overrun — the clamped
+    // value simply sits at 0 or 1 and says nothing.
+    onRawChanged?.call(raw);
+    onChanged(raw.clamp(0.0, 1.0));
   }
 
   @override
   Widget build(BuildContext context) {
     final trackRadius = layout.trackHeight / 2;
 
+    // Everything DRAWN follows the thumb's drawn position; [value] is
+    // only what the gesture callbacks speak.
+    final double shown = (displayValue ?? value).clamp(0.0, 1.0).toDouble();
+
     // Rest thumb position — center on the value.
-    final thumbCenterX = value * layout.travel;
+    final thumbCenterX = shown * layout.travel;
     final thumbLeft = thumbCenterX - layout.thumbWidth / 2;
 
     // The gesture box is widened by hitSlopX on each side; the visible
@@ -148,7 +171,7 @@ class LiquidGlassSliderTrack extends StatelessWidget {
                       ),
                       // Filled portion.
                       FractionallySizedBox(
-                        widthFactor: value,
+                        widthFactor: shown,
                         heightFactor: 1,
                         child: Container(
                           decoration: BoxDecoration(

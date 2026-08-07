@@ -37,10 +37,7 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart'
 // CustomPaint) and the state it is handed — resolved color, box size,
 // and whether this layer draws the selected state.
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_glyph.dart'
-    show
-        LiquidGlassGlyph,
-        LiquidGlassGlyphBuilder,
-        LiquidGlassLabelBuilder;
+    show LiquidGlassGlyph, LiquidGlassGlyphBuilder;
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_draggable.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_border_mode.dart';
@@ -76,6 +73,11 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_jelly.dart
 // internal.
 export 'package:liquid_glass_easy/src/widgets/components/slider/liquid_glass_slider.dart'
     show LiquidGlassSlider, LiquidGlassSliderLayout;
+// EXPERIMENTAL, branch-only: the centre-relative thumb motion model. Sits
+// beside the shipped jelly — `LiquidGlassSlider.touch` opts in, null keeps
+// the jelly. Not part of the public API yet.
+export 'package:liquid_glass_easy/src/widgets/components/slider/liquid_glass_slider_touch.dart'
+    show LiquidGlassSliderTouch;
 export 'package:liquid_glass_easy/src/widgets/components/toggle/liquid_glass_toggle.dart'
     show LiquidGlassToggle, LiquidGlassToggleLayout;
 // Scaffold: a Scaffold-style layout that owns the LiquidGlassView

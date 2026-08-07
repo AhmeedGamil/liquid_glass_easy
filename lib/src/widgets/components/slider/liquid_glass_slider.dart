@@ -3,12 +3,14 @@ import 'dart:math' as math;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
 import '../../utils/liquid_glass_jelly_config.dart';
 import '../../utils/liquid_glass_jelly_spring.dart';
+import 'liquid_glass_slider_touch.dart';
 import 'liquid_glass_slider_layout.dart';
 import 'liquid_glass_slider_thumb.dart';
 import 'liquid_glass_slider_track.dart';
@@ -83,6 +85,20 @@ class LiquidGlassSlider extends StatefulWidget {
   /// fields — springs, stretch/squash amounts, anchors — are honored.
   final LiquidGlassJellyConfig jelly;
 
+  /// **Experimental.** An alternative motion model for the thumb: the
+  /// handle is towed toward your finger rather than pinned to it, and the
+  /// gap that opens between them is what stretches the pill — including
+  /// against the ends of the track, where the handle stops and the finger
+  /// does not. See [LiquidGlassSliderTouch].
+  ///
+  /// Only where the glass is *drawn* lags; [value] and [onChanged] are
+  /// reported exactly as before.
+  ///
+  /// `null` (the default) leaves the shipped [jelly] in charge and this
+  /// costs nothing: no second driver, no second ticker. Supply one and it
+  /// takes over the thumb's deformation entirely; [jelly] is then unused.
+  final LiquidGlassSliderTouch? touch;
+
   const LiquidGlassSlider({
     super.key,
     required this.value,
@@ -106,6 +122,7 @@ class LiquidGlassSlider extends StatefulWidget {
       recoilAnchor: 1.0,
       directionTau: 0.42,
     ),
+    this.touch,
   });
 
   @override
@@ -117,8 +134,16 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   final LiquidGlassViewController _viewController = LiquidGlassViewController();
 
   /// Grow envelope: ramps 0→1 on touch-down, holds while dragging,
-  /// reverses to 0 on release.
+  /// reverses to 0 on release. Drives the JELLY path only.
   late final AnimationController _grow;
+
+  /// Touch-path grow envelope — a spring instead of the linear [_grow]:
+  /// it pops on grab, holds the glass through the post-release glide and
+  /// the violent part of the wobble, and then carries the morph back to
+  /// the white pill. The white pill's opacity rides the same value, so
+  /// both directions read as one springy transition, never a hard swap.
+  double _touchGrow = 0;
+  double _touchGrowVel = 0;
 
   bool _dragging = false;
 
@@ -137,6 +162,14 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
           ? widget.jelly
           : widget.jelly.copyWith(style: LiquidGlassJellyStyle.squashStretch);
 
+  /// The experimental touch simulation, built only when
+  /// [LiquidGlassSlider.touch] is supplied. Mutually exclusive with
+  /// [_jelly]: whichever is live is the only one ticked.
+  LiquidGlassSliderTouchDriver? _touch;
+
+  /// Whether the experimental model is driving this frame.
+  bool get _usesTouch => widget.touch != null;
+
   /// Last ticker `elapsed`, used as the spring integrator's `dt`.
   Duration? _jellyTickerLast;
   Ticker? _jellyTicker;
@@ -147,14 +180,39 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   double _gesturePadX = 0;
   double _gestureInnerWidth = 1;
 
+  /// Where on the handle the finger landed, in value units — nonzero
+  /// only for touch-model thumb grabs. Subtracting it makes the drag
+  /// **relative**, the iOS behavior: grabbing the pill off-centre must
+  /// not jump the value, and must not open a phantom finger-to-handle
+  /// gap that would fire a stretch on a stationary grab.
+  double _grabOffset = 0;
+
+  /// Whether the finger is currently overrun past a track end — edge for
+  /// the iOS haptic tick, fired once per entry into the overrun.
+  bool _edgeFired = false;
+
+  double _rawFromGlobal(Offset globalPosition) {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return widget.value;
+    final local = box.globalToLocal(globalPosition);
+    return (local.dx - _gesturePadX) / _gestureInnerWidth;
+  }
+
+  /// Feeds the touch model, ticking like iOS when the thumb runs into a
+  /// stop. All raw-value paths funnel through here.
+  void _pumpTouch(double raw) {
+    _touch?.pump(raw);
+    final bool overrun = raw < 0.0 || raw > 1.0;
+    if (overrun && !_edgeFired) HapticFeedback.lightImpact();
+    _edgeFired = overrun;
+  }
+
   /// Maps a global pointer position to a slider value and reports it.
   void _handleGlobalDrag(Offset globalPosition) {
-    final box = context.findRenderObject() as RenderBox?;
-    if (box == null) return;
-    final local = box.globalToLocal(globalPosition);
-    final clamped =
-        ((local.dx - _gesturePadX) / _gestureInnerWidth).clamp(0.0, 1.0);
-    _onChanged(clamped);
+    // Unclamped: the overrun past an end is what stretches the pill.
+    final raw = _rawFromGlobal(globalPosition) - _grabOffset;
+    if (_usesTouch) _pumpTouch(raw);
+    _onChanged(raw.clamp(0.0, 1.0));
   }
 
   @override
@@ -187,6 +245,11 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   /// Called every tick so a live change to [LiquidGlassSlider.jelly]
   /// applies immediately, matching the old inline behavior.
   void _syncJellyConfig() {
+    final touch = widget.touch;
+    if (touch != null) {
+      (_touch ??= LiquidGlassSliderTouchDriver(spec: touch)).spec = touch;
+      return;
+    }
     _jelly
       ..stiffness = widget.jelly.stiffness
       ..damping = widget.jelly.damping
@@ -198,11 +261,32 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   void _onStart(double v) {
     _dragging = true;
     _viewController.startRealtimeCapture();
-    _grow
-      ..stop()
-      ..forward(from: _grow.value);
+    // The touch path sizes the glass with its own spring (ticked in
+    // [_onJellyTick]); the linear controller drives the jelly path only.
+    if (!_usesTouch) {
+      _grow
+        ..stop()
+        ..forward(from: _grow.value);
+    }
     _syncJellyConfig();
-    _jelly.start(widget.value);
+    if (_usesTouch) {
+      _edgeFired = false;
+      // Where on the handle the finger landed, about the handle's own
+      // centre. [_grabOffset] was stashed by the thumb recognizer before
+      // this ran (zeroed for track grabs) — in value units, converted to
+      // a fraction of the handle's half-width. That fraction is the sign
+      // of the model: it says which side is being held, and pulling out
+      // past that side is what stretches.
+      final double travel = math.max(1.0, _gestureInnerWidth);
+      final double halfThumb = widget.layout.thumbWidth / 2;
+      final double grabPx = _grabOffset * travel;
+      _touch!.start(
+        widget.value,
+        grab: halfThumb > 0 ? (grabPx / halfThumb).clamp(-1.0, 1.0) : 0.0,
+      );
+    } else {
+      _jelly.start(widget.value);
+    }
     _jellyTickerLast = null;
     _jellyTicker?.start();
     widget.onChangeStart?.call(v);
@@ -210,13 +294,22 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
 
   void _onChanged(double v) {
     widget.onChanged(v);
-    _jelly.pump(v);
+    // The touch model is pumped with the RAW value at the call sites that
+    // have one (the thumb drag here, the track's onRawChanged) — never
+    // with this clamped one, which would erase the overrun.
+    if (!_usesTouch) _jelly.pump(v);
   }
 
   void _onEnd(double v) {
     _dragging = false;
-    _grow.reverse(from: _grow.value);
-    _jelly.release(); // spring momentum carries the overshoot
+    if (_usesTouch) {
+      // The grow spring decides its own way back — it waits for the
+      // handle to land and the wobble to calm before morphing to white.
+      _touch?.release(); // spring momentum carries the settle
+    } else {
+      _grow.reverse(from: _grow.value);
+      _jelly.release(); // spring momentum carries the overshoot
+    }
     widget.onChangeEnd?.call(v);
   }
 
@@ -226,7 +319,44 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
     _jellyTickerLast = elapsed;
 
     _syncJellyConfig();
-    final settled = _jelly.tick(dt, dragging: _dragging);
+    bool settled;
+    if (_usesTouch) {
+      final driverSettled = _touch!.tick(dt);
+      bool growSettled = false;
+      if (dt > 0) {
+        // The grow spring's target: full glass while the finger is down,
+        // and after release for as long as the handle is still gliding
+        // to its value or the wobble is still violent — only then does
+        // it carry the morph back to the white pill.
+        final double travel = math.max(1.0, _gestureInnerWidth);
+        final bool landed =
+            (_touch!.renderValue - widget.value).abs() * travel < 2.0;
+        final double target =
+            _dragging || (!landed && !driverSettled) || !_touch!.isCalm
+                ? 1.0
+                : 0.0;
+        final (g, gv) = liquidGlassSpringStep(
+          x: _touchGrow,
+          vel: _touchGrowVel,
+          target: target,
+          dt: dt,
+          stiffness: 420,
+          damping: 26,
+        );
+        _touchGrow = g;
+        _touchGrowVel = gv;
+        growSettled = target == 0 &&
+            _touchGrow.abs() < 0.002 &&
+            _touchGrowVel.abs() < 0.02;
+        if (growSettled) {
+          _touchGrow = 0;
+          _touchGrowVel = 0;
+        }
+      }
+      settled = driverSettled && growSettled;
+    } else {
+      settled = _jelly.tick(dt, dragging: _dragging);
+    }
     if (settled) _jellyTicker?.stop();
     if (mounted) setState(() {});
   }
@@ -234,6 +364,8 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   @override
   Widget build(BuildContext context) {
     final layout = widget.layout;
+    // Jelly path only — the touch path swaps nothing: its white pill is
+    // faded by the grow spring below, so glass and pill cross-morph.
     final bool glassActive = _dragging || _grow.isAnimating;
 
     // Padding so the grown AND jelly-deformed thumb is always fully
@@ -250,14 +382,31 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
     // very large stretch, may briefly reach the view edge).
     final jelly = _effectiveJelly;
     final maxPillW = layout.thumbWidth + layout.thumbExtraWidth;
-    final padX = maxPillW / 2;
+    final touch = widget.touch;
+    // The touch model's stretch peaks exactly at the track ends — the
+    // rubber-band overrun — and leans toward the finger, so its leading
+    // edge reaches past the half-pill overhang and would be cut off at
+    // the view edge. Budget for it: the full stretch, lean-weighted,
+    // with slack for the spring's overshoot past its target, plus the
+    // press swell. The jelly keeps the original padding untouched.
+    final double touchOverhang = touch != null
+        ? touch.stretch * (1 + touch.lean) / 2 * 1.2 +
+            touch.holdScale * maxPillW / 2
+        : 0.0;
+    final padX = maxPillW / 2 + touchOverhang;
     // Vertical: half of the (grown + stretched) pill beyond the track.
     // The stretch style gains height during the stop-recoil
     // (squashHeight × recoilScale at peak spring overshoot) instead of
     // the pinch style's thumbStretchHeight.
-    final jellyHeightGain = jelly.style == LiquidGlassJellyStyle.squashStretch
-        ? jelly.squashHeight * jelly.recoilScale * jellyPeak
-        : layout.thumbStretchHeight * jellyPeak;
+    // The experimental model has its own budget: the driver caps its
+    // cross growth (recoil swell + press swell included) at half the
+    // thumb height, so budget exactly that. Its stretch lives in padX's
+    // overhang like the jelly's does.
+    final jellyHeightGain = touch != null
+        ? layout.thumbHeight * 0.5
+        : (jelly.style == LiquidGlassJellyStyle.squashStretch
+            ? jelly.squashHeight * jelly.recoilScale * jellyPeak
+            : layout.thumbStretchHeight * jellyPeak);
     final maxPillH =
         layout.thumbHeight + layout.thumbExtraHeight + jellyHeightGain;
     final padY = math.max(0.0, (maxPillH - layout.thumbHeight) / 2) + 2.0;
@@ -283,6 +432,16 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
 
     _gesturePadX = padX;
     _gestureInnerWidth = math.max(1.0, innerLayout.width);
+    // The gap the model stretches across is measured in pixels, so it
+    // needs the track length to convert from value units.
+    _touch?.travel = innerLayout.travel;
+    // Idle = the ticker is not running, so nothing else will ever move
+    // the towed handle: adopt a programmatic [widget.value] change
+    // directly, or the thumb (and the fill attached to it) stays frozen
+    // at the last gesture's position.
+    if (_usesTouch && !_dragging && !(_jellyTicker?.isActive ?? false)) {
+      _touch!.syncTo(widget.value);
+    }
 
     return SizedBox(
       width: viewWidth,
@@ -306,8 +465,18 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
               top: padY,
               child: LiquidGlassSliderTrack(
                 value: widget.value,
+                // iOS attaches the fill to the thumb, not the finger: the
+                // fill edge rides the towed handle wherever it is drawn,
+                // never poking out ahead of the pill on a fast drag.
+                displayValue: _usesTouch ? _touch!.renderValue : null,
                 onChanged: _onChanged,
-                onChangeStart: _onStart,
+                onRawChanged: _usesTouch ? _pumpTouch : null,
+                // A track grab holds nothing — the finger is off the
+                // handle, so there is no grab offset to honor.
+                onChangeStart: (v) {
+                  _grabOffset = 0;
+                  _onStart(v);
+                },
                 onChangeEnd: _onEnd,
                 // The white rest handle is rendered INSIDE the glass
                 // lens (as its child) so it sits ON TOP of the glass
@@ -335,8 +504,12 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
             layout: innerLayout,
             trackLeft: padX,
             trackBottom: padY,
-            value: widget.value,
-            growFraction: _grow.value,
+            // The touch model tows the handle toward the finger rather
+            // than pinning it to the value, and that lag is what opens the
+            // gap it stretches across. The reported value is unaffected —
+            // only where the glass is drawn.
+            value: _usesTouch ? _touch!.renderValue : widget.value,
+            growFraction: _usesTouch ? _touchGrow : _grow.value,
             // The stretch style is driven by the speed-based
             // deform spring (sign = stretch vs recoil); the pinch
             // style keeps the direction-signed spring.
@@ -348,6 +521,14 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
             motionSign: _jelly.direction,
             jelly: jelly,
             style: widget.style,
+            // Experimental path: when supplied this replaces the jelly's
+            // deformation outright.
+            touchDeform: _usesTouch
+                ? _touch?.deformFor(
+                    thumbWidth: innerLayout.thumbWidth,
+                    thumbHeight: innerLayout.thumbHeight,
+                  )
+                : null,
             // Once the user lands on the thumb we want the slider to OWN
             // the gesture: grabbing the pill and moving vertically should
             // hold/adjust the slider, never scroll an ancestor list. A
@@ -371,6 +552,15 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
                       // glass grows the instant the thumb is grabbed.
                       ..dragStartBehavior = DragStartBehavior.down
                       ..onStart = (d) {
+                        // iOS thumb drags are RELATIVE: record where on
+                        // the handle the finger landed and subtract it
+                        // from every update, so an off-centre grab
+                        // neither jumps the value nor opens a phantom
+                        // gap (which would stretch a stationary thumb).
+                        // The jelly path keeps its shipped behavior.
+                        _grabOffset = _usesTouch
+                            ? _rawFromGlobal(d.globalPosition) - widget.value
+                            : 0.0;
                         _onStart(widget.value);
                         _handleGlobalDrag(d.globalPosition);
                       }
@@ -388,18 +578,32 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
                   },
                 ),
               },
-              // White rest handle, drawn over the glass. Hidden (but
-              // still hit-testable) while the glass is active.
-              child: glassActive
-                  ? const SizedBox.expand()
-                  : Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(
-                          innerLayout.thumbHeight / 2,
+              // White rest handle, drawn over the glass. Touch path: it
+              // is never swapped — its opacity rides the grow spring, so
+              // white and glass cross-morph in one springy motion (the
+              // 1.6 factor finishes the fade early in the grow, and the
+              // radius stays a capsule at every in-between size). Jelly
+              // path keeps the shipped swap.
+              child: _usesTouch
+                  ? Opacity(
+                      opacity: (1.0 - _touchGrow * 1.6).clamp(0.0, 1.0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                       ),
-                    ),
+                    )
+                  : glassActive
+                      ? const SizedBox.expand()
+                      : Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(
+                              innerLayout.thumbHeight / 2,
+                            ),
+                          ),
+                        ),
             ),
           ),
         ],

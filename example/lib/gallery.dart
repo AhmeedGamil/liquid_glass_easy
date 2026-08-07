@@ -10,6 +10,8 @@ import 'nav_jelly_tuner.dart';
 import 'flex_tuner.dart';
 import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
+import 'settings_glass_page.dart';
+import 'settings_switcher_page.dart';
 import 'slider_jelly_tuner.dart';
 import 'slider_toggle_page.dart';
 import 'split_nav_page.dart';
@@ -134,6 +136,20 @@ class HomePage extends StatelessWidget {
       icon: Icons.tune_rounded,
       gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
       builder: (_) => const BlueSlidersPage(),
+    ),
+    _Destination(
+      title: 'Settings',
+      subtitle: 'Wide glass buttons fused into one surface, over a gradient',
+      icon: Icons.settings_rounded,
+      gradient: const [Color(0xFF9F7BFF), Color(0xFF4C2FAE)],
+      builder: (_) => const SettingsGlassPage(),
+    ),
+    _Destination(
+      title: 'Settings Switches',
+      subtitle: 'Titled list rows that each end in a glass switch',
+      icon: Icons.toggle_off_rounded,
+      gradient: const [Color(0xFF34C759), Color(0xFF1B7A38)],
+      builder: (_) => const SettingsSwitcherPage(),
     ),
     _Destination(
       title: 'Corner Styles',

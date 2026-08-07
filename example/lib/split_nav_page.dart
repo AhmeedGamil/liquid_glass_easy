@@ -104,53 +104,27 @@ class _SplitNavPageState extends State<SplitNavPage> {
   /// and once forced selected inside it, so the red is wiped on as the
   /// pill arrives instead of switching under it.
   ///
-  /// **On the size:** the tab swells while the glass pill is over it —
-  /// [_iconUnderPill] / [_labelUnderPill] on that layer, [_iconRest] /
-  /// [_labelRest] everywhere else. Icon and label read `i.underPill`
-  /// identically, so they grow together instead of the glyph moving
-  /// while the text stays put.
-  ///
-  /// Both builders' output is boxed — the icon to `itemStyle.iconSize`,
-  /// the label to a line at `itemStyle.labelFontSize` — and scaled *down*
-  /// to fit, never up. That box is what keeps the inside- and
+  /// The builder's output is boxed to `itemStyle.iconSize` and scaled
+  /// *down* to fit, never up. That box is what keeps the inside- and
   /// outside-the-pill copies laid out identically so the reveal cuts
-  /// cleanly between them, which is why both style sizes below are set to
-  /// the **larger**, under-pill values.
+  /// cleanly between them.
   static LiquidGlassTabBarItem _tab(IconData icon, String label) {
     return LiquidGlassTabBarItem.custom(
       label: label,
       iconBuilder: (context, i) => Icon(
         icon,
-        size: i.underPill ? _iconUnderPill : _iconRest,
+        size: _iconRest,
         color: i.color,
         shadows: i.selected
             ? [Shadow(color: i.color.withValues(alpha: 0.85), blurRadius: 14)]
             : null,
       ),
-      labelBuilder: (context, l) => Text(
-        label,
-        style: TextStyle(
-          fontSize: l.underPill ? _labelUnderPill : _labelRest,
-          fontWeight: l.selected ? FontWeight.w700 : FontWeight.w600,
-          color: l.color,
-        ),
-      ),
     );
   }
 
-  /// The glyph's size under the glass pill — and therefore
-  /// `itemStyle.iconSize`, the box every glyph is fitted into.
-  static const double _iconUnderPill = 24;
-
-  /// The glyph's size everywhere else.
+  /// The glyph's size — and therefore `itemStyle.iconSize`, the box
+  /// every glyph is fitted into.
   static const double _iconRest = 24;
-
-  /// The label's size under the glass pill — and therefore
-  /// `itemStyle.labelFontSize`, the line box every label is fitted into.
-  static const double _labelUnderPill = 11.5;
-
-  /// The label's size everywhere else.
-  static const double _labelRest = 10;
 
   // One icon per tab: no `selectedIcon` pair anywhere, so the art never
   // changes on selection — the pill and the colour carry the state.
@@ -205,10 +179,8 @@ class _SplitNavPageState extends State<SplitNavPage> {
           // label all read it, on every tab.
           selectedColor: _kBrand,
           unselectedColor: Color(0xD9FFFFFF),
-          // Both boxes, so both have to be the LARGEST state — a builder
-          // can shrink inside its box but never outgrow it.
           iconSize: 24,
-          labelFontSize: _labelUnderPill,
+          labelFontSize: 10,
           iconLabelGap: 2,
           selectedFontWeight: FontWeight.w700,
           unselectedFontWeight: FontWeight.w600,
@@ -216,12 +188,6 @@ class _SplitNavPageState extends State<SplitNavPage> {
         pillStyle: LiquidGlassNavPillStyle(
           mode: LiquidGlassPillMode.both,
           animated: true,
-          // The pill magnifies below 1 so the bar reads smaller through
-          // the glass — but that scales about the pill's own centre,
-          // which moves, dragging the glyphs with it. This cancels the
-          // magnification on the icon layer alone: the bar still shrinks,
-          // the icons hold still.
-          anchorMagnification: true,
           growHeight: 9,
           shape: _inkShape(28),blur: LiquidGlassBlur(sigmaX: 0, sigmaY: 0),
           // The moving pill carries no tint of its own — over ink, a
