@@ -102,12 +102,46 @@ class LiquidGlassLens extends StatefulWidget {
   /// Content rendered on top of the glass, clipped to the lens shape.
   final Widget? child;
 
+  /// A deformation supplied from **outside**, for a host that computes the
+  /// glass's shape itself instead of letting a finger do it.
+  ///
+  /// With [touch] the lens owns the whole gesture: it listens for pointers
+  /// and runs its own [LiquidGlassFlexDriver]. Some hosts cannot work that
+  /// way — a slider thumb or a nav pill is deformed by where it is being
+  /// carried, which only the host knows. Passing a deform here skips the
+  /// listener and the driver entirely and renders exactly what is given.
+  ///
+  /// The lens's own box must ALREADY be the deformed size; [restSize] is
+  /// what the deformation is measured against, and the shape is evaluated
+  /// there and stretched by deformed ÷ rest — so a capsule's caps go
+  /// elliptical instead of being re-rounded at each new size.
+  ///
+  /// Both this and [restSize] must be set for the external path to engage;
+  /// either one alone is ignored. Takes precedence over [touch].
+  final LiquidGlassFlexDeform? deform;
+
+  /// The undeformed size [deform] is measured against. See [deform].
+  final Size? restSize;
+
+  /// Whether the shader folds the captured backdrop's alpha into its own
+  /// coverage — **Skia capture path only**, ignored on Impeller.
+  ///
+  /// `false` (the default) treats the capture as opaque, which is right
+  /// for a view whose background is a full page. Set it when the captured
+  /// background carries *authored* transparency that must pass through the
+  /// glass, such as a slider's track, where opaque treatment renders the
+  /// lens's overhang as a dark body.
+  final bool honorBackdropAlpha;
+
   const LiquidGlassLens({
     super.key,
     this.style = const LiquidGlassStyle(),
     this.visibility = true,
     this.useImpellerBackdrop,
     this.touch,
+    this.deform,
+    this.restSize,
+    this.honorBackdropAlpha = false,
     this.child,
   });
 
@@ -183,6 +217,15 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // painting its own glass: it hands its geometry to the blender, which
     // merges all member lenses into one metaball surface.
     final blenderScope = LiquidGlassBlenderScope.maybeOf(context);
+
+    // An externally-driven lens renders what it is handed and adds no
+    // gesture machinery at all: its box is already the deformed size, so
+    // there is nothing to measure and no finger to follow.
+    final LiquidGlassFlexDeform? given = widget.deform;
+    final Size? givenRest = widget.restSize;
+    if (given != null && givenRest != null) {
+      return _buildInner(context, blenderScope, given, givenRest);
+    }
 
     final LiquidGlassFlex? flex = widget.touch?.flex;
     if (flex == null) {
@@ -326,11 +369,15 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         deformed ? deform.clipScaleFrom(restSize) : const Offset(1, 1);
 
     // Pressing deepens the optics rather than popping the scale — this is
-    // the cue that reads as glass under pressure instead of rubber.
-    final LiquidGlassRefraction refraction = deform.pressAmount > 0
-        ? liquidGlassFlexRefraction(
-            baseRefraction, widget.touch!.flex!, deform.pressAmount)
-        : baseRefraction;
+    // the cue that reads as glass under pressure instead of rubber. Only
+    // a touch-driven lens has a spec to read the boost from; an external
+    // deform carries no press of its own.
+    final LiquidGlassFlex? pressSpec = widget.touch?.flex;
+    final LiquidGlassRefraction refraction =
+        deform.pressAmount > 0 && pressSpec != null
+            ? liquidGlassFlexRefraction(
+                baseRefraction, pressSpec, deform.pressAmount)
+            : baseRefraction;
 
     final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
     // `true`/`null` (here or on the scope) → prefer Impeller, but only when
@@ -414,6 +461,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       appearance: appearance,
       borderAlpha: 1.0,
       glassEnabled: visible,
+      honorBackdropAlpha: widget.honorBackdropAlpha,
       screenSize: screenSize,
       devicePixelRatio: dpr,
       scope: scope,
@@ -433,6 +481,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final LiquidGlassAppearance appearance;
   final double borderAlpha;
   final bool glassEnabled;
+  final bool honorBackdropAlpha;
   final Size screenSize;
   final double devicePixelRatio;
   final LiquidGlassLensScope? scope;
@@ -448,6 +497,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
     required this.appearance,
     required this.borderAlpha,
     required this.glassEnabled,
+    required this.honorBackdropAlpha,
     required this.screenSize,
     required this.devicePixelRatio,
     required this.scope,
@@ -467,6 +517,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       appearance: appearance,
       borderAlpha: borderAlpha,
       glassEnabled: glassEnabled,
+      honorBackdropAlpha: honorBackdropAlpha,
       screenSize: screenSize,
       devicePixelRatio: devicePixelRatio,
       captureRevision: scope?.captureRevision,
@@ -490,6 +541,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       ..appearance = appearance
       ..borderAlpha = borderAlpha
       ..glassEnabled = glassEnabled
+      ..honorBackdropAlpha = honorBackdropAlpha
       ..screenSize = screenSize
       ..devicePixelRatio = devicePixelRatio
       ..captureRevision = scope?.captureRevision

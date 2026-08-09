@@ -12,7 +12,7 @@ import 'scaffold_demo.dart';
 import 'scaffold_svg_demo.dart';
 import 'settings_glass_page.dart';
 import 'settings_switcher_page.dart';
-import 'slider_jelly_tuner.dart';
+import 'slider_motion_tuner.dart';
 import 'slider_toggle_page.dart';
 import 'split_nav_page.dart';
 
@@ -169,11 +169,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const NavJellyTunerPage(),
     ),
     _Destination(
-      title: 'Slider Jelly Tuner',
+      title: 'Slider Motion Tuner',
       subtitle: 'Tune the slider thumb jelly -> Slider & Toggle',
       icon: Icons.biotech_rounded,
       gradient: const [Color(0xFFB79CFF), Color(0xFF6E4DD8)],
-      builder: (_) => const SliderJellyTunerPage(),
+      builder: (_) => const SliderMotionTunerPage(),
     ),
     _Destination(
       title: 'Flex Tuner',

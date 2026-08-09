@@ -42,20 +42,6 @@ const double kSliderTrackHeight = 6;
 /// [LiquidGlassSliderTouch.followStiffness] is the one that matters most:
 /// it trades how closely the handle tracks your finger against how much
 /// effect there is to see. Higher = tighter tracking, less stretch.
-const LiquidGlassSliderTouch kSliderTouch = LiquidGlassSliderTouch(
-  maxPull: 44, // px of gap at which the stretch saturates
-  overrunGive: 0.45, // rubber band past the ends — lower = stiffer, less end stretch
-  stretch: 14, // px gained reaching for the finger (iOS oval ≈ 1.9:1)
-  squash: 18, // px lost at full squash
-  recoil: 1.8, // height amplification of the squash (1 = plain area swap)
-  squashRate: 260, // px/s of gap collapse that saturates the squash
-  squeeze: 0.7, // cross-axis give-back, 1 = area preserving
-  grip: 1.0, // side grab: drag away from centre = stretch, toward = squash
-  lean: 0.8, // how far the elongation leads toward the finger
-  holdScale: 0.06, // press/release swell, fraction of own size
-  followStiffness: 620, // handle tow — higher tracks tighter, stretches less
-  followDamping: 40,
-);
 
 /// Glass thumb look with **no blur**. The tuned default thumb style bakes
 /// in a `LiquidGlassBlur(1.5, 1.5)`; passing an explicit style replaces
@@ -241,13 +227,6 @@ class _SliderRow extends StatelessWidget {
                   width: width,
                   trackHeight: kSliderTrackHeight,
                 ),
-                // EXPERIMENT (branch slider-touch-flex-motion): the
-                // centre-relative model instead of the jelly. Drag away
-                // from the middle of the track and the pill stretches;
-                // drag back toward it and it squashes. Grabbing and
-                // letting go each swell it on their own spring.
-                // Delete this one argument to get the shipped jelly back.
-                touch: kSliderTouch,
               ),
             ),
           ),

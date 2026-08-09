@@ -9,7 +9,7 @@ import 'tuning_store.dart';
 // =============================================================
 // Slider & Toggle showcase — a gallery of live LiquidGlassSlider and
 // LiquidGlassToggle controls. The sliders read their jelly from the
-// shared [TuningStore.slider], so values dialled in the Slider Jelly
+// shared [TuningStore.slider], so values dialled in the Slider Motion
 // Tuner show up here (great for a clean GIF). The toggle has no jelly
 // knob — it's showcased as-is.
 //
@@ -84,13 +84,13 @@ class _SliderTogglePageState extends State<SliderTogglePage> {
                             'Brightness',
                             _brightness,
                             sliderW,
-                            tuning.jelly,
+                            tuning.motion,
                             (v) => setState(() => _brightness = v)),
                         _SliderRow(Icons.volume_up_rounded, 'Volume', _volume,
-                            sliderW, tuning.jelly,
+                            sliderW, tuning.motion,
                             (v) => setState(() => _volume = v)),
                         _SliderRow(Icons.thermostat_rounded, 'Warmth', _warmth,
-                            sliderW, tuning.jelly,
+                            sliderW, tuning.motion,
                             (v) => setState(() => _warmth = v)),
                       ],
                     ),
@@ -132,10 +132,10 @@ class _SliderRow extends StatelessWidget {
   final String label;
   final double value;
   final double width;
-  final LiquidGlassJellyConfig jelly;
+  final LiquidGlassLensMotionSpec motion;
   final ValueChanged<double> onChanged;
 
-  const _SliderRow(this.icon, this.label, this.value, this.width, this.jelly,
+  const _SliderRow(this.icon, this.label, this.value, this.width, this.motion,
       this.onChanged);
 
   @override
@@ -167,7 +167,7 @@ class _SliderRow extends StatelessWidget {
                 value: value,
                 onChanged: onChanged,
                 layout: LiquidGlassSliderLayout(width: width),
-                jelly: jelly,
+                motion: motion,
               ),
             ),
           ),

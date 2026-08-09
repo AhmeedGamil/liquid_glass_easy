@@ -51,6 +51,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required LiquidGlassAppearance appearance,
     required double borderAlpha,
     required bool glassEnabled,
+    bool honorBackdropAlpha = false,
     required Size screenSize,
     required double devicePixelRatio,
     ValueListenable<int>? captureRevision,
@@ -58,6 +59,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     ui.Image? Function()? captureFallback,
     RenderBox? Function()? backgroundRenderBox,
   })  : _mode = mode,
+        _honorBackdropAlpha = honorBackdropAlpha,
         _mainShader = mainShader,
         _borderShader = borderShader,
         _shape = shape,
@@ -78,6 +80,21 @@ class RenderLiquidGlassLens extends RenderProxyBox
   set mode(LiquidGlassLensRenderMode value) {
     if (_mode == value) return;
     _mode = value;
+    markNeedsPaint();
+  }
+
+  /// Whether the shader folds the captured backdrop's alpha into its own
+  /// coverage. Skia capture path only.
+  ///
+  /// `false` treats the capture as opaque, which matches Impeller and is
+  /// right for a view whose background is a full page. Set it when the
+  /// captured background carries **authored** transparency that has to
+  /// show through the glass — a slider's track, say — where opaque
+  /// treatment renders the lens's overhang as a dark body.
+  bool _honorBackdropAlpha;
+  set honorBackdropAlpha(bool value) {
+    if (_honorBackdropAlpha == value) return;
+    _honorBackdropAlpha = value;
     markNeedsPaint();
   }
 
@@ -440,6 +457,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       // is drawn on top of the blur below (mirrors the legacy painter).
       borderWidth: useBlur ? 0.0 : _fullBorderWidth,
       includeLensColor: true,
+      honorBackdropAlpha: _honorBackdropAlpha,
     );
     _mainShader.setImageSampler(0, image);
 
@@ -506,6 +524,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
           scale: 1.0,
           borderWidth: _fullBorderWidth,
           includeLensColor: false,
+          honorBackdropAlpha: _honorBackdropAlpha,
         );
         borderShader.setImageSampler(0, image);
         final ui.Canvas borderCanvas = context.canvas;

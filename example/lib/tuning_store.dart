@@ -81,28 +81,17 @@ class NavTuning {
 /// What the [LiquidGlassSlider] reads from its tuner.
 @immutable
 class SliderTuning {
-  final LiquidGlassJellyConfig jelly;
+  final LiquidGlassLensMotionSpec motion;
 
-  const SliderTuning({required this.jelly});
+  const SliderTuning({required this.motion});
 
-  /// Shipped defaults — mirror [LiquidGlassSlider]'s tuned jelly.
+  /// Shipped defaults — mirror [LiquidGlassSlider]'s tuned motion.
   static const SliderTuning defaults = SliderTuning(
-    jelly: LiquidGlassJellyConfig(
-      style: LiquidGlassJellyStyle.squashStretch,
-      stiffness: 230,
-      damping: 12,
-      maxVelocity: 2.9,
-      stretchWidth: 8.8,
-      squashHeight: 8.0,
-      anchorBias: -1.0,
-      recoilScale: 3.0,
-      recoilAnchor: 1.0,
-      directionTau: 0.42,
-    ),
+    motion: LiquidGlassLensMotionSpec(),
   );
 
-  SliderTuning copyWith({LiquidGlassJellyConfig? jelly}) =>
-      SliderTuning(jelly: jelly ?? this.jelly);
+  SliderTuning copyWith({LiquidGlassLensMotionSpec? motion}) =>
+      SliderTuning(motion: motion ?? this.motion);
 }
 
 /// In-memory holder for the demo tuning values. No disk persistence: a

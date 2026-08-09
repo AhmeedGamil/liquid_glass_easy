@@ -73,11 +73,15 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_jelly.dart
 // internal.
 export 'package:liquid_glass_easy/src/widgets/components/slider/liquid_glass_slider.dart'
     show LiquidGlassSlider, LiquidGlassSliderLayout;
-// EXPERIMENTAL, branch-only: the centre-relative thumb motion model. Sits
-// beside the shipped jelly — `LiquidGlassSlider.touch` opts in, null keeps
-// the jelly. Not part of the public API yet.
-export 'package:liquid_glass_easy/src/widgets/components/slider/liquid_glass_slider_touch.dart'
-    show LiquidGlassSliderTouch;
+// The moving glass pill the slider's thumb is built from, its
+// acceleration squash/stretch, and the contact shadow that can wrap any
+// lens — all usable on their own.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_motion_pill.dart'
+    show LiquidGlassMotionPill;
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_shadow.dart'
+    show LiquidGlassShadow;
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_lens_motion.dart'
+    show LiquidGlassLensMotion, LiquidGlassLensMotionSpec;
 export 'package:liquid_glass_easy/src/widgets/components/toggle/liquid_glass_toggle.dart'
     show LiquidGlassToggle, LiquidGlassToggleLayout;
 // Scaffold: a Scaffold-style layout that owns the LiquidGlassView

@@ -1,4 +1,4 @@
-
+﻿
 name: liquid_glass_easy_example
 description: "Example app demonstrating the usage of liquid_glass_easy package."
 publish_to: "none"
@@ -25,3 +25,5 @@ flutter:
   assets:
     # Outline + filled SVG pairs driving the "Scaffold + SVG Nav" demo.
     - assets/icons/
+    # Wallpaper behind the experimental slider pages.
+    - assets/background.jpeg
