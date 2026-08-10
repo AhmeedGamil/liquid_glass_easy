@@ -6,6 +6,8 @@ import 'package:flutter/scheduler.dart';
 
 import '../src/controllers/liquid_glass_view_controller.dart';
 import '../src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dart';
+import '../src/widgets/components/liquid_glass_morph_pill.dart'
+    show liquidGlassMorphEnvelope;
 import '../src/widgets/components/liquid_glass_tab_bar.dart'
     show LiquidGlassTabBarItem;
 import '../src/widgets/liquid_glass.dart';
@@ -96,7 +98,7 @@ export '../src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dar
 /// [body] is the page content, captured behind the glass. [outerLenses]
 /// are composited in the outer view on top of the bar (e.g. the app bar
 /// and the side action button).
-class LiquidGlassAnimatedNavBarMotion extends StatefulWidget {
+class LiquidGlassAnimatedNavBarMotionOnly extends StatefulWidget {
   final Widget body;
   final List<LiquidGlassTabBarItem> items;
   final int selectedIndex;
@@ -194,25 +196,6 @@ class LiquidGlassAnimatedNavBarMotion extends StatefulWidget {
   /// Resting material endpoint of the same persistent glass pill.
   final LiquidGlassStyle restStyle;
 
-  /// Stiffness of the spring that lifts the rest pill into glass.
-  final double pillLiftStiffness;
-
-  /// Damping of the spring that lifts the rest pill into glass.
-  final double pillLiftDamping;
-
-  /// Stiffness of the spring that settles the glass pill back to rest.
-  final double pillRestStiffness;
-
-  /// Damping of the spring that settles the glass pill back to rest.
-  final double pillRestDamping;
-
-  /// Fraction of horizontal travel completed before the pill begins its
-  /// spring return to the resting shape.
-  ///
-  /// This overlaps the landing morph with the final part of the glide instead
-  /// of waiting for the horizontal spring to settle first.
-  final double pillLandingStartProgress;
-
   /// Stiffness of the spring carrying the pill between tabs.
   final double travelStiffness;
 
@@ -236,7 +219,7 @@ class LiquidGlassAnimatedNavBarMotion extends StatefulWidget {
   /// Whether the **inner** view (body + bar capsule) captures every frame.
   final bool realTimeCapture;
 
-  const LiquidGlassAnimatedNavBarMotion({
+  const LiquidGlassAnimatedNavBarMotionOnly({
     super.key,
     required this.body,
     required this.items,
@@ -272,29 +255,27 @@ class LiquidGlassAnimatedNavBarMotion extends StatefulWidget {
         chromaticAberration: 0.0002,
       ),
     ),
-    this.pillLiftStiffness = 247,
-    this.pillLiftDamping = 18.9,
-    this.pillRestStiffness = 260,
-    this.pillRestDamping = 17.7,
-    this.pillLandingStartProgress = 0.68,
     this.travelStiffness = 280,
     this.travelDamping = 31.4,
-    this.motion = const LiquidGlassLensMotionSpec(maxDeviation: 0.12),
+    this.motion = const LiquidGlassLensMotionSpec(
+      window: 0.3,
+      coefficient: 0.00007,
+      maxDeviation: 0.12,
+      responseTau: 0.18,
+    ),
     this.pixelRatio = 1.0,
     this.useSync = true,
     this.useImpellerBackdrop,
     this.realTimeCapture = true,
-  }) : assert(
-          pillLandingStartProgress >= 0 && pillLandingStartProgress <= 1,
-        );
+  });
 
   @override
-  State<LiquidGlassAnimatedNavBarMotion> createState() =>
-      _LiquidGlassAnimatedNavBarMotionState();
+  State<LiquidGlassAnimatedNavBarMotionOnly> createState() =>
+      _LiquidGlassAnimatedNavBarMotionOnlyState();
 }
 
-class _LiquidGlassAnimatedNavBarMotionState
-    extends State<LiquidGlassAnimatedNavBarMotion>
+class _LiquidGlassAnimatedNavBarMotionOnlyState
+    extends State<LiquidGlassAnimatedNavBarMotionOnly>
     with TickerProviderStateMixin {
   // Inner pipeline captures wallpaper + bar capsule; outer composites
   // the moving glass pill on top so it refracts the bar's own glass.
@@ -331,14 +312,18 @@ class _LiquidGlassAnimatedNavBarMotionState
   double _travelPos = 0;
   double _travelVel = 0;
   double _travelTarget = 0;
-  double _travelStart = 0;
+  double _travelFrom = 0;
 
   /// True from the moment a travel starts until the spring settles.
   bool _travelActive = false;
 
-  /// Flips before horizontal arrival so the return spring overlaps the final
-  /// part of the glide. It does not affect the travel spring or motion sample.
-  bool _landingStarted = false;
+  /// Original shipped-bar drag-release state and shrink envelope.
+  bool _settlingFromDrag = false;
+  double _settleGrow = 0;
+
+  /// Original shipped-bar grow-in multiplier.
+  double _glassAppear = 1;
+  static const double _glassAppearSeconds = 0.15;
 
   /// Single ticker driving the travel spring, the motion sampling and
   /// the settle-grow decay.
@@ -361,7 +346,7 @@ class _LiquidGlassAnimatedNavBarMotionState
     _tabPillFracIndex = widget.selectedIndex.toDouble();
     _travelPos = widget.selectedIndex.toDouble();
     _travelTarget = _travelPos;
-    _travelStart = _travelPos;
+    _travelFrom = _travelPos;
     _ticker = createTicker(_onTick);
     // The pill morphs on its own ticker; the bar rebuilds when its size
     // changes so the icon shell's reveal stays glued to the glass.
@@ -381,7 +366,8 @@ class _LiquidGlassAnimatedNavBarMotionState
   }
 
   @override
-  void didUpdateWidget(covariant LiquidGlassAnimatedNavBarMotion oldWidget) {
+  void didUpdateWidget(
+      covariant LiquidGlassAnimatedNavBarMotionOnly oldWidget) {
     super.didUpdateWidget(oldWidget);
     // External (programmatic) selection change — animate to it without
     // re-notifying the parent.
@@ -416,13 +402,14 @@ class _LiquidGlassAnimatedNavBarMotionState
   // ── Selection / animation ────────────────────────────────────────
   void _animateTo(int next, {required bool notify}) {
     if (next == _tabIndex) return;
+    if (!_travelActive && !_tabDragging) _glassAppear = 0;
     setState(() {
       _tabIndex = next;
       _travelActive = true;
-      _landingStarted = false;
+      _settlingFromDrag = false;
       // Retarget from wherever the pill currently is; the spring keeps
       // its velocity.
-      _travelStart = _travelPos;
+      _travelFrom = _travelPos;
       _travelTarget = next.toDouble();
     });
     _startCapture();
@@ -447,9 +434,10 @@ class _LiquidGlassAnimatedNavBarMotionState
 
   // ── Hold-to-grab handlers ────────────────────────────────────────
   void _onTabPillLongPressStart(LongPressStartDetails d) {
+    if (!_travelActive && !_tabDragging) _glassAppear = 0;
     _tabDragging = true;
     _travelActive = false;
-    _landingStarted = false;
+    _settlingFromDrag = false;
     _startCapture();
     final frac = _xToTabFrac(d.globalPosition.dx);
     // Start the smoothed follow at the pill's current resting position so
@@ -486,16 +474,15 @@ class _LiquidGlassAnimatedNavBarMotionState
     final notify = next != _tabIndex;
     setState(() {
       _tabDragging = false;
+      _settlingFromDrag = true;
       _tabIndex = next;
       _travelActive = true;
-      _landingStarted = false;
       _travelPos = from;
       _travelVel = 0;
-      _travelStart = from;
+      _travelFrom = from;
       _travelTarget = next.toDouble();
+      _settleGrow = 1;
     });
-    // No jelly bookkeeping here: the snap keeps feeding the same model,
-    // and its braking IS the landing squash.
     _startTicker();
     if (notify) widget.onChanged(next);
   }
@@ -537,28 +524,28 @@ class _LiquidGlassAnimatedNavBarMotionState
           (_tabPillFracIndex - _dragFollow) * (1 - math.exp(-dt / followTau));
     }
 
-    // 3) Begin landing before arrival. This changes only the pill's morph
-    // target; the horizontal spring and acceleration sampling keep running.
-    if (_travelActive && !_tabDragging && !_landingStarted) {
-      final double totalDistance = (_travelTarget - _travelStart).abs();
-      final double remainingDistance = (_travelTarget - _travelPos).abs();
-      final double travelProgress = totalDistance <= 0.000001
-          ? 1
-          : (1 - remainingDistance / totalDistance).clamp(0.0, 1.0);
-      if (travelSettled || travelProgress >= widget.pillLandingStartProgress) {
-        _landingStarted = true;
-      }
+    // 3) Original shipped-bar drag-release shrink.
+    if (_settlingFromDrag && _settleGrow > 0) {
+      const tau = 0.06;
+      _settleGrow *= math.exp(-dt / tau);
+      if (_settleGrow < 0.01) _settleGrow = 0;
     }
+    final bool growSettled = !_settlingFromDrag || _settleGrow == 0;
 
-    // 4) Arrived. Commit the static selection only after the horizontal
-    // spring has fully settled; the landing morph is already in progress.
-    if (_travelActive && travelSettled && !_tabDragging) {
+    // 4) Commit only after both original travel and drag shrink settle.
+    if (_travelActive && travelSettled && growSettled && !_tabDragging) {
       _travelActive = false;
+      _settlingFromDrag = false;
+      _settleGrow = 0;
       _tabIndexCommitted = _tabIndex;
     }
 
-    // The bar's ticker has nothing left to do once the travel is done;
-    // the pill keeps its own running until the morph settles.
+    if (_glassAppear < 1) {
+      _glassAppear += dt / _glassAppearSeconds;
+      if (_glassAppear >= 1) _glassAppear = 1;
+    }
+
+    // The external original envelope is fully driven by this ticker.
     if (!_travelActive && !_tabDragging) {
       _maybeStopCapture();
       _ticker?.stop();
@@ -599,6 +586,24 @@ class _LiquidGlassAnimatedNavBarMotionState
       final Size pillLifted =
           Size(liftedH * (layout.pillWidth / layout.cellHeight), liftedH);
 
+      // Exact rest/lift timing from the shipped animated nav bar.
+      final double travelSpan = (_travelTarget - _travelFrom).abs();
+      final double travelP = travelSpan < 1e-6
+          ? 1
+          : (1 - (_travelTarget - _travelPos).abs() / travelSpan)
+              .clamp(0.0, 1.0);
+      final double growT;
+      if (_tabDragging) {
+        growT = 1;
+      } else if (_settlingFromDrag) {
+        growT = _settleGrow;
+      } else if (_travelActive) {
+        growT = liquidGlassMorphEnvelope(travelP);
+      } else {
+        growT = 0;
+      }
+      final double morphProgress = growT * _glassAppear;
+
       final pillFrac = _tabDragging ? _dragFollow : _travelPos;
 
       // The pill's centre in the outer view's coordinates. Horizontally
@@ -609,16 +614,24 @@ class _LiquidGlassAnimatedNavBarMotionState
       final double pillCY = parentHeight -
           (_effBottomMargin + layout.padding + layout.cellHeight / 2);
 
-      // The return spring begins during the final portion of travel. Motion
-      // tracking remains active through arrival so the existing horizontal
-      // glide and braking squash are unchanged.
-      final bool lifted = _tabDragging || (_travelActive && !_landingStarted);
-      final bool trackPillMotion = _tabDragging || _travelActive;
+      // Acceleration deformation is limited to the lifting/held phase. The
+      // returning half uses only the original nav bar's morph envelope.
+      final bool returningToRest = _settlingFromDrag ||
+          (_travelActive && !_tabDragging && travelP >= 0.5);
+      final bool trackPillMotion =
+          (_tabDragging || _travelActive) && !returningToRest;
 
       // One glass surface exists at both endpoints. Before its first tick,
       // use the authored rest geometry so the selected reveal is present on
       // the very first frame instead of waiting for a notifier update.
-      final Size liveSize = _pillGeometry.value ?? pillRest;
+      final Size envelopeSize = Size.lerp(
+        pillRest,
+        pillLifted,
+        morphProgress.clamp(0.0, 1.0),
+      )!;
+      final Size liveSize = trackPillMotion
+          ? (_pillGeometry.value ?? envelopeSize)
+          : envelopeSize;
       final bool glassOn = widget.showSelectionPill;
       // The icon shell's reveal is cut to the size the pill says it is
       // drawing, so the selected colour wipes on exactly under the glass.
@@ -669,17 +682,15 @@ class _LiquidGlassAnimatedNavBarMotionState
                     child: IgnorePointer(
                       child: LiquidGlassNavPill(
                         center: Offset(pillCX, pillCY),
-                        active: lifted,
+                        active: morphProgress > 0,
+                        morphProgress: morphProgress,
                         restSize: pillRest,
                         activeSize: pillLifted,
                         style: _pillStyle(),
                         restStyle: widget.restStyle,
                         motion: widget.motion,
                         trackMotion: trackPillMotion,
-                        expandStiffness: widget.pillLiftStiffness,
-                        expandDamping: widget.pillLiftDamping,
-                        contractStiffness: widget.pillRestStiffness,
-                        contractDamping: widget.pillRestDamping,
+                        resetMotionOnStop: true,
                         shadow: widget.pillShadow,
                         geometry: _pillGeometry,
                         honorBackdropAlpha: false,

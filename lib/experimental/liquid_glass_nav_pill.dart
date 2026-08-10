@@ -8,10 +8,13 @@ import '../src/widgets/liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../src/widgets/liquid_glass_style.dart';
 import '../src/widgets/utils/liquid_glass_blur.dart';
-import '../src/widgets/utils/liquid_glass_border_mode.dart' show OpticalBorder;
+import '../src/widgets/utils/liquid_glass_border_mode.dart'
+    show ClassicBorder, LiquidGlassBorderType, OpticalBorder;
 import '../src/widgets/utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
-import '../src/widgets/utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../src/widgets/utils/liquid_glass_jelly_spring.dart'
+    show liquidGlassSpringStep;
 import '../src/widgets/utils/liquid_glass_lens_motion.dart';
+import '../src/widgets/utils/liquid_glass_refraction_type.dart';
 import '../src/widgets/utils/liquid_glass_shape.dart';
 import '../src/widgets/components/liquid_glass_shadow.dart';
 
@@ -31,14 +34,13 @@ import '../src/widgets/components/liquid_glass_shadow.dart';
 /// the thumb itself did:
 ///
 ///  * **Morph.** While [active], the pill spring-grows from [restSize]
-///    to [activeSize] (0.4 s, ζ 0.6 — overshoot included); on
-///    deactivation it contracts on the softer spring (0.6 s, ζ 0.7).
-///    The optional [cover] (e.g. the slider's white rest pill) fades
-///    out as the glass arrives, so the two read as one crossfade.
-///  * **Squash/stretch.** While [active], [center] is sampled every
-///    frame into the acceleration model; the resulting deviation scales
-///    the pill oppositely on the two axes. Tracking starts on
-///    activation and resets instantly when the contract-back begins.
+///    to [activeSize]; on deactivation it contracts on the landing spring.
+///    That same progress interpolates [restStyle] into [style] on one
+///    persistent lens — nothing is cross-faded, inserted or removed.
+///  * **Squash/stretch.** While motion tracking is requested, [center] is
+///    sampled every frame into the acceleration model; the resulting
+///    deviation scales the pill oppositely on the two axes. When travel ends,
+///    stationary samples let that deformation settle naturally back to zero.
 ///  * **Rendering.** The deformation is not a rebuilt capsule: the
 ///    lens renders at its REST (morph) size and the size change rides
 ///    the shader's `u_shapeScale` + matching clip scale via
@@ -60,10 +62,24 @@ class LiquidGlassNavPill extends StatefulWidget {
   /// driven by a glide spring, anything.
   final Offset center;
 
-  /// Whether the pill is "lifted": expanded to [activeSize] and
-  /// tracking its own motion. Flip on grab, off when the pill should
-  /// contract back to rest.
+  /// Whether the pill is "lifted": expanded to [activeSize]. Flip on grab,
+  /// off when the pill should contract back to rest.
   final bool active;
+
+  /// Optional externally supplied rest/lift progress (`0` = rest, `1` =
+  /// lifted). When set, this replaces the pill's internal morph spring while
+  /// leaving acceleration deformation and material interpolation intact.
+  final double? morphProgress;
+
+  /// Whether the pill continues sampling [center] for acceleration-based
+  /// squash/stretch. When null, this follows [active]. A host can keep this
+  /// true while [active] becomes false to overlap landing with late travel.
+  final bool? trackMotion;
+
+  /// Whether ending [trackMotion] immediately clears acceleration deformation
+  /// instead of letting its sampling window ease back to zero. The normal
+  /// lift/rest morph keeps running; only motion squash/stretch is removed.
+  final bool resetMotionOnStop;
 
   /// Size of the contracted rest pill.
   final Size restSize;
@@ -71,9 +87,12 @@ class LiquidGlassNavPill extends StatefulWidget {
   /// Size of the expanded (lifted) glass pill.
   final Size activeSize;
 
-  /// Glass look; null keeps the tuned slider default. The default
-  /// shape is a continuous capsule tracking the morph height.
+  /// Glass look at the fully lifted endpoint. Null keeps the tuned default.
   final LiquidGlassStyle? style;
+
+  /// Glass look at the resting endpoint. Every interpolated frame is still
+  /// the same lens; this is not a separate cover or replacement widget.
+  final LiquidGlassStyle restStyle;
 
   /// Tuning of the acceleration squash/stretch.
   final LiquidGlassLensMotionSpec motion;
@@ -82,15 +101,14 @@ class LiquidGlassNavPill extends StatefulWidget {
   final double expandStiffness;
   final double expandDamping;
 
-  /// Contract spring (0.6 s, ζ 0.7).
+  /// Landing spring (about 0.4 s, damping ratio about 0.55).
   final double contractStiffness;
   final double contractDamping;
 
-  /// Widget drawn over the glass at rest and faded out as the morph
-  /// expands — the slider passes its solid white pill here. Laid out at
-  /// rest size and pixel-stretched with the outline, so it deforms as
-  /// one body with the glass. Takes no pointers.
-  final Widget? cover;
+  /// Whether the lift-to-rest morph may compress below the authored rest size
+  /// and rebound once before settling. This affects only the state morph; the
+  /// acceleration-driven outline stretch remains active either way.
+  final bool restBounce;
 
   /// Contact shadow drawn around the pill — the soft dark band that hugs
   /// the rim and pools underneath. `null` (the default) draws none.
@@ -101,18 +119,17 @@ class LiquidGlassNavPill extends StatefulWidget {
   /// an elliptical cap while the glass is squashed. See
   /// [LiquidGlassShadow].
   ///
-  /// It paints behind the glass, so an opaque [cover] at rest covers the
-  /// shadow along with the glass beneath it.
+  /// It paints behind the glass and its opacity follows the active-style
+  /// progress, reaching zero at rest without replacing the lens.
   final LiquidGlassShadow? shadow;
 
   /// Reports the pill's live size, for a host that has to draw something
   /// aligned to the glass — the nav bar's icon shell wipes the selected
   /// colour on through exactly this rect.
   ///
-  /// `null` **means the pill is resting**: no glass is being rendered at
-  /// all, so there is nothing to align to and nothing for the host's
-  /// capture to keep awake for. A `Size` means it is lifted, and is the
-  /// DEFORMED size, matching what the shader actually draws.
+  /// The reported value is the DEFORMED size, matching what the shader draws.
+  /// The nullable type is retained for existing hosts, but this persistent
+  /// lens publishes a size at rest as well as while lifted.
   ///
   /// Written from the ticker, never from `build`, so a host may listen to
   /// it and call `setState` without a build-during-build.
@@ -127,15 +144,19 @@ class LiquidGlassNavPill extends StatefulWidget {
     super.key,
     required this.center,
     required this.active,
+    this.morphProgress,
+    this.trackMotion,
+    this.resetMotionOnStop = false,
     required this.restSize,
     required this.activeSize,
     this.style,
+    this.restStyle = const LiquidGlassStyle(),
     this.motion = const LiquidGlassLensMotionSpec(),
     this.expandStiffness = 247,
     this.expandDamping = 18.9,
-    this.contractStiffness = 110,
-    this.contractDamping = 14.7,
-    this.cover,
+    this.contractStiffness = 260,
+    this.contractDamping = 17.7,
+    this.restBounce = true,
     this.shadow,
     this.geometry,
     this.honorBackdropAlpha = true,
@@ -151,6 +172,8 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   /// overshoots past 1 on purpose — that is the bounce.
   double _morph = 0;
   double _morphVel = 0;
+  bool _restSpringHasCompressed = false;
+  bool _motionSettling = false;
 
   late final LiquidGlassLensMotion _motion =
       LiquidGlassLensMotion(spec: widget.motion);
@@ -161,8 +184,12 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   @override
   void initState() {
     super.initState();
-    if (widget.active) {
+    _morph = widget.morphProgress?.clamp(0.0, 1.0) ?? 0;
+    final bool tracking = widget.trackMotion ?? widget.active;
+    if (tracking) {
       _motion.start();
+    }
+    if (widget.active || tracking) {
       _ensureTicking();
     }
   }
@@ -177,15 +204,43 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   void didUpdateWidget(LiquidGlassNavPill oldWidget) {
     super.didUpdateWidget(oldWidget);
     _motion.spec = widget.motion;
-    if (widget.active != oldWidget.active) {
-      if (widget.active) {
-        _motion.start();
-      } else {
-        // Contract-back begins: instant reset, masked by the morph.
-        _motion.stop();
+    if (widget.morphProgress != null) {
+      _morph = widget.morphProgress!.clamp(0.0, 1.0);
+      _morphVel = 0;
+      _restSpringHasCompressed = false;
+      if (widget.morphProgress != oldWidget.morphProgress) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _publishGeometry();
+        });
       }
-      _publishGeometry();
+    } else if (widget.active != oldWidget.active ||
+        oldWidget.morphProgress != null) {
+      _restSpringHasCompressed = false;
+      // A tap can begin landing while the lift spring is still moving outward.
+      // Carrying that large positive velocity into the opposite target makes
+      // the glass-to-rest transition collapse abruptly. A drag has already
+      // settled near zero velocity, so this only materially corrects taps.
+      if (!widget.active && _morphVel > 0) {
+        _morphVel = 0;
+      }
       _ensureTicking();
+    }
+    final bool wasTracking = oldWidget.trackMotion ?? oldWidget.active;
+    final bool isTracking = widget.trackMotion ?? widget.active;
+    if (isTracking != wasTracking) {
+      if (isTracking) {
+        _motionSettling = false;
+        if (!_motion.isTracking) _motion.start();
+        _ensureTicking();
+      } else if (widget.resetMotionOnStop) {
+        _motion.stop();
+        _motionSettling = false;
+      } else {
+        // Keep sampling the now-stationary centre. The acceleration window
+        // and response easing then return squash/stretch to zero naturally.
+        _motionSettling = true;
+        _ensureTicking();
+      }
     }
   }
 
@@ -205,44 +260,68 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
 
     bool busy = false;
 
-    // The morph — expand and contract carry two different springs,
-    // chosen by which way the target points.
-    final double target = widget.active ? 1 : 0;
-    final (m, mv) = liquidGlassSpringStep(
-      x: _morph,
-      vel: _morphVel,
-      target: target,
-      dt: dt,
-      stiffness: widget.active ? widget.expandStiffness : widget.contractStiffness,
-      damping: widget.active ? widget.expandDamping : widget.contractDamping,
-    );
-    _morph = m;
-    _morphVel = mv;
-    if ((_morph - target).abs() < 0.001 && _morphVel.abs() < 0.01) {
-      _morph = target;
+    if (widget.morphProgress != null) {
+      _morph = widget.morphProgress!.clamp(0.0, 1.0);
       _morphVel = 0;
     } else {
-      busy = true;
+      // The morph — expand and contract carry two different springs,
+      // chosen by which way the target points.
+      final double target = widget.active ? 1 : 0;
+      final bool wasBelowRest = _morph < 0;
+      final result = liquidGlassSpringStep(
+        x: _morph,
+        vel: _morphVel,
+        target: target,
+        dt: dt,
+        stiffness:
+            widget.active ? widget.expandStiffness : widget.contractStiffness,
+        damping: widget.active ? widget.expandDamping : widget.contractDamping,
+      );
+      double nextMorph = result.$1;
+      double nextMorphVel = result.$2;
+
+      if (!widget.active) {
+        if (!widget.restBounce && nextMorph <= 0) {
+          nextMorph = 0;
+          nextMorphVel = 0;
+        } else if (widget.restBounce) {
+          // Let the landing spring compress below rest, then finish on its
+          // first rebound through the authored size.
+          if (nextMorph < 0) _restSpringHasCompressed = true;
+          if (_restSpringHasCompressed && wasBelowRest && nextMorph >= 0) {
+            nextMorph = 0;
+            nextMorphVel = 0;
+          }
+        }
+      }
+
+      _morph = nextMorph;
+      _morphVel = nextMorphVel;
+      if ((_morph - target).abs() < 0.001 && _morphVel.abs() < 0.01) {
+        _morph = target;
+        _morphVel = 0;
+      } else {
+        busy = true;
+      }
     }
 
     // Sample the host-supplied centre — real per-frame positions feed
     // the model (drags AND glides), so a glide's launch stretches and
     // its arrival squashes.
     if (_motion.isTracking) {
-      _motion.track(widget.center,
-          now: elapsed.inMicroseconds / 1e6, dt: dt);
-      busy = true;
+      _motion.track(widget.center, now: elapsed.inMicroseconds / 1e6, dt: dt);
+      if (_motionSettling && _motion.deviation.abs() < 0.0005) {
+        _motion.stop();
+        _motionSettling = false;
+      } else {
+        busy = true;
+      }
     }
 
     if (!busy) _ticker?.stop();
     _publishGeometry();
     if (mounted) setState(() {});
   }
-
-  /// Whether any glass is on screen. At `false` the cover is opaque and
-  /// the lens beneath it could not be seen even if it were drawn — so it
-  /// is not drawn, and the host's capture has nothing to stay awake for.
-  bool get _live => widget.active || _morph > 0.0005;
 
   /// Morph size, then the lens deviation on top of it: opposite scales on
   /// the two axes, the frame re-centred so the deformation grows about
@@ -267,10 +346,6 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   void _publishGeometry() {
     final ValueNotifier<Size?>? out = widget.geometry;
     if (out == null) return;
-    if (!_live) {
-      if (out.value != null) out.value = null;
-      return;
-    }
     final m = _metrics();
     final Size next = Size(m.pillW, m.pillH);
     if (out.value != next) out.value = next;
@@ -283,27 +358,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     final double morphH = m.morphH;
     final double pillW = m.pillW;
     final double pillH = m.pillH;
-    final coverOpacity = (1.0 - _morph).clamp(0.0, 1.0);
-    final Widget? restCover = widget.cover;
-
-    // Resting: draw the cover alone. It is opaque here, so the glass
-    // underneath is invisible — and rendering it anyway would keep a
-    // backdrop pass (and the host's capture) alive for nothing.
-    if (!_live) {
-      return Stack(
-        clipBehavior: Clip.none,
-        children: [
-          if (restCover != null)
-            Positioned(
-              left: widget.center.dx - morphW / 2,
-              top: widget.center.dy - morphH / 2,
-              width: math.max(1.0, morphW),
-              height: math.max(1.0, morphH),
-              child: IgnorePointer(child: restCover),
-            ),
-        ],
-      );
-    }
+    final double styleProgress = _morph.clamp(0.0, 1.0);
 
     // The deformed box's top-left in the host's coordinates.
     final Offset deformedTopLeft =
@@ -311,9 +366,8 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     final double scaleX = morphW > 0 ? pillW / morphW : 1.0;
     final double scaleY = morphH > 0 ? pillH / morphH : 1.0;
 
-
-    Widget pill = LiquidGlassLens(
-      style: _resolveStyle(morphH, scaleX),
+    Widget glassPill = LiquidGlassLens(
+      style: _resolveStyle(styleProgress, scaleX),
       honorBackdropAlpha: widget.honorBackdropAlpha,
       restSize: Size(morphW, morphH),
       deform: LiquidGlassFlexDeform(
@@ -327,28 +381,22 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
         childTranslateY: 0,
         pressAmount: 0,
       ),
-      child: restCover == null
-          ? null
-          : IgnorePointer(child: Opacity(opacity: coverOpacity, child: restCover)),
     );
 
-    // The shadow WRAPS the glass instead of riding inside it, so the arc
-    // that pools below the pill is not clipped off at the outline. It is
-    // handed the morph's own corner and the live stretch, so the ring
-    // stays on the rim while the pill squashes. It paints BEHIND, so the
-    // glass — and the solid cover at rest — sit over it.
+    // The shadow remains part of this same surface and eases away with the
+    // active style instead of being hidden by a replacement rest widget.
     final LiquidGlassShadow? shadow = widget.shadow;
     if (shadow != null) {
-      pill = LiquidGlassShadow(
+      glassPill = LiquidGlassShadow(
         blur: shadow.blur,
-        opacity: shadow.opacity,
+        opacity: shadow.opacity * styleProgress,
         color: shadow.color,
         offset: shadow.offset,
         cornerRadius: shadow.cornerRadius ?? morphH / 2,
         scale: Offset(scaleX, scaleY),
         inset: shadow.inset,
         visible: shadow.visible,
-        child: pill,
+        child: glassPill,
       );
     }
 
@@ -360,44 +408,226 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
           top: deformedTopLeft.dy,
           width: math.max(1.0, pillW),
           height: math.max(1.0, pillH),
-          child: pill,
+          child: glassPill,
         ),
       ],
     );
   }
 
-  /// The pill's glass style at the current morph size: the caller's
-  /// style (or the tuned default look) with a height-tracking capsule
-  /// shape when none is set, the refraction band kept proportional
-  /// below full size — and counter-scaled against the outline's
-  /// horizontal stretch ([stretchX]).
-  LiquidGlassStyle _resolveStyle(double morphH, double stretchX) {
-    final LiquidGlassStyle base = widget.style ?? _defaultStyle;
-    final LiquidGlassShape shape = base.shape ??
-        LiquidGlassShape(
-          cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
-          cornerRadius: morphH / 2,
-          borderWidth: 0.6,
-          lightIntensity: 1.3,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.4,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.5,
-          ),
-        );
-    final double bandScale =
-        (morphH / widget.activeSize.height).clamp(0.0, 1.0);
-    // The band lives in REST space, so the outline stretch multiplies
-    // its screen width by scaleX at the end caps; dividing the authored
-    // width back out pins the caps' band at its authored visual width.
-    final double comp = stretchX > 0 ? 1.0 / stretchX : 1.0;
+  /// Resolves one continuously changing material. Geometry, tint, blur,
+  /// refraction and rim values all use the same spring progress; there is no
+  /// rest widget to fade in and no glass widget to remove.
+  LiquidGlassStyle _resolveStyle(double progress, double stretchX) {
+    final double t = progress.clamp(0.0, 1.0);
+    final LiquidGlassStyle active = widget.style ?? _defaultStyle;
+    final LiquidGlassStyle rest = widget.restStyle;
+    final LiquidGlassShape activeShape =
+        active.shape ?? _defaultShape(widget.activeSize.height / 2);
+    final LiquidGlassShape restShape =
+        rest.shape ?? _defaultShape(widget.restSize.height / 2);
+    final double widthCompensation = stretchX > 0 ? 1 / stretchX : 1;
+
     return LiquidGlassStyle(
-      shape: shape,
-      appearance: base.appearance,
-      refraction: base.refraction.copyWith(
-        distortionWidth: base.refraction.distortionWidth * bandScale * comp,
+      shape: _lerpShape(restShape, activeShape, t),
+      appearance: _lerpAppearance(rest.appearance, active.appearance, t),
+      refraction: _compensateRefractionWidth(
+        _lerpRefraction(rest.refraction, active.refraction, t),
+        widthCompensation,
       ),
+    );
+  }
+
+  static LiquidGlassShape _defaultShape(double cornerRadius) {
+    return LiquidGlassShape(
+      cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
+      cornerRadius: cornerRadius,
+      borderWidth: 0.6,
+      lightIntensity: 1.3,
+      lightDirection: 80,
+      borderType: const OpticalBorder(
+        borderSaturation: 1.4,
+        ambientIntensity: 1.0,
+        borderSolidity: 0.5,
+      ),
+    );
+  }
+
+  static double _lerpDouble(double from, double to, double t) =>
+      from + (to - from) * t;
+
+  static LiquidGlassShape _lerpShape(
+    LiquidGlassShape from,
+    LiquidGlassShape to,
+    double t,
+  ) {
+    final Color? borderColor =
+        from.borderColor == null && to.borderColor == null
+            ? null
+            : Color.lerp(
+                from.borderColor ?? Colors.transparent,
+                to.borderColor ?? Colors.transparent,
+                t,
+              );
+    return LiquidGlassShape(
+      // Discrete shape modes stay stable for the lifetime of the one lens.
+      cornerStyle: from.cornerStyle,
+      clipQuality: from.clipQuality,
+      lightMode: from.lightMode,
+      cornerRadius: _lerpDouble(from.cornerRadius, to.cornerRadius, t),
+      borderWidth: _lerpDouble(from.borderWidth, to.borderWidth, t),
+      borderColor: borderColor,
+      lightIntensity: _lerpDouble(
+        from.lightIntensity,
+        to.lightIntensity,
+        t,
+      ),
+      lightColor: Color.lerp(from.lightColor, to.lightColor, t)!,
+      lightDirection: _lerpDouble(
+        from.lightDirection,
+        to.lightDirection,
+        t,
+      ),
+      borderType: _lerpBorder(from.borderType, to.borderType, t),
+    );
+  }
+
+  static LiquidGlassBorderType _lerpBorder(
+    LiquidGlassBorderType from,
+    LiquidGlassBorderType to,
+    double t,
+  ) {
+    if (from is OpticalBorder && to is OpticalBorder) {
+      return OpticalBorder(
+        borderSaturation: _lerpDouble(
+          from.borderSaturation,
+          to.borderSaturation,
+          t,
+        ),
+        ambientIntensity: _lerpDouble(
+          from.ambientIntensity,
+          to.ambientIntensity,
+          t,
+        ),
+        borderSolidity: _lerpDouble(
+          from.borderSolidity,
+          to.borderSolidity,
+          t,
+        ),
+        lightSpread: _lerpDouble(from.lightSpread, to.lightSpread, t),
+      );
+    }
+    if (from is ClassicBorder && to is ClassicBorder) {
+      return ClassicBorder(
+        borderSoftness: _lerpDouble(
+          from.borderSoftness,
+          to.borderSoftness,
+          t,
+        ),
+        shadowColor: Color.lerp(from.shadowColor, to.shadowColor, t)!,
+        oneSideLightIntensity: _lerpDouble(
+          from.oneSideLightIntensity,
+          to.oneSideLightIntensity,
+          t,
+        ),
+        doubleSideLightIntensity: _lerpDouble(
+          from.doubleSideLightIntensity,
+          to.doubleSideLightIntensity,
+          t,
+        ),
+      );
+    }
+    return from;
+  }
+
+  static LiquidGlassAppearance _lerpAppearance(
+    LiquidGlassAppearance from,
+    LiquidGlassAppearance to,
+    double t,
+  ) {
+    return LiquidGlassAppearance(
+      saturation: _lerpDouble(from.saturation, to.saturation, t),
+      blur: LiquidGlassBlur(
+        sigmaX: _lerpDouble(from.blur.sigmaX, to.blur.sigmaX, t),
+        sigmaY: _lerpDouble(from.blur.sigmaY, to.blur.sigmaY, t),
+      ),
+      color: Color.lerp(from.color, to.color, t)!,
+      enableInnerRadiusTransparent: t < 0.5
+          ? from.enableInnerRadiusTransparent
+          : to.enableInnerRadiusTransparent,
+    );
+  }
+
+  static LiquidGlassRefraction _lerpRefraction(
+    LiquidGlassRefraction from,
+    LiquidGlassRefraction to,
+    double t,
+  ) {
+    return LiquidGlassRefraction(
+      distortion: _lerpDouble(from.distortion, to.distortion, t),
+      distortionWidth: _lerpDouble(
+        from.distortionWidth,
+        to.distortionWidth,
+        t,
+      ),
+      magnification: _lerpDouble(
+        from.magnification,
+        to.magnification,
+        t,
+      ),
+      chromaticAberration: _lerpDouble(
+        from.chromaticAberration,
+        to.chromaticAberration,
+        t,
+      ),
+      refractionMode: from.refractionMode,
+      refractionType: _lerpRefractionType(
+        from.refractionType,
+        to.refractionType,
+        t,
+      ),
+      diagonalFlip: _lerpDouble(from.diagonalFlip, to.diagonalFlip, t),
+    );
+  }
+
+  static LiquidGlassRefractionType? _lerpRefractionType(
+    LiquidGlassRefractionType? from,
+    LiquidGlassRefractionType? to,
+    double t,
+  ) {
+    if (from == null && to == null) return null;
+    if (from is StandardRefraction && to is StandardRefraction) {
+      return StandardRefraction(
+        distortion: _lerpDouble(from.distortion, to.distortion, t),
+        distortionWidth: _lerpDouble(
+          from.distortionWidth,
+          to.distortionWidth,
+          t,
+        ),
+      );
+    }
+    if (from is OpticalRefraction && to is OpticalRefraction) {
+      return OpticalRefraction(
+        refraction: _lerpDouble(from.refraction, to.refraction, t),
+        refractionWidth: _lerpDouble(
+          from.refractionWidth,
+          to.refractionWidth,
+          t,
+        ),
+        depth: _lerpDouble(from.depth, to.depth, t),
+      );
+    }
+    // Different shader calculations cannot be numerically interpolated.
+    // Keep one calculation stable rather than swapping widget surfaces.
+    return to ?? from;
+  }
+
+  static LiquidGlassRefraction _compensateRefractionWidth(
+    LiquidGlassRefraction refraction,
+    double factor,
+  ) {
+    return refraction.copyWith(
+      distortionWidth: refraction.distortionWidth * factor,
+      refractionType: refraction.refractionType?.withWidthFactor(factor),
     );
   }
 

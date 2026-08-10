@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/experimental/liquid_glass_animated_nav_bar_motion.dart';
+import 'package:liquid_glass_easy/experimental/liquid_glass_animated_nav_bar_motion_only.dart';
 
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -22,14 +22,13 @@ void main() {
 // =============================================================
 // **Experimental.** `split_nav_page.dart`, running on the nav bar whose
 // pill's JELLY has been replaced by the acceleration motion model —
-// `LiquidGlassAnimatedNavBarMotion` (lib/experimental/), the copy of the
+// `LiquidGlassAnimatedNavBarMotionOnly` (lib/experimental/), the fresh copy of
 // shipped glass-pill engine. Nothing in lib/src is modified; everything
 // the copy did not need to change is imported from it.
 //
-// Same split layout as the original, re-lit for a light page: the tabs
-// in one frosted-white capsule held off the right edge, search on its own
-// detached circle at the same baseline, and the red belonging to the
-// selected STATE rather than to one tab.
+// Re-lit for a light page: the tabs sit in one wide, centred frosted-white
+// capsule, with the red belonging to the selected STATE rather than to one
+// tab.
 //
 // What changed is how the pill deforms while it travels. The jelly was a
 // velocity-driven lean spring plus a direction-memory spring, pumped in
@@ -39,11 +38,6 @@ void main() {
 // stretching wide and flat as it launches off a tab, squashing narrow
 // and tall as it brakes into the next, and sitting undeformed at
 // constant speed. The model has no lean term at all.
-//
-// It is also drawn differently: the pill is a driven lens whose capsule
-// is evaluated at its envelope size and stretched through the shader, so
-// the end caps go elliptical instead of the capsule being re-rounded at
-// every frame.
 //
 // Compare side by side with the original:
 //   flutter run -t lib/split_nav_page.dart              (jelly)
@@ -58,9 +52,7 @@ const Color _kBrand = Color(0xFFFF3B30);
 /// so nothing on the page is a pure endpoint.
 const Color _kInk = Color(0xFF121215);
 
-/// The material both pieces of glass are cut from: a frosted white over
-/// a soft optical rim. Shared by the capsule and the detached circle so
-/// they read as the same material at two sizes.
+/// The frosted-white capsule material over a soft optical rim.
 LiquidGlassShape _glassShape(double cornerRadius) =>
     LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: cornerRadius,
@@ -75,21 +67,6 @@ LiquidGlassShape _glassShape(double cornerRadius) =>
       ),
     );
 
-LiquidGlassStyle _glassStyle(double cornerRadius) => LiquidGlassStyle(
-      shape: _glassShape(cornerRadius),
-      appearance: const LiquidGlassAppearance(
-        // Thin enough that the page reads through it — the separation
-        // comes from the page being greyer than the glass, not from the
-        // glass being opaque.
-        color: Color(0x8FFFFFFF),
-        blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-      ),
-      refraction: const LiquidGlassRefraction(
-        distortion: 0.06,
-        distortionWidth: 26,
-      ),
-    );
-
 class ExperimentalSplitNavPage extends StatefulWidget {
   const ExperimentalSplitNavPage({super.key});
 
@@ -101,11 +78,8 @@ class ExperimentalSplitNavPage extends StatefulWidget {
 class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
   int _index = 1;
 
-  // Bar height and the action's diameter are the same number: the circle
-  // is the capsule's end cap, moved away from it.
   static const double _barHeight = 60;
   static const double _edge = 16;
-  static const double _gap = 10;
   static const double _bottom = 22;
 
   /// The glyph's size — and therefore `itemStyle.iconSize`, the box every
@@ -147,27 +121,16 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
 
   static const _titles = ['For you', 'Browse', 'On air', 'Your library'];
 
-  void _search() {
-    ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-      const SnackBar(
-        content: Text('Search — the detached action, not a tab'),
-        duration: Duration(seconds: 1),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    // The capsule takes the width the circle leaves it. Clamped so a
-    // tablet does not stretch four tabs across the whole screen.
+    // Fill the phone width with a small edge margin, while keeping the four
+    // tabs comfortably grouped on tablets.
     final double screen = MediaQuery.sizeOf(context).width;
-    final double barWidth =
-        (screen - _edge * 2 - _barHeight - _gap).clamp(240.0, 420.0);
+    final double barWidth = (screen - _edge * 2).clamp(280.0, 560.0);
     final double bottom = _bottom + MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      body: LiquidGlassAnimatedNavBarMotion(
+      body: LiquidGlassAnimatedNavBarMotionOnly(
         body: _OnAirFeed(title: _titles[_index]),
         items: _items,
         selectedIndex: _index,
@@ -175,18 +138,19 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
         pixelRatio: 1,
         useSync: true,
 
-        // ── the tab capsule, held off the right edge ───────────────
+        // ── the wide, centred tab capsule ──────────────────────────
         layout: LiquidGlassBottomNavBarLayout(
           itemCount: _items.length,
           width: barWidth,
           height: _barHeight,
           bottomMargin: bottom,
-          padding: 5,
+          padding: 3,
           pillExtraHeight: 12,
         ),
-        // Left-anchored: a centred bar would drift under the circle as
-        // the screen widens.
-        barPosition: LiquidGlassOffsetPosition(left: _edge, bottom: bottom),
+        barPosition: LiquidGlassAlignPosition(
+          alignment: Alignment.bottomCenter,
+          margin: EdgeInsets.only(bottom: bottom),
+        ),
         barShape: _glassShape(_barHeight / 2),
         barAppearance: const LiquidGlassAppearance(
           color: Color(0x8FFFFFFF),
@@ -196,9 +160,6 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
           distortion: 0.06,
           distortionWidth: 26,
         ),
-        // Wider and softer than the default: a 340×60 capsule needs a
-        // longer throw than a thumb before the drop reads as depth
-        // rather than as a dark outline.
         barShadow: const LiquidGlassShadow(blur: 9, opacity: 0.13),
         itemStyle: const LiquidGlassNavItemStyle(
           // The one place the selected look is decided — icon, bloom and
@@ -216,7 +177,8 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
         // No tint of its own — over white glass a fill would only flatten
         // the capsule. It is pure refraction, as in the original.
         pillColor: Colors.transparent,
-        pillGrowHeight: 9,pillShape: LiquidGlassShape(borderWidth: 0.5),
+        pillGrowHeight: 9,
+        pillShape: LiquidGlassShape(borderWidth: 0.5),
         pillRefraction: const LiquidGlassRefraction(
           distortion: 0.05,
           distortionWidth: 12,
@@ -225,46 +187,28 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
         ),
         // The squash/stretch replacing the jelly. ±12 % rather than the
         // slider thumb's ±30 %: this pill lives inside a 60 px capsule.
-        motion: const LiquidGlassLensMotionSpec(maxDeviation: 0.12),
-        // The pill's own contact, tucked in so the glass overhangs it —
-        // it is only 76 px wide and a full-width halo reads as a glow.
-        pillShadow: const LiquidGlassShadow(blur: 4, opacity: 0.16, inset: 2),
+        motion: const LiquidGlassLensMotionSpec(
+          window: 0.3,
+          coefficient: 0.00007,
+          maxDeviation: 0.12,
+          responseTau: 0.18,
+        ),
+        pillShadow: const LiquidGlassShadow(
+          blur: 4,
+          opacity: 0.16,
+          inset: 2,
+        ),
         // Where it comes to rest: a barely-there grey. The bar is thin
         // glass now, so the resting patch only has to hint at which tab
         // is selected — the red glyph is already saying it.
         restStyle: LiquidGlassStyle(
           shape: _glassShape(28),
           appearance: const LiquidGlassAppearance(color: Color(0x2EAEAEB2)),
-        ),
-
-        // ── search, on its own glass ───────────────────────────────
-        // A lens in the outer view's `child:` slot, so the capture has to
-        // keep running even when the pill is at rest.
-        outerNeedsRealtime: true,
-        outerChild: Stack(
-          children: [
-            Positioned(
-              right: _edge,
-              bottom: bottom,
-              width: _barHeight,
-              height: _barHeight,
-              child: LiquidGlassLens(
-                style: _glassStyle(_barHeight / 2),
-                // A plain gesture, not an InkWell: the nearest Material
-                // is the scaffold's, underneath the whole view, so a
-                // splash would ripple somewhere behind the glass.
-                child: GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: _search,
-                  child: const Icon(
-                    Icons.search_rounded,
-                    size: 24,
-                    color: _kInk,
-                  ),
-                ),
-              ),
-            ),
-          ],
+          refraction: const LiquidGlassRefraction(
+            distortion: 0.015,
+            distortionWidth: 8,
+            chromaticAberration: 0.0002,
+          ),
         ),
       ),
     );
@@ -387,8 +331,8 @@ class _OnAirFeed extends StatelessWidget {
           height: 46,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(
-                color: _kInk.withValues(alpha: 0.12), width: 1.4),
+            border:
+                Border.all(color: _kInk.withValues(alpha: 0.12), width: 1.4),
             image: const DecorationImage(
               image: NetworkImage('https://picsum.photos/seed/dj/120/120'),
               fit: BoxFit.cover,

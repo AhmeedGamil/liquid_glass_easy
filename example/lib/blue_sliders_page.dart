@@ -223,6 +223,7 @@ class _SliderRow extends StatelessWidget {
                 activeColor: kSliderBlue,
                 // No blur on the moving glass thumb.
                 style: kNoBlurThumb,
+                shadow: LiquidGlassShadow(inset:3),
                 layout: LiquidGlassSliderLayout(
                   width: width,
                   trackHeight: kSliderTrackHeight,
