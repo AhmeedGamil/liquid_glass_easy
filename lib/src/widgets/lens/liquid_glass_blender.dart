@@ -14,14 +14,6 @@ import '../painters/liquid_glass_uniforms.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_lens_scope.dart';
 
-/// How strongly a neighbour-direction component activates its side:
-/// `smoothstep(0, 0.4, x)`. A diagonal neighbour (component ~0.7) fully
-/// activates both of its sides; a nearly-perpendicular one barely does.
-double _sideDir(double x) {
-  final double t = (x / 0.4).clamp(0.0, 1.0).toDouble();
-  return t * t * (3.0 - 2.0 * t);
-}
-
 /// Blends two to six descendant `LiquidGlassLens` widgets into one surface.
 ///
 /// The upper limit is **six shapes for now** ([maxLensCount]) — the metaball
@@ -792,8 +784,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
                   halfSize: l.halfSize,
                   cornerRadius: l.cornerRadius,
                   cornerStyle: l.cornerStyle,
-                  blend: l.blend,
-                  sides: l.sides,
                   shapeScale: l.shapeScale,
                 ))
             .toList(growable: false)
@@ -949,79 +939,11 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       final Rect rect = rects[i];
       final double maxCorner = math.min(rect.width, rect.height) * 0.5;
 
-      // Per-side blend activation [right, left, down, up]: a side lights up
-      // when a CLOSE neighbour lies in that direction. The shader rounds the
-      // corners on each active side. Only continuous lenses use it, so skip
-      // the work for the others.
-      final List<double> sides = [0.0, 0.0, 0.0, 0.0];
-      if (member.shape.cornerStyle ==
-          LiquidGlassCornerStyle.continuousRoundedRectangle) {
-        for (int j = 0; j < rects.length; j++) {
-          if (j == i) continue;
-          final Rect other = rects[j];
-          final double dx = math.max(
-              0.0, math.max(rect.left - other.right, other.left - rect.right));
-          final double dy = math.max(
-              0.0, math.max(rect.top - other.bottom, other.top - rect.bottom));
-          final double gap = math.sqrt(dx * dx + dy * dy);
-          // Proximity 1 at touching → 0 at the band edge, sharpened by
-          // morphSpeed so it saturates well before contact.
-          final double u =
-              (gap / math.max(_smoothness, 1.0)).clamp(0.0, 1.0).toDouble();
-          const double morphSpeed = 4.0;
-          final double sp =
-              ((1.0 - u) * morphSpeed).clamp(0.0, 1.0).toDouble();
-          final double prox = sp * sp * (3.0 - 2.0 * sp);
-          if (prox <= 0.0) continue;
-
-          // Per-side estimation (always on): only the corners on the side(s)
-          // actually facing a close neighbour morph toward a circular rounded
-          // rectangle; the rest of the lens keeps its capsule corners.
-          //
-          // When the boxes sink INTO each other (overlap on both axes) the
-          // merged silhouette wraps around every side, so morph all four
-          // corners — not just the ones facing the neighbour. The deeper the
-          // interpenetration, the more isotropic the activation; otherwise the
-          // far-side corners stay capsule while the blend warps them.
-          final double overlapX = math.min(rect.right, other.right) -
-              math.max(rect.left, other.left);
-          final double overlapY = math.min(rect.bottom, other.bottom) -
-              math.max(rect.top, other.top);
-          if (overlapX > 0.0 && overlapY > 0.0) {
-            final double minHalf = math.max(
-                1.0, math.min(rect.shortestSide, other.shortestSide) * 0.5);
-            final double o = (math.min(overlapX, overlapY) / minHalf)
-                .clamp(0.0, 1.0)
-                .toDouble();
-            final double omni = prox * (o * o * (3.0 - 2.0 * o));
-            sides[0] = math.max(sides[0], omni);
-            sides[1] = math.max(sides[1], omni);
-            sides[2] = math.max(sides[2], omni);
-            sides[3] = math.max(sides[3], omni);
-          }
-
-          // Direction to the neighbour → which side(s) it activates.
-          final Offset d = other.center - rect.center;
-          final double len = d.distance;
-          if (len < 1e-3) continue;
-          final double nx = d.dx / len;
-          final double ny = d.dy / len;
-          sides[0] = math.max(sides[0], prox * _sideDir(nx)); // right
-          sides[1] = math.max(sides[1], prox * _sideDir(-nx)); // left
-          sides[2] = math.max(sides[2], prox * _sideDir(ny)); // down (+y)
-          sides[3] = math.max(sides[3], prox * _sideDir(-ny)); // up (-y)
-        }
-      }
-      final double blend = math.max(
-          math.max(sides[0], sides[1]), math.max(sides[2], sides[3]));
-
       return MetaballLensUniform(
         center: rect.center,
         halfSize: Size(rect.width * 0.5, rect.height * 0.5),
         cornerRadius: math.min(member.shape.cornerRadius, maxCorner),
         cornerStyle: member.shape.cornerStyle.index,
-        blend: blend,
-        sides: sides,
         shapeScale: member.shapeScale,
       );
     }, growable: false);

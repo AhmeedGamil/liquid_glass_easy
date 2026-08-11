@@ -90,15 +90,13 @@ uniform vec4 u_lens2;
 uniform vec4 u_lens3;
 uniform vec4 u_lens4;
 uniform vec4 u_lens5;
-// u_lensMetaN = (cornerRadius px, packedScale, cornerStyle, packedSides).
+// u_lensMetaN = (cornerRadius px, packedScale, cornerStyle, spare).
 //   packedScale is this lens's flex (deformed/rest) as two 11-bit values
 //   — see unpackScale; 0 means undeformed. It took over the old `enabled` slot:
 //   an absent lens is packed all-zero, so u_lensN.z (half-width) already IS the
 //   enabled bit and every guard reads that instead.
-//   packedSides packs the four per-side blend activations (right,left,down,up;
-//   each 0..1) at 5 bits each into one float — see unpackSides(). This folds the
-//   old separate u_lensSidesN vec4 into the spare meta slot (was the debug-only
-//   `blend`), saving one binding per lens. NOTE: requires highp (not fp16-safe).
+//   The fourth slot is unused. It carried per-side blend activations back when
+//   a continuous corner had to be flattened to blend cleanly.
 uniform vec4 u_lensMeta0;
 uniform vec4 u_lensMeta1;
 uniform vec4 u_lensMeta2;
@@ -203,19 +201,6 @@ out vec4 frag_color;
 // Metaball field: smooth-union of the enabled lens SDFs
 // =====================================================
 
-// Unpack the four per-side blend activations from a single float (see
-// u_lensMetaN.w). Each side (right, left, down, up) was quantised to 5 bits
-// (0..31) and packed as r + l*32 + d*1024 + u*32768 on the Dart side; here we
-// peel them back off and renormalise to 0..1. highp-only (the packed integer
-// reaches ~2^20, which fp16 cannot represent exactly).
-vec4 unpackSides(float p) {
-    float u = floor(p / 32768.0); p -= u * 32768.0;
-    float d = floor(p / 1024.0);  p -= d * 1024.0;
-    float l = floor(p / 32.0);    p -= l * 32.0;
-    float r = p;
-    return vec4(r, l, d, u) / 31.0;   // (right, left, down, up)
-}
-
 // Polynomial smooth minimum — the metaball blend. As two SDFs come within ~k
 // of each other their union grows a smooth bridge instead of a hard crease.
 float smoothUnion(float a, float b, float k) {
@@ -229,15 +214,13 @@ float smoothUnion(float a, float b, float k) {
 // meta.z selects the corner SDF (0 = circular rounded rect, 1 = squircle,
 // 2 = continuous), mirroring the single-lens shader's u_cornerStyle.
 //
-// CAVEAT: only the circular rounded-rect SDF is a TRUE distance field
-// (|grad| ~ 1). The metaball smooth-union assumes that to grow a correct
-// bridge — the squircle/continuous corner SDFs carry a non-unit-gradient
-// "shoulder" near their corners, which warps the blend so the neck stops
-// hugging the outline. The squircle branch below is intentionally exposed
-// so the look can be evaluated on device; expect bridge distortion when
-// two squircle lenses fuse near their corners.
+// CAVEAT: the SQUIRCLE SDF is not a true distance field (|grad| ~ 1), which
+// the smooth-union assumes when it places a bridge — expect distortion when
+// two squircle lenses fuse near their corners. Circular and continuous are
+// both distances (the continuous corner divides by its own gradient), so
+// they bridge correctly.
 // Per-lens flex scale (deformed / rest), unpacked from meta.y.
-// Two 11-bit values, radix 2048, over 0.5..2.0 — same scheme as unpackSides.
+// Two 11-bit values, radix 2048, over 0.5..2.0.
 // 0 is the UNDEFORMED sentinel so a lens without flex is bit-identical
 // to the pre-flex output rather than landing on 0.99988.
 vec2 unpackScale(float p) {
@@ -281,8 +264,7 @@ float lensDistance(vec2 p, vec4 lens, vec4 meta) {
     float r = min(meta.x, maxCorner);
 
     float d;
-    // Continuous (Apple capsule-style) corners. RAW here; the per-corner morph
-    // lives in lensDistanceMorph (used by field only).
+    // Continuous (capsule-style) corners.
     if (meta.z > 1.5 && r > 0.5) {
         vec2 reach = continuousRoundedRectReach(r, halfSize);
         d = continuousRoundedRectShape(pRest, lens.xy, halfSize, r, reach);
@@ -312,29 +294,6 @@ vec2 lensGradDir(vec2 p, vec4 lens, vec4 meta) {
     if (q.x > 0.0 && q.y > 0.0) return sg * normalize(max(q, vec2(EPS)));
     if (q.x > q.y) return vec2(sg.x, 0.0);
     return vec2(0.0, sg.y);
-}
-
-// Per-lens SDF with the PER-CORNER continuous→rounded-rect morph. `sides` =
-// (right, left, down, up) activation from Dart. A corner rounds when either of
-// the two sides it joins is active, so the WHOLE corner attached to a blending
-// side flattens. Cheap: just a quadrant lookup, no neighbour search. Used for
-// the silhouette (field) only — fieldHard/anchor keep the raw lensDistance.
-float lensDistanceMorph(vec2 p, vec4 lens, vec4 meta, vec4 sides) {
-    float base = lensDistance(p, lens, meta);
-    if (meta.z < 1.5) return base;                       // only continuous morphs
-    vec2 s = unpackScale(meta.y);
-    vec2 halfSize, pRest;
-    lensRestSpace(p, lens, s, halfSize, pRest);
-    float r = min(meta.x, min(halfSize.x, halfSize.y));
-    vec2 rel = p - lens.xy;
-    // Which corner is this fragment in → the two sides it joins.
-    float xAct = (rel.x > 0.0) ? sides.x : sides.y;      // right : left
-    float yAct = (rel.y > 0.0) ? sides.z : sides.w;      // down  : up
-    float w = max(xAct, yAct);                           // either side rounds it
-    if (w < 0.001) return base;
-    float rrect = lensToScreen(
-        roundedRectangleShape(pRest, lens.xy, halfSize, r), p, lens, s);
-    return mix(base, rrect, w);
 }
 
 // The distance actually fed into the metaball smin. For CONTINUOUS lenses,
@@ -378,12 +337,12 @@ float lensDistanceContFlat(vec2 p, vec4 lens, vec4 meta) {
 
 float field(vec2 p) {
     float d = 1e9;
-    if (u_lens0.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens0, u_lensMeta0, unpackSides(u_lensMeta0.w)), u_smoothness);
-    if (u_lens1.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens1, u_lensMeta1, unpackSides(u_lensMeta1.w)), u_smoothness);
-    if (u_lens2.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens2, u_lensMeta2, unpackSides(u_lensMeta2.w)), u_smoothness);
-    if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens3, u_lensMeta3, unpackSides(u_lensMeta3.w)), u_smoothness);
-    if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens4, u_lensMeta4, unpackSides(u_lensMeta4.w)), u_smoothness);
-    if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceMorph(p, u_lens5, u_lensMeta5, unpackSides(u_lensMeta5.w)), u_smoothness);
+    if (u_lens0.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens0, u_lensMeta0), u_smoothness);
+    if (u_lens1.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens1, u_lensMeta1), u_smoothness);
+    if (u_lens2.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens2, u_lensMeta2), u_smoothness);
+    if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens3, u_lensMeta3), u_smoothness);
+    if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens4, u_lensMeta4), u_smoothness);
+    if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens5, u_lensMeta5), u_smoothness);
     return d;
 }
 
@@ -526,8 +485,8 @@ vec2 anchorFor(vec2 p) {
 // ONE loop over the lenses, from a SINGLE raw lensDistance() per lens.
 //
 // The original main() evaluated each lens's SDF up to three times at the
-// same fragment — once for field() (via lensDistanceMorph), once for
-// fieldHard() and once for anchorFor(). lensDistance() is pure, so reusing
+// same fragment — once for field(), once for fieldHard() and once for
+// anchorFor(). lensDistance() is pure, so reusing
 // its result here is bit-identical: smoothSdf == field(p), hardSdf ==
 // fieldHard(p), anchor == anchorFor(p). No visual change; ~3x fewer SDFs.
 //
@@ -542,7 +501,7 @@ struct MergedField {
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
 };
 
-void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 sides,
+void accumulateMerged(vec2 p, vec4 lens, vec4 meta,
                       inout float smoothSdf, inout float hardSdf,
                       inout vec2 anchorAcc, inout float anchorW,
                       inout vec2 gradAcc) {
@@ -559,30 +518,11 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 sides,
     anchorAcc += lens.xy * w;
     anchorW   += w;
 
-    // Per-corner continuous→rounded-rect morph (== lensDistanceMorph),
-    // reusing `base` instead of recomputing lensDistance().
-    float dMorph = base;
-    if (meta.z > 1.5) {                                  // only continuous morphs
-        vec2 s = unpackScale(meta.y);
-        vec2 halfSize, pRest;
-        lensRestSpace(p, lens, s, halfSize, pRest);
-        float r = min(meta.x, min(halfSize.x, halfSize.y));
-        vec2 rel = p - lens.xy;
-        float xAct = (rel.x > 0.0) ? sides.x : sides.y;  // right : left
-        float yAct = (rel.y > 0.0) ? sides.z : sides.w;  // down  : up
-        float wMorph = max(xAct, yAct);                  // either side rounds it
-        if (wMorph >= 0.001) {
-            float rrect = lensToScreen(
-                roundedRectangleShape(pRest, lens.xy, halfSize, r), p, lens, s);
-            dMorph = mix(base, rrect, wMorph);
-        }
-    }
-
     // Smooth union, inlined so the blend weight h is shared with the gradient.
-    // h and the value are bit-identical to smoothUnion(smoothSdf, dMorph, k).
+    // h and the value are bit-identical to smoothUnion(smoothSdf, base, k).
     float kk = max(u_smoothness, EPS);
-    float h  = clamp(0.5 + 0.5 * (dMorph - smoothSdf) / kk, 0.0, 1.0);
-    smoothSdf = mix(dMorph, smoothSdf, h) - kk * h * (1.0 - h);
+    float h  = clamp(0.5 + 0.5 * (base - smoothSdf) / kk, 0.0, 1.0);
+    smoothSdf = mix(base, smoothSdf, h) - kk * h * (1.0 - h);
 
 #if METABALL_GRAD_ANALYTIC
     // Analytic merged gradient: the polynomial smin's gradient is exactly the
@@ -601,12 +541,12 @@ MergedField evaluateMerged(vec2 p) {
     m.grad      = vec2(0.0);
     vec2 anchorAcc = vec2(0.0);
     float anchorW = 0.0;
-    accumulateMerged(p, u_lens0, u_lensMeta0, unpackSides(u_lensMeta0.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens1, u_lensMeta1, unpackSides(u_lensMeta1.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens2, u_lensMeta2, unpackSides(u_lensMeta2.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens3, u_lensMeta3, unpackSides(u_lensMeta3.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens4, u_lensMeta4, unpackSides(u_lensMeta4.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens5, u_lensMeta5, unpackSides(u_lensMeta5.w), m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens0, u_lensMeta0, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens1, u_lensMeta1, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens2, u_lensMeta2, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens3, u_lensMeta3, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens4, u_lensMeta4, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    accumulateMerged(p, u_lens5, u_lensMeta5, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
     m.anchor = (anchorW > EPS) ? anchorAcc / anchorW : p;
     return m;
 }

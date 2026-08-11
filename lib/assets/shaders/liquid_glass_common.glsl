@@ -303,63 +303,72 @@ ShapeData evaluateSquircleRRect(
 }
 
 /* ===========================
-   CONTINUOUS ROUNDED RECTANGLE (Apple capsule-style corners)
+   CONTINUOUS ROUNDED RECTANGLE (capsule-style corners)
    ---------------------------------------------------
    A distinct continuous-corner model from the squircle above. Each
-   corner is an EXACT circle of radius `rr` for its 45° "belly", plus a
-   tuned G2 "shoulder" that eases the contact onto each flat edge (the
-   curve peels off the edge ~0.44·rr earlier, with zero tangent AND
-   curvature at the edge). It matches `liquidGlassContinuousRoundedRectPath`
-   in Dart, so the refraction follows the same outline the clip cuts.
+   corner is a p-norm ball whose box is STRETCHED along whichever edge
+   has room, and whose exponent on each axis rises with that same room.
+   The stretch is the whole trick: the curve leaves the edge at
+   r·(1 + CRR_REACH) with zero tangent AND curvature, instead of turning
+   in at r. It matches `liquidGlassContinuousRoundedRectPath` in Dart, so
+   the refraction follows the same outline the clip cuts.
 
-   The shoulder reach on each edge is clamped to the room available on
-   that edge, so a square at full radius collapses to a clean circle
-   (capsule). The constants are numerically tuned.
+   t is an edge's slack, clamp((half − r) / r, 0, 1). At t = 0 the model
+   collapses to reach r and exponent 2 — a circle — so a square at full
+   radius is a clean capsule end. Per-AXIS is what carries capsules: an
+   end cap has no room, so it stays circular while the long flank keeps
+   the smoothing.
+
+   The value is a p-norm magnitude MINUS a radius, which is what keeps
+   the corner and the straight edges on speaking terms: set either
+   offset to zero and the p-norm collapses to the other one, landing on
+   exactly what the box formula says there. A normalized value does not
+   do that, and the disagreement shows up as a seam across the corner
+   box.
    =========================== */
-const float CRR_T0      = 0.728;
-const float CRR_ATAIL   = 4.836;
-const float CRR_NTAIL   = 3.869;
-const float CRR_EXTFRAC = 0.4425;
+const float CRR_REACH    = 0.2893;  // corner reach past r, at full room
+const float CRR_EXP_RISE = 0.7198;  // exponent above 2, at full room
+const float CRR_EPS      = 1e-6;
+const float CRR_DEGEN    = 1e-20;   // both offsets vanish: no radius to pick
 
-// Shoulder easing: 1.0 across the belly (tt <= CRR_T0, exact circle),
-// ramping to 0.0 at the edge contact (tt = 1) with G2 continuity.
-float crrShoulder(float tt){
-    if (tt <= CRR_T0) return 1.0;
-    float u = clamp((tt - CRR_T0) / (1.0 - CRR_T0), 0.0, 1.0);
-    float inner = max(1.0 - pow(u, CRR_ATAIL), 0.0);
-    return pow(inner, 1.0 / CRR_NTAIL);
-}
-
-// Per-edge shoulder reach (px), clamped to the room on each edge.
-// reach.x = onto the horizontal (top/bottom) edges; reach.y = onto the
-// vertical (left/right) edges. halfSize = the lens half-extents.
+// Per-edge corner reach (px) PAST the radius, ramped by the room on that
+// edge. reach.x runs onto the horizontal (top/bottom) edges, reach.y onto
+// the vertical ones. halfSize = the lens half-extents.
 vec2 continuousRoundedRectReach(float rr, vec2 halfSize){
-    float eH = min(CRR_EXTFRAC * rr, halfSize.x - rr);
-    float eV = min(CRR_EXTFRAC * rr, halfSize.y - rr);
-    return max(vec2(eH, eV), vec2(0.0));
+    vec2 t = clamp((halfSize - vec2(rr)) / max(rr, CRR_EPS), 0.0, 1.0);
+    return CRR_REACH * rr * t;
 }
 
 // SDF of the capsule-style continuous rounded rectangle. `reach` comes
-// from continuousRoundedRectReach(). The shoulder displaces the circle
-// along one axis as a function of the other; the per-axis max(.,0) keeps
-// the straight edges flat outside the shoulder zone.
+// from continuousRoundedRectReach(); the exponent is derived from it, so
+// a caller that shortens the reach softens the corner along with it.
 float continuousRoundedRectShape(vec2 p, vec2 c, vec2 hsz, float rr, vec2 reach){
-    vec2 q = abs(p - c) - hsz + rr;
-    float gV = reach.y * (crrShoulder(clamp(q.x / rr, 0.0, 1.0)) - 1.0);
-    float gH = reach.x * (crrShoulder(clamp(q.y / rr, 0.0, 1.0)) - 1.0);
-    // Lower half (closer to a vertical edge, q.x >= q.y): shoulder on q.y.
-    float fLower = length(vec2(max(q.x, 0.0), max(q.y - gV, 0.0))) - rr;
-    // Upper half (closer to a horizontal edge, q.y > q.x): shoulder on q.x.
-    float fUpper = length(vec2(max(q.x - gH, 0.0), max(q.y, 0.0))) - rr;
-    // FIX #1: smooth crossfade across the 45° seam instead of a hard
-    // (q.x >= q.y) branch. fLower/fUpper are equal at q.x==q.y but their
-    // SLOPES differ, so the ternary leaves a gradient kink there — that kink
-    // is what warps the metaball bridge and spikes the eikonal derivative.
-    // Blending over a small band (scaled to rr) makes the corner C1 smooth;
-    // the apex is unchanged (both halves coincide at the diagonal).
-    float seamW  = max(rr * 0.15, 1.0);
-    float corner = mix(fUpper, fLower, smoothstep(-seamW, seamW, q.x - q.y));
-    return min(max(q.x, q.y), 0.0) + corner;
+    vec2 a = abs(p - c);
+    vec2 e = a - hsz;
+    float box = min(max(e.x, e.y), 0.0) + length(max(e, vec2(0.0)));
+
+    vec2 R = min(vec2(rr) + reach, hsz);   // the corner box
+    vec2 q = a - (hsz - R);                // where we are inside it
+    if (min(q.x, q.y) <= 0.0) return box;  // straight edge, or interior
+
+    vec2  n = vec2(2.0) + CRR_EXP_RISE * reach / max(CRR_REACH * rr, CRR_EPS);
+    vec2  t = pow(q / R, n);               // each axis' share of the p-norm
+    float S = t.x + t.y;                   // 1 exactly on the surface
+    // The box's inner corner: both shares vanish, there is no radius to
+    // subtract, and the straight edges are the nearest surface anyway.
+    if (S <= CRR_DEGEN) return box;
+
+    // Radius and exponent both follow whichever axis carries the value, so on
+    // either edge of the box this collapses to that axis alone and lands on
+    // q - R — exactly what the box formula says there. A square box (a
+    // circular corner) keeps length(q) - R, exact at any depth.
+    vec2  w = t / S;
+    float corner = dot(R, w) * (pow(S, 1.0 / dot(n, w)) - 1.0);
+
+    // Inside a corner the nearest surface can be a straight edge rather than
+    // the arc. Whichever is nearer wins — and on the box's edges the two
+    // agree, so the branch above is seamless.
+    return max(corner, box);
 }
 
 /* ===========================

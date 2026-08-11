@@ -497,64 +497,68 @@ Path liquidGlassSquirclePath(
   return path..close();
 }
 
-/// The Apple capsule-style continuous rounded-rectangle outline: each corner
-/// is an EXACT circle of radius `r` for its 45° "belly", plus a tuned G2
-/// shoulder that eases the contact onto each flat edge. This is the Dart twin
-/// of the shader's `continuousRoundedRect*` SDF (and the `_capsulePath`
-/// experiment), so the [LiquidGlassClipQuality.continuous] clip lines up with
-/// the refraction. The per-edge shoulder reach is clamped to the room
-/// available on each edge, so a square at full radius collapses to a clean
-/// circle (capsule), exactly like iOS. Constants are numerically tuned to
-/// Apple's capsule.
+/// The capsule-style continuous rounded-rectangle outline: each corner is a
+/// p-norm ball whose box is stretched along whichever edge has room, with an
+/// exponent that rises with that same room. The stretch is what makes the
+/// corner read as continuous — the curve leaves the edge at `r · (1 + 0.2893)`
+/// with zero tangent and curvature, instead of turning in at `r`.
+///
+/// This is the Dart twin of the shader's `continuousRoundedRect*` SDF, so the
+/// [LiquidGlassClipQuality.continuous] clip lines up with the refraction.
+///
+/// Both the reach and the exponent ramp with each edge's slack, so a square at
+/// full radius collapses to a clean circle and a capsule keeps a circular end
+/// cap while its long flank stays smoothed.
 Path liquidGlassContinuousRoundedRectPath(
   Size size,
   double r, {
   int seg = 40,
 }) {
-  const double extFrac = 0.4425, t0 = 0.728, aTail = 4.836, nTail = 3.869;
+  const double reachFrac = 0.2893, expRise = 0.7198;
   final double w = size.width, h = size.height;
   final double maxCorner = math.min(w, h) / 2;
   final double rr = math.min(r, maxCorner);
   if (rr < 0.5) return Path()..addRect(Offset.zero & size);
 
-  // Per-edge shoulder reach, clamped to the room available on each edge.
-  final double eH = math.min(extFrac * rr, w / 2 - rr); // onto top/bottom edges
-  final double eV = math.min(extFrac * rr, h / 2 - rr); // onto left/right edges
-  final double belly = rr / math.sqrt2;
+  // Each axis' slack, and the corner box + exponent it earns.
+  final double tH = ((w / 2 - rr) / rr).clamp(0.0, 1.0);
+  final double tV = ((h / 2 - rr) / rr).clamp(0.0, 1.0);
+  final double reachH = rr * (1 + reachFrac * tH); // onto top/bottom edges
+  final double reachV = rr * (1 + reachFrac * tV); // onto left/right edges
+  final double expH = 2 + expRise * tH;
+  final double expV = 2 + expRise * tV;
 
-  double shoulderA(double tt) {
-    if (tt <= t0) return 1.0;
-    final double u = ((tt - t0) / (1 - t0)).clamp(0.0, 1.0);
-    return math
-        .pow(math.max(1 - math.pow(u, aTail).toDouble(), 0.0), 1 / nTail)
-        .toDouble();
+  final double halfW = w / 2, halfH = h / 2;
+  final double flatX = halfW - reachH;
+  final double flatY = halfH - reachV;
+
+  /// One corner, walked with the p-norm's own parametrization so the path and
+  /// the shader's zero level are the same curve. φ = 0 sits on the vertical
+  /// edge, φ = π/2 on the horizontal one.
+  List<Offset> corner(double sx, double sy, {required bool forward}) {
+    final steps = seg * 2;
+    return [
+      for (int i = 0; i <= steps; i++)
+        () {
+          final double t = i / steps;
+          final double phi = (forward ? t : 1 - t) * math.pi / 2;
+          final double u =
+              reachH * math.pow(math.cos(phi), 2 / expH).toDouble();
+          final double v =
+              reachV * math.pow(math.sin(phi), 2 / expV).toDouble();
+          return Offset(halfW + sx * (flatX + u), halfH + sy * (flatY + v));
+        }(),
+    ];
   }
 
-  List<Offset> corner(double cx, double cy, double sx, double sy) {
-    final out = <Offset>[];
-    // Lower half: vertical-edge shoulder (param by u, contact -> belly).
-    for (int i = 0; i <= seg; i++) {
-      final double u = rr - (rr - belly) * i / seg;
-      final double v = math.sqrt(math.max(rr * rr - u * u, 0.0)) +
-          eV * (shoulderA(u / rr) - 1);
-      out.add(Offset(cx + sx * u, cy + sy * v));
-    }
-    // Upper half: horizontal-edge shoulder (param by v, belly -> contact).
-    for (int i = 1; i <= seg; i++) {
-      final double v = belly + (rr - belly) * i / seg;
-      final double u = math.sqrt(math.max(rr * rr - v * v, 0.0)) +
-          eH * (shoulderA(v / rr) - 1);
-      out.add(Offset(cx + sx * u, cy + sy * v));
-    }
-    return out;
-  }
-
-  final tl = corner(rr, rr, -1, -1);
-  final tr = corner(w - rr, rr, 1, -1).reversed.toList();
-  final br = corner(w - rr, h - rr, 1, 1);
-  final bl = corner(rr, h - rr, -1, 1).reversed.toList();
-
-  final all = [...tl, ...tr, ...br, ...bl];
+  // Clockwise: up the left edge, across the top, down the right, back along
+  // the bottom.
+  final all = [
+    ...corner(-1, -1, forward: true), // top-left:     left edge  → top edge
+    ...corner(1, -1, forward: false), // top-right:    top edge   → right edge
+    ...corner(1, 1, forward: true), // bottom-right: right edge → bottom edge
+    ...corner(-1, 1, forward: false), // bottom-left:  bottom     → left edge
+  ];
   final path = Path()..moveTo(all.first.dx, all.first.dy);
   for (final p in all.skip(1)) {
     path.lineTo(p.dx, p.dy);

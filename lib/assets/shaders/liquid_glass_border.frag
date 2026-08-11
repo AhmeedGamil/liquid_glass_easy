@@ -166,7 +166,7 @@ void main() {
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
 
     if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
-        // Continuous (Apple capsule-style) corners.
+        // Continuous (capsule-style) corners.
         vec2 reach = continuousRoundedRectReach(cornerRadiusPx, restHalfPx);
         shapeData = evaluateContinuousRoundedRect(
             fragRestPx, lensCenterPx, restHalfPx, cornerRadiusPx, reach);
