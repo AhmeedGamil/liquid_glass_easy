@@ -1,17 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────
-// EXPERIMENTAL — Dart port of every shape in
-// Sources/LiquidGlassKit/LiquidGlassFragment.metal, so the geometry can be
-// eyeballed on any device instead of only through Metal.
+// EXPERIMENTAL — the SDF primitives a glass shape can be built from, on the
+// CPU, so the geometry can be eyeballed on any device instead of only through
+// a running shader.
 //
-// Names, formulas and argument order follow the .metal file 1:1. Only the
-// plumbing changes: the `ShaderUniforms` struct becomes explicit arguments and
-// `contentsScale` defaults to 1, i.e. evaluate in logical points and the
-// distances come back in logical points.
+// Everything works in logical points unless a caller passes `contentsScale`,
+// and distances come back in whatever unit went in.
 //
-// Deviations from the shader, both marked at their site:
-//   • superellipseSDF's 24 boundary samples can be hoisted out of the loop
-//     (they depend only on the exponent — a GPU has to redo them per fragment).
-//   • one zero-length-segment guard in that same loop.
+// Two notes on the superellipse:
+//   • its 24 boundary samples depend only on the exponent, so a CPU can hoist
+//     them out of the per-pixel loop — a GPU has to redo them per fragment.
+//   • one zero-length-segment guard keeps extreme exponents from dividing by
+//     zero.
 // ─────────────────────────────────────────────────────────────────────────
 
 import 'dart:math' as math;
@@ -21,7 +20,7 @@ import 'dart:ui';
 
 double _pow(double base, double exponent) => math.pow(base, exponent).toDouble();
 
-/// Metal's `sign()`: -1 / 0 / +1 (Dart's `.sign` keeps the sign of zero).
+/// A shading-language `sign()`: -1 / 0 / +1 (Dart's `.sign` keeps zero's sign).
 double _sign(double v) => v > 0 ? 1.0 : (v < 0 ? -1.0 : 0.0);
 
 double _clamp01(double v) => v < 0 ? 0 : (v > 1 ? 1 : v);
@@ -33,22 +32,21 @@ double _dot(Offset a, Offset b) => a.dx * b.dx + a.dy * b.dy;
 // SDFs return signed distance: >0 outside, <0 inside, 0 on the surface.
 // =========================================================================
 
-/// `circleSDF` — distance from centre minus radius.
+/// Circle: distance from the centre minus the radius.
 double circleSdf(Offset point, double radius) => point.distance - radius;
 
-/// What `superellipseSDF` returns: the shader packs it into a float3 as
-/// x = distance, yz = gradient.
+/// What a superellipse evaluation returns: the distance, plus the analytic
+/// gradient of the implicit function.
 class SuperellipseSample {
   const SuperellipseSample(this.distance, this.gradient);
 
   final double distance;
 
-  /// Analytic gradient of the implicit function — NaN at the exact centre,
-  /// same as in the shader.
+  /// Analytic gradient of the implicit function — NaN at the exact centre.
   final Offset gradient;
 }
 
-/// The 24 boundary samples `superellipseSDF` walks, in the first octant.
+/// The 24 boundary samples the superellipse walk visits, in the first octant.
 ///
 /// They depend only on [exponent], never on the fragment, so a CPU port can
 /// build the table once per shape instead of once per pixel.
@@ -65,8 +63,8 @@ List<Offset> superellipseQuadrantTable(double exponent, {int segmentCount = 24})
   return table;
 }
 
-/// `superellipseSDF` — generalized superellipse, true distance by walking the
-/// boundary as 23 segments. Pass [quadrant] to reuse a hoisted table.
+/// Generalized superellipse — true distance, found by walking the boundary as
+/// 23 segments. Pass [quadrant] to reuse a hoisted table.
 SuperellipseSample superellipseSdf(
   Offset point,
   double scale,
@@ -95,8 +93,8 @@ SuperellipseSample superellipseSdf(
     final pointA = p - previous;
     final pointB = table[i] - previous;
     final lengthB = _dot(pointB, pointB);
-    // Not in the shader: two samples can collapse onto each other at extreme
-    // exponents, and 0/0 would poison the whole octant.
+    // Two samples can collapse onto each other at extreme exponents, and a
+    // 0/0 there would poison the whole octant.
     final h = lengthB > 1e-20 ? _clamp01(_dot(pointA, pointB) / lengthB) : 0.0;
     final perpendicular = pointA - pointB * h;
     final distanceSquared = _dot(perpendicular, perpendicular);
@@ -111,8 +109,8 @@ SuperellipseSample superellipseSdf(
   );
 }
 
-/// The two commented-out lines inside `superellipseSDF` — "skip the loop
-/// entirely". Same zero level set, but the value is a p-norm, not a distance.
+/// Skipping the walk entirely: the same zero level set, but the value is a
+/// p-norm rather than a distance.
 double superellipseApproxSdf(Offset point, double scale, double exponent) {
   final p = point / scale;
   final sumPowers =
@@ -120,7 +118,7 @@ double superellipseApproxSdf(Offset point, double scale, double exponent) {
   return (_pow(sumPowers, 1.0 / exponent) - 1.0) * scale;
 }
 
-/// `superellipseCornerSDF` — the p-norm ball used for rectangle corners.
+/// The p-norm ball that rounds a rectangle corner.
 double superellipseCornerSdf(Offset point, double radius, double exponent) {
   final x = point.dx.abs();
   final y = point.dy.abs();
@@ -128,7 +126,7 @@ double superellipseCornerSdf(Offset point, double radius, double exponent) {
   return value - radius;
 }
 
-/// `roundedRectangleSDF` — box with superellipse corners.
+/// Box with superellipse corners.
 ///
 /// [rect] is in points, [fragmentCoord] in pixels; with [contentsScale] left
 /// at 1 both are just logical points.
@@ -171,7 +169,7 @@ double roundedRectangleSdf(
           .distance;
 }
 
-/// `smoothUnion` — polynomial smooth-min, the merge that morphs two shapes.
+/// Polynomial smooth-min — the merge that morphs two shapes together.
 double smoothUnion(double distanceA, double distanceB, double smoothness) {
   final hermite =
       _clamp01(0.5 + 0.5 * (distanceB - distanceA) / smoothness);
@@ -179,10 +177,10 @@ double smoothUnion(double distanceA, double distanceB, double smoothness) {
   return mixed - smoothness * hermite * (1.0 - hermite);
 }
 
-/// `primaryShapeSDF` — every rectangle smooth-unioned into one field.
+/// Every rectangle smooth-unioned into one field.
 ///
-/// Careful with the return value: the shader normalizes each rectangle's
-/// distance by `resolution.y` before merging, so this is unitless. Multiply by
+/// Careful with the return value: each rectangle's distance is normalized by
+/// [resolutionY] before merging, so this is unitless — multiply by
 /// [resolutionY] to get points back. [shapeMergeSmoothness] lives in that same
 /// normalized space (the app ships 0.2).
 double primaryShapeSdf(
@@ -229,13 +227,13 @@ double primaryShapeSdf(
 // Normal / debug-colour helpers, used by the gallery's viz modes
 // =========================================================================
 
-/// `vectorToAngle` — atan2 lifted into [0, 2π].
+/// atan2 lifted into [0, 2π].
 double vectorToAngle(Offset vector) {
   final angle = math.atan2(vector.dy, vector.dx);
   return angle < 0 ? angle + 2 * math.pi : angle;
 }
 
-/// `hsvToRgb`, all channels 0..1.
+/// HSV to RGB, all channels 0..1.
 ({double r, double g, double b}) hsvToRgb(double h, double s, double v) {
   double channel(double kn) {
     final p = ((h + kn) % 1.0 * 6.0 - 3.0).abs();
@@ -245,6 +243,6 @@ double vectorToAngle(Offset vector) {
   return (r: channel(1.0), g: channel(2.0 / 3.0), b: channel(1.0 / 3.0));
 }
 
-/// `vectorToRainbowColor` — direction as hue, the shader's normal debug view.
+/// Direction as hue — the normal debug view.
 ({double r, double g, double b}) vectorToRainbowColor(Offset vector) =>
     hsvToRgb(vectorToAngle(vector) / (2 * math.pi), 1.0, 1.0);

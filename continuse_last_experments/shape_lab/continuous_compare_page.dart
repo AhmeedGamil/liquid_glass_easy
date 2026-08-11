@@ -1,14 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────
-// EXPERIMENTAL — the continuous rounded rect / capsule built from the Metal
-// shader's corner equation, stacked on the Apple-style reference.
+// EXPERIMENTAL — every continuous rounded rect / capsule model we have,
+// stacked on the same box so they can be compared corner by corner.
 //
-//   • METAL-CONT   metal_continuous_shape.dart — the p-norm corner with the
+//   • P-NORM       pnorm_continuous_shape.dart — a p-norm corner with the
 //                  fitted reach and per-axis exponent.
+//   • OURS         our_continuous_shape.dart — the equation the package's own
+//                  shader draws today.
 //   • CONTINUOUS   continuous_sdf/continuous_corner_path.dart, the G2 Bézier
-//                  reference. This is what the other two are measured against.
-//   • STOCK P-NORM the shader corner exactly as shipped: corner box r × r, one
-//                  exponent, no reach. Its exponent has its own slider — worth
-//                  parking it at 4 ("squircle") to see how far off that is.
+//                  reference. This is what everything is measured against.
+//   • PLAIN P-NORM the same corner with no reach at all: box r × r, one
+//                  exponent. Its exponent has its own slider — worth parking
+//                  it at 4 ("squircle") to see how far off that is.
 //   • CIRCULAR     a plain RRect, for orientation.
 //
 // The readout is the worst distance from the reference outline to each shape,
@@ -20,24 +22,26 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../continuous_sdf/continuous_corner_path.dart';
-import 'metal_continuous_shape.dart';
+import 'pnorm_continuous_shape.dart';
+import 'our_continuous_shape.dart';
 
-const Color _metalColor = Color(0xFFFFB020);
+const Color _pnormColor = Color(0xFFFFB020);
 const Color _referenceColor = Color(0xFF69F0AE);
 const Color _stockColor = Color(0xFF4FC3F7);
+const Color _oursColor = Color(0xFFE040FB);
 const Color _circularColor = Color(0x88FF5252);
 const Color _background = Color(0xFF15151A);
 
-class MetalContinuousComparePage extends StatefulWidget {
-  const MetalContinuousComparePage({super.key});
+class ContinuousComparePage extends StatefulWidget {
+  const ContinuousComparePage({super.key});
 
   @override
-  State<MetalContinuousComparePage> createState() =>
-      _MetalContinuousComparePageState();
+  State<ContinuousComparePage> createState() =>
+      _ContinuousComparePageState();
 }
 
-class _MetalContinuousComparePageState
-    extends State<MetalContinuousComparePage> {
+class _ContinuousComparePageState
+    extends State<ContinuousComparePage> {
   static const Size _canvas = Size(340, 260);
 
   double _width = 300;
@@ -46,14 +50,20 @@ class _MetalContinuousComparePageState
   double _zoom = 1;
   double _stockExponent = 4;
 
-  bool _showMetal = true;
+  bool _showPnorm = true;
   bool _showReference = true;
   bool _showStock = true;
+  bool _showOurs = true;
   bool _showCircular = false;
   bool _filled = false;
 
-  double _metalGap = 0;
+  /// The package's own equation, run with the shipped constants or with the
+  /// candidate set from shape_compare_page.
+  bool _oursFitted = false;
+
+  double _pnormGap = 0;
   double _stockGap = 0;
+  double _oursGap = 0;
 
   Size get _shapeSize => Size(_width, _height);
 
@@ -70,7 +80,7 @@ class _MetalContinuousComparePageState
     return Scaffold(
       backgroundColor: _background,
       appBar: AppBar(
-        title: const Text('Continuous from the Metal corner'),
+        title: const Text('Continuous corners, compared'),
         backgroundColor: _background,
       ),
       body: SafeArea(
@@ -86,10 +96,14 @@ class _MetalContinuousComparePageState
                     radius: _radius,
                     zoom: _zoom,
                     stockExponent: _stockExponent,
-                    showMetal: _showMetal,
+                    showPnorm: _showPnorm,
                     showReference: _showReference,
                     showStock: _showStock,
+                    showOurs: _showOurs,
                     showCircular: _showCircular,
+                    oursParams: _oursFitted ? kFittedCrr : kShippedCrr,
+                    // The shader's seam floor is one physical pixel.
+                    oursSeamFloor: 1 / MediaQuery.devicePixelRatioOf(context),
                     filled: _filled,
                     onGaps: _receiveGaps,
                   ),
@@ -98,20 +112,24 @@ class _MetalContinuousComparePageState
             ),
             const SizedBox(height: 6),
             Text(
-              'worst gap from the reference — '
-              'metal ${(_metalGap * 100).toStringAsFixed(2)}%  ·  '
-              'stock ${(_stockGap * 100).toStringAsFixed(2)}%   (of the radius)',
+              'worst gap from the reference, as % of the radius\n'
+              'p-norm ${(_pnormGap * 100).toStringAsFixed(2)}%  ·  '
+              'ours ${(_oursGap * 100).toStringAsFixed(2)}%  ·  '
+              'plain ${(_stockGap * 100).toStringAsFixed(2)}%',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.white, fontSize: 12.5),
+              style: const TextStyle(
+                  color: Colors.white, fontSize: 12.5, height: 1.4),
             ),
             const SizedBox(height: 4),
             _Legend(
-              showMetal: _showMetal,
-              onMetal: (v) => setState(() => _showMetal = v),
+              showPnorm: _showPnorm,
+              onPnorm: (v) => setState(() => _showPnorm = v),
               showReference: _showReference,
               onReference: (v) => setState(() => _showReference = v),
               showStock: _showStock,
               onStock: (v) => setState(() => _showStock = v),
+              showOurs: _showOurs,
+              onOurs: (v) => setState(() => _showOurs = v),
               showCircular: _showCircular,
               onCircular: (v) => setState(() => _showCircular = v),
             ),
@@ -177,11 +195,36 @@ class _MetalContinuousComparePageState
                 ],
               ),
             ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  const Text('ours constants',
+                      style: TextStyle(color: _oursColor, fontSize: 12)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: SegmentedButton<bool>(
+                      style: const ButtonStyle(
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      segments: const [
+                        ButtonSegment(value: false, label: Text('shipped')),
+                        ButtonSegment(value: true, label: Text('fitted')),
+                      ],
+                      selected: {_oursFitted},
+                      showSelectedIcon: false,
+                      onSelectionChanged: (s) =>
+                          setState(() => _oursFitted = s.first),
+                    ),
+                  ),
+                ],
+              ),
+            ),
             const Padding(
               padding: EdgeInsets.fromLTRB(16, 10, 16, 0),
               child: Text(
-                'reach   r · (1 + $kMetalContinuousReach · t)\n'
-                'exponent  2 + $kMetalContinuousExponentRise · t\n'
+                'reach   r · (1 + $kPnormReach · t)\n'
+                'exponent  2 + $kPnormExponentRise · t\n'
                 't = clamp((half-extent − r) / r, 0, 1), per axis',
                 style: TextStyle(
                   color: Colors.white38,
@@ -197,16 +240,18 @@ class _MetalContinuousComparePageState
     );
   }
 
-  void _receiveGaps(double metal, double stock) {
-    if ((metal - _metalGap).abs() < 0.00005 &&
-        (stock - _stockGap).abs() < 0.00005) {
+  void _receiveGaps(double pnorm, double stock, double ours) {
+    if ((pnorm - _pnormGap).abs() < 0.00005 &&
+        (stock - _stockGap).abs() < 0.00005 &&
+        (ours - _oursGap).abs() < 0.00005) {
       return;
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       setState(() {
-        _metalGap = metal;
+        _pnormGap = pnorm;
         _stockGap = stock;
+        _oursGap = ours;
       });
     });
   }
@@ -218,10 +263,13 @@ class _ComparePainter extends CustomPainter {
     required this.radius,
     required this.zoom,
     required this.stockExponent,
-    required this.showMetal,
+    required this.showPnorm,
     required this.showReference,
     required this.showStock,
+    required this.showOurs,
     required this.showCircular,
+    required this.oursParams,
+    required this.oursSeamFloor,
     required this.filled,
     required this.onGaps,
   });
@@ -230,12 +278,15 @@ class _ComparePainter extends CustomPainter {
   final double radius;
   final double zoom;
   final double stockExponent;
-  final bool showMetal;
+  final bool showPnorm;
   final bool showReference;
   final bool showStock;
+  final bool showOurs;
   final bool showCircular;
+  final OurCrrParams oursParams;
+  final double oursSeamFloor;
   final bool filled;
-  final void Function(double metal, double stock) onGaps;
+  final void Function(double pnorm, double stock, double ours) onGaps;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -271,11 +322,11 @@ class _ComparePainter extends CustomPainter {
       );
     }
 
-    final metalPath = metalContinuousPath(shapeSize, radius,
+    final pnormPath = pnormContinuousPath(shapeSize, radius,
         segmentsPerCorner: (24 * zoom).round().clamp(24, 160));
-    // The shader has one cornerRoundnessExponent uniform and no reach, so the
-    // stock line holds its exponent however little room the corner has.
-    final stockPath = metalContinuousPath(
+    // The plain line has no reach and one exponent, held however little room
+    // the corner has.
+    final stockPath = pnormContinuousPath(
       shapeSize,
       radius,
       reach: 0,
@@ -284,6 +335,13 @@ class _ComparePainter extends CustomPainter {
       segmentsPerCorner: (24 * zoom).round().clamp(24, 160),
     );
     final referencePath = continuousRoundedRectanglePath(shapeSize, radius);
+    final oursPath = ourContinuousPath(
+      shapeSize,
+      radius,
+      params: oursParams,
+      seamFloor: oursSeamFloor,
+      samplesPerQuadrant: (120 * zoom).round().clamp(120, 720),
+    );
 
     if (showCircular) {
       draw(
@@ -296,24 +354,34 @@ class _ComparePainter extends CustomPainter {
     }
     if (showReference) draw(referencePath, _referenceColor);
     if (showStock) draw(stockPath, _stockColor);
-    if (showMetal) draw(metalPath, _metalColor);
+    if (showOurs) draw(oursPath, _oursColor);
+    if (showPnorm) draw(pnormPath, _pnormColor);
 
     canvas.restore();
 
     if (radius <= 0) {
-      onGaps(0, 0);
+      onGaps(0, 0, 0);
       return;
     }
     final samples = _sampleReference(referencePath);
+    final rect = Offset.zero & shapeSize;
+    var oursWorst = 0.0;
+    for (final p in samples) {
+      final d = ourContinuousSdf(p, rect, radius,
+              params: oursParams, seamFloor: oursSeamFloor)
+          .abs();
+      if (d > oursWorst) oursWorst = d;
+    }
     onGaps(
       _worstGap(samples, shapeSize, radius,
-              reach: kMetalContinuousReach,
+              reach: kPnormReach,
               baseExponent: 2,
-              exponentRise: kMetalContinuousExponentRise) /
+              exponentRise: kPnormExponentRise) /
           radius,
       _worstGap(samples, shapeSize, radius,
               reach: 0, baseExponent: stockExponent, exponentRise: 0) /
           radius,
+      oursWorst / radius,
     );
   }
 
@@ -323,10 +391,13 @@ class _ComparePainter extends CustomPainter {
       old.radius != radius ||
       old.zoom != zoom ||
       old.stockExponent != stockExponent ||
-      old.showMetal != showMetal ||
+      old.showPnorm != showPnorm ||
       old.showReference != showReference ||
       old.showStock != showStock ||
+      old.showOurs != showOurs ||
       old.showCircular != showCircular ||
+      !identical(old.oursParams, oursParams) ||
+      old.oursSeamFloor != oursSeamFloor ||
       old.filled != filled;
 }
 
@@ -357,7 +428,7 @@ double _worstGap(
   final rect = Offset.zero & size;
   var worst = 0.0;
   for (final p in samples) {
-    final d = metalContinuousSdf(p, rect, radius,
+    final d = pnormContinuousSdf(p, rect, radius,
             reach: reach,
             baseExponent: baseExponent,
             exponentRise: exponentRise)
@@ -369,22 +440,26 @@ double _worstGap(
 
 class _Legend extends StatelessWidget {
   const _Legend({
-    required this.showMetal,
-    required this.onMetal,
+    required this.showPnorm,
+    required this.onPnorm,
     required this.showReference,
     required this.onReference,
     required this.showStock,
     required this.onStock,
+    required this.showOurs,
+    required this.onOurs,
     required this.showCircular,
     required this.onCircular,
   });
 
-  final bool showMetal;
-  final ValueChanged<bool> onMetal;
+  final bool showPnorm;
+  final ValueChanged<bool> onPnorm;
   final bool showReference;
   final ValueChanged<bool> onReference;
   final bool showStock;
   final ValueChanged<bool> onStock;
+  final bool showOurs;
+  final ValueChanged<bool> onOurs;
   final bool showCircular;
   final ValueChanged<bool> onCircular;
 
@@ -394,17 +469,22 @@ class _Legend extends StatelessWidget {
       alignment: WrapAlignment.center,
       children: [
         _LegendChip(
-            label: 'metal-cont',
-            color: _metalColor,
-            value: showMetal,
-            onChanged: onMetal),
+            label: 'p-norm',
+            color: _pnormColor,
+            value: showPnorm,
+            onChanged: onPnorm),
+        _LegendChip(
+            label: 'ours (glsl)',
+            color: _oursColor,
+            value: showOurs,
+            onChanged: onOurs),
         _LegendChip(
             label: 'reference',
             color: _referenceColor,
             value: showReference,
             onChanged: onReference),
         _LegendChip(
-            label: 'stock p-norm',
+            label: 'plain p-norm',
             color: _stockColor,
             value: showStock,
             onChanged: onStock),
@@ -497,7 +577,7 @@ class _SliderRow extends StatelessWidget {
               value: value.clamp(min, max),
               min: min,
               max: math.max(max, min + 0.001),
-              activeColor: _metalColor,
+              activeColor: _pnormColor,
               onChanged: onChanged,
             ),
           ),

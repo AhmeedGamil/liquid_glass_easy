@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 
-import 'metal_shape_sdf.dart';
+import 'shape_sdf.dart';
 
 void main() {
   test('circle', () {

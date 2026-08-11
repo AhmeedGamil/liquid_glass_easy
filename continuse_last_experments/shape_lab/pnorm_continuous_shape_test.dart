@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../continuous_sdf/continuous_corner_path.dart';
-import 'metal_continuous_shape.dart';
+import 'pnorm_continuous_shape.dart';
 
 /// Worst distance from a sampled outline to [candidate]'s surface.
 double _worstGap(List<Offset> outline, double Function(Offset) candidate) {
@@ -41,8 +41,8 @@ void main() {
   test('the path is the SDF zero level', () {
     for (final (name, size, radius) in _cases) {
       final rect = Offset.zero & size;
-      final onPath = _sample(metalContinuousPath(size, radius, segmentsPerCorner: 96));
-      final worst = _worstGap(onPath, (p) => metalContinuousSdf(p, rect, radius));
+      final onPath = _sample(pnormContinuousPath(size, radius, segmentsPerCorner: 96));
+      final worst = _worstGap(onPath, (p) => pnormContinuousSdf(p, rect, radius));
       // The path is a polyline through the curve, so it cuts the corner by the
       // sagitta of one segment — tiny, but not zero.
       expect(worst, lessThan(0.02), reason: name);
@@ -53,7 +53,7 @@ void main() {
     for (final (name, size, radius) in _cases) {
       final rect = Offset.zero & size;
       final reference = _sample(continuousRoundedRectanglePath(size, radius));
-      final gap = _worstGap(reference, (p) => metalContinuousSdf(p, rect, radius));
+      final gap = _worstGap(reference, (p) => pnormContinuousSdf(p, rect, radius));
       expect(gap / radius, lessThan(0.0042), reason: name);
     }
   });
@@ -67,7 +67,7 @@ void main() {
     // n = 4, the "squircle" the Swift side documents.
     final squircle = _worstGap(
       reference,
-      (p) => metalContinuousSdf(p, rect, radius,
+      (p) => pnormContinuousSdf(p, rect, radius,
           reach: 0, baseExponent: 4, exponentRise: 0),
     );
     expect(squircle / radius, greaterThan(0.2));
@@ -79,7 +79,7 @@ void main() {
       final n = 2 + i * 0.01;
       final gap = _worstGap(
         reference,
-        (p) => metalContinuousSdf(p, rect, radius,
+        (p) => pnormContinuousSdf(p, rect, radius,
             reach: 0, baseExponent: n, exponentRise: 0),
       );
       if (gap < best) {
@@ -97,7 +97,7 @@ void main() {
         final size = Size(w, h);
         for (var f = 0.05; f <= 1.0; f += 0.05) {
           final radius = math.min(w, h) / 2 * f;
-          final axes = resolveMetalContinuous(size, radius);
+          final axes = resolvePnormContinuous(size, radius);
           expect(axes.h.reach, lessThanOrEqualTo(w / 2 + 1e-9));
           expect(axes.v.reach, lessThanOrEqualTo(h / 2 + 1e-9));
         }
@@ -107,16 +107,16 @@ void main() {
 
   test('a capsule keeps a circular end and a smoothed flank', () {
     const size = Size(400, 120);
-    final axes = resolveMetalContinuous(size, 60);
+    final axes = resolvePnormContinuous(size, 60);
     // No vertical room: the end cap stays a circle.
     expect(axes.v.reach, closeTo(60, 1e-9));
     expect(axes.v.exponent, closeTo(2, 1e-9));
     // Plenty of horizontal room: full reach and exponent along the flank.
-    expect(axes.h.reach, closeTo(60 * (1 + kMetalContinuousReach), 1e-9));
-    expect(axes.h.exponent, closeTo(2 + kMetalContinuousExponentRise, 1e-9));
+    expect(axes.h.reach, closeTo(60 * (1 + kPnormReach), 1e-9));
+    expect(axes.h.exponent, closeTo(2 + kPnormExponentRise, 1e-9));
 
     // And the shape still fills its box.
-    final bounds = metalContinuousCapsulePath(size).getBounds();
+    final bounds = pnormContinuousCapsulePath(size).getBounds();
     expect(bounds.left, closeTo(0, 0.01));
     expect(bounds.top, closeTo(0, 0.01));
     expect(bounds.right, closeTo(400, 0.01));
@@ -126,20 +126,20 @@ void main() {
   test('degenerate radius falls back to the rectangle', () {
     const size = Size(200, 100);
     const rect = Rect.fromLTWH(0, 0, 200, 100);
-    expect(metalContinuousPath(size, 0).getBounds(), rect);
-    expect(metalContinuousSdf(const Offset(100, 50), rect, 0), closeTo(-50, 1e-9));
-    expect(metalContinuousSdf(const Offset(100, 0), rect, 0), closeTo(0, 1e-9));
+    expect(pnormContinuousPath(size, 0).getBounds(), rect);
+    expect(pnormContinuousSdf(const Offset(100, 50), rect, 0), closeTo(-50, 1e-9));
+    expect(pnormContinuousSdf(const Offset(100, 0), rect, 0), closeTo(0, 1e-9));
     // Over-large radii clamp instead of inverting the corner.
-    expect(metalContinuousPath(size, 500).getBounds().width, closeTo(200, 0.01));
+    expect(pnormContinuousPath(size, 500).getBounds().width, closeTo(200, 0.01));
   });
 
   test('sdf sign and magnitude', () {
     const rect = Rect.fromLTWH(0, 0, 300, 200);
-    expect(metalContinuousSdf(rect.center, rect, 60), closeTo(-100, 1e-9));
-    expect(metalContinuousSdf(const Offset(150, 0), rect, 60), closeTo(0, 1e-9));
-    expect(metalContinuousSdf(const Offset(150, -20), rect, 60), closeTo(20, 1e-9));
+    expect(pnormContinuousSdf(rect.center, rect, 60), closeTo(-100, 1e-9));
+    expect(pnormContinuousSdf(const Offset(150, 0), rect, 60), closeTo(0, 1e-9));
+    expect(pnormContinuousSdf(const Offset(150, -20), rect, 60), closeTo(20, 1e-9));
     // A point off the true corner is outside; one on the flat edge is not.
-    expect(metalContinuousSdf(Offset.zero, rect, 60), greaterThan(0));
-    expect(metalContinuousSdf(const Offset(150, 100), rect, 60), lessThan(0));
+    expect(pnormContinuousSdf(Offset.zero, rect, 60), greaterThan(0));
+    expect(pnormContinuousSdf(const Offset(150, 100), rect, 60), lessThan(0));
   });
 }

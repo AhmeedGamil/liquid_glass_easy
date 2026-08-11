@@ -309,14 +309,12 @@ ShapeData evaluateSquircleRRect(
    corner is an EXACT circle of radius `rr` for its 45° "belly", plus a
    tuned G2 "shoulder" that eases the contact onto each flat edge (the
    curve peels off the edge ~0.44·rr earlier, with zero tangent AND
-   curvature at the edge). This is a faithful SDF port of the
-   `_capsulePath` experiment / the `liquidGlassContinuousRoundedRectPath`
-   Dart clipper, so the refraction follows the same outline the clip cuts.
+   curvature at the edge). It matches `liquidGlassContinuousRoundedRectPath`
+   in Dart, so the refraction follows the same outline the clip cuts.
 
    The shoulder reach on each edge is clamped to the room available on
    that edge, so a square at full radius collapses to a clean circle
-   (capsule) — exactly like iOS. Constants were numerically tuned to
-   Apple's capsule.
+   (capsule). The constants are numerically tuned.
    =========================== */
 const float CRR_T0      = 0.728;
 const float CRR_ATAIL   = 4.836;

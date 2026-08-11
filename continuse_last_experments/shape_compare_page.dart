@@ -8,7 +8,7 @@
 //                  floor in PHYSICAL px — `max(rr*0.15, 1.0)` is one fragment
 //                  pixel there, i.e. 1 / devicePixelRatio logical px here.
 //   • CONTINUOUS   the reference Bézier construction from
-//                  continuous_sdf/continuous_corner_path.dart (Apple-style G2).
+//                  continuous_sdf/continuous_corner_path.dart (G2).
 //
 // Every shape is stroked at 2 px, has its own radius, and can be hidden.
 //

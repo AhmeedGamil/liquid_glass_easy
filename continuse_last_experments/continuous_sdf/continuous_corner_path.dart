@@ -1,14 +1,10 @@
 // ─────────────────────────────────────────────────────────────────────────
-// EXPERIMENTAL — Continuous-curvature (Apple-style G2) rounded-rectangle path.
+// EXPERIMENTAL — continuous-curvature (G2) rounded-rectangle path.
 //
-// Faithful Dart port of Kyant0/Shapes:
-//   ContinuousCurvatureRoundedRectangleCornerBuilder.kt
-//   RoundedRectangleOutline.kt
-//
-// Each corner is 3 cubic Bézier segments (10 control points) tuned so the
-// curvature ramps in/out smoothly (G2 continuity) instead of jumping from a
-// straight edge to a circular arc. This is the same construction Apple uses
-// for `RoundedRectangle(style: .continuous)`.
+// Each corner is 3 cubic Bézier segments (10 control points) solved so the
+// curvature ramps in and out smoothly instead of jumping from a straight edge
+// to a circular arc. This is the outline the other shapes here are measured
+// against.
 //
 // This file is self-contained and has no dependency on the rest of the
 // package. Deleting the `continuous_sdf/` folder removes the whole feature.

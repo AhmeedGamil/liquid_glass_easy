@@ -32,7 +32,7 @@ class _ExperimentalSwitchApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      theme: ThemeData.dark(useMaterial3: true),
+      theme: ThemeData.light(useMaterial3: true),
       home: const ExperimentalSwitchPage(),
     );
   }
@@ -61,11 +61,11 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
       body: Stack(
         fit: StackFit.expand,
         children: [
-          // A photo behind the glass: the thumb has to have something
-          // worth refracting, or the effect reads as a grey pill.
-          Image.asset('assets/background.jpeg', fit: BoxFit.cover),
+          // A flat off-white behind the glass — dimmed rather than pure
+          // white, so the thumb's rim and shadow still have something to
+          // sit against.
           const DecoratedBox(
-            decoration: BoxDecoration(color: Color(0x59000000)),
+            decoration: BoxDecoration(color: Color(0xFFE9E9EC)),
           ),
           SafeArea(
             child: ListView(
@@ -74,7 +74,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 const Text(
                   'Sliding switch',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: Color(0xFF11131A),
                     fontSize: 32,
                     fontWeight: FontWeight.w800,
                     letterSpacing: -0.6,
@@ -83,7 +83,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 const SizedBox(height: 6),
                 const Text(
                   'Drag the thumb, do not just tap it.',
-                  style: TextStyle(color: Color(0xB3FFFFFF), fontSize: 14),
+                  style: TextStyle(color: Color(0x9911131A), fontSize: 14),
                 ),
                 const SizedBox(height: 26),
                 _card([
@@ -119,6 +119,66 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 ]),
                 const SizedBox(height: 26),
 
+                // ── the track size ────────────────────────────────────
+                // Only `layout` changes between these three. Every other
+                // measurement — the two resting positions, the travel,
+                // the rubber band, the capture view — is derived from it.
+                const _SectionLabel('Track size'),
+                const SizedBox(height: 12),
+                _card([
+                  _row(Icons.short_text_rounded, 'Compact', _wifi,
+                      (v) => setState(() => _wifi = v),
+                      layout: const LiquidGlassSwitchLayout().scaled(0.8)),
+                  _divider(),
+                  _row(Icons.density_medium_rounded, 'Default', _airdrop,
+                      (v) => setState(() => _airdrop = v)),
+                  _divider(),
+                  _row(Icons.format_size_rounded, 'Large', _hotspot,
+                      (v) => setState(() => _hotspot = v),
+                      layout: const LiquidGlassSwitchLayout().scaled(1.45)),
+                  _divider(),
+                  // A track resized on its own: taller and wider than the
+                  // default, carrying a handle that stays a slim pill.
+                  _row(Icons.aspect_ratio_rounded, 'Wide track', _bluetooth,
+                      (v) => setState(() => _bluetooth = v),
+                      layout: const LiquidGlassSwitchLayout(
+                        width: 92,
+                        height: 34,
+                        thumbWidth: 44,
+                        thumbHeight: 28,
+                        expandedThumbWidth: 70,
+                        expandedThumbHeight: 46,
+                      )),
+                ]),
+                const SizedBox(height: 26),
+
+                // ── the track behind the glass ────────────────────────
+                // `pinchedHeight` sizes ONLY the slice under the thumb.
+                // The track at the ends stays 28 tall in all four; press
+                // and hold to see the difference.
+                const _SectionLabel('Track behind the glass'),
+                const SizedBox(height: 12),
+                _card([
+                  _row(Icons.remove_rounded, 'No pinch — 28', _wifi,
+                      (v) => setState(() => _wifi = v),
+                      layout: const LiquidGlassSwitchLayout(
+                          pinchedHeight: 28)),
+                  _divider(),
+                  _row(Icons.compress_rounded, 'Default — 20', _airdrop,
+                      (v) => setState(() => _airdrop = v)),
+                  _divider(),
+                  _row(Icons.compress_rounded, 'Tighter — 14', _hotspot,
+                      (v) => setState(() => _hotspot = v),
+                      layout: const LiquidGlassSwitchLayout(
+                          pinchedHeight: 14)),
+                  _divider(),
+                  _row(Icons.compress_rounded, 'Tiny — 8', _bluetooth,
+                      (v) => setState(() => _bluetooth = v),
+                      layout: const LiquidGlassSwitchLayout(
+                          pinchedHeight: 8)),
+                ]),
+                const SizedBox(height: 26),
+
                 // ── the programmatic path ─────────────────────────────
                 const _SectionLabel('Changed from code'),
                 const SizedBox(height: 12),
@@ -139,7 +199,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                     'The thumb glides across without expanding —\n'
                     'no touch, so nothing is lifted.',
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: Color(0x8CFFFFFF), fontSize: 12),
+                    style: TextStyle(color: Color(0x8C11131A), fontSize: 12),
                   ),
                 ),
               ],
@@ -153,9 +213,9 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
   Widget _card(List<Widget> children) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.white.withValues(alpha: 0.72),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+        border: Border.all(color: Colors.black.withValues(alpha: 0.06)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -167,7 +227,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
   Widget _divider() => Divider(
         height: 1,
         thickness: 1,
-        color: Colors.white.withValues(alpha: 0.08),
+        color: Colors.black.withValues(alpha: 0.07),
       );
 
   Widget _row(
@@ -176,18 +236,19 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
     bool value,
     ValueChanged<bool> onChanged, {
     Color? activeTrackColor,
+    LiquidGlassSwitchLayout layout = const LiquidGlassSwitchLayout(pinchedHeight:22 ),
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
       child: Row(
         children: [
-          Icon(icon, size: 21, color: Colors.white.withValues(alpha: 0.85)),
+          Icon(icon, size: 21, color: Colors.black.withValues(alpha: 0.75)),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               label,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF11131A),
                 fontSize: 16,
                 fontWeight: FontWeight.w500,
               ),
@@ -196,6 +257,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
           LiquidGlassSwitchExperimental(
             value: value,
             onChanged: onChanged,
+            layout: layout,
             activeTrackColor: activeTrackColor ?? const Color(0xFF34C759),
             // Arrives with the glass: the solid rest pill casts nothing,
             // and the shadow fades up as the thumb is lifted. Inset so the
@@ -206,12 +268,12 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
             // sharper over a photo.
             style: const LiquidGlassStyle(
               appearance: LiquidGlassAppearance(
-                color: Color(0x1CFFFFFF),
+                color: Color(0x00FFFFFF),
                 blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
               ),
               refraction: LiquidGlassRefraction(
                 distortion: 0.12,
-                distortionWidth: 14,
+                distortionWidth: 13,
                 chromaticAberration: 0.002,
               ),
             ),
@@ -232,7 +294,7 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       text.toUpperCase(),
       style: const TextStyle(
-        color: Color(0x8CFFFFFF),
+        color: Color(0x8C11131A),
         fontSize: 11.5,
         fontWeight: FontWeight.w700,
         letterSpacing: 1.4,

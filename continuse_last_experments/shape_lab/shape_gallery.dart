@@ -1,13 +1,13 @@
 // ─────────────────────────────────────────────────────────────────────────
-// EXPERIMENTAL — every shape in LiquidGlassFragment.metal, on screen at once.
+// EXPERIMENTAL — every primitive in shape_sdf.dart, on screen at once.
 //
-// Each card rasterizes one SDF from metal_shape_sdf.dart over its own tile and
-// shades the result three ways: filled, distance rings, or gradient rainbow
-// (the shader's own normal debug view). The four shader uniforms that change
-// geometry — cornerRadius, cornerRoundnessExponent, shapeMergeSmoothness and
-// the spacing between merged rects — are live at the bottom.
+// Each card rasterizes one SDF over its own tile and shades the result three
+// ways: filled, distance rings, or gradient rainbow (the normal debug view).
+// The four values that change geometry — corner radius, roundness exponent,
+// merge smoothness and the spacing between merged rects — are live at the
+// bottom.
 //
-// Run it:  cd example && flutter run -t lib/metal_shapes_page.dart
+// Run it:  cd example && flutter run -t shape_lab_main.dart
 // ─────────────────────────────────────────────────────────────────────────
 
 import 'dart:async';
@@ -17,41 +17,41 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
-import 'metal_continuous_compare.dart';
-import 'metal_shape_sdf.dart';
+import 'continuous_compare_page.dart';
+import 'shape_sdf.dart';
 
 const Color _background = Color(0xFF15151A);
 const Color _tileBackground = Color(0xFF101014);
 const Color _accent = Color(0xFF4FC3F7);
 
-void main() => runApp(const MetalShapeGalleryApp());
+void main() => runApp(const ShapeLabApp());
 
-class MetalShapeGalleryApp extends StatelessWidget {
-  const MetalShapeGalleryApp({super.key});
+class ShapeLabApp extends StatelessWidget {
+  const ShapeLabApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(brightness: Brightness.dark, useMaterial3: true),
-      home: const MetalShapeGalleryPage(),
+      home: const ShapeLabPage(),
     );
   }
 }
 
-/// One card per SDF in the .metal file, in the order they appear there.
-enum MetalShape {
-  circle('circleSDF', 'length(p) − radius'),
-  superellipse('superellipseSDF', '24-segment boundary walk — true distance'),
+/// One card per SDF primitive.
+enum SdfShape {
+  circle('circle', 'length(p) − radius'),
+  superellipse('superellipse', '24-segment boundary walk — true distance'),
   superellipseApprox(
-      'superellipseSDF · fast path', 'the commented-out p-norm, no loop'),
+      'superellipse · fast path', 'the p-norm alone, no boundary walk'),
   superellipseCorner(
-      'superellipseCornerSDF', '(|x|ⁿ + |y|ⁿ)^(1/n) − r — the corner alone'),
-  roundedRectangle('roundedRectangleSDF', 'box with superellipse corners'),
-  smoothUnionPair('smoothUnion', 'two rects, polynomial smooth-min'),
-  mergedTrio('primaryShapeSDF', 'track + two thumbs, all merged');
+      'superellipse corner', '(|x|ⁿ + |y|ⁿ)^(1/n) − r — the corner alone'),
+  roundedRectangle('rounded rectangle', 'box with superellipse corners'),
+  smoothUnionPair('smooth union', 'two rects, polynomial smooth-min'),
+  mergedTrio('merged field', 'track + two thumbs, all merged');
 
-  const MetalShape(this.title, this.formula);
+  const SdfShape(this.title, this.formula);
 
   final String title;
   final String formula;
@@ -78,13 +78,13 @@ class ShapeParams {
     required this.gap,
   });
 
-  /// `cornerRadius` — also the circle's and the p-norm ball's radius.
+  /// Corner radius — also the circle's and the p-norm ball's radius.
   final double cornerRadius;
 
-  /// `cornerRoundnessExponent` — 1 = diamond, 2 = circle, 4 = squircle.
+  /// Roundness exponent — 1 = diamond, 2 = circle, 4 = squircle.
   final double exponent;
 
-  /// `shapeMergeSmoothness`, in the shader's resolution-normalized units.
+  /// Merge smoothness, in resolution-normalized units.
   final double mergeSmoothness;
 
   /// Edge-to-edge spacing between the rects that get merged (points).
@@ -103,14 +103,14 @@ class ShapeParams {
       Object.hash(cornerRadius, exponent, mergeSmoothness, gap);
 }
 
-class MetalShapeGalleryPage extends StatefulWidget {
-  const MetalShapeGalleryPage({super.key});
+class ShapeLabPage extends StatefulWidget {
+  const ShapeLabPage({super.key});
 
   @override
-  State<MetalShapeGalleryPage> createState() => _MetalShapeGalleryPageState();
+  State<ShapeLabPage> createState() => _ShapeLabPageState();
 }
 
-class _MetalShapeGalleryPageState extends State<MetalShapeGalleryPage> {
+class _ShapeLabPageState extends State<ShapeLabPage> {
   static const Size _tile = Size(320, 150);
 
   double _cornerRadius = 24;
@@ -136,15 +136,15 @@ class _MetalShapeGalleryPageState extends State<MetalShapeGalleryPage> {
     return Scaffold(
       backgroundColor: _background,
       appBar: AppBar(
-        title: const Text('LiquidGlassFragment.metal — shapes'),
+        title: const Text('Shape lab — SDF primitives'),
         backgroundColor: _background,
         actions: [
           IconButton(
-            tooltip: 'Continuous rect / capsule from the same corner equation',
+            tooltip: 'Continuous rounded rect / capsule, compared',
             icon: const Icon(Icons.rounded_corner),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) => const MetalContinuousComparePage(),
+                builder: (_) => const ContinuousComparePage(),
               ),
             ),
           ),
@@ -157,7 +157,7 @@ class _MetalShapeGalleryPageState extends State<MetalShapeGalleryPage> {
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(12, 8, 12, 16),
                 children: [
-                  for (final shape in MetalShape.values)
+                  for (final shape in SdfShape.values)
                     _ShapeCard(
                       shape: shape,
                       params: _params,
@@ -199,7 +199,7 @@ class _ShapeCard extends StatefulWidget {
     required this.scale,
   });
 
-  final MetalShape shape;
+  final SdfShape shape;
   final ShapeParams params;
   final ViewMode mode;
   final Size tile;
@@ -248,7 +248,7 @@ class _ShapeCardState extends State<_ShapeCard> {
     if (key == _rendered) return;
     _baking = true;
     while (true) {
-      final image = await bakeMetalShape(
+      final image = await bakeShape(
         shape: key.shape,
         params: key.params,
         mode: key.mode,
@@ -324,7 +324,7 @@ class _BakeKey {
     required this.scale,
   });
 
-  final MetalShape shape;
+  final SdfShape shape;
   final ShapeParams params;
   final ViewMode mode;
   final Size tile;
@@ -345,8 +345,8 @@ class _BakeKey {
 
 /// Rasterizes one shape into an image. The cards' own bake, reachable from
 /// outside so a tool or a test can render a shape without a card.
-Future<ui.Image> bakeMetalShape({
-  required MetalShape shape,
+Future<ui.Image> bakeShape({
+  required SdfShape shape,
   required ShapeParams params,
   required ViewMode mode,
   required Size tile,
@@ -371,12 +371,12 @@ class _ShapeField {
   _ShapeField(this.shape, this.params, this.size)
       : centre = Offset(size.width / 2, size.height / 2),
         blobScale = math.min(size.width, size.height) / 2 - 6,
-        quadrant = shape == MetalShape.superellipse
+        quadrant = shape == SdfShape.superellipse
             ? superellipseQuadrantTable(params.exponent)
             : const <Offset>[],
         rects = _rectsFor(shape, params, size) {
-    // The shader has a single cornerRadius uniform for every rect, so the
-    // shortest half-extent in the group is the ceiling for all of them.
+    // One radius covers every rect in the group, so the shortest half-extent
+    // is the ceiling for all of them.
     var limit = math.min(size.width, size.height) / 2;
     for (final rect in rects) {
       limit = math.min(limit, math.min(rect.width, rect.height) / 2);
@@ -384,7 +384,7 @@ class _ShapeField {
     cornerRadius = math.min(params.cornerRadius, limit);
   }
 
-  final MetalShape shape;
+  final SdfShape shape;
   final ShapeParams params;
   final Size size;
   final Offset centre;
@@ -395,28 +395,28 @@ class _ShapeField {
 
   double at(Offset point) {
     switch (shape) {
-      case MetalShape.circle:
+      case SdfShape.circle:
         return circleSdf(point - centre, cornerRadius);
-      case MetalShape.superellipse:
+      case SdfShape.superellipse:
         return superellipseSdf(
           point - centre,
           blobScale,
           params.exponent,
           quadrant: quadrant,
         ).distance;
-      case MetalShape.superellipseApprox:
+      case SdfShape.superellipseApprox:
         return superellipseApproxSdf(
             point - centre, blobScale, params.exponent);
-      case MetalShape.superellipseCorner:
+      case SdfShape.superellipseCorner:
         return superellipseCornerSdf(
             point - centre, cornerRadius, params.exponent);
-      case MetalShape.roundedRectangle:
+      case SdfShape.roundedRectangle:
         return roundedRectangleSdf(
             point, rects.first, cornerRadius, params.exponent);
-      case MetalShape.smoothUnionPair:
-      case MetalShape.mergedTrio:
-        // primaryShapeSDF is normalized by resolution.y — undo it so the
-        // shading below still works in points.
+      case SdfShape.smoothUnionPair:
+      case SdfShape.mergedTrio:
+        // The merged field is resolution-normalized — undo it so the shading
+        // below still works in points.
         return primaryShapeSdf(
               point,
               rects,
@@ -430,10 +430,10 @@ class _ShapeField {
   }
 
   static List<Rect> _rectsFor(
-      MetalShape shape, ShapeParams params, Size size) {
+      SdfShape shape, ShapeParams params, Size size) {
     final centre = Offset(size.width / 2, size.height / 2);
     switch (shape) {
-      case MetalShape.roundedRectangle:
+      case SdfShape.roundedRectangle:
         return [
           Rect.fromCenter(
             center: centre,
@@ -441,7 +441,7 @@ class _ShapeField {
             height: size.height - 24,
           ),
         ];
-      case MetalShape.smoothUnionPair:
+      case SdfShape.smoothUnionPair:
         final side = size.height - 34;
         final offset = _clampOffset(params.gap / 2 + side / 2, size, side);
         return [
@@ -450,7 +450,7 @@ class _ShapeField {
           Rect.fromCenter(
               center: centre + Offset(offset, 0), width: side, height: side),
         ];
-      case MetalShape.mergedTrio:
+      case SdfShape.mergedTrio:
         final side = size.height - 52;
         final offset = _clampOffset(params.gap / 2 + side / 2, size, side);
         return [
@@ -461,10 +461,10 @@ class _ShapeField {
           Rect.fromCenter(
               center: centre + Offset(offset, 0), width: side, height: side),
         ];
-      case MetalShape.circle:
-      case MetalShape.superellipse:
-      case MetalShape.superellipseApprox:
-      case MetalShape.superellipseCorner:
+      case SdfShape.circle:
+      case SdfShape.superellipse:
+      case SdfShape.superellipseApprox:
+      case SdfShape.superellipseCorner:
         return const [];
     }
   }
@@ -545,8 +545,7 @@ _Rgb _shadeBands(double d) {
   return _Rgb.lerp(rgb, _white, 1 - _smoothstep(0, 1.6, d.abs()));
 }
 
-/// The shader's own debug view: gradient direction as hue, fading away from
-/// the surface.
+/// Gradient direction as hue, fading away from the surface.
 _Rgb _shadeNormals(double d, Offset gradient) {
   if (gradient.distanceSquared < 1e-18) return _bgRgb;
   final hue = vectorToRainbowColor(gradient);

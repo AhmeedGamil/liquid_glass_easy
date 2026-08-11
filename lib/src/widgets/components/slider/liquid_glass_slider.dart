@@ -143,12 +143,10 @@ class LiquidGlassSlider extends StatefulWidget {
   });
 
   @override
-  State<LiquidGlassSlider> createState() =>
-      _LiquidGlassSliderState();
+  State<LiquidGlassSlider> createState() => _LiquidGlassSliderState();
 }
 
-class _LiquidGlassSliderState
-    extends State<LiquidGlassSlider>
+class _LiquidGlassSliderState extends State<LiquidGlassSlider>
     with TickerProviderStateMixin {
   // ── Constants that are not geometry ────────────────────────────────
   static const double _tapTimeThreshold = 0.15; // seconds
@@ -166,7 +164,8 @@ class _LiquidGlassSliderState
 
   /// Room at each end for the lifted thumb's overhang, the rubber-band
   /// overshoot and the squash — all of which must fit the glass capture.
-  double get _padX => _layout.resolveHorizontalInset(widget.motion.maxDeviation);
+  double get _padX =>
+      _layout.resolveHorizontalInset(widget.motion.maxDeviation);
 
   /// The control's height, sized for the lifted thumb at full squash.
   double get _viewHeight => _layout.resolveHeight(widget.motion.maxDeviation);
@@ -280,7 +279,8 @@ class _LiquidGlassSliderState
       // it — typically the parent's echo of the gesture's final value
       // landing a frame after the release — retarget the running
       // spring instead of letting it finish at a stale position.
-      if (oldWidget.value != widget.value || oldWidget.layout.width != _layout.width) {
+      if (oldWidget.value != widget.value ||
+          oldWidget.layout.width != _layout.width) {
         _thumbSpringTarget = _targetThumbCX;
         _ensureTicking();
       }
@@ -395,8 +395,7 @@ class _LiquidGlassSliderState
 
   void _handleMove(Offset globalPosition) {
     if (!_pointerDown) return;
-    final elapsed =
-        DateTime.now().difference(_downTime).inMicroseconds / 1e6;
+    final elapsed = DateTime.now().difference(_downTime).inMicroseconds / 1e6;
     if (!_isDragging && elapsed >= _tapTimeThreshold) _isDragging = true;
 
     final currentX = _localX(globalPosition);
@@ -432,13 +431,11 @@ class _LiquidGlassSliderState
   void _handleUp() {
     if (!_pointerDown) return;
     _pointerDown = false;
-    final elapsed =
-        DateTime.now().difference(_downTime).inMicroseconds / 1e6;
+    final elapsed = DateTime.now().difference(_downTime).inMicroseconds / 1e6;
 
     if (elapsed < _tapTimeThreshold) {
       // A tap: glide the thumb to the tapped spot and report the value.
-      final clampedX =
-          _lastFingerX.clamp(_minThumbCX, _maxThumbCX).toDouble();
+      final clampedX = _lastFingerX.clamp(_minThumbCX, _maxThumbCX).toDouble();
       final newValue = _valueAt(clampedX);
       _gestureValue = newValue;
       widget.onChanged(newValue);
@@ -506,123 +503,154 @@ class _LiquidGlassSliderState
 
     // The fill: ends exactly under the thumb's centre, easing to
     // exactly empty / exactly full inside the 10 px end zones.
-    final kMin =
-        ((_thumbCX - _minThumbCX) / _fillEndRamp).clamp(0.0, 1.0);
-    final kMax =
-        ((_maxThumbCX - _thumbCX) / _fillEndRamp).clamp(0.0, 1.0);
-    final fillW = math.max(0.0, _thumbCX - trackX) * kMin * kMax +
-        trackW * (1 - kMax);
+    final kMin = ((_thumbCX - _minThumbCX) / _fillEndRamp).clamp(0.0, 1.0);
+    final kMax = ((_maxThumbCX - _thumbCX) / _fillEndRamp).clamp(0.0, 1.0);
+    final fillW =
+        math.max(0.0, _thumbCX - trackX) * kMin * kMax + trackW * (1 - kMax);
+
+    // Where a touch is allowed to START. The control's box is much
+    // larger than the track — it reserves room for the lifted thumb, the
+    // rubber band and the end icons — and an opaque detector over all of
+    // it meant a tap on an icon, or in the empty air above the track,
+    // jumped the value. So the surface is the track's own span:
+    // horizontally the track, vertically the resting thumb, which is
+    // taller than the 6 px bar and is what the finger actually aims for.
+    //
+    // Only the START is bounded. The pointer is captured once the drag
+    // is under way, so carrying the finger off the track — and past
+    // either end into the rubber band — still works exactly as before.
+    final hitHeight = math.max(_trackHeight, _contractedH);
+    final hitTop = centerY - hitHeight / 2;
+
+    final gestureSurface = RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: <Type, GestureRecognizerFactory>{
+        _EagerPanGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<_EagerPanGestureRecognizer>(
+          () => _EagerPanGestureRecognizer(debugOwner: this),
+          (instance) {
+            instance
+              ..dragStartBehavior = DragStartBehavior.down
+              ..onStart = (d) {
+                _handleDown(d.globalPosition);
+              }
+              ..onUpdate = (d) {
+                _handleMove(d.globalPosition);
+              }
+              ..onEnd = (_) {
+                _handleUp();
+              }
+              ..onCancel = _handleUp;
+          },
+        ),
+      },
+    );
 
     return SizedBox(
       width: _layout.width,
       height: _viewHeight,
-      child: RawGestureDetector(
-        behavior: HitTestBehavior.opaque,
-        gestures: <Type, GestureRecognizerFactory>{
-          _EagerPanGestureRecognizer:
-              GestureRecognizerFactoryWithHandlers<_EagerPanGestureRecognizer>(
-            () => _EagerPanGestureRecognizer(debugOwner: this),
-            (instance) {
-              instance
-                ..dragStartBehavior = DragStartBehavior.down
-                ..onStart = (d) {
-                  _handleDown(d.globalPosition);
-                }
-                ..onUpdate = (d) {
-                  _handleMove(d.globalPosition);
-                }
-                ..onEnd = (_) {
-                  _handleUp();
-                }
-                ..onCancel = _handleUp;
-            },
-          ),
-        },
-        child: LiquidGlassView.withPositionedLenses(
-          controller: _viewController,
-          honorBackdropAlpha: true,
-          pixelRatio: widget.pixelRatio,
-          realTimeCapture: true,
-          useSync: true,
-          backgroundWidget: Stack(
-            children: [
-              // Unfilled track.
-              Positioned(
-                left: trackX,
-                top: trackY,
-                child: Container(
-                  width: trackW,
-                  height: effTrackHeight,
-                  decoration: BoxDecoration(
-                    color: widget.inactiveColor,
-                    borderRadius: BorderRadius.circular(trackRadius),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          // Filled, not loose: the view sized against tight 280×height
+          // constraints before this Stack existed, and its lens
+          // positions resolve against `constraints.biggest`.
+          Positioned.fill(
+            child: LiquidGlassView.withPositionedLenses(
+              controller: _viewController,
+              honorBackdropAlpha: true,
+              pixelRatio: widget.pixelRatio,
+              realTimeCapture: true,
+              useSync: true,
+              backgroundWidget: Stack(
+                children: [
+                  // Unfilled track.
+                  Positioned(
+                    left: trackX,
+                    top: trackY,
+                    child: Container(
+                      width: trackW,
+                      height: effTrackHeight,
+                      decoration: BoxDecoration(
+                        color: widget.inactiveColor,
+                        borderRadius: BorderRadius.circular(trackRadius),
+                      ),
+                    ),
                   ),
-                ),
+                  // Filled portion, sharing the track's deformed frame.
+                  Positioned(
+                    left: trackX,
+                    top: trackY,
+                    child: Container(
+                      width: fillW,
+                      height: effTrackHeight,
+                      decoration: BoxDecoration(
+                        color: widget.activeColor,
+                        borderRadius: BorderRadius.circular(trackRadius),
+                      ),
+                    ),
+                  ),
+                  if (widget.minimumIcon != null)
+                    Positioned(
+                      left: _padX,
+                      top: centerY - _iconSize / 2,
+                      child: SizedBox(
+                        width: _iconSize,
+                        height: _iconSize,
+                        child: widget.minimumIcon,
+                      ),
+                    ),
+                  if (widget.maximumIcon != null)
+                    Positioned(
+                      left: _layout.width - _padX - _iconSize,
+                      top: centerY - _iconSize / 2,
+                      child: SizedBox(
+                        width: _iconSize,
+                        height: _iconSize,
+                        child: widget.maximumIcon,
+                      ),
+                    ),
+                ],
               ),
-              // Filled portion, sharing the track's deformed frame.
-              Positioned(
-                left: trackX,
-                top: trackY,
-                child: Container(
-                  width: fillW,
-                  height: effTrackHeight,
+              children: const [],
+              // The thumb is the shared LiquidGlassMotionPill in the view's
+              // child: this slider hands it a centre and an active flag;
+              // the morph, the acceleration squash/stretch and the
+              // driven-lens rendering (rest-size shape stretched through
+              // the shader, elliptical caps, band compensation) are the
+              // component's. The white rest pill rides as its fading
+              // cover; nothing in it takes pointers — the whole control is
+              // one gesture surface.
+              child: LiquidGlassMotionPill(
+                center: Offset(_thumbCX, centerY),
+                active: _thumbActive,
+                restSize: Size(_contractedW, _contractedH),
+                activeSize: Size(_expandedW, _expandedH),
+                style: widget.style,
+                shadow: widget.shadow,
+                motion: widget.motion,
+                cover: Container(
                   decoration: BoxDecoration(
-                    color: widget.activeColor,
-                    borderRadius: BorderRadius.circular(trackRadius),
+                    color: widget.thumbColor,
+                    borderRadius: BorderRadius.circular(999),
                   ),
                 ),
-              ),
-              if (widget.minimumIcon != null)
-                Positioned(
-                  left: _padX,
-                  top: centerY - _iconSize / 2,
-                  child: SizedBox(
-                    width: _iconSize,
-                    height: _iconSize,
-                    child: widget.minimumIcon,
-                  ),
-                ),
-              if (widget.maximumIcon != null)
-                Positioned(
-                  left: _layout.width - _padX - _iconSize,
-                  top: centerY - _iconSize / 2,
-                  child: SizedBox(
-                    width: _iconSize,
-                    height: _iconSize,
-                    child: widget.maximumIcon,
-                  ),
-                ),
-            ],
-          ),
-          children: const [],
-          // The thumb is the shared LiquidGlassMotionPill in the view's
-          // child: this slider hands it a centre and an active flag;
-          // the morph, the acceleration squash/stretch and the
-          // driven-lens rendering (rest-size shape stretched through
-          // the shader, elliptical caps, band compensation) are the
-          // component's. The white rest pill rides as its fading
-          // cover; nothing in it takes pointers — the whole control is
-          // one gesture surface.
-          child: LiquidGlassMotionPill(
-            center: Offset(_thumbCX, centerY),
-            active: _thumbActive,
-            restSize: Size(_contractedW, _contractedH),
-            activeSize: Size(_expandedW, _expandedH),
-            style: widget.style,
-            shadow: widget.shadow,
-            motion: widget.motion,
-            cover: Container(
-              decoration: BoxDecoration(
-                color: widget.thumbColor,
-                borderRadius: BorderRadius.circular(999),
               ),
             ),
           ),
-        ),
+          // Over the visuals, so it takes the touch — but only across
+          // the track itself.
+          Positioned(
+            left: _trackMinX,
+            top: hitTop,
+            width: _trackWidth,
+            height: hitHeight,
+            child: gestureSurface,
+          ),
+        ],
       ),
     );
   }
-
 }
 
 /// Copied from the shipped slider, where it is private: a pan recognizer

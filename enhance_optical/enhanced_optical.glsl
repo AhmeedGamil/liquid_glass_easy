@@ -1,7 +1,6 @@
 // =============================================================
-// enhancedOptical — EXACT port of LiquidGlassFragment.metal's
-// fresnel + glare border (Alexey Demin's LiquidGlassKit), removed
-// from lib/assets/shaders/liquid_glass_border.glsl on request and
+// enhancedOptical — an alternative fresnel + glare border, pulled out
+// of lib/assets/shaders/liquid_glass_border.glsl on request and
 // parked here for a future round.
 //
 // TO WIRE IT BACK into liquid_glass_border.glsl:
@@ -17,33 +16,33 @@
 //     with `#ifndef LIQUID_GLASS_RIM_WRAP` so the metaball keeps its
 //     wrap path).
 //
-// Every value is hardcoded from the kit's .lens preset. In this mode
+// Every value below is hardcoded to one preset. In this mode
 // lightDirection / lightIntensity / borderSaturation / borderColor
 // have no effect; only borderAlpha + the softness AA still apply.
-// Known deltas vs Metal: the glare base is not dispersion-fringed,
-// sd is fragment px (Metal uses points → ~dpr thinner on Impeller),
-// ENH_NORMAL_LEN is fixed 1.7 vs their resolution-dependent factor.
+// Two known simplifications: the glare base is not dispersion-fringed,
+// and ENH_NORMAL_LEN is fixed at 1.7 rather than resolution-dependent.
+// sd is in fragment px, so the rim runs ~dpr thinner on Impeller.
 // =============================================================
 
-// EXACT port of LiquidGlassFragment.metal's fresnel + glare, every
-// value hardcoded from the kit's .lens preset (its visible border).
+// The fresnel + glare constants, hardcoded to one preset (the border
+// it renders when everything is dialled in).
 const float ENH_FRES_RANGE  = 70.0;  // fresnelDistanceRange, pt
 const float ENH_GLARE_RANGE = 30.0;  // glareDistanceRange, pt
 const float ENH_FRES_SHARP  = 0.0;   // fresnelEdgeSharpness
 const float ENH_GLARE_SHARP = -0.1;  // glareEdgeSharpness
 const float ENH_FAR_BIAS    = 1.0;   // glareOppositeSideBias
 const float ENH_CONVERGENCE = 0.1;   // glareAngleConvergence
-const float ENH_FRES_INT    = 0.0;   // fresnelIntensity (kit: off)
+const float ENH_FRES_INT    = 0.0;   // fresnelIntensity (off)
 const float ENH_GLARE_INT   = 0.1;   // glareIntensity
 const float ENH_DIR_OFFSET  = -0.78539816; // glareDirectionOffset −π/4
-// The kit's materialTint (thumb glass): near-clear cool white-blue.
+// materialTint (thumb glass): near-clear cool white-blue.
 const vec4 ENH_TINT = vec4(0.9, 0.95, 1.0, 0.15);
-// Their `length(surfaceNormal)` — gradient·1.414·1000 at ~logical res.
+// `length(surfaceNormal)` — gradient·1.414·1000 at ~logical res.
 const float ENH_NORMAL_LEN = 1.7;
-// D65 white point, verbatim from the .metal.
+// D65 white point.
 const vec3 ENH_WHITE = vec3(0.95045592705, 1.0, 1.08905775076);
 
-// sRGB transfer, verbatim (linearizeSRGB / gammaCorrectSRGB).
+// sRGB transfer (linearize / gamma-correct).
 float enhLinearize(float c) {
     return c > 0.04045 ? pow((c + 0.055) / 1.055, 2.4) : c / 12.92;
 }
@@ -51,7 +50,7 @@ float enhGamma(float c) {
     return c <= 0.0031308 ? 12.92 * c : 1.055 * pow(max(c, 0.0), 0.41666666666) - 0.055;
 }
 
-// sRGB → CIE LCH, the Metal chain: linearize → XYZ → LAB → polar.
+// sRGB → CIE LCH: linearize → XYZ → LAB → polar.
 vec3 enhSrgbToLch(vec3 srgb) {
     vec3 lin = vec3(enhLinearize(srgb.r), enhLinearize(srgb.g),
                     enhLinearize(srgb.b));
@@ -71,7 +70,7 @@ vec3 enhSrgbToLch(vec3 srgb) {
                 atan(lab.z, lab.y) * (180.0 / PI));
 }
 
-// LCH → sRGB, the inverse chain, verbatim constants.
+// LCH → sRGB, the inverse chain.
 vec3 enhLchToSrgb(vec3 lch) {
     float hRad = lch.z * (PI / 180.0);
     vec3 lab = vec3(lch.x, lch.y * cos(hRad), lch.y * sin(hRad));
@@ -112,10 +111,10 @@ vec4 enhancedOptical(
     float outerFade = 1.0 - smoothstep(0.0, max(softnessPx, 1.0), max(sd, 0.0));
     if (outerFade <= 0.001) return vec4(0.0);
 
-    // The Metal normal is the SDF gradient — our gradDistPx, exactly.
+    // The normal is the SDF gradient — our gradDistPx, exactly.
     vec2 normal = normalize(gradDistPx);
 
-    // The Metal falloff, verbatim: pow(1 + sd/1500·(500/range)² + sharp, 5).
+    // The falloff: pow(1 + sd/1500·(500/range)² + sharp, 5).
     float fresFall = 1.0 + sd * pow(500.0 / ENH_FRES_RANGE, 2.0) / 1500.0
         + ENH_FRES_SHARP;
     float fres = clamp(pow(max(fresFall, 0.0), 5.0), 0.0, 1.0);
@@ -123,12 +122,12 @@ vec4 enhancedOptical(
         + ENH_GLARE_SHARP;
     float glareGeom = clamp(pow(max(glareFall, 0.0), 5.0), 0.0, 1.0);
 
-    // vectorToAngle + the Metal glare angle, verbatim (−π/4 + offset)·2.
+    // vectorToAngle + the glare angle, (−π/4 + offset)·2.
     float theta = atan(normal.y, normal.x);
     theta = theta < 0.0 ? theta + 2.0 * PI : theta;
     float glareAngle = (theta - PI / 4.0 + ENH_DIR_OFFSET) * 2.0;
 
-    // Far-side window test, verbatim (inert at bias 1.0, kept exact).
+    // Far-side window test (inert at bias 1.0, kept exact).
     float sideGain = 1.2;
     if ((glareAngle > PI * 1.5 && glareAngle < PI * 3.5) ||
         glareAngle < -PI * 0.5) {
@@ -139,7 +138,7 @@ vec4 enhancedOptical(
     angularGlare = clamp(
         pow(max(angularGlare, 0.0), 0.1 + ENH_CONVERGENCE * 2.0), 0.0, 1.0);
 
-    // FRESNEL, verbatim: white→tint base, LCH L += 20·fres·intensity.
+    // FRESNEL: white→tint base, LCH L += 20·fres·intensity.
     float fA = 0.0;
     vec3 fresCol = vec3(1.0);
     if (ENH_FRES_INT > 0.0) {
@@ -151,7 +150,7 @@ vec4 enhancedOptical(
         fA = clamp(fres * ENH_FRES_INT * 0.7 * ENH_NORMAL_LEN, 0.0, 1.0);
     }
 
-    // GLARE, verbatim: refracted-backdrop→tint base, LCH L += 150·g,
+    // GLARE: refracted-backdrop→tint base, LCH L += 150·g,
     // C += 30·g, L clamped to 120 — the saturated-white streak.
     float gAmt = angularGlare * glareGeom;
     vec3 gBase =
@@ -162,7 +161,7 @@ vec4 enhancedOptical(
     vec3 glareCol = enhLchToSrgb(gLch);
     float gA = clamp(gAmt * ENH_NORMAL_LEN, 0.0, 1.0);
 
-    // Sequential composite, as the Metal applies them: fresnel mix
+    // Sequential composite: fresnel mix
     // first, glare mix over it — folded into one premultiplied layer.
     float strength = fA + gA - fA * gA;
     if (strength <= 1e-4) return vec4(0.0);

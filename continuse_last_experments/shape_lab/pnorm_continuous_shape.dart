@@ -1,17 +1,16 @@
 // ─────────────────────────────────────────────────────────────────────────
 // EXPERIMENTAL — a continuous-curvature rounded rectangle and capsule built
-// out of the Metal shader's own corner equation.
+// out of nothing but a p-norm corner.
 //
-// The shader corner is a p-norm ball (superellipseCornerSDF):
+// The plain corner is
 //
 //     (|u| / r)^n + (|v| / r)^n = 1
 //
-// laid in a corner box r × r. Two things are added here, both of which the
-// shader has no notion of:
+// laid in a corner box r × r. Two things are added on top:
 //
 //   1. REACH. The corner box is stretched along whichever edge has room, to
 //      r * (1 + 0.2893 * t), where t is that edge's slack, `clamp((half - r)
-//      / r, 0, 1)`. The stock corner leaves the edge at exactly r, far too
+//      / r, 0, 1)`. A plain corner leaves the edge at exactly r, far too
 //      abruptly to read as continuous.
 //   2. PER-AXIS EXPONENT. The exponent on each axis rises with that axis'
 //      slack, 2 + 0.7198 * t. Which matters for capsules: an end cap has no
@@ -19,10 +18,10 @@
 //      long edges keep the full smoothing.
 //
 // Both constants are fitted against continuous_sdf/continuous_corner_path.dart
-// — the Apple-style G2 Bézier construction. Worst deviation across squares,
-// rects, capsules and pills: 0.41% of the corner radius. For scale, the same
-// measurement gives 1.65% for the best plain p-norm corner (which turns out to
-// be a circle, n = 2) and 25% for the shader's stock "squircle" n = 4.
+// — the G2 Bézier reference. Worst deviation across squares, rects, capsules
+// and pills: 0.41% of the corner radius. For scale, the same measurement gives
+// 1.65% for the best plain corner (which turns out to be a circle, n = 2) and
+// 25% for a fixed "squircle" exponent of 4.
 //
 // At t = 0 the model collapses to reach r and exponent 2 — a circle — which is
 // exactly what the reference does when a shape is rounded as far as it goes.
@@ -33,17 +32,17 @@ import 'dart:ui';
 
 /// How far past the radius a corner reaches along an edge that has the room,
 /// as a fraction of the radius.
-const double kMetalContinuousReach = 0.2893;
+const double kPnormReach = 0.2893;
 
 /// How much the p-norm exponent climbs above 2 on an edge that has the room.
-const double kMetalContinuousExponentRise = 0.7198;
+const double kPnormExponentRise = 0.7198;
 
 double _pow(double base, double exponent) => math.pow(base, exponent).toDouble();
 
 /// One corner axis, resolved: how far the curve runs along its edge and how
 /// hard it leaves it.
-class MetalContinuousAxis {
-  const MetalContinuousAxis(this.reach, this.exponent);
+class PnormAxis {
+  const PnormAxis(this.reach, this.exponent);
 
   /// Distance from the corner to where the curve meets the edge, in points.
   final double reach;
@@ -58,30 +57,30 @@ class MetalContinuousAxis {
 /// [slack] is what limits each axis: a square with a small radius has all the
 /// room in the world (t = 1 both ways), a capsule has none across its short
 /// side (t = 0), and the axis degrades to a plain circular end there.
-({MetalContinuousAxis h, MetalContinuousAxis v, double radius})
-    resolveMetalContinuous(
+({PnormAxis h, PnormAxis v, double radius})
+    resolvePnormContinuous(
   Size size,
   double radius, {
-  double reach = kMetalContinuousReach,
+  double reach = kPnormReach,
   double baseExponent = 2,
-  double exponentRise = kMetalContinuousExponentRise,
+  double exponentRise = kPnormExponentRise,
 }) {
   final halfW = size.width / 2;
   final halfH = size.height / 2;
   final double r = radius.clamp(0.0, math.min(halfW, halfH));
   if (r <= 0) {
     return (
-      h: MetalContinuousAxis(0, baseExponent),
-      v: MetalContinuousAxis(0, baseExponent),
+      h: PnormAxis(0, baseExponent),
+      v: PnormAxis(0, baseExponent),
       radius: 0.0
     );
   }
   final tH = ((halfW - r) / r).clamp(0.0, 1.0);
   final tV = ((halfH - r) / r).clamp(0.0, 1.0);
   return (
-    h: MetalContinuousAxis(
+    h: PnormAxis(
         r * (1 + reach * tH), baseExponent + exponentRise * tH),
-    v: MetalContinuousAxis(
+    v: PnormAxis(
         r * (1 + reach * tV), baseExponent + exponentRise * tV),
     radius: r,
   );
@@ -89,21 +88,20 @@ class MetalContinuousAxis {
 
 /// Signed distance to the continuous rounded rectangle filling [rect].
 ///
-/// Zero on the surface, negative inside. Unlike `superellipseCornerSDF`, which
-/// hands back a raw p-norm value, this divides by the gradient so the number
-/// is a distance in points — first-order exact, which is what a refraction
-/// band needs.
-double metalContinuousSdf(
+/// Zero on the surface, negative inside. A raw p-norm value is not a distance,
+/// so this divides by the gradient — first-order exact, which is what a
+/// refraction band needs.
+double pnormContinuousSdf(
   Offset point,
   Rect rect,
   double radius, {
-  double reach = kMetalContinuousReach,
+  double reach = kPnormReach,
   double baseExponent = 2,
-  double exponentRise = kMetalContinuousExponentRise,
+  double exponentRise = kPnormExponentRise,
 }) {
   final halfW = rect.width / 2;
   final halfH = rect.height / 2;
-  final axes = resolveMetalContinuous(rect.size, radius,
+  final axes = resolvePnormContinuous(rect.size, radius,
       reach: reach, baseExponent: baseExponent, exponentRise: exponentRise);
 
   final local = point - rect.center;
@@ -139,18 +137,18 @@ double metalContinuousSdf(
 ///
 /// The corner is walked with the p-norm's own parametrization — u = reach ·
 /// cos^(2/nH)(φ), v = reach · sin^(2/nV)(φ) — so the path and
-/// [metalContinuousSdf]'s zero level are the same curve by construction.
+/// [pnormContinuousSdf]'s zero level are the same curve by construction.
 /// [segmentsPerCorner] trades smoothness for point count.
-Path metalContinuousPath(
+Path pnormContinuousPath(
   Size size,
   double radius, {
-  double reach = kMetalContinuousReach,
+  double reach = kPnormReach,
   double baseExponent = 2,
-  double exponentRise = kMetalContinuousExponentRise,
+  double exponentRise = kPnormExponentRise,
   int segmentsPerCorner = 32,
 }) {
   final path = Path();
-  final axes = resolveMetalContinuous(size, radius,
+  final axes = resolvePnormContinuous(size, radius,
       reach: reach, baseExponent: baseExponent, exponentRise: exponentRise);
   if (axes.radius <= 0) {
     path.addRect(Offset.zero & size);
@@ -197,14 +195,14 @@ Path metalContinuousPath(
 }
 
 /// The capsule case: rounded as far as the short side allows.
-Path metalContinuousCapsulePath(
+Path pnormContinuousCapsulePath(
   Size size, {
-  double reach = kMetalContinuousReach,
+  double reach = kPnormReach,
   double baseExponent = 2,
-  double exponentRise = kMetalContinuousExponentRise,
+  double exponentRise = kPnormExponentRise,
   int segmentsPerCorner = 32,
 }) =>
-    metalContinuousPath(
+    pnormContinuousPath(
       size,
       math.min(size.width, size.height) / 2,
       reach: reach,

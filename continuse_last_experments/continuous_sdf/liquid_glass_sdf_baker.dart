@@ -8,8 +8,8 @@
 //   B = normal.y, encoded:  ny = B*2 - 1
 //   A = coverage (0 = fully outside, 1 = fully inside)
 //
-// This mirrors Kyant's SdfShader bitmap layout so the sampling shader reads
-// distance + outward normal directly. CPU 8SSEDT keeps it dependency-free.
+// The layout lets the sampling shader read distance + outward normal
+// directly. CPU 8SSEDT keeps it dependency-free.
 //
 // Deleting the `continuous_sdf/` folder removes the whole feature.
 // ─────────────────────────────────────────────────────────────────────────
