@@ -51,6 +51,7 @@ const LiquidGlassStyle kNoBlurThumb = LiquidGlassStyle(
   // No border on the thumb (borderWidth: 0). A large cornerRadius keeps it a
   // clean capsule as the pill grows/jellies (it clamps to half-height).
   shape: LiquidGlassShape.continuousRoundedRectangle(
+    clipQuality: LiquidGlassClipQuality.exact,
     cornerRadius: 100,
     borderWidth: 0.4,
     lightIntensity: 1,

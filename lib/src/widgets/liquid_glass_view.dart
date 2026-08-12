@@ -206,6 +206,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// vsync-driven `AnimatedBuilder` rebuild is one of the biggest
   /// wins on mobile Impeller — when no lens is animating and the
   /// user is not dragging, the parent does zero per-frame work.
+  ///
+  /// It runs only while something needs a frame ([_needsFramePump]): it
+  /// is the vsync pump itself, not merely a gate on the capture.
   AnimationController? _controller;
   bool _realtimeCaptureEnabled = false;
   bool isWeb = kIsWeb;
@@ -289,7 +292,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
         await _captureWidgetSafe(waitForEndOfFrame: false);
         if (mounted) setState(() {});
       });
-      _controller?.forward();
+      // Only pump when something needs it: a running controller
+      // schedules a frame every vsync, gate or no gate.
+      _syncFramePump();
     }
   }
 
@@ -316,7 +321,11 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       _recreateShaders(widget.children.length);
     }
     if (widget.realTimeCapture != oldWidget.realTimeCapture) {
-      _realtimeCaptureEnabled = widget.realTimeCapture;
+      _applyRealtimeCapture(widget.realTimeCapture);
+    } else if (widget.children.isEmpty != oldWidget.children.isEmpty) {
+      // Gaining a positioned lens claims the pump; losing the last one
+      // releases it.
+      _syncFramePump();
     }
   }
 
@@ -598,15 +607,47 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     if (mounted) setState(() {});
   }
 
+  /// Flips the capture pipeline on or off, controller included.
+  ///
+  /// The flag alone is not enough: the controller is the per-vsync pump,
+  /// so a running one keeps scheduling frames even while the listener
+  /// returns early. Stopping it is what makes an idle view free.
+  void _applyRealtimeCapture(bool enabled) {
+    if (_realtimeCaptureEnabled == enabled) return;
+    _realtimeCaptureEnabled = enabled;
+    _syncFramePump();
+  }
+
+  /// Whether anything still needs a frame every vsync.
+  ///
+  /// Captures do, obviously. So do positioned [children] lenses: on the
+  /// Skia path they read their show/hide value at *build* time, and this
+  /// controller's `AnimatedBuilder` is the only thing that rebuilds them,
+  /// so a stopped pump would freeze a fade halfway.
+  bool get _needsFramePump =>
+      _realtimeCaptureEnabled || widget.children.isNotEmpty;
+
+  void _syncFramePump() {
+    final controller = _controller;
+    if (controller == null) return;
+    if (_needsFramePump) {
+      if (!controller.isAnimating) controller.forward();
+    } else {
+      controller.stop();
+    }
+  }
+
   void _startRealtimeCapture() {
+    if (_realtimeCaptureEnabled) return;
     setState(() {
-      _realtimeCaptureEnabled = true;
+      _applyRealtimeCapture(true);
     });
   }
 
   void _stopRealtimeCapture() {
+    if (!_realtimeCaptureEnabled) return;
     setState(() {
-      _realtimeCaptureEnabled = false;
+      _applyRealtimeCapture(false);
     });
   }
 

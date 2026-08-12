@@ -233,12 +233,39 @@ class RenderLiquidGlassLens extends RenderProxyBox
         : RRect.fromRectAndRadius(rect, Radius.elliptical(r * sx, r * sy));
   }
 
+  // The outline costs a few hundred pow/trig calls to build, and `paint` asks
+  // for it up to three times a frame (glass clip, shader draw, blur clip).
+  // Keyed on everything `liquidGlassOutlinePath` reads, so a stale one is not
+  // representable — no setter has to remember to invalidate it.
+  Path? _cachedOutline;
+  Size? _cachedOutlineSize;
+  double? _cachedOutlineRadius;
+  Offset? _cachedOutlineScale;
+  LiquidGlassCornerStyle? _cachedOutlineCorner;
+
   /// [_outlineRRect]'s counterpart for the squircle and continuous curves,
   /// whose outline an `RRect` can only approximate. Honors the shape's
   /// [LiquidGlassClipQuality].
-  Path _outlinePath(Rect rect) =>
-      liquidGlassOutlinePath(_shape, rect.size, _clipScale)
-          .shift(rect.topLeft);
+  Path _outlinePath(Rect rect) {
+    final double radius = liquidGlassClipCornerRadius(_shape);
+    if (_cachedOutline == null ||
+        _cachedOutlineSize != rect.size ||
+        _cachedOutlineRadius != radius ||
+        _cachedOutlineScale != _clipScale ||
+        _cachedOutlineCorner != _shape.cornerStyle) {
+      _cachedOutline = liquidGlassOutlinePath(_shape, rect.size, _clipScale);
+      _cachedOutlineSize = rect.size;
+      _cachedOutlineRadius = radius;
+      _cachedOutlineScale = _clipScale;
+      _cachedOutlineCorner = _shape.cornerStyle;
+    }
+    // `shift` copies, so skip it where the offset is zero — which is both
+    // clip call sites. The Skia draw genuinely needs the view-space copy:
+    // its shader reads FlutterFragCoord() in the draw's own space.
+    return rect.topLeft == Offset.zero
+        ? _cachedOutline!
+        : _cachedOutline!.shift(rect.topLeft);
+  }
 
   /// Whether this lens clips with [_outlinePath] instead of [_outlineRRect].
   bool get _exactClip => liquidGlassUsesExactClipPath(_shape);

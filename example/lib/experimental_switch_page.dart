@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/experimental/liquid_glass_switch_experimental.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 // =============================================================
-// Experimental Switch showcase — LiquidGlassSwitchExperimental, the
-// sliding-thumb switch, standalone so nothing in the gallery changes.
+// Switch showcase — LiquidGlassToggle, the sliding-thumb switch,
+// standalone so nothing in the gallery changes.
 //
 //   flutter run -t lib/experimental_switch_page.dart
 //
@@ -128,20 +127,20 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 _card([
                   _row(Icons.short_text_rounded, 'Compact', _wifi,
                       (v) => setState(() => _wifi = v),
-                      layout: const LiquidGlassSwitchLayout().scaled(0.8)),
+                      layout: const LiquidGlassToggleLayout().scaled(0.8)),
                   _divider(),
                   _row(Icons.density_medium_rounded, 'Default', _airdrop,
                       (v) => setState(() => _airdrop = v)),
                   _divider(),
                   _row(Icons.format_size_rounded, 'Large', _hotspot,
                       (v) => setState(() => _hotspot = v),
-                      layout: const LiquidGlassSwitchLayout().scaled(1.45)),
+                      layout: const LiquidGlassToggleLayout().scaled(1.45)),
                   _divider(),
                   // A track resized on its own: taller and wider than the
                   // default, carrying a handle that stays a slim pill.
                   _row(Icons.aspect_ratio_rounded, 'Wide track', _bluetooth,
                       (v) => setState(() => _bluetooth = v),
-                      layout: const LiquidGlassSwitchLayout(
+                      layout: const LiquidGlassToggleLayout(
                         width: 92,
                         height: 34,
                         thumbWidth: 44,
@@ -161,7 +160,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 _card([
                   _row(Icons.remove_rounded, 'No pinch — 28', _wifi,
                       (v) => setState(() => _wifi = v),
-                      layout: const LiquidGlassSwitchLayout(
+                      layout: const LiquidGlassToggleLayout(
                           pinchedHeight: 28)),
                   _divider(),
                   _row(Icons.compress_rounded, 'Default — 20', _airdrop,
@@ -169,12 +168,12 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                   _divider(),
                   _row(Icons.compress_rounded, 'Tighter — 14', _hotspot,
                       (v) => setState(() => _hotspot = v),
-                      layout: const LiquidGlassSwitchLayout(
+                      layout: const LiquidGlassToggleLayout(
                           pinchedHeight: 14)),
                   _divider(),
                   _row(Icons.compress_rounded, 'Tiny — 8', _bluetooth,
                       (v) => setState(() => _bluetooth = v),
-                      layout: const LiquidGlassSwitchLayout(
+                      layout: const LiquidGlassToggleLayout(
                           pinchedHeight: 8)),
                 ]),
                 const SizedBox(height: 26),
@@ -236,7 +235,7 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
     bool value,
     ValueChanged<bool> onChanged, {
     Color? activeTrackColor,
-    LiquidGlassSwitchLayout layout = const LiquidGlassSwitchLayout(pinchedHeight:22 ),
+    LiquidGlassToggleLayout layout = const LiquidGlassToggleLayout(pinchedHeight:22 ),
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -254,11 +253,11 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
               ),
             ),
           ),
-          LiquidGlassSwitchExperimental(
+          LiquidGlassToggle(
             value: value,
             onChanged: onChanged,
             layout: layout,
-            activeTrackColor: activeTrackColor ?? const Color(0xFF34C759),
+            activeColor: activeTrackColor ?? const Color(0xFF34C759),
             // Arrives with the glass: the solid rest pill casts nothing,
             // and the shadow fades up as the thumb is lifted. Inset so the
             // glass overhangs its own shadow — at this size a full-width
@@ -276,6 +275,9 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 distortionWidth: 13,
                 chromaticAberration: 0.002,
               ),
+                            shape:LiquidGlassShape.continuousRoundedRectangle()
+
+              
             ),
           ),
         ],

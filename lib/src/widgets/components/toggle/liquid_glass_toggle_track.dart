@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../utils/liquid_glass_shape.dart';
 import 'liquid_glass_toggle_layout.dart';
 
 /// Solid white pill — the at-rest toggle thumb.
@@ -64,6 +65,16 @@ class ToggleBodyPainter extends CustomPainter {
   /// capsule; smaller shrinks it in width and height together.
   final double bodyScale;
 
+  /// Corner family of the track body — the outer capsule and its shrunken
+  /// copy. Circular by default; pass the glass bar's own family to keep
+  /// the two silhouettes in agreement.
+  final LiquidGlassCornerStyle cornerStyle;
+
+  /// Corner family of the HOLE, which must follow the glass pill rather
+  /// than the track: the cut edge tucks under that pill's rim, and a
+  /// circular cut under a continuous pill shows at the caps.
+  final LiquidGlassCornerStyle holeCornerStyle;
+
   ToggleBodyPainter({
     required this.color,
     required this.radius,
@@ -72,7 +83,22 @@ class ToggleBodyPainter extends CustomPainter {
     required this.holeWidth,
     required this.holeHeight,
     required this.bodyScale,
+    this.cornerStyle = LiquidGlassCornerStyle.roundedRectangle,
+    this.holeCornerStyle = LiquidGlassCornerStyle.roundedRectangle,
   });
+
+  /// One outline at [rect], in the given corner family. Shares the shape
+  /// utils the shader and the clips use, so all three agree.
+  static Path _outline(
+    Rect rect,
+    double radius,
+    LiquidGlassCornerStyle style,
+  ) =>
+      liquidGlassOutlinePath(
+        LiquidGlassShape(cornerStyle: style, cornerRadius: radius),
+        rect.size,
+        const Offset(1, 1),
+      ).shift(rect.topLeft);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -80,23 +106,19 @@ class ToggleBodyPainter extends CustomPainter {
       ..color = color
       ..isAntiAlias = true;
 
-    final capsule = Path()
-      ..addRRect(RRect.fromRectAndRadius(
-        Offset.zero & size,
-        Radius.circular(radius),
-      ));
+    final capsule = _outline(Offset.zero & size, radius, cornerStyle);
 
     Path body = capsule;
     if (animating && holeWidth > 0.001 && holeHeight > 0.001) {
-      final hole = Path()
-        ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(holeCenterX, size.height / 2),
-            width: holeWidth,
-            height: holeHeight,
-          ),
-          Radius.circular(holeHeight / 2),
-        ));
+      final hole = _outline(
+        Rect.fromCenter(
+          center: Offset(holeCenterX, size.height / 2),
+          width: holeWidth,
+          height: holeHeight,
+        ),
+        holeHeight / 2,
+        holeCornerStyle,
+      );
       // The track capsule scaled on both axes, placed where a LENS of
       // the same magnification would show it.
       //
@@ -113,15 +135,15 @@ class ToggleBodyPainter extends CustomPainter {
       // never adds any: the body outside the glass is untouched.
       final bodyCenterX =
           bodyScale * (size.width / 2) + (1 - bodyScale) * holeCenterX;
-      final shrunk = Path()
-        ..addRRect(RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(bodyCenterX, size.height / 2),
-            width: size.width * bodyScale,
-            height: size.height * bodyScale,
-          ),
-          Radius.circular(radius * bodyScale),
-        ));
+      final shrunk = _outline(
+        Rect.fromCenter(
+          center: Offset(bodyCenterX, size.height / 2),
+          width: size.width * bodyScale,
+          height: size.height * bodyScale,
+        ),
+        radius * bodyScale,
+        cornerStyle,
+      );
       body = Path.combine(
         PathOperation.union,
         Path.combine(PathOperation.difference, capsule, hole),
@@ -140,14 +162,15 @@ class ToggleBodyPainter extends CustomPainter {
       old.holeCenterX != holeCenterX ||
       old.holeWidth != holeWidth ||
       old.holeHeight != holeHeight ||
-      old.bodyScale != bodyScale;
+      old.bodyScale != bodyScale ||
+      old.cornerStyle != cornerStyle ||
+      old.holeCornerStyle != holeCornerStyle;
 }
 
 /// Stateless toggle track: capsule background that tints from a
 /// gray (off) to a solid color (on), with a static white pill
 /// thumb drawn inline. Place inside the INNER `LiquidGlassView`'s
-/// `backgroundWidget` so the moving glass thumb (built with
-/// [buildLiquidGlassToggleThumb]) can refract it.
+/// `backgroundWidget` so the moving glass thumb can refract it.
 ///
 /// While [pinchFraction] > 0, a pill-shaped hole is cut out of
 /// the colored capsule at the glass's x position (driven by
@@ -162,7 +185,12 @@ class ToggleBodyPainter extends CustomPainter {
 /// [ToggleBodyPainter]), so it never appears to scale under the glass.
 class LiquidGlassToggleTrack extends StatelessWidget {
   final bool value;
-  final ValueChanged<bool> onChanged;
+
+  /// Tap handler for the track itself. `null` adds no detector at all —
+  /// what a host that owns one gesture surface over the whole control
+  /// wants, so nothing competes with it from inside the capture.
+  final ValueChanged<bool>? onChanged;
+
   final LiquidGlassToggleLayout layout;
 
   /// `0` at rest (no hole, plain capsule), `1` at the peak of the
@@ -170,9 +198,12 @@ class LiquidGlassToggleTrack extends StatelessWidget {
   /// body inside it holds one fixed size throughout.
   final double pinchFraction;
 
-  /// `0` when off and `1` when on. Drives where the hole + fake
-  /// pill sit along the track. Pass the same value used for the
-  /// glass thumb's [buildLiquidGlassToggleThumb] `travelFraction`.
+  /// `0` when off and `1` when on. Drives where the hole + fake pill sit
+  /// along the track: the hole's centre is
+  /// `padding + travelFraction * travel + thumbWidth / 2`, so a host whose
+  /// thumb rides the finger passes the fraction that inverts to its own
+  /// centre — including outside `0..1`, which is how the rubber band's
+  /// overrun keeps the hole under the glass.
   final double travelFraction;
 
   /// Tint color of the track when [value] is true. Defaults to a
@@ -205,10 +236,17 @@ class LiquidGlassToggleTrack extends StatelessWidget {
   /// When null it falls back to [value], which jumps.
   final double? fraction;
 
+  /// Corner family of the track capsule (and its shrunken copy behind the
+  /// glass), and of the hole cut for the glass pill. The hole follows the
+  /// PILL, the rest follows the track — they are separate on purpose, since
+  /// a host may give the two different shapes.
+  final LiquidGlassCornerStyle cornerStyle;
+  final LiquidGlassCornerStyle holeCornerStyle;
+
   const LiquidGlassToggleTrack({
     super.key,
     required this.value,
-    required this.onChanged,
+    this.onChanged,
     this.tint = const Color(0xFF34C759),
     this.offColor = const Color(0x66808080),
     this.layout = const LiquidGlassToggleLayout(),
@@ -218,7 +256,15 @@ class LiquidGlassToggleTrack extends StatelessWidget {
     this.pillWidth,
     this.pillHeight,
     this.fraction,
+    this.cornerStyle = LiquidGlassCornerStyle.roundedRectangle,
+    this.holeCornerStyle = LiquidGlassCornerStyle.roundedRectangle,
   });
+
+  /// Adds a tap detector only when there is something to call. A host
+  /// with its own gesture surface passes null and gets no competitor
+  /// inside the captured background.
+  static Widget _maybeTappable(VoidCallback? onTap, Widget child) =>
+      onTap == null ? child : GestureDetector(onTap: onTap, child: child);
 
   @override
   Widget build(BuildContext context) {
@@ -230,15 +276,21 @@ class LiquidGlassToggleTrack extends StatelessWidget {
     // across the full pill, not just a narrow center. Inset by a 1.5px
     // hair on every side so the cut edge tucks just under the glass
     // overhang and never shows a seam.
-    const edgeInset = 1.5;
     final pillW = pillWidth ?? layout.thumbWidth;
     final pillH = pillHeight ?? layout.thumbHeight;
+    // A FRACTION of the pill, not a fixed 1.5 px. `scaled()` multiplies every
+    // measurement in the layout, so a fixed inset is the one thing that does
+    // not follow: the hole's share of the pill drifted from 0.84 at half size
+    // to 0.96 at double, and the slice behind the glass read differently at
+    // each. The fraction is that same 1.5 px on the default lifted pill, so
+    // nothing changes at the default size.
+    const double insetFraction = 1.5 / 38.333;
+    final double edgeInset = pillH * insetFraction;
     final holeWidth = math.max(0.0, pillW - edgeInset * 2);
     final holeHeight = math.max(0.0, pillH - edgeInset * 2);
 
-    // Center of the hole at this travel fraction. Mirrors the math
-    // used by buildLiquidGlassToggleThumb so the hole tracks the
-    // glass.
+    // Center of the hole at this travel fraction. Mirrors the math the
+    // host places the glass thumb by, so the hole tracks it.
     final holeCenterX = layout.padding +
         travelFraction * layout.travel +
         layout.thumbWidth / 2;
@@ -267,12 +319,13 @@ class LiquidGlassToggleTrack extends StatelessWidget {
     final f = (fraction ?? (value ? 1.0 : 0.0)).clamp(0.0, 1.0);
     final bodyColor = Color.lerp(offColor, tint, f)!;
 
+    final tap = onChanged;
     return SizedBox(
       width: layout.width,
       height: layout.height,
-      child: GestureDetector(
-        onTap: () => onChanged(!value),
-        child: Stack(
+      child: _maybeTappable(
+        tap == null ? null : () => tap(!value),
+        Stack(
           clipBehavior: Clip.none,
           children: [
             // The whole track body — a full-height capsule with a
@@ -290,6 +343,8 @@ class LiquidGlassToggleTrack extends StatelessWidget {
                   holeWidth: holeWidth,
                   holeHeight: holeHeight,
                   bodyScale: bodyScale,
+                  cornerStyle: cornerStyle,
+                  holeCornerStyle: holeCornerStyle,
                 ),
               ),
             ),

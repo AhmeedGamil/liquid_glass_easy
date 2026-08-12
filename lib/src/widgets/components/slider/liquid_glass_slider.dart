@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
@@ -8,6 +7,7 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
+import '../../utils/liquid_glass_eager_pan.dart';
 import '../../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_lens_motion.dart';
 import '../liquid_glass_motion_pill.dart';
@@ -257,11 +257,6 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
     super.initState();
     _thumbCX = _targetThumbCX;
     _ticker = createTicker(_onTick);
-    // Warm the capture from startup, same as the shipped slider — the
-    // first grab must not pay the cold-start raster stall.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _viewController.startRealtimeCapture();
-    });
   }
 
   @override
@@ -387,6 +382,8 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
     // Expand immediately, tap or drag alike; the pill starts its own
     // motion tracking on activation.
     _thumbActive = true;
+    // A frame of head start on the pill's own signal: the glass appears
+    // one tick later, over a capture that is already fresh.
     _viewController.startRealtimeCapture();
     _ensureTicking();
     widget.onChangeStart?.call(widget.value);
@@ -524,26 +521,12 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
 
     final gestureSurface = RawGestureDetector(
       behavior: HitTestBehavior.opaque,
-      gestures: <Type, GestureRecognizerFactory>{
-        _EagerPanGestureRecognizer:
-            GestureRecognizerFactoryWithHandlers<_EagerPanGestureRecognizer>(
-          () => _EagerPanGestureRecognizer(debugOwner: this),
-          (instance) {
-            instance
-              ..dragStartBehavior = DragStartBehavior.down
-              ..onStart = (d) {
-                _handleDown(d.globalPosition);
-              }
-              ..onUpdate = (d) {
-                _handleMove(d.globalPosition);
-              }
-              ..onEnd = (_) {
-                _handleUp();
-              }
-              ..onCancel = _handleUp;
-          },
-        ),
-      },
+      gestures: liquidGlassEagerPanGestures(
+        debugOwner: this,
+        onDown: _handleDown,
+        onMove: _handleMove,
+        onUp: _handleUp,
+      ),
     );
 
     return SizedBox(
@@ -560,7 +543,10 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
               controller: _viewController,
               honorBackdropAlpha: true,
               pixelRatio: widget.pixelRatio,
-              realTimeCapture: true,
+              // The capture lives exactly as long as the glass does: off
+              // at rest, started on touch, stopped once the pill is
+              // covered again. The view still takes one snapshot on mount.
+              realTimeCapture: false,
               useSync: true,
               backgroundWidget: Stack(
                 children: [
@@ -629,12 +615,16 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
                 style: widget.style,
                 shadow: widget.shadow,
                 motion: widget.motion,
-                cover: Container(
-                  decoration: BoxDecoration(
-                    color: widget.thumbColor,
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                ),
+                // The contraction outlives the release, so the pill —
+                // not the gesture — says when the glass is covered and
+                // the capture can stop.
+                onGlassVisibilityChanged: (visible) => visible
+                    ? _viewController.startRealtimeCapture()
+                    : _viewController.stopRealtimeCapture(),
+                // A flat fill: the pill clips the cover to the same
+                // outline the glass wears, so a radius of its own here
+                // would only cut back inside it at the caps.
+                cover: ColoredBox(color: widget.thumbColor),
               ),
             ),
           ),
@@ -650,20 +640,5 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
         ],
       ),
     );
-  }
-}
-
-/// Copied from the shipped slider, where it is private: a pan recognizer
-/// that claims the arena the instant a pointer lands, so the control is
-/// never robbed by an ancestor scrollable and `onStart` fires at
-/// touch-down, so the thumb expands the instant it is touched
-/// rather than after the drag is recognised.
-class _EagerPanGestureRecognizer extends PanGestureRecognizer {
-  _EagerPanGestureRecognizer({super.debugOwner});
-
-  @override
-  void addAllowedPointer(PointerDownEvent event) {
-    super.addAllowedPointer(event);
-    resolve(GestureDisposition.accepted);
   }
 }

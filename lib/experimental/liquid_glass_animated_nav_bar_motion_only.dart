@@ -91,9 +91,13 @@ export '../src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dar
 /// — but a host that deliberately put glass over the pill's own cells
 /// would see the difference.
 ///
-/// The pill is one persistent glass surface at both endpoints. Its travel
-/// spring is unchanged, while its size and material values interpolate from
-/// [restStyle] to the active pill style and its squash/stretch settles fully.
+/// **4. Glass only while it moves.** The travel spring is unchanged, and the
+/// pill's size and material still interpolate from [restStyle] to the active
+/// style across the whole lift. But the moment the spring settles — morph
+/// envelope back at 0, squash already cleared at the halfway mark — the lens
+/// is dropped and a plain `LiquidGlassBottomNavPillStatic` takes the same
+/// rect. A bar sitting still then costs no shader pass, no clip, no outer
+/// capture, and no dual-layer icon reveal.
 ///
 /// [body] is the page content, captured behind the glass. [outerLenses]
 /// are composited in the outer view on top of the bar (e.g. the app bar
@@ -632,7 +636,18 @@ class _LiquidGlassAnimatedNavBarMotionOnlyState
       final Size liveSize = trackPillMotion
           ? (_pillGeometry.value ?? envelopeSize)
           : envelopeSize;
-      final bool glassOn = widget.showSelectionPill;
+
+      // The glass surface exists only while something is moving it. The
+      // instant the travel spring settles, the pill is already at rest
+      // geometry with zero deformation — the morph envelope has returned to
+      // 0 and `resetMotionOnStop` cleared the squash at the halfway mark —
+      // so the plain rest pill can take over with nothing to cross-fade.
+      //
+      // That is the whole point: at rest there is no lens, no shader pass,
+      // no clip, and (below) no outer capture either.
+      final bool glassMounted =
+          widget.showSelectionPill && (_travelActive || _tabDragging);
+      final bool glassOn = glassMounted;
       // The icon shell's reveal is cut to the size the pill says it is
       // drawing, so the selected colour wipes on exactly under the glass.
       final double? hlFrac = glassOn ? pillFrac : null;
@@ -648,8 +663,9 @@ class _LiquidGlassAnimatedNavBarMotionOnlyState
             controller: _outerViewController,
             pixelRatio: widget.pixelRatio,
             useSync: widget.useSync,
-            // Only capture while there is something to composite.
-            realTimeCapture: glassOn || widget.outerNeedsRealtime,
+            // Only capture while there is something to composite — which is
+            // now only while the glass pill is actually mounted.
+            realTimeCapture: glassMounted || widget.outerNeedsRealtime,
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
             backgroundWidget: _buildInner(
@@ -677,7 +693,7 @@ class _LiquidGlassAnimatedNavBarMotionOnlyState
             child: Stack(
               fit: StackFit.expand,
               children: [
-                if (widget.showSelectionPill)
+                if (glassMounted)
                   Positioned.fill(
                     child: IgnorePointer(
                       child: LiquidGlassNavPill(
@@ -695,6 +711,22 @@ class _LiquidGlassAnimatedNavBarMotionOnlyState
                         geometry: _pillGeometry,
                         honorBackdropAlpha: false,
                       ),
+                    ),
+                  )
+                // Settled: the same rect the glass just vacated, painted as
+                // a plain fill. Placed from the pill's own centre rather
+                // than re-derived from the committed index, so the two can
+                // never disagree by a pixel at the hand-off.
+                else if (widget.showSelectionPill)
+                  Positioned(
+                    key: const ValueKey('lg-motion-nav-pill-static'),
+                    left: pillCX - pillRest.width / 2,
+                    top: pillCY - pillRest.height / 2,
+                    child: LiquidGlassBottomNavPillStatic(
+                      width: pillRest.width,
+                      height: pillRest.height,
+                      color: widget.restStyle.appearance.color,
+                      shape: widget.restStyle.shape,
                     ),
                   ),
                 if (widget.outerChild != null) widget.outerChild!,

@@ -379,11 +379,19 @@ Path liquidGlassOutlinePath(
   final double sy = scale.dy <= 0 ? 1.0 : scale.dy;
   switch (shape.cornerStyle) {
     case LiquidGlassCornerStyle.continuousRoundedRectangle:
-      return _liquidGlassScaledClipPath(size, sx, sy,
-          (rest) => liquidGlassContinuousRoundedRectPath(rest, r));
+      return _liquidGlassScaledClipPath(
+          size,
+          sx,
+          sy,
+          (rest, renderScale) => liquidGlassContinuousRoundedRectPath(rest, r,
+              renderScale: renderScale));
     case LiquidGlassCornerStyle.squircle:
       return _liquidGlassScaledClipPath(
-          size, sx, sy, (rest) => liquidGlassSquirclePath(rest, r, 1.0));
+          size,
+          sx,
+          sy,
+          (rest, renderScale) =>
+              liquidGlassSquirclePath(rest, r, 1.0, renderScale: renderScale));
     case LiquidGlassCornerStyle.roundedRectangle:
       return Path()
         ..addRRect(RRect.fromRectAndRadius(
@@ -401,10 +409,11 @@ Path _liquidGlassScaledClipPath(
   Size size,
   double scaleX,
   double scaleY,
-  Path Function(Size rest) build,
+  Path Function(Size rest, double renderScale) build,
 ) {
-  if (scaleX == 1.0 && scaleY == 1.0) return build(size);
-  final Path rest = build(Size(size.width / scaleX, size.height / scaleY));
+  if (scaleX == 1.0 && scaleY == 1.0) return build(size, 1.0);
+  final Path rest = build(Size(size.width / scaleX, size.height / scaleY),
+      math.max(scaleX, scaleY));
   // `diagonal3Values`, not `scaleByDouble`: the latter needs vector_math 2.2.0
   // (Flutter 3.35+), and would fail to COMPILE for everyone below that.
   return rest.transform(Matrix4.diagonal3Values(scaleX, scaleY, 1).storage);
@@ -423,8 +432,12 @@ class _LiquidGlassSquircleClipper extends CustomClipper<Path> {
   });
 
   @override
-  Path getClip(Size size) => _liquidGlassScaledClipPath(size, scaleX, scaleY,
-      (rest) => liquidGlassSquirclePath(rest, radius, smoothing));
+  Path getClip(Size size) => _liquidGlassScaledClipPath(
+      size,
+      scaleX,
+      scaleY,
+      (rest, renderScale) => liquidGlassSquirclePath(rest, radius, smoothing,
+          renderScale: renderScale));
 
   @override
   bool shouldReclip(_LiquidGlassSquircleClipper old) =>
@@ -445,8 +458,12 @@ class _LiquidGlassContinuousClipper extends CustomClipper<Path> {
   });
 
   @override
-  Path getClip(Size size) => _liquidGlassScaledClipPath(size, scaleX, scaleY,
-      (rest) => liquidGlassContinuousRoundedRectPath(rest, radius));
+  Path getClip(Size size) => _liquidGlassScaledClipPath(
+      size,
+      scaleX,
+      scaleY,
+      (rest, renderScale) => liquidGlassContinuousRoundedRectPath(rest, radius,
+          renderScale: renderScale));
 
   @override
   bool shouldReclip(_LiquidGlassContinuousClipper old) =>
@@ -462,7 +479,8 @@ Path liquidGlassSquirclePath(
   Size size,
   double r,
   double smoothing, {
-  int seg = 40,
+  int? seg,
+  double renderScale = 1.0,
 }) {
   final double w = size.width, h = size.height;
   final double maxCorner = math.min(w, h) / 2;
@@ -473,13 +491,18 @@ Path liquidGlassSquirclePath(
   final double zone = math.min(rr * (1 + 0.528 * sm), maxCorner);
   final double base = (1 - 0.29289322 * (rr / zone)).clamp(0.5, 0.999999);
   final double n = -1.0 / (math.log(base) / math.ln2);
+  // `zone` is this curve's reach — the corner box the superellipse fills — so
+  // it is what sets the density, at the size the path will be DRAWN.
+  final int steps = seg ?? (liquidGlassCornerSegments(zone * renderScale) * 2);
+  // Loop-invariant: one exponent for the whole shape, not one per point.
+  final double inv = 2 / n;
 
   List<Offset> corner(double cx, double cy, double sx, double sy) => [
-        for (int i = 0; i <= seg; i++)
+        for (int i = 0; i <= steps; i++)
           () {
-            final double t = (math.pi / 2) * i / seg;
-            final double ox = zone * math.pow(math.cos(t), 2 / n).toDouble();
-            final double oy = zone * math.pow(math.sin(t), 2 / n).toDouble();
+            final double t = (math.pi / 2) * i / steps;
+            final double ox = zone * math.pow(math.cos(t), inv).toDouble();
+            final double oy = zone * math.pow(math.sin(t), inv).toDouble();
             return Offset(cx + sx * ox, cy + sy * oy);
           }()
       ];
@@ -497,6 +520,37 @@ Path liquidGlassSquirclePath(
   return path..close();
 }
 
+/// The largest gap the polyline clip may leave against the true curve, in
+/// logical pixels. Sub-pixel at any sensible device ratio, and the error is
+/// one-sided (chords of a convex curve fall inside it), so this is also the
+/// most the clip can ever shave off the rim.
+const double _kContinuousClipErrorPx = 0.05;
+
+/// Fitted constant of the chord-sagitta law: the worst deviation of a corner
+/// of on-screen reach `R` sampled at `seg` steps is `≈ _kSagitta · R / seg²`.
+/// Measured against a dense reference across radii, aspect ratios and
+/// deformations; see `continuous_clip_precision_test.dart`.
+const double _kSagitta = 0.103;
+
+/// Tessellation density for a corner of on-screen [reach] — shared by both
+/// curved corner styles. A corner spans `2 ×` this many straight segments.
+///
+/// [reach] is the corner's actual extent — the continuous curve's
+/// `r · (1 + slack)`, the squircle's `zone` — NOT its radius. A stretched
+/// corner covers more ground per step than a round one of the same radius, and
+/// keying this on `r` alone lets an extreme aspect ratio slip past the budget
+/// (measured: 600×24 at r 12 strayed 0.052 px).
+///
+/// Inverts the sagitta law for [_kContinuousClipErrorPx], so a small pill is
+/// not tessellated to the same density as a full-screen card. Capped at 40 —
+/// the old fixed count — so this can only ever emit fewer points, and floored
+/// at 3 so even a hairline radius keeps a curve.
+int liquidGlassCornerSegments(double reach) {
+  if (!reach.isFinite || reach <= 0) return 3;
+  final int seg = math.sqrt(_kSagitta * reach / _kContinuousClipErrorPx).ceil();
+  return seg.clamp(3, 40);
+}
+
 /// The capsule-style continuous rounded-rectangle outline: each corner is a
 /// p-norm ball whose box is stretched along whichever edge has room, with an
 /// exponent that rises with that same room. The stretch is what makes the
@@ -512,40 +566,53 @@ Path liquidGlassSquirclePath(
 Path liquidGlassContinuousRoundedRectPath(
   Size size,
   double r, {
-  int seg = 40,
+  int? seg,
+  double renderScale = 1.0,
 }) {
-  const double reachFrac = 0.2893, expRise = 0.7198;
+  const double reachFrac = 0.2893, expRise = 0.7198, roomShape = 0.6;
   final double w = size.width, h = size.height;
   final double maxCorner = math.min(w, h) / 2;
   final double rr = math.min(r, maxCorner);
   if (rr < 0.5) return Path()..addRect(Offset.zero & size);
 
-  // Each axis' slack, and the corner box + exponent it earns.
-  final double tH = ((w / 2 - rr) / rr).clamp(0.0, 1.0);
-  final double tV = ((h / 2 - rr) / rr).clamp(0.0, 1.0);
-  final double reachH = rr * (1 + reachFrac * tH); // onto top/bottom edges
-  final double reachV = rr * (1 + reachFrac * tV); // onto left/right edges
-  final double expH = 2 + expRise * tH;
-  final double expV = 2 + expRise * tV;
+  // Each axis' slack, shaped, and the corner box + exponent it earns. Mirrors
+  // `continuousRoundedRectReach` — the min() keeps a nearly-round edge from
+  // asking for more reach than it has room for.
+  double shaped(double half) {
+    final double t = ((half - rr) / rr).clamp(0.0, 1.0);
+    return math.min(reachFrac * math.pow(t, roomShape).toDouble(), t);
+  }
+
+  final double sH = shaped(w / 2);
+  final double sV = shaped(h / 2);
+  final double reachH = rr * (1 + sH); // onto top/bottom edges
+  final double reachV = rr * (1 + sV); // onto left/right edges
+  final double expH = 2 + expRise * sH / reachFrac;
+  final double expV = 2 + expRise * sV / reachFrac;
+
+  // Density is chosen from the corner's own extent, at the size it will be
+  // DRAWN — the path may still be stretched by `renderScale` after this.
+  final int segments =
+      seg ?? liquidGlassCornerSegments(math.max(reachH, reachV) * renderScale);
 
   final double halfW = w / 2, halfH = h / 2;
   final double flatX = halfW - reachH;
   final double flatY = halfH - reachV;
+  // Loop-invariant: the exponents are per-shape, not per-point.
+  final double invH = 2 / expH, invV = 2 / expV;
 
   /// One corner, walked with the p-norm's own parametrization so the path and
   /// the shader's zero level are the same curve. φ = 0 sits on the vertical
   /// edge, φ = π/2 on the horizontal one.
   List<Offset> corner(double sx, double sy, {required bool forward}) {
-    final steps = seg * 2;
+    final steps = segments * 2;
     return [
       for (int i = 0; i <= steps; i++)
         () {
           final double t = i / steps;
           final double phi = (forward ? t : 1 - t) * math.pi / 2;
-          final double u =
-              reachH * math.pow(math.cos(phi), 2 / expH).toDouble();
-          final double v =
-              reachV * math.pow(math.sin(phi), 2 / expV).toDouble();
+          final double u = reachH * math.pow(math.cos(phi), invH).toDouble();
+          final double v = reachV * math.pow(math.sin(phi), invV).toDouble();
           return Offset(halfW + sx * (flatX + u), halfH + sy * (flatY + v));
         }(),
     ];

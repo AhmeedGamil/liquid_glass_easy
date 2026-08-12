@@ -14,7 +14,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // without the page arranging anything for it.
 //
 // The one thing the page does owe it is room. The swollen handle paints
-// OUTSIDE the 64x28 track, so the group cards below are drawn with a
+// OUTSIDE the 63x28 track, so the group cards below are drawn with a
 // decoration rather than a ClipRRect — a clipping ancestor would shear
 // the swell off at the track's edge. Where clipping is unavoidable, the
 // switch takes `reserveSwellRoom: true` instead and measures large

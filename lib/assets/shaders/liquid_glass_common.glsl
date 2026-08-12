@@ -328,15 +328,26 @@ ShapeData evaluateSquircleRRect(
    =========================== */
 const float CRR_REACH    = 0.2893;  // corner reach past r, at full room
 const float CRR_EXP_RISE = 0.7198;  // exponent above 2, at full room
+const float CRR_ROOM_SHAPE = 0.6;   // how fast the reach gives up its room
 const float CRR_EPS      = 1e-6;
 const float CRR_DEGEN    = 1e-20;   // both offsets vanish: no radius to pick
 
 // Per-edge corner reach (px) PAST the radius, ramped by the room on that
 // edge. reach.x runs onto the horizontal (top/bottom) edges, reach.y onto
 // the vertical ones. halfSize = the lens half-extents.
+//
+// t is that edge's slack. Shaping it holds more of the corner where an edge
+// is short of room — a capsule only gets its full reach once it is twice as
+// long as it is tall, and linear slack makes everything below that read as a
+// plain rounded rectangle. At t^0.6 a 1.2:1 capsule keeps 6.6 px of reach
+// instead of 3.5, and the outline is still within 0.42% of the reference.
+//
+// The min() is the guard the shaping needs: t^0.6 > t below t = 0.045, so
+// without it a nearly-round edge would ask for more reach than it has room
+// for and the two corners sharing that edge would overlap.
 vec2 continuousRoundedRectReach(float rr, vec2 halfSize){
     vec2 t = clamp((halfSize - vec2(rr)) / max(rr, CRR_EPS), 0.0, 1.0);
-    return CRR_REACH * rr * t;
+    return rr * min(CRR_REACH * pow(t, vec2(CRR_ROOM_SHAPE)), t);
 }
 
 // SDF of the capsule-style continuous rounded rectangle. `reach` comes

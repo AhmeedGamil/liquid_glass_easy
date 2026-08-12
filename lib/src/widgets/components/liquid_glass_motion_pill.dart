@@ -71,7 +71,7 @@ class LiquidGlassMotionPill extends StatefulWidget {
   final Size activeSize;
 
   /// Glass look; null keeps the tuned slider default. The default
-  /// shape is a continuous capsule tracking the morph height.
+  /// shape is a circular-cornered capsule tracking the morph height.
   final LiquidGlassStyle? style;
 
   /// Tuning of the acceleration squash/stretch.
@@ -89,6 +89,10 @@ class LiquidGlassMotionPill extends StatefulWidget {
   /// expands — the slider passes its solid white pill here. Laid out at
   /// rest size and pixel-stretched with the outline, so it deforms as
   /// one body with the glass. Takes no pointers.
+  ///
+  /// It is **clipped to the pill's own outline**, so pass a plain fill: a
+  /// rounded rectangle of its own would only cut back inside that outline
+  /// at the caps, which is exactly the mismatch the clip removes.
   final Widget? cover;
 
   /// Contact shadow drawn around the pill — the soft dark band that hugs
@@ -109,6 +113,15 @@ class LiquidGlassMotionPill extends StatefulWidget {
   /// slider's track, a demo bar). Skia capture path only.
   final bool honorBackdropAlpha;
 
+  /// Fired when the glass leaves rest (`true`) and when the contraction
+  /// lands back at rest and an opaque [cover] hides it again (`false`).
+  ///
+  /// The host owns [active], but not this: the glass keeps rendering for
+  /// the whole contract spring after [active] flips off. Lets the host
+  /// drop work that only pays off while the glass shows — the slider
+  /// runs its background capture exactly across this window.
+  final ValueChanged<bool>? onGlassVisibilityChanged;
+
   const LiquidGlassMotionPill({
     super.key,
     required this.center,
@@ -124,6 +137,7 @@ class LiquidGlassMotionPill extends StatefulWidget {
     this.cover,
     this.shadow,
     this.honorBackdropAlpha = true,
+    this.onGlassVisibilityChanged,
   });
 
   @override
@@ -136,6 +150,10 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
   /// overshoots past 1 on purpose — that is the bounce.
   double _morph = 0;
   double _morphVel = 0;
+
+  /// Last reported glass visibility, so the callback fires on the edges
+  /// only. The cover is fully opaque at morph 0 and nowhere above it.
+  bool _glassVisible = false;
 
   late final LiquidGlassLensMotion _motion =
       LiquidGlassLensMotion(spec: widget.motion);
@@ -209,6 +227,14 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
       busy = true;
     }
 
+    // Ticker phase, never paint: reporting from here is safe for hosts
+    // that answer with setState.
+    final bool visible = _morph != 0;
+    if (visible != _glassVisible) {
+      _glassVisible = visible;
+      widget.onGlassVisibilityChanged?.call(visible);
+    }
+
     // Sample the host-supplied centre — real per-frame positions feed
     // the model (drags AND glides), so a glide's launch stretches and
     // its arrival squashes.
@@ -245,8 +271,10 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
 
     final Widget? cover = widget.cover;
 
+    final LiquidGlassStyle style = _resolveStyle(morphH, scaleX);
+
     Widget pill = LiquidGlassLens(
-      style: _resolveStyle(morphH, scaleX),
+      style: style,
       honorBackdropAlpha: widget.honorBackdropAlpha,
       restSize: Size(morphW, morphH),
       deform: LiquidGlassFlexDeform(
@@ -262,7 +290,29 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
       ),
       child: cover == null
           ? null
-          : IgnorePointer(child: Opacity(opacity: coverOpacity, child: cover)),
+          : IgnorePointer(
+              child: Opacity(
+                opacity: coverOpacity,
+                child: liquidGlassClip(
+                  // The cover is the pill's own face at rest, so it takes
+                  // the glass's outline instead of a capsule of its own —
+                  // the continuous corner leaves the edge a third of a
+                  // radius further out than a circular one, and the two
+                  // silhouettes disagree at the caps otherwise.
+                  //
+                  // Exact: the corner is CUT to the curve the shader draws
+                  // rather than approximated by an RRect. Only the outline
+                  // fields matter to a clip. The clip lives in rest space —
+                  // the lens stretches its pixels with everything else.
+                  shape: LiquidGlassShape(
+                    cornerStyle: style.shape!.cornerStyle,
+                    cornerRadius: style.shape!.cornerRadius,
+                    clipQuality: LiquidGlassClipQuality.exact,
+                  ),
+                  child: cover,
+                ),
+              ),
+            ),
     );
 
     // The shadow WRAPS the glass instead of riding inside it, so the arc
@@ -308,7 +358,7 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     final LiquidGlassStyle base = widget.style ?? _defaultStyle;
     final LiquidGlassShape shape = base.shape ??
         LiquidGlassShape(
-          cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: morphH / 2,
           borderWidth: 0.6,
           lightIntensity: 1.3,

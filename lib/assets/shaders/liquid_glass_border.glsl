@@ -239,7 +239,7 @@ vec4 getOpticalBorder(
     float ndl = dot(normal, lightDirV);
     float hardFront = clamp((max(ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
     float hardBack = clamp((max(-ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float hard = hardFront + hardBack * 0.8;
+    float hard = hardFront + hardBack * 1;
     float wrapped = clamp((ndl * 0.5 + 0.5 - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
     float totalInfluence = mix(hard, wrapped, clamp(wrap, 0.0, 1.0));
 #else
@@ -247,7 +247,7 @@ vec4 getOpticalBorder(
     float oppositeLight = max(dot(normal, -lightDirV), 0.0);
     mainLight = clamp((mainLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
     oppositeLight = clamp((oppositeLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float totalInfluence = mainLight + oppositeLight * 0.8;
+    float totalInfluence = mainLight + oppositeLight * 1;
 #endif
     float directional = pow(totalInfluence, spreadExp) * lightIntensity * 3.0;
     float ambient = ambientIntensity * 0.1;
