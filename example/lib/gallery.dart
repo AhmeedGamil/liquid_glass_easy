@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'touch_page.dart';
-import 'blue_sliders_page.dart';
+import 'experimental_switch_page.dart';
 import 'control_center_page.dart';
 import 'corner_style_page.dart';
 import 'lens_image_page.dart';
@@ -14,6 +14,7 @@ import 'settings_glass_page.dart';
 import 'settings_switcher_page.dart';
 import 'slider_motion_tuner.dart';
 import 'slider_toggle_page.dart';
+import 'experimental_split_nav_page.dart';
 import 'split_nav_page.dart';
 
 // =============================================================
@@ -117,6 +118,14 @@ class HomePage extends StatelessWidget {
       builder: (_) => const SplitNavPage(),
     ),
     _Destination(
+      title: 'Split Nav Bar (direct)',
+      subtitle: 'The same bar on a light page, driving the glass-pill '
+          'engine directly',
+      icon: Icons.tune_rounded,
+      gradient: const [Color(0xFFFF6B5A), Color(0xFFB3241A)],
+      builder: (_) => const ExperimentalSplitNavPage(),
+    ),
+    _Destination(
       title: 'Touch',
       subtitle: 'Press and drag a glass list — it deforms without moving',
       icon: Icons.touch_app_rounded,
@@ -131,11 +140,11 @@ class HomePage extends StatelessWidget {
       builder: (_) => const SliderTogglePage(),
     ),
     _Destination(
-      title: 'Blue Sliders',
-      subtitle: 'Blue-filled sliders on a slim track, blur-free thumb',
-      icon: Icons.tune_rounded,
+      title: 'Switches & Sliders',
+      subtitle: 'Sliding-thumb toggles, track sizes, and blue glass sliders',
+      icon: Icons.toggle_on_rounded,
       gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
-      builder: (_) => const BlueSlidersPage(),
+      builder: (_) => const ExperimentalSwitchPage(),
     ),
     _Destination(
       title: 'Settings',
@@ -162,8 +171,8 @@ class HomePage extends StatelessWidget {
 
   static final List<_Destination> _tuners = [
     _Destination(
-      title: 'Nav Jelly Tuner',
-      subtitle: 'Tune the nav pill jelly + bar look -> Scaffold demo',
+      title: 'Nav Motion Tuner',
+      subtitle: 'Tune the nav pill motion + bar look -> Scaffold demo',
       icon: Icons.science_rounded,
       gradient: const [Color(0xFFFFB020), Color(0xFFD97A06)],
       builder: (_) => const NavJellyTunerPage(),

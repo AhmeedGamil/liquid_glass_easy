@@ -1,5 +1,43 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+
+/// Blue used for the filled portion of every slider.
+const Color _kSliderBlue = Color(0xFF0A84FF);
+
+/// Slimmer track than the default 8 px.
+const double _kSliderTrackHeight = 6;
+
+/// Glass thumb with **no blur**. The tuned default bakes in a
+/// `LiquidGlassBlur(1.5, 1.5)`, and passing a style replaces the default
+/// wholesale — so the tint and refraction are restated here and only the
+/// blur is dialled down.
+const LiquidGlassStyle _kNoBlurThumb = LiquidGlassStyle(
+  // No border on the thumb. A large cornerRadius keeps it a clean capsule
+  // as the pill grows and squashes (it clamps to half-height).
+  shape: LiquidGlassShape.continuousRoundedRectangle(
+    //clipQuality: LiquidGlassClipQuality.exact,
+    cornerRadius: 100,
+    borderWidth: 0.4,
+    lightIntensity: 1,
+    //lightColor: Colors.grey,
+    lightDirection: 39,
+    borderType: OpticalBorder(
+     
+      borderSolidity: 0.5,
+    ),
+  ),
+  appearance: LiquidGlassAppearance(
+    color: Colors.transparent,
+    blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
+  ),
+  refraction: LiquidGlassRefraction(
+    distortion: 0.07,
+    chromaticAberration: 0.002,
+    distortionWidth: 18,
+  ),
+);
 
 // =============================================================
 // Switch showcase — LiquidGlassToggle, the sliding-thumb switch,
@@ -53,6 +91,10 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
   /// The row nothing touches directly — flipped from the button below,
   /// so the calm programmatic path can be seen on its own.
   bool _remote = false;
+
+  double _brightness = 0.65;
+  double _volume = 0.4;
+  double _warmth = 0.8;
 
   @override
   Widget build(BuildContext context) {
@@ -160,21 +202,57 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
                 _card([
                   _row(Icons.remove_rounded, 'No pinch — 28', _wifi,
                       (v) => setState(() => _wifi = v),
-                      layout: const LiquidGlassToggleLayout(
-                          pinchedHeight: 28)),
+                      layout: const LiquidGlassToggleLayout(pinchedHeight: 28)),
                   _divider(),
                   _row(Icons.compress_rounded, 'Default — 20', _airdrop,
                       (v) => setState(() => _airdrop = v)),
                   _divider(),
                   _row(Icons.compress_rounded, 'Tighter — 14', _hotspot,
                       (v) => setState(() => _hotspot = v),
-                      layout: const LiquidGlassToggleLayout(
-                          pinchedHeight: 14)),
+                      layout: const LiquidGlassToggleLayout(pinchedHeight: 14)),
                   _divider(),
                   _row(Icons.compress_rounded, 'Tiny — 8', _bluetooth,
                       (v) => setState(() => _bluetooth = v),
-                      layout: const LiquidGlassToggleLayout(
-                          pinchedHeight: 8)),
+                      layout: const LiquidGlassToggleLayout(pinchedHeight: 8)),
+                ]),
+                const SizedBox(height: 26),
+
+                // ── the slider ────────────────────────────────────────
+                // The same glass thumb as the switch, carried along a
+                // track instead of between two rest positions.
+                const _SectionLabel('Sliders'),
+                const SizedBox(height: 12),
+                _card([
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      // Derive the width from constraints, never MediaQuery:
+                      // a MediaQuery dependency here rebuilds every
+                      // LiquidGlassView when it settles on the first frame,
+                      // mid-capture. Clamp at 0 too — the warm-up frame can
+                      // report a zero width, and a negative SizedBox width
+                      // takes the whole glass subtree down with it.
+                      final double avail = constraints.maxWidth.isFinite
+                          ? constraints.maxWidth
+                          : 300.0;
+                      final double w = math.max(0.0, math.min(300.0, avail));
+                      return Column(
+                        children: [
+                          _sliderRow(
+                              Icons.light_mode_rounded,
+                              'Brightness',
+                              _brightness,
+                              w,
+                              (v) => setState(() => _brightness = v)),
+                          _divider(),
+                          _sliderRow(Icons.volume_up_rounded, 'Volume', _volume,
+                              w, (v) => setState(() => _volume = v)),
+                          _divider(),
+                          _sliderRow(Icons.thermostat_rounded, 'Warmth',
+                              _warmth, w, (v) => setState(() => _warmth = v)),
+                        ],
+                      );
+                    },
+                  ),
                 ]),
                 const SizedBox(height: 26),
 
@@ -229,13 +307,72 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
         color: Colors.black.withValues(alpha: 0.07),
       );
 
+  Widget _sliderRow(
+    IconData icon,
+    String label,
+    double value,
+    double width,
+    ValueChanged<double> onChanged,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 21, color: Colors.black.withValues(alpha: 0.75)),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(
+                    color: Color(0xFF11131A),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Text(
+                '${(value * 100).round()}%',
+                style: const TextStyle(
+                  color: _kSliderBlue,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Center(
+            child: SizedBox(
+              width: width,
+              child: LiquidGlassSlider(
+                value: value,
+                onChanged: onChanged,
+                activeColor: _kSliderBlue,inactiveColor:Colors.black.withValues(alpha: 0.08),
+                style: _kNoBlurThumb,
+                shadow: const LiquidGlassShadow(inset: 3),
+                layout: LiquidGlassSliderLayout(
+                  width: width,
+                  trackHeight: _kSliderTrackHeight,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _row(
     IconData icon,
     String label,
     bool value,
     ValueChanged<bool> onChanged, {
     Color? activeTrackColor,
-    LiquidGlassToggleLayout layout = const LiquidGlassToggleLayout(pinchedHeight:22 ),
+    LiquidGlassToggleLayout layout =
+        const LiquidGlassToggleLayout(pinchedHeight: 22),
   }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -266,19 +403,16 @@ class _ExperimentalSwitchPageState extends State<ExperimentalSwitchPage> {
             // No blur on the moving glass thumb — the refraction reads
             // sharper over a photo.
             style: const LiquidGlassStyle(
-              appearance: LiquidGlassAppearance(
-                color: Color(0x00FFFFFF),
-                blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
-              ),
-              refraction: LiquidGlassRefraction(
-                distortion: 0.12,
-                distortionWidth: 13,
-                chromaticAberration: 0.002,
-              ),
-                            shape:LiquidGlassShape.continuousRoundedRectangle()
-
-              
-            ),
+                appearance: LiquidGlassAppearance(
+                  color: Color(0x00FFFFFF),
+                  blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
+                ),
+                refraction: LiquidGlassRefraction(
+                  distortion: 0.12,
+                  distortionWidth: 13,
+                  chromaticAberration: 0.002,
+                ),
+                shape: LiquidGlassShape.continuousRoundedRectangle()),
           ),
         ],
       ),

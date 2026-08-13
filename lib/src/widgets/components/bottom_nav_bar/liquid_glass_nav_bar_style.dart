@@ -3,8 +3,9 @@ import 'package:flutter/material.dart';
 import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_jelly_config.dart';
+import '../../utils/liquid_glass_lens_motion.dart';
 import '../../utils/liquid_glass_shape.dart';
+import '../liquid_glass_shadow.dart';
 
 /// Which renderer(s) get the full iOS-26 **glass-refracting** morphing
 /// pill (the dual-pipeline animated bar). See
@@ -183,17 +184,30 @@ class LiquidGlassNavPillStyle {
   /// Default `30` — a faint settle.
   final double travelDamping;
 
-  /// The pill's jelly squash/stretch tuning (glass [mode]s only) — the
-  /// same unified [LiquidGlassJellyConfig] as the slider thumb and the
-  /// [LiquidGlassJelly] widget. Applies to both finger-drags and
-  /// tap-travel. The nav bar is **locked to the on-device-tuned iOS
-  /// [LiquidGlassJellyStyle.squashStretch]** squash & stretch (dialled in for
-  /// tab-scale travel): any [LiquidGlassJellyConfig.style] passed here is
-  /// ignored and normalized to `squashStretch`. The pill's original
-  /// `pinchExtrude` feel is kept internally (it still drives
-  /// [LiquidGlassJelly]) but is no longer selectable here; all other
-  /// fields are honored.
-  final LiquidGlassJellyConfig jelly;
+  /// The pill's squash/stretch tuning (glass [mode]s only) — the same
+  /// acceleration model [LiquidGlassMotionPill] runs, applied to both
+  /// finger-drags and tap-travel.
+  ///
+  /// The pill's drawn position is sampled every frame, differentiated
+  /// twice, and the averaged acceleration scales it oppositely on the two
+  /// axes: it stretches wide and flat as it launches off a tab, squashes
+  /// narrow and tall as it brakes into the next, and sits undeformed at
+  /// constant speed. Force, not speed.
+  ///
+  /// The default caps the deviation at ±12 %, since this pill travels
+  /// inside the bar capsule and a taller overhang would climb out of it.
+  final LiquidGlassLensMotionSpec motion;
+
+  /// Contact shadow around the **moving glass pill** (glass [mode]s only)
+  /// — the soft dark band that hugs its rim and pools underneath, so the
+  /// pill reads as lifted off the bar rather than painted on it. `null`
+  /// (the default) draws none.
+  ///
+  /// It wraps the pill's lens rather than living inside it, so the arc
+  /// below the pill is not clipped off at the outline, and it tracks the
+  /// live outline stretch so the ring stays on the rim while the pill
+  /// squashes. It fades out with the pill at rest.
+  final LiquidGlassShadow? shadow;
 
   const LiquidGlassNavPillStyle({
     this.mode = LiquidGlassPillMode.none,
@@ -213,24 +227,15 @@ class LiquidGlassNavPillStyle {
     this.rest,
     this.travelStiffness = 280,
     this.travelDamping = 31.4,
-    // On-device-tuned iOS squash & stretch (confirmed 2026-06-14). The
-    // unified jelly config, dialled in via the nav_jelly_tuner for
-    // tab-scale travel: a fast elongate-along-motion with a pronounced
-    // cross-axis recoil on settle. `velocityClamp` is kept at the
-    // tab-index scale (not exposed by the tuner).
-    this.jelly = const LiquidGlassJellyConfig(
-      style: LiquidGlassJellyStyle.squashStretch,
-      stiffness: 260,
-      damping: 13,
-      maxVelocity: 6,
-      velocityClamp: 60,
-      stretchWidth: 17.1,
-      squashHeight: 9.8,
-      anchorBias: -1.0,
-      recoilScale: 3.0,
-      recoilAnchor: 1.0,
-      directionTau: 0.42,
+    // Tuned for tab-scale travel: the sampling window and response ease of
+    // the motion pill, with the deviation ceiling brought down to ±12 %.
+    this.motion = const LiquidGlassLensMotionSpec(
+      window: 0.3,
+      coefficient: 0.00007,
+      maxDeviation: 0.12,
+      responseTau: 0.18,
     ),
+    this.shadow,
   });
 
   LiquidGlassNavPillStyle copyWith({
@@ -251,7 +256,8 @@ class LiquidGlassNavPillStyle {
     LiquidGlassStyle? rest,
     double? travelStiffness,
     double? travelDamping,
-    LiquidGlassJellyConfig? jelly,
+    LiquidGlassLensMotionSpec? motion,
+    LiquidGlassShadow? shadow,
   }) {
     return LiquidGlassNavPillStyle(
       mode: mode ?? this.mode,
@@ -272,7 +278,8 @@ class LiquidGlassNavPillStyle {
       rest: rest ?? this.rest,
       travelStiffness: travelStiffness ?? this.travelStiffness,
       travelDamping: travelDamping ?? this.travelDamping,
-      jelly: jelly ?? this.jelly,
+      motion: motion ?? this.motion,
+      shadow: shadow ?? this.shadow,
     );
   }
 
@@ -308,6 +315,17 @@ class LiquidGlassNavPillStyle {
     return LiquidGlassStyle(
       shape: r?.shape ?? shape,
       appearance: r?.appearance ?? LiquidGlassAppearance(color: color),
+      // Explicitly inert, not merely "ignored". The static pill never
+      // reads this, but the moving pill interpolates FROM it, and
+      // `LiquidGlassStyle`'s default refraction is the full-strength one
+      // (distortion 0.1 over a 30 px band) — stronger than most lifted
+      // pills, which inverted the lerp and left the glass still bending
+      // the bar at the instant the static pill took over.
+      refraction: const LiquidGlassRefraction(
+        distortion: 0,
+        distortionWidth: 0,
+        chromaticAberration: 0,
+      ),
     );
   }
 }

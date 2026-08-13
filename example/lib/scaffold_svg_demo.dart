@@ -45,7 +45,7 @@ class _ScaffoldSvgDemoState extends State<ScaffoldSvgDemo> {
   int _index = 0;
 
   // Same live tuning hookup as the IconData demo, so both pages react to
-  // the Nav Jelly Tuner.
+  // the Nav Motion Tuner.
   ValueNotifier<NavTuning> get _navTuning => TuningStore.instance.nav;
 
   @override

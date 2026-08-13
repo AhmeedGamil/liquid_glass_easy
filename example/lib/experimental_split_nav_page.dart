@@ -1,5 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/experimental/liquid_glass_animated_nav_bar_motion_only.dart';
+// The dual-pipeline glass-pill engine and its layout descriptor are
+// internal machinery — a host normally reaches them through
+// `LiquidGlassBottomNavBar` / `LiquidGlassScaffold`. This page drives the
+// bar directly so it can hand in its own `body`.
+// ignore: implementation_imports
+import 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_animated_nav_bar.dart';
+// ignore: implementation_imports
+import 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dart';
 
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -20,28 +27,23 @@ void main() {
 }
 
 // =============================================================
-// **Experimental.** `split_nav_page.dart`, running on the nav bar whose
-// pill's JELLY has been replaced by the acceleration motion model —
-// `LiquidGlassAnimatedNavBarMotionOnly` (lib/experimental/), the fresh copy of
-// shipped glass-pill engine. Nothing in lib/src is modified; everything
-// the copy did not need to change is imported from it.
+// `split_nav_page.dart` driving [LiquidGlassAnimatedNavBar] directly —
+// the glass-pill engine with every knob in reach, including the two
+// contact shadows and the pill's motion spec.
 //
 // Re-lit for a light page: the tabs sit in one wide, centred frosted-white
 // capsule, with the red belonging to the selected STATE rather than to one
 // tab.
 //
-// What changed is how the pill deforms while it travels. The jelly was a
-// velocity-driven lean spring plus a direction-memory spring, pumped in
-// tab fractions. The pill now runs the stretch slider's model: its drawn
-// position is sampled every frame in pixels, differentiated twice, and
-// the averaged ACCELERATION scales it oppositely on the two axes —
-// stretching wide and flat as it launches off a tab, squashing narrow
-// and tall as it brakes into the next, and sitting undeformed at
-// constant speed. The model has no lean term at all.
+// The pill's deformation comes from acceleration: its drawn position is
+// sampled every frame in pixels, differentiated twice, and the averaged
+// acceleration scales it oppositely on the two axes — stretching wide and
+// flat as it launches off a tab, squashing narrow and tall as it brakes
+// into the next, and sitting undeformed at constant speed.
 //
-// Compare side by side with the original:
-//   flutter run -t lib/split_nav_page.dart              (jelly)
-//   flutter run -t lib/experimental_split_nav_page.dart (acceleration)
+// The same engine through the public API (scaffold + drop-in bar):
+//   flutter run -t lib/split_nav_page.dart
+//   flutter run -t lib/experimental_split_nav_page.dart (direct)
 // =============================================================
 
 /// The red the selected tab burns in — the one saturated colour on the
@@ -130,7 +132,7 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
     final double bottom = _bottom + MediaQuery.paddingOf(context).bottom;
 
     return Scaffold(
-      body: LiquidGlassAnimatedNavBarMotionOnly(
+      body: LiquidGlassAnimatedNavBar(
         body: _OnAirFeed(title: _titles[_index]),
         items: _items,
         selectedIndex: _index,
@@ -160,7 +162,7 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
           distortion: 0.06,
           distortionWidth: 26,
         ),
-        barShadow: const LiquidGlassShadow(blur: 9, opacity: 0.13),
+        barShadow: const LiquidGlassShadow(blur: 9, opacity: 0.13,),
         itemStyle: const LiquidGlassNavItemStyle(
           // The one place the selected look is decided — icon, bloom and
           // label all read it, on every tab.
@@ -180,7 +182,7 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
         pillGrowHeight: 9,
         pillShape: LiquidGlassShape(borderWidth: 0.5),
         pillRefraction: const LiquidGlassRefraction(
-          distortion: 0.05,
+          distortion: 0.04,
           distortionWidth: 12,
           chromaticAberration: 0.0015,
           magnification: 1,

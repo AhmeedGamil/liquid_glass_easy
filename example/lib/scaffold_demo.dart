@@ -37,8 +37,8 @@ class ScaffoldDemo extends StatefulWidget {
 class _ScaffoldDemoState extends State<ScaffoldDemo> {
   int _index = 0;
 
-  // The nav bar reads its jelly / travel / grow / background / light
-  // direction live from the shared store (tuned in the Nav Jelly Tuner).
+  // The nav bar reads its motion / travel / grow / background / light
+  // direction live from the shared store (tuned in the Nav Motion Tuner).
   // Rebuild whenever those change — the bar widget must be reconstructed
   // (not wrapped in a builder) so LiquidGlassScaffold re-detects the
   // glass-pill bar.
@@ -128,8 +128,8 @@ class _ScaffoldDemoState extends State<ScaffoldDemo> {
         // Centered bar — only the bottom gap matters (symmetric side insets
         // are a no-op on a fixed-width centered bar).
         margin: const EdgeInsets.only(bottom: 24),
-        // Bar look + pill jelly come from the shared store, so the values
-        // dialled in the Nav Jelly Tuner show up here for the GIF. Default
+        // Bar look + pill motion come from the shared store, so the values
+        // dialled in the Nav Motion Tuner show up here for the GIF. Default
         // is a dark frost with light direction 39.
         style: navBarStyle(navTuning),
         pillStyle: navPillStyle(navTuning),

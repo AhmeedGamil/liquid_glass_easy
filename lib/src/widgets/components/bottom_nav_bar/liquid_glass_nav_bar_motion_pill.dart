@@ -3,35 +3,37 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
-import '../src/widgets/lens/liquid_glass_lens.dart';
-import '../src/widgets/liquid_glass_config.dart'
+import '../../lens/liquid_glass_lens.dart';
+import '../../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
-import '../src/widgets/liquid_glass_style.dart';
-import '../src/widgets/utils/liquid_glass_blur.dart';
-import '../src/widgets/utils/liquid_glass_border_mode.dart'
+import '../../liquid_glass_style.dart';
+import '../../utils/liquid_glass_blur.dart';
+import '../../utils/liquid_glass_border_mode.dart'
     show ClassicBorder, LiquidGlassBorderType, OpticalBorder;
-import '../src/widgets/utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
-import '../src/widgets/utils/liquid_glass_jelly_spring.dart'
-    show liquidGlassSpringStep;
-import '../src/widgets/utils/liquid_glass_lens_motion.dart';
-import '../src/widgets/utils/liquid_glass_refraction_type.dart';
-import '../src/widgets/utils/liquid_glass_shape.dart';
-import '../src/widgets/components/liquid_glass_shadow.dart';
+import '../../utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
+import '../../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../../utils/liquid_glass_lens_motion.dart';
+import '../../utils/liquid_glass_refraction_type.dart';
+import '../../utils/liquid_glass_shape.dart';
+import '../liquid_glass_shadow.dart';
 
-/// **Experimental.** A copy of `LiquidGlassMotionPill` with the two
-/// things a nav bar needs and a slider does not. The sliding thumb's whole thumb effect as one
-/// isolated, reusable component: the two-state morph (contracted ↔
-/// expanded glass), the acceleration squash / stretch
-/// ([LiquidGlassLensMotion]), and the driven-lens rendering — so the
-/// same living glass pill can ride a slider track, a bottom nav bar, or
-/// anything else that moves it.
+/// The moving glass pill of [LiquidGlassAnimatedNavBar], as one
+/// self-contained widget: the two-state morph (contracted ↔ expanded
+/// glass), the acceleration squash / stretch ([LiquidGlassLensMotion]),
+/// and the driven-lens rendering — so the same living glass pill can
+/// ride a bottom nav bar or anything else that moves it.
+///
+/// It is the nav bar's counterpart to [LiquidGlassMotionPill] (the
+/// slider's thumb), with the two things a bar needs and a slider does
+/// not: an externally supplied morph progress, so the bar's own travel
+/// envelope drives the lift, and a motion-tracking switch it can drop
+/// mid-travel.
 ///
 /// ## Division of labour
 ///
 /// The HOST owns position and gesture: where the pill's centre is each
 /// frame (drags, glide springs, rubber bands — whatever its own model
-/// produces) and when the pill is grabbed. This widget owns everything
-/// the thumb itself did:
+/// produces) and when the pill is grabbed. This widget owns the rest:
 ///
 ///  * **Morph.** While [active], the pill spring-grows from [restSize]
 ///    to [activeSize]; on deactivation it contracts on the landing spring.
@@ -56,7 +58,7 @@ import '../src/widgets/components/liquid_glass_shadow.dart';
 /// as the `child` of a `LiquidGlassView`, or anywhere a
 /// [LiquidGlassLens] can render. The host just rebuilds with the
 /// new [center]; this widget's own ticker does the sampling.
-class LiquidGlassNavPill extends StatefulWidget {
+class LiquidGlassNavBarMotionPill extends StatefulWidget {
   /// The pill's centre in this widget's local coordinates. Update it
   /// every frame however the host moves — set directly from a drag,
   /// driven by a glide spring, anything.
@@ -96,6 +98,28 @@ class LiquidGlassNavPill extends StatefulWidget {
 
   /// Tuning of the acceleration squash/stretch.
   final LiquidGlassLensMotionSpec motion;
+
+  /// Squash/stretch supplied from **outside**, replacing this widget's own
+  /// acceleration model. `scaleX = 1 + deviation`, `scaleY = 1 − deviation`.
+  ///
+  /// A host hands this in when the deformation is not this widget's to
+  /// own — a nav bar drives one shared model so the squash is continuous
+  /// across a pill that gets mounted and unmounted, and so it can tell
+  /// when the deformation has drained. When set, [motion], [trackMotion]
+  /// and [resetMotionOnStop] are unused: the host owns the sampling and
+  /// this widget only renders what it is given.
+  final double? deviation;
+
+  /// How much of the glass is present, `0`..`1`, on top of the lift.
+  ///
+  /// The lift ([morphProgress]) says how big and how raised the pill is;
+  /// this says how much of it still reads as glass. They are separate
+  /// because a pill that is handing over to a plain painted twin has to
+  /// shed its glass **while still moving and still deformed** — the rim
+  /// and its shadow first, the refraction easing out behind them.
+  ///
+  /// `1` (the default) is the full material.
+  final double glassPresence;
 
   /// Expand spring, mapped as ω₀ = 2π / duration (0.4 s, ζ 0.6).
   final double expandStiffness;
@@ -140,7 +164,7 @@ class LiquidGlassNavPill extends StatefulWidget {
   /// slider's track, a demo bar). Skia capture path only.
   final bool honorBackdropAlpha;
 
-  const LiquidGlassNavPill({
+  const LiquidGlassNavBarMotionPill({
     super.key,
     required this.center,
     required this.active,
@@ -152,6 +176,8 @@ class LiquidGlassNavPill extends StatefulWidget {
     this.style,
     this.restStyle = const LiquidGlassStyle(),
     this.motion = const LiquidGlassLensMotionSpec(),
+    this.deviation,
+    this.glassPresence = 1.0,
     this.expandStiffness = 247,
     this.expandDamping = 18.9,
     this.contractStiffness = 260,
@@ -163,10 +189,12 @@ class LiquidGlassNavPill extends StatefulWidget {
   });
 
   @override
-  State<LiquidGlassNavPill> createState() => _LiquidGlassNavPillState();
+  State<LiquidGlassNavBarMotionPill> createState() =>
+      _LiquidGlassNavBarMotionPillState();
 }
 
-class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
+class _LiquidGlassNavBarMotionPillState
+    extends State<LiquidGlassNavBarMotionPill>
     with SingleTickerProviderStateMixin {
   /// Morph progress: 0 = contracted, 1 = expanded. The expand spring
   /// overshoots past 1 on purpose — that is the bounce.
@@ -181,11 +209,16 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   Ticker? _ticker;
   Duration? _tickerLast;
 
+  /// The deformation actually drawn: the host's when it owns the model,
+  /// this widget's own acceleration sampling otherwise.
+  double get _deviation => widget.deviation ?? _motion.deviation;
+
   @override
   void initState() {
     super.initState();
     _morph = widget.morphProgress?.clamp(0.0, 1.0) ?? 0;
-    final bool tracking = widget.trackMotion ?? widget.active;
+    final bool tracking =
+        widget.deviation == null && (widget.trackMotion ?? widget.active);
     if (tracking) {
       _motion.start();
     }
@@ -201,7 +234,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   }
 
   @override
-  void didUpdateWidget(LiquidGlassNavPill oldWidget) {
+  void didUpdateWidget(LiquidGlassNavBarMotionPill oldWidget) {
     super.didUpdateWidget(oldWidget);
     _motion.spec = widget.motion;
     if (widget.morphProgress != null) {
@@ -225,6 +258,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
       }
       _ensureTicking();
     }
+    if (widget.deviation != null) return; // the host owns the model
     final bool wasTracking = oldWidget.trackMotion ?? oldWidget.active;
     final bool isTracking = widget.trackMotion ?? widget.active;
     if (isTracking != wasTracking) {
@@ -331,7 +365,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     final Size active = widget.activeSize;
     final double morphW = rest.width + (active.width - rest.width) * _morph;
     final double morphH = rest.height + (active.height - rest.height) * _morph;
-    final double d = _motion.deviation;
+    final double d = _deviation;
     return (
       morphW: morphW,
       morphH: morphH,
@@ -340,7 +374,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     );
   }
 
-  /// Pushes the live size out to [LiquidGlassNavPill.geometry]. Called
+  /// Pushes the live size out to [LiquidGlassNavBarMotionPill.geometry]. Called
   /// from the ticker only — never from `build` — so a listening host can
   /// safely rebuild on it.
   void _publishGeometry() {
@@ -366,8 +400,16 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     final double scaleX = morphW > 0 ? pillW / morphW : 1.0;
     final double scaleY = morphH > 0 ? pillH / morphH : 1.0;
 
+    // Handing over: the rim and its shadow go first and are gone by the
+    // time the refraction is halfway out, so the pill reads as glass
+    // losing its edges rather than a surface being switched off.
+    final double presence = widget.glassPresence.clamp(0.0, 1.0);
+    // Gone by the time the hand-off is 55% through, so the refraction is
+    // still easing out behind it — edges first, body after.
+    final double rim = ((presence - 0.45) / 0.55).clamp(0.0, 1.0);
+
     Widget glassPill = LiquidGlassLens(
-      style: _resolveStyle(styleProgress, scaleX),
+      style: _resolveStyle(styleProgress, scaleX, presence: presence, rim: rim),
       honorBackdropAlpha: widget.honorBackdropAlpha,
       restSize: Size(morphW, morphH),
       deform: LiquidGlassFlexDeform(
@@ -389,7 +431,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     if (shadow != null) {
       glassPill = LiquidGlassShadow(
         blur: shadow.blur,
-        opacity: shadow.opacity * styleProgress,
+        opacity: shadow.opacity * styleProgress * rim,
         color: shadow.color,
         offset: shadow.offset,
         cornerRadius: shadow.cornerRadius ?? morphH / 2,
@@ -417,23 +459,81 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
   /// Resolves one continuously changing material. Geometry, tint, blur,
   /// refraction and rim values all use the same spring progress; there is no
   /// rest widget to fade in and no glass widget to remove.
-  LiquidGlassStyle _resolveStyle(double progress, double stretchX) {
+  LiquidGlassStyle _resolveStyle(
+    double progress,
+    double stretchX, {
+    double presence = 1.0,
+    double rim = 1.0,
+  }) {
     final double t = progress.clamp(0.0, 1.0);
     final LiquidGlassStyle active = widget.style ?? _defaultStyle;
     final LiquidGlassStyle rest = widget.restStyle;
     final LiquidGlassShape activeShape =
         active.shape ?? _defaultShape(widget.activeSize.height / 2);
-    final LiquidGlassShape restShape =
-        rest.shape ?? _defaultShape(widget.restSize.height / 2);
+    final LiquidGlassShape restShape = _withoutRim(
+      rest.shape ?? _defaultShape(widget.restSize.height / 2),
+    );
     final double widthCompensation = stretchX > 0 ? 1 / stretchX : 1;
 
     return LiquidGlassStyle(
-      shape: _lerpShape(restShape, activeShape, t),
+      // The rim rides `rim` on top of the lift, so it can be retired while
+      // the pill is still large and still deformed.
+      shape: _scaleRim(_lerpShape(restShape, activeShape, t), rim),
       appearance: _lerpAppearance(rest.appearance, active.appearance, t),
+      // Refraction leaves on `presence`: the band narrows to nothing, so
+      // what is behind the pill straightens out rather than snapping.
       refraction: _compensateRefractionWidth(
         _lerpRefraction(rest.refraction, active.refraction, t),
-        widthCompensation,
+        widthCompensation * presence,
       ),
+    );
+  }
+
+  /// The same rim at a fraction of its width. `0` retires it outright —
+  /// with it the optical border's own extra width, which is only added
+  /// while `borderWidth > 0`.
+  static LiquidGlassShape _scaleRim(LiquidGlassShape s, double factor) {
+    if (factor >= 1.0 || s.borderWidth == 0) return s;
+    return LiquidGlassShape(
+      cornerStyle: s.cornerStyle,
+      clipQuality: s.clipQuality,
+      lightMode: s.lightMode,
+      cornerRadius: s.cornerRadius,
+      borderWidth: s.borderWidth * factor,
+      borderColor: s.borderColor,
+      lightIntensity: s.lightIntensity,
+      lightColor: s.lightColor,
+      lightDirection: s.lightDirection,
+      borderType: s.borderType,
+    );
+  }
+
+  /// The rest end of the material, with the rim taken off — same corners,
+  /// no border.
+  ///
+  /// A settled pill is handed over to a plain painted one, which draws a
+  /// fill and nothing else. Anything the glass still carries at that
+  /// moment has nowhere to go and pops off in a single frame. The
+  /// refraction already interpolates to zero; the rim does not, because
+  /// it lives on the shape the host authored for the pill's corners. So
+  /// the corner geometry is kept and only `borderWidth` (with it, the
+  /// optical rim's own extra width) is retired.
+  ///
+  /// Only the REST end is stripped: the lifted pill keeps the full rim it
+  /// was given, and the lerp between them is the fade.
+  static LiquidGlassShape _withoutRim(LiquidGlassShape s) {
+    if (s.borderWidth == 0) return s;
+    return LiquidGlassShape(
+      cornerStyle: s.cornerStyle,
+      clipQuality: s.clipQuality,
+      lightMode: s.lightMode,
+      cornerRadius: s.cornerRadius,
+      borderWidth: 0,
+      borderColor: s.borderColor,
+      lightIntensity: s.lightIntensity,
+      lightColor: s.lightColor,
+      lightDirection: s.lightDirection,
+      borderType: s.borderType,
     );
   }
 
@@ -616,8 +716,16 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
         depth: _lerpDouble(from.depth, to.depth, t),
       );
     }
-    // Different shader calculations cannot be numerically interpolated.
-    // Keep one calculation stable rather than swapping widget surfaces.
+    // One end has no type at all. The calculation itself can't be
+    // interpolated, but its WIDTH can — a zero-width band bends nothing,
+    // which is precisely what the absent end means. Without this the
+    // surviving type stayed at full strength for every `t`, so a pill
+    // whose lifted glass names a refraction type went on refracting right
+    // through its own rest state.
+    if (from == null && to != null) return to.withWidthFactor(t);
+    if (to == null && from != null) return from.withWidthFactor(1 - t);
+    // Two different calculations: keep one stable rather than swapping
+    // shader surfaces mid-travel.
     return to ?? from;
   }
 
@@ -631,7 +739,7 @@ class _LiquidGlassNavPillState extends State<LiquidGlassNavPill>
     );
   }
 
-  /// The tuned default glass carried over from the stretch slider.
+  /// The tuned default glass.
   static const LiquidGlassStyle _defaultStyle = LiquidGlassStyle(
     appearance: LiquidGlassAppearance(
       color: Color(0x1CFFFFFF),

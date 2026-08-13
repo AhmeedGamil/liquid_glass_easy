@@ -23,7 +23,7 @@ import 'liquid_glass_nav_bar_style.dart';
 /// clipping window that reveals the selected icon underneath.
 ///
 /// To get the same effect, pass [highlightFrac], [highlightWidth],
-/// and [highlightHeight] from the same animation/jelly state you use
+/// and [highlightHeight] from the same animation/deformation state you use
 /// for [buildLiquidGlassBottomNavPill]. The shell will then render
 /// each icon twice:
 ///   • An unselected layer clipped to "outside the pill"
@@ -53,12 +53,12 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   final double? highlightFrac;
 
   /// Current width of the moving glass pill (after any morph-grow
-  /// and jelly-squeeze). Pass `layout.pillWidth + extraWidth` from
+  /// and squash/stretch). Pass `layout.pillWidth + extraWidth` from
   /// [buildLiquidGlassBottomNavPill]'s caller.
   final double? highlightWidth;
 
   /// Current height of the moving glass pill (after any morph-grow
-  /// and jelly-stretch). Pass `layout.cellHeight + extraHeight`.
+  /// and squash/stretch). Pass `layout.cellHeight + extraHeight`.
   final double? highlightHeight;
 
   /// Absolute left of the bar in the parent. When non-null the shell is
@@ -182,8 +182,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
     final pillH = highlightHeight!;
     final cellW = layout.cellWidth;
     // Center of the cell at the fractional index, in local space.
-    final cellCenterX =
-        layout.padding + (highlightFrac! + 0.5) * cellW;
+    final cellCenterX = layout.padding + (highlightFrac! + 0.5) * cellW;
     // Bar's vertical center inside the local box.
     final cellCenterY = layout.height / 2;
     return Rect.fromCenter(

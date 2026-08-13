@@ -19,7 +19,7 @@ import '../src/widgets/utils/liquid_glass_position.dart';
 import '../src/widgets/utils/liquid_glass_refresh_rate.dart';
 import '../src/widgets/utils/liquid_glass_shape.dart';
 import '../src/widgets/utils/liquid_glass_lens_motion.dart';
-import 'liquid_glass_nav_pill.dart';
+import '../src/widgets/components/bottom_nav_bar/liquid_glass_nav_bar_motion_pill.dart';
 import '../src/widgets/components/liquid_glass_shadow.dart';
 
 // The bar's geometry is a required argument here, but it is deliberately
@@ -667,7 +667,7 @@ class _LiquidGlassAnimatedNavBarMotionState
                 if (widget.showSelectionPill)
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: LiquidGlassNavPill(
+                      child: LiquidGlassNavBarMotionPill(
                         center: Offset(pillCX, pillCY),
                         active: lifted,
                         restSize: pillRest,

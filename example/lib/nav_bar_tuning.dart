@@ -35,7 +35,7 @@ LiquidGlassStyle navBarStyle(NavTuning n) => LiquidGlassStyle(
       ),
     );
 
-/// The selection-pill style for a given tuning — jelly + travel + grow.
+/// The selection-pill style for a given tuning — motion + travel + grow.
 LiquidGlassNavPillStyle navPillStyle(NavTuning n) => LiquidGlassNavPillStyle(
       mode: LiquidGlassPillMode.both,
       animated: true,
@@ -50,5 +50,5 @@ LiquidGlassNavPillStyle navPillStyle(NavTuning n) => LiquidGlassNavPillStyle(
           distortionWidth: 10,
         ),
       ),
-      jelly: n.jelly,
+      motion: n.motion,
     );

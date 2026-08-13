@@ -8,7 +8,7 @@ import 'tuner_widgets.dart';
 import 'tuning_store.dart';
 
 // =============================================================
-// Nav-bar Jelly Tuner — a live playground for the bottom-nav glass pill.
+// Nav-bar Motion Tuner — a live playground for the bottom-nav glass pill.
 //
 //   flutter run -t lib/nav_jelly_tuner.dart   (standalone)
 //   …or open it from the home menu.
@@ -18,7 +18,7 @@ import 'tuning_store.dart';
 // the same values (in memory, this session) — tune here, record the GIF there.
 //
 //   Travel spring — the positional slide (bounce vs glide).
-//   Jelly         — the iOS squash/stretch deformation.
+//   Motion        — the acceleration squash/stretch of the pill.
 //   Background    — the bar's frosted tint.
 //   Light dir     — the angle of the rim highlight.
 // =============================================================
@@ -59,16 +59,11 @@ class _NavJellyTunerPageState extends State<NavJellyTunerPage> {
   late double _growHeight;
   late double _lightDirection;
 
-  // Jelly knobs.
-  late double _stiffness;
-  late double _damping;
-  late double _maxVelocity;
-  late double _stretchWidth;
-  late double _squashHeight;
-  late double _anchorBias;
-  late double _recoilScale;
-  late double _recoilAnchor;
-  late double _directionTau;
+  // Motion (acceleration squash/stretch) knobs.
+  late double _window;
+  late double _coefficient;
+  late double _maxDeviation;
+  late double _responseTau;
 
   // Background (frosted tint): an opaque base hue + an opacity.
   late Color _bgBase;
@@ -94,38 +89,26 @@ class _NavJellyTunerPageState extends State<NavJellyTunerPage> {
     _travelDamping = n.travelDamping;
     _growHeight = n.growHeight;
     _lightDirection = n.lightDirection;
-    final j = n.jelly;
-    _stiffness = j.stiffness;
-    _damping = j.damping;
-    _maxVelocity = j.maxVelocity;
-    _stretchWidth = j.stretchWidth;
-    _squashHeight = j.squashHeight;
-    _anchorBias = j.anchorBias;
-    _recoilScale = j.recoilScale;
-    _recoilAnchor = j.recoilAnchor;
-    _directionTau = j.directionTau;
+    final m = n.motion;
+    _window = m.window;
+    _coefficient = m.coefficient;
+    _maxDeviation = m.maxDeviation;
+    _responseTau = m.responseTau;
     _bgOpacity = n.background.a;
     _bgBase = n.background.withValues(alpha: 1);
   }
 
-  LiquidGlassJellyConfig get _jelly => LiquidGlassJellyConfig(
-        style: LiquidGlassJellyStyle.squashStretch,
-        stiffness: _stiffness,
-        damping: _damping,
-        maxVelocity: _maxVelocity,
-        velocityClamp: 60,
-        stretchWidth: _stretchWidth,
-        squashHeight: _squashHeight,
-        anchorBias: _anchorBias,
-        recoilScale: _recoilScale,
-        recoilAnchor: _recoilAnchor,
-        directionTau: _directionTau,
+  LiquidGlassLensMotionSpec get _motion => LiquidGlassLensMotionSpec(
+        window: _window,
+        coefficient: _coefficient,
+        maxDeviation: _maxDeviation,
+        responseTau: _responseTau,
       );
 
   Color get _bg => _bgBase.withValues(alpha: _bgOpacity);
 
   NavTuning get _tuning => NavTuning(
-        jelly: _jelly,
+        motion: _motion,
         travelStiffness: _travelStiffness,
         travelDamping: _travelDamping,
         growHeight: _growHeight,
@@ -154,17 +137,11 @@ LiquidGlassNavPillStyle(
   travelStiffness: ${_travelStiffness.round()},
   travelDamping: ${_travelDamping.toStringAsFixed(1)},
   growHeight: ${_growHeight.round()},
-  jelly: const LiquidGlassJellyConfig(
-    style: LiquidGlassJellyStyle.squashStretch,
-    stiffness: ${_stiffness.round()},
-    damping: ${_damping.toStringAsFixed(1)},
-    maxVelocity: ${_maxVelocity.toStringAsFixed(1)},
-    stretchWidth: ${_stretchWidth.toStringAsFixed(1)},
-    squashHeight: ${_squashHeight.toStringAsFixed(1)},
-    anchorBias: ${_anchorBias.toStringAsFixed(2)},
-    recoilScale: ${_recoilScale.toStringAsFixed(2)},
-    recoilAnchor: ${_recoilAnchor.toStringAsFixed(2)},
-    directionTau: ${_directionTau.toStringAsFixed(2)},
+  motion: const LiquidGlassLensMotionSpec(
+    window: ${_window.toStringAsFixed(2)},
+    coefficient: ${_coefficient.toStringAsFixed(5)},
+    maxDeviation: ${_maxDeviation.toStringAsFixed(2)},
+    responseTau: ${_responseTau.toStringAsFixed(2)},
   ),
 )
 // bar: lightDirection ${_lightDirection.round()}, '''
@@ -178,7 +155,7 @@ LiquidGlassNavPillStyle(
     return LiquidGlassScaffold(
       appBar: LiquidGlassAppBar(
         width: width - 32,
-        title: const Text('Nav Jelly Tuner'),
+        title: const Text('Nav Motion Tuner'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded, size: 22),
           onPressed: Navigator.of(context).canPop()
@@ -215,13 +192,25 @@ LiquidGlassNavPillStyle(
                           fontSize: 12, color: Colors.white54, height: 1.3),
                     ),
                     const SizedBox(height: 8),
-                    TunerParamSlider('stiffness', _travelStiffness, 80, 600,
+                    TunerParamSlider(
+                        'stiffness',
+                        _travelStiffness,
+                        80,
+                        600,
                         _travelStiffness.round().toString(),
                         (v) => _update(() => _travelStiffness = v)),
-                    TunerParamSlider('damping', _travelDamping, 8, 48,
+                    TunerParamSlider(
+                        'damping',
+                        _travelDamping,
+                        8,
+                        48,
                         _travelDamping.toStringAsFixed(1),
                         (v) => _update(() => _travelDamping = v)),
-                    TunerParamSlider('growHeight', _growHeight, 0, 40,
+                    TunerParamSlider(
+                        'growHeight',
+                        _growHeight,
+                        0,
+                        40,
                         _growHeight.round().toString(),
                         (v) => _update(() => _growHeight = v)),
                   ],
@@ -259,54 +248,66 @@ LiquidGlassNavPillStyle(
                       ],
                     ),
                     const SizedBox(height: 8),
-                    TunerParamSlider('opacity', _bgOpacity, 0, 1,
+                    TunerParamSlider(
+                        'opacity',
+                        _bgOpacity,
+                        0,
+                        1,
                         '${(_bgOpacity * 100).round()}%',
                         (v) => _update(() => _bgOpacity = v)),
-                    TunerParamSlider('lightDir', _lightDirection, 0, 360,
+                    TunerParamSlider(
+                        'lightDir',
+                        _lightDirection,
+                        0,
+                        360,
                         _lightDirection.round().toString(),
                         (v) => _update(() => _lightDirection = v)),
                   ],
                 ),
               ),
               const SizedBox(height: 16),
-              // ── Jelly ─────────────────────────────────────────────
+              // ── Motion ────────────────────────────────────────────
               TunerCard(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const TunerPanelTitle('Jelly'),
+                    const TunerPanelTitle('Motion'),
                     const SizedBox(height: 4),
-                    const Text('iOS squash & stretch — the only pill model.',
-                        style: TextStyle(fontSize: 12, color: Colors.white54)),
+                    const Text(
+                        'Acceleration squash & stretch: the pill stretches as '
+                        'it launches and squashes as it brakes.',
+                        style: TextStyle(
+                            fontSize: 12, color: Colors.white54, height: 1.3)),
                     const SizedBox(height: 8),
-                    TunerParamSlider('stiffness', _stiffness, 100, 800,
-                        _stiffness.round().toString(),
-                        (v) => _update(() => _stiffness = v)),
-                    TunerParamSlider('damping', _damping, 5, 40,
-                        _damping.toStringAsFixed(1),
-                        (v) => _update(() => _damping = v)),
-                    TunerParamSlider('maxVelocity', _maxVelocity, 1, 16,
-                        _maxVelocity.toStringAsFixed(1),
-                        (v) => _update(() => _maxVelocity = v)),
+                    TunerParamSlider(
+                        'maxDeviation',
+                        _maxDeviation,
+                        0,
+                        0.5,
+                        _maxDeviation.toStringAsFixed(2),
+                        (v) => _update(() => _maxDeviation = v)),
+                    TunerParamSlider(
+                        'coefficient',
+                        _coefficient,
+                        0,
+                        0.0003,
+                        _coefficient.toStringAsFixed(5),
+                        (v) => _update(() => _coefficient = v)),
                     const Divider(color: Colors.white12, height: 24),
-                    TunerParamSlider('stretchWidth', _stretchWidth, 0, 40,
-                        _stretchWidth.toStringAsFixed(1),
-                        (v) => _update(() => _stretchWidth = v)),
-                    TunerParamSlider('squashHeight', _squashHeight, 0, 16,
-                        _squashHeight.toStringAsFixed(1),
-                        (v) => _update(() => _squashHeight = v)),
-                    TunerParamSlider('anchorBias', _anchorBias, -1, 1,
-                        _anchorBias.toStringAsFixed(2),
-                        (v) => _update(() => _anchorBias = v)),
-                    TunerParamSlider('recoilScale', _recoilScale, 0, 3,
-                        _recoilScale.toStringAsFixed(2),
-                        (v) => _update(() => _recoilScale = v)),
-                    TunerParamSlider('recoilAnchor', _recoilAnchor, 0, 1,
-                        _recoilAnchor.toStringAsFixed(2),
-                        (v) => _update(() => _recoilAnchor = v)),
-                    TunerParamSlider('directionTau', _directionTau, 0.04, 1.0,
-                        _directionTau.toStringAsFixed(2),
-                        (v) => _update(() => _directionTau = v)),
+                    TunerParamSlider(
+                        'window',
+                        _window,
+                        0.05,
+                        0.8,
+                        _window.toStringAsFixed(2),
+                        (v) => _update(() => _window = v)),
+                    TunerParamSlider(
+                        'responseTau',
+                        _responseTau,
+                        0,
+                        0.6,
+                        _responseTau.toStringAsFixed(2),
+                        (v) => _update(() => _responseTau = v)),
                   ],
                 ),
               ),

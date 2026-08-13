@@ -4,7 +4,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // =============================================================
 // Shared, in-memory tuning store.
 //
-// The tuner pages (nav jelly tuner, slider jelly tuner) WRITE to these
+// The tuner pages (nav motion tuner, slider motion tuner) WRITE to these
 // notifiers; the polished demos (scaffold demo, slider & toggle page)
 // LISTEN via [ValueListenableBuilder]. Values live only for the current
 // session — they are NOT persisted to disk. Restarting the app resets
@@ -16,7 +16,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 /// Everything the bottom-nav glass pill + bar reads from the tuner.
 @immutable
 class NavTuning {
-  final LiquidGlassJellyConfig jelly;
+  final LiquidGlassLensMotionSpec motion;
   final double travelStiffness;
   final double travelDamping;
   final double growHeight;
@@ -28,7 +28,7 @@ class NavTuning {
   final Color background;
 
   const NavTuning({
-    required this.jelly,
+    required this.motion,
     required this.travelStiffness,
     required this.travelDamping,
     required this.growHeight,
@@ -36,21 +36,14 @@ class NavTuning {
     required this.background,
   });
 
-  /// Shipped defaults — mirror [LiquidGlassNavPillStyle]'s tuned jelly and
+  /// Shipped defaults — mirror [LiquidGlassNavPillStyle]'s tuned motion and
   /// the scaffold demo's dark frost, with light direction 39.
   static const NavTuning defaults = NavTuning(
-    jelly: LiquidGlassJellyConfig(
-      style: LiquidGlassJellyStyle.squashStretch,
-      stiffness: 260,
-      damping: 13,
-      maxVelocity: 6,
-      velocityClamp: 60,
-      stretchWidth: 17.1,
-      squashHeight: 9.8,
-      anchorBias: -1.0,
-      recoilScale: 3.0,
-      recoilAnchor: 1.0,
-      directionTau: 0.42,
+    motion: LiquidGlassLensMotionSpec(
+      window: 0.3,
+      coefficient: 0.00007,
+      maxDeviation: 0.12,
+      responseTau: 0.18,
     ),
     travelStiffness: 280,
     travelDamping: 31.4,
@@ -60,7 +53,7 @@ class NavTuning {
   );
 
   NavTuning copyWith({
-    LiquidGlassJellyConfig? jelly,
+    LiquidGlassLensMotionSpec? motion,
     double? travelStiffness,
     double? travelDamping,
     double? growHeight,
@@ -68,7 +61,7 @@ class NavTuning {
     Color? background,
   }) {
     return NavTuning(
-      jelly: jelly ?? this.jelly,
+      motion: motion ?? this.motion,
       travelStiffness: travelStiffness ?? this.travelStiffness,
       travelDamping: travelDamping ?? this.travelDamping,
       growHeight: growHeight ?? this.growHeight,

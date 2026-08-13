@@ -501,8 +501,12 @@ Path liquidGlassSquirclePath(
         for (int i = 0; i <= steps; i++)
           () {
             final double t = (math.pi / 2) * i / steps;
-            final double ox = zone * math.pow(math.cos(t), inv).toDouble();
-            final double oy = zone * math.pow(math.sin(t), inv).toDouble();
+            // The quarter turn can round a hair past its end, and a negative
+            // base under a fractional exponent is NaN — which voids the path.
+            final double ox =
+                zone * math.pow(math.cos(t).clamp(0.0, 1.0), inv).toDouble();
+            final double oy =
+                zone * math.pow(math.sin(t).clamp(0.0, 1.0), inv).toDouble();
             return Offset(cx + sx * ox, cy + sy * oy);
           }()
       ];
@@ -542,14 +546,20 @@ const double _kSagitta = 0.103;
 /// (measured: 600×24 at r 12 strayed 0.052 px).
 ///
 /// Inverts the sagitta law for [_kContinuousClipErrorPx], so a small pill is
-/// not tessellated to the same density as a full-screen card. Capped at 40 —
-/// the old fixed count — so this can only ever emit fewer points, and floored
-/// at 3 so even a hairline radius keeps a curve.
+/// not tessellated to the same density as a full-screen card. Floored at 3 so
+/// even a hairline radius keeps a curve, capped at 40 — then the whole band is
+/// scaled by [_kSegmentDensity].
 int liquidGlassCornerSegments(double reach) {
-  if (!reach.isFinite || reach <= 0) return 3;
+  if (!reach.isFinite || reach <= 0) return 3 * _kSegmentDensity;
   final int seg = math.sqrt(_kSagitta * reach / _kContinuousClipErrorPx).ceil();
-  return seg.clamp(3, 40);
+  // Multiplied AFTER the clamp, so the floor and the cap scale with it and
+  // every reach gets the same factor.
+  return seg.clamp(3, 40) * _kSegmentDensity;
 }
+
+/// Test knob: multiplies every corner's segment count. `1` is the density the
+/// error budget above asks for; higher just spends more points on one curve.
+const int _kSegmentDensity = 1;
 
 /// The capsule-style continuous rounded-rectangle outline: each corner is a
 /// p-norm ball whose box is stretched along whichever edge has room, with an
@@ -611,8 +621,12 @@ Path liquidGlassContinuousRoundedRectPath(
         () {
           final double t = i / steps;
           final double phi = (forward ? t : 1 - t) * math.pi / 2;
-          final double u = reachH * math.pow(math.cos(phi), invH).toDouble();
-          final double v = reachV * math.pow(math.sin(phi), invV).toDouble();
+          // The quarter turn can round a hair past its end, and a negative
+          // base under a fractional exponent is NaN — which voids the path.
+          final double u =
+              reachH * math.pow(math.cos(phi).clamp(0.0, 1.0), invH).toDouble();
+          final double v =
+              reachV * math.pow(math.sin(phi).clamp(0.0, 1.0), invV).toDouble();
           return Offset(halfW + sx * (flatX + u), halfH + sy * (flatY + v));
         }(),
     ];

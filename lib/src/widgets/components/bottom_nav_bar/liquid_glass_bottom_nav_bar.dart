@@ -9,6 +9,7 @@ import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_border_mode.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_shape.dart';
+import '../liquid_glass_shadow.dart';
 import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_animated_nav_bar.dart';
 import 'liquid_glass_nav_bar_animated_content.dart';
@@ -51,6 +52,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
     this.itemStyle = const LiquidGlassNavItemStyle(),
     this.pillStyle = const LiquidGlassNavPillStyle(),
     this.style,
+    this.shadow,
     this.visibility = true,
     this.width = 300,
     this.height = 64,
@@ -95,6 +97,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
     this.itemStyle = const LiquidGlassNavItemStyle(),
     this.pillStyle = const LiquidGlassNavPillStyle(),
     this.style,
+    this.shadow,
     this.visibility = true,
     this.width = 300,
     this.height = 64,
@@ -135,6 +138,19 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   /// `LiquidGlassBottomNavBar.defaultStyle.copyWith(shape: …)`. Honored by
   /// both the plain and glass-pill bars.
   final LiquidGlassStyle? style;
+
+  /// Contact shadow around the **bar capsule** — the soft dark band that
+  /// hugs its rim and pools underneath, so the bar reads as sitting in the
+  /// page rather than floating on it. `null` (the default) draws none, and
+  /// its corner follows the capsule's shape when [LiquidGlassShadow.cornerRadius]
+  /// is left null.
+  ///
+  /// Honored by every tier. On the glass-pill bar it is drawn into the
+  /// inner stack, so it lands inside the moving pill's capture and the
+  /// pill refracts the bar's own shadow; on the plain single-lens bar it
+  /// wraps the capsule lens, painting behind the glass. It follows
+  /// [visibility] either way.
+  final LiquidGlassShadow? shadow;
 
   /// Whether the bar is shown; toggling animates the glass in/out.
   final bool visibility;
@@ -260,6 +276,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       barShape: barStyle.shape,
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
+      barShadow: shadow,
       pillBlur: glassStyle.appearance.blur,
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
@@ -267,10 +284,11 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       pillEnableInnerRadiusTransparent:
           glassStyle.appearance.enableInnerRadiusTransparent,
       pillShape: glassStyle.shape,
+      pillShadow: pillStyle.shadow,
       restStyle: restStyle,
       travelStiffness: pillStyle.travelStiffness,
       travelDamping: pillStyle.travelDamping,
-      jelly: pillStyle.jelly,
+      motion: pillStyle.motion,
       pixelRatio: pixelRatio,
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
@@ -394,7 +412,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
             pillShape: restStyle.shape,
           );
 
-    return SizedBox(
+    final Widget bar = SizedBox(
       width: width,
       height: height,
       child: LiquidGlassLens(
@@ -406,6 +424,22 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
         visibility: visibility,
         child: content,
       ),
+    );
+
+    final LiquidGlassShadow? s = shadow;
+    if (s == null) return bar;
+    // Wrapping the lens rather than going inside it: the ring paints
+    // behind the glass (so the capsule sits over its own shadow) and is
+    // unclipped, so the arc that pools below the bar survives.
+    return LiquidGlassShadow(
+      blur: s.blur,
+      opacity: s.opacity,
+      color: s.color,
+      offset: s.offset,
+      cornerRadius: s.cornerRadius ?? effectiveShape.cornerRadius,
+      inset: s.inset,
+      visible: s.visible && visibility,
+      child: bar,
     );
   }
 }

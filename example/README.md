@@ -7,7 +7,7 @@ This folder has two entry points:
   into a fresh Flutter project and run it.
 - **`lib/gallery.dart`** — the full on-device gallery whose home menu opens each
   demo (control center, scaffold + glass nav, slider & toggle, corner styles,
-  plus jelly tuners) on its own page. This is what the README screenshots/GIFs
+  plus motion tuners) on its own page. This is what the README screenshots/GIFs
   come from.
 
 ## Run
