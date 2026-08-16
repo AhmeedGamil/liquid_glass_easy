@@ -82,16 +82,14 @@ Future<T?> showLiquidGlassDialog<T>({
         reverseCurve: reverseTransitionCurve,
       );
 
-      return FadeTransition(
-        opacity: CurvedAnimation(
-          parent: animation,
-          curve: const Interval(0.0, 0.8, curve: Curves.easeOut),
-          reverseCurve: const Interval(0.2, 1.0, curve: Curves.easeIn),
-        ),
-        child: ScaleTransition(
-          scale: Tween<double>(begin: 0.84, end: 1.0).animate(curvedAnimation),
-          child: child,
-        ),
+      // Scale only — deliberately no Fade/Opacity around the dialog. An
+      // Opacity layer isolates the lenses' backdrop, so the glass loses
+      // the page behind it mid-flight (no frost, dark buttons) and snaps
+      // in when the layer drops. The barrier fades on its own; the glass
+      // condenses over it by scale alone, live the whole way.
+      return ScaleTransition(
+        scale: Tween<double>(begin: 0.84, end: 1.0).animate(curvedAnimation),
+        child: child,
       );
     },
   );
