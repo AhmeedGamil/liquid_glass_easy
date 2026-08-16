@@ -5,11 +5,15 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../controllers/liquid_glass_view_controller.dart';
+import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
+import '../../utils/liquid_glass_blur.dart';
+import '../../utils/liquid_glass_border_mode.dart';
 import '../../utils/liquid_glass_eager_pan.dart';
-import '../../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_lens_motion.dart';
+import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_motion_pill.dart';
 import '../liquid_glass_shadow.dart';
 import 'liquid_glass_slider_layout.dart';
@@ -84,17 +88,44 @@ class LiquidGlassSlider extends StatefulWidget {
   /// iOS system blue.
   final Color activeColor;
 
-  /// Color of the unfilled track.
+  /// Color of the unfilled track. Defaults to black at 8 %, which reads
+  /// on a light page; over a dark one, pass a translucent white instead.
   final Color inactiveColor;
 
   /// Color of the contracted rest thumb.
   final Color thumbColor;
 
-  /// The control's geometry: track, both thumb sizes, and the end icons.
+  /// Width of the control, end to end.
+  ///
+  /// The size most callers want, so it sits here rather than only on
+  /// [LiquidGlassSliderLayout.width] — it is a shorthand for exactly that
+  /// field and wins over it when both are given. `null` (the default)
+  /// leaves the layout in charge.
+  final double? width;
+
+  /// Total height of the control.
+  ///
+  /// Vertical room rather than thumb size: the lifted thumb overhangs the
+  /// track and grows further as it squashes, and all of that has to fit
+  /// inside the glass capture or it is clipped mid-gesture. `null` (the
+  /// default) derives it from the thumb sizes and the squash ceiling,
+  /// which is the safe choice — set it only to reserve more or to pin the
+  /// footprint, and note it is clamped to at least the lifted thumb.
+  ///
+  /// To resize the *thumb* itself, use [layout]'s thumb pair
+  /// ([LiquidGlassSliderLayout.thumbWidth] / `liftedThumbWidth` and their
+  /// heights), which are tuned to each other and should move together.
+  ///
+  /// A shorthand for [LiquidGlassSliderLayout.height], and wins over it.
+  final double? height;
+
+  /// The control's full geometry: track, both thumb sizes, and the end
+  /// icons. [width] and [height] override the two same-named fields on
+  /// it; everything else is only settable here.
   final LiquidGlassSliderLayout layout;
 
   /// How hard the lifted thumb squashes and stretches as it is carried.
-  /// `LiquidGlassLensMotionSpec(maxDeviation: 0)` turns the deformation
+  /// `LiquidGlassLensMotionSpec(maxDeformation: 0)` turns the deformation
   /// off entirely and leaves the plain morphing thumb.
   final LiquidGlassLensMotionSpec motion;
 
@@ -102,21 +133,55 @@ class LiquidGlassSlider extends StatefulWidget {
   final Widget? minimumIcon;
   final Widget? maximumIcon;
 
-  /// Glass look of the expanded thumb; null keeps the tuned default.
+  /// Glass look of the expanded thumb, its contact shadow included;
+  /// `null` keeps [defaultStyle]. To change one facet and keep the rest,
+  /// compose from it:
+  /// `LiquidGlassSlider.defaultStyle.copyWith(refraction: …)`.
+  ///
+  /// The shadow lives in `appearance.shadow` — retune it with
+  /// `defaultStyle.copyWith(appearance: defaultStyle.appearance.copyWith(
+  /// shadow: …))`, or drop it by handing over an appearance that carries
+  /// none.
   final LiquidGlassStyle? style;
 
-  /// Contact shadow around the lifted thumb — the soft dark band that
-  /// hugs its rim and pools underneath, so the glass reads as sitting in
-  /// the track rather than floating over it.
+  /// The tuned default thumb glass: a clear capsule — refraction and a
+  /// soft rim, no tint — so the glass shows what is behind it rather
+  /// than washing over it.
   ///
-  /// `null` (the default) draws none. Pass `const LiquidGlassShadow()`
-  /// for the standard one, or a configured instance to tune its blur,
-  /// opacity, colour or offset.
+  /// The blur is deliberately near-zero: at thumb size a real blur turns
+  /// the magnified content to mush, and the refraction reads sharper
+  /// over a photo without it.
   ///
-  /// It wraps the thumb's lens rather than living inside it, so the arc
-  /// that pools *below* the thumb survives instead of being clipped at
-  /// the outline, and it tracks the thumb's stretch as it deforms.
-  final LiquidGlassShadow? shadow;
+  /// The contact shadow is tucked in (`inset: 3`), so the glass overhangs
+  /// it — at thumb size a full-width halo reads as a glow rather than as
+  /// contact. It wraps the thumb's lens rather than living inside it, so
+  /// the arc that pools *below* the thumb survives instead of being
+  /// clipped at the outline, and it tracks the thumb's stretch as it
+  /// deforms.
+  static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
+    // A large cornerRadius keeps the pill a clean capsule as it grows
+    // and squashes — it clamps to half the height.
+    shape: LiquidGlassShape.continuousRoundedRectangle(
+      cornerRadius: 100,
+      borderWidth: 0.4,
+      lightIntensity: 1,
+      lightDirection: 39,
+      // The rim's glint sits between gray and white rather than at pure
+      // white, which reads softer on pale backgrounds.
+      lightColor: Color(0xB2C8C8C8),
+      borderType: OpticalBorder(borderSolidity: 0.5),
+    ),
+    appearance: LiquidGlassAppearance(
+      color: Colors.transparent,
+      blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
+      shadow: LiquidGlassShadow(inset: 3),
+    ),
+    refraction: LiquidGlassRefraction(
+      distortion: 0.07,
+      distortionWidth: 18,
+      chromaticAberration: 0.002,
+    ),
+  );
 
   /// Capture resolution for the inner view.
   final double pixelRatio;
@@ -131,14 +196,15 @@ class LiquidGlassSlider extends StatefulWidget {
     this.maximumValue = 1,
     this.isContinuous = true,
     this.activeColor = const Color(0xFF0A84FF),
-    this.inactiveColor = const Color(0x3CFFFFFF),
+    this.inactiveColor = const Color(0x14000000),
     this.thumbColor = Colors.white,
+    this.width,
+    this.height,
     this.layout = const LiquidGlassSliderLayout(),
     this.motion = const LiquidGlassLensMotionSpec(),
     this.minimumIcon,
     this.maximumIcon,
     this.style,
-    this.shadow,
     this.pixelRatio = 1.0,
   });
 
@@ -153,7 +219,17 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   static const double _fillEndRamp = 10; // px, the fill's end snap zone
   static const double _hapticEdge = 2; // px
 
-  LiquidGlassSliderLayout get _layout => widget.layout;
+  /// The geometry actually in force: [LiquidGlassSlider.layout] with the
+  /// widget's own [LiquidGlassSlider.width] / [LiquidGlassSlider.height]
+  /// folded in. Held rather than recomputed, since every geometry getter
+  /// below reads it many times a frame.
+  late LiquidGlassSliderLayout _layout = _resolveLayout();
+
+  LiquidGlassSliderLayout _resolveLayout() =>
+      (widget.width == null && widget.height == null)
+          ? widget.layout
+          : widget.layout.copyWith(width: widget.width, height: widget.height);
+
   double get _trackHeight => _layout.trackHeight;
   double get _contractedW => _layout.thumbWidth;
   double get _contractedH => _layout.thumbHeight;
@@ -165,10 +241,10 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   /// Room at each end for the lifted thumb's overhang, the rubber-band
   /// overshoot and the squash — all of which must fit the glass capture.
   double get _padX =>
-      _layout.resolveHorizontalInset(widget.motion.maxDeviation);
+      _layout.resolveHorizontalInset(widget.motion.maxDeformation);
 
   /// The control's height, sized for the lifted thumb at full squash.
-  double get _viewHeight => _layout.resolveHeight(widget.motion.maxDeviation);
+  double get _viewHeight => _layout.resolveHeight(widget.motion.maxDeformation);
 
   // ── Springs, mapped as ω₀ = 2π / duration ─────────────────────────
   // (The morph and lens-motion constants moved into
@@ -268,14 +344,20 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
   @override
   void didUpdateWidget(LiquidGlassSlider oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Refreshed before the mid-gesture bail: a finger owns the thumb's
+    // position, but the geometry it rides is still the new widget's.
+    // Compared resolved-to-resolved below — against `oldWidget.layout`
+    // it would read a `width:` set on the widget as a change on every
+    // rebuild and retarget a running glide each frame.
+    final double oldWidth = _layout.width;
+    _layout = _resolveLayout();
     if (_pointerDown) return;
     if (_thumbSpringTarget != null) {
       // A glide is in flight. If the value (or geometry) changed under
       // it — typically the parent's echo of the gesture's final value
       // landing a frame after the release — retarget the running
       // spring instead of letting it finish at a stale position.
-      if (oldWidget.value != widget.value ||
-          oldWidget.layout.width != _layout.width) {
+      if (oldWidget.value != widget.value || oldWidth != _layout.width) {
         _thumbSpringTarget = _targetThumbCX;
         _ensureTicking();
       }
@@ -612,8 +694,9 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
                 active: _thumbActive,
                 restSize: Size(_contractedW, _contractedH),
                 activeSize: Size(_expandedW, _expandedH),
-                style: widget.style,
-                shadow: widget.shadow,
+                // The contact shadow rides in the style's appearance; the
+                // pill lifts it out and wraps the glass in it.
+                style: widget.style ?? LiquidGlassSlider.defaultStyle,
                 motion: widget.motion,
                 // The contraction outlives the release, so the pill —
                 // not the gesture — says when the glass is covered and

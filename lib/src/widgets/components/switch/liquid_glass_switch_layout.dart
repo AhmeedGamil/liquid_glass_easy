@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-/// Sizing for [LiquidGlassToggle] — the track behind the thumb and the
+/// Sizing for [LiquidGlassSwitch] — the track behind the thumb and the
 /// two sizes the thumb itself morphs between.
 ///
 /// Everything the control positions is derived from these numbers: the
@@ -11,7 +11,7 @@ import 'dart:math' as math;
 /// The defaults are the iOS-26 sliding switch: a 63×28 track carrying a
 /// 37×24 handle that swells to 58×38.33 while it is held — wider AND
 /// taller than the track it sits in, which is why the thumb overhangs.
-class LiquidGlassToggleLayout {
+class LiquidGlassSwitchLayout {
   /// Width of the track — the capsule the thumb rides along. This is
   /// also the control's layout footprint.
   final double width;
@@ -97,7 +97,7 @@ class LiquidGlassToggleLayout {
   )
   final double thumbExtraHeight;
 
-  const LiquidGlassToggleLayout({
+  const LiquidGlassSwitchLayout({
     this.width = 63,
     this.height = 28,
     this.padding = 2,
@@ -105,7 +105,7 @@ class LiquidGlassToggleLayout {
     this.thumbHeight = 24,
     this.expandedThumbWidth = 58,
     this.expandedThumbHeight = 38.333,
-    this.pinchedHeight = 20,
+    this.pinchedHeight = 22,
     this.overshootRoom = 20,
     // ignore: deprecated_member_use_from_same_package
     this.pressedScale = 1.5,
@@ -143,7 +143,7 @@ class LiquidGlassToggleLayout {
   double get viewWidth => width + padX * 2;
   double get viewHeight => height + padY * 2;
 
-  LiquidGlassToggleLayout copyWith({
+  LiquidGlassSwitchLayout copyWith({
     double? width,
     double? height,
     double? padding,
@@ -154,7 +154,7 @@ class LiquidGlassToggleLayout {
     double? pinchedHeight,
     double? overshootRoom,
   }) {
-    return LiquidGlassToggleLayout(
+    return LiquidGlassSwitchLayout(
       width: width ?? this.width,
       height: height ?? this.height,
       padding: padding ?? this.padding,
@@ -169,7 +169,7 @@ class LiquidGlassToggleLayout {
 
   /// A layout scaled uniformly by [factor] — the quickest way to make
   /// the whole switch bigger without re-picking seven numbers.
-  LiquidGlassToggleLayout scaled(double factor) => LiquidGlassToggleLayout(
+  LiquidGlassSwitchLayout scaled(double factor) => LiquidGlassSwitchLayout(
         width: width * factor,
         height: height * factor,
         padding: padding * factor,

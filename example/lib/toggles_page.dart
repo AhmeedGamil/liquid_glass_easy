@@ -4,7 +4,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 import 'tuner_widgets.dart';
 
 // =============================================================
-// Toggles-only showcase — a page of LiquidGlassToggle switches.
+// Toggles-only showcase — a page of LiquidGlassSwitch switches.
 //
 //   flutter run -t lib/toggles_page.dart   (standalone)
 //   …or push TogglesPage() from your menu.
@@ -110,7 +110,7 @@ class _ToggleRow extends StatelessWidget {
           Text(label,
               style: const TextStyle(fontSize: 14.5, color: Colors.white)),
           const Spacer(),
-          LiquidGlassToggle(
+          LiquidGlassSwitch(
             value: value,
             onChanged: onChanged,
             activeColor: activeColor,

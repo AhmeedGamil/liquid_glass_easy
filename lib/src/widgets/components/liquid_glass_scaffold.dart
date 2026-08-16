@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import '../../controllers/liquid_glass_view_controller.dart';
 import '../liquid_glass_view.dart';
 import '../utils/liquid_glass_refresh_rate.dart';
-import 'bottom_nav_bar/liquid_glass_bottom_nav_bar.dart';
+import 'bottom_nav_bar/liquid_glass_tab_bar.dart';
 
 /// A `Scaffold`-style layout for liquid-glass UIs.
 ///
@@ -21,7 +21,7 @@ import 'bottom_nav_bar/liquid_glass_bottom_nav_bar.dart';
 ///     actions: const [Icon(Icons.search)],
 ///   ),
 ///   body: MyPageContent(),
-///   bottomNavigationBar: LiquidGlassBottomNavBar(
+///   bottomNavigationBar: LiquidGlassTabBar(
 ///     items: const [
 ///       LiquidGlassTabBarItem(icon: Icons.home_rounded, label: 'Home'),
 ///       LiquidGlassTabBarItem(icon: Icons.search_rounded, label: 'Search'),
@@ -54,7 +54,7 @@ class LiquidGlassScaffold extends StatelessWidget {
   final Widget? appBar;
 
   /// A glass bottom navigation bar pinned to the bottom. Typically a
-  /// [LiquidGlassBottomNavBar].
+  /// [LiquidGlassTabBar].
   final Widget? bottomNavigationBar;
 
   /// A standalone glass action that floats at the bottom-right, the
@@ -133,7 +133,7 @@ class LiquidGlassScaffold extends StatelessWidget {
     // Glass-pill morph path: the bar owns the whole-screen dual pipeline,
     // so the scaffold hands it the body plus the composed outer slots.
     final nav = bottomNavigationBar;
-    if (nav is LiquidGlassBottomNavBar &&
+    if (nav is LiquidGlassTabBar &&
         nav.resolveGlassPill(useImpellerBackdrop: useImpellerBackdrop)) {
       return nav.buildGlassPillBar(
         body: body,
@@ -173,12 +173,12 @@ class LiquidGlassScaffold extends StatelessWidget {
   /// When [includeNavBar] is false the bottom nav bar is omitted (the
   /// glass-pill path renders the bar itself).
   Widget _outerSlots(EdgeInsets pad, {required bool includeNavBar}) {
-    final EdgeInsets navMargin = bottomNavigationBar is LiquidGlassBottomNavBar
-        ? (bottomNavigationBar as LiquidGlassBottomNavBar).margin
+    final EdgeInsets navMargin = bottomNavigationBar is LiquidGlassTabBar
+        ? (bottomNavigationBar as LiquidGlassTabBar).margin
         : EdgeInsets.zero;
     final Alignment navAlignment =
-        bottomNavigationBar is LiquidGlassBottomNavBar
-            ? (bottomNavigationBar as LiquidGlassBottomNavBar).alignment
+        bottomNavigationBar is LiquidGlassTabBar
+            ? (bottomNavigationBar as LiquidGlassTabBar).alignment
             : Alignment.bottomCenter;
 
     // The glass overlays float outside any Scaffold/Material, so bare

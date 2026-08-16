@@ -36,7 +36,7 @@ LiquidGlassStyle navBarStyle(NavTuning n) => LiquidGlassStyle(
     );
 
 /// The selection-pill style for a given tuning — motion + travel + grow.
-LiquidGlassNavPillStyle navPillStyle(NavTuning n) => LiquidGlassNavPillStyle(
+LiquidGlassTabPillStyle navPillStyle(NavTuning n) => LiquidGlassTabPillStyle(
       mode: LiquidGlassPillMode.both,
       animated: true,
       growHeight: n.growHeight,

@@ -36,14 +36,14 @@ class NavTuning {
     required this.background,
   });
 
-  /// Shipped defaults — mirror [LiquidGlassNavPillStyle]'s tuned motion and
+  /// Shipped defaults — mirror [LiquidGlassTabPillStyle]'s tuned motion and
   /// the scaffold demo's dark frost, with light direction 39.
   static const NavTuning defaults = NavTuning(
     motion: LiquidGlassLensMotionSpec(
-      window: 0.3,
-      coefficient: 0.00007,
-      maxDeviation: 0.12,
-      responseTau: 0.18,
+      sampleWindow: 0.3,
+      sensitivity: 0.00007,
+      maxDeformation: 0.12,
+      responseTime: 0.18,
     ),
     travelStiffness: 280,
     travelDamping: 31.4,

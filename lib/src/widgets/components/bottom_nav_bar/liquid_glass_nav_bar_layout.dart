@@ -7,10 +7,10 @@
 /// selection pill that refracts the bar capsule's own glass output
 /// — the iOS-26 "morphing pill" feel.
 ///
-/// The non-animated [LiquidGlassBottomNavBarShell] only needs this
+/// The non-animated [LiquidGlassTabBarShell] only needs this
 /// for sizing; the moving-pill fields are consumed by the
 /// (not-yet-exported) animated variant.
-class LiquidGlassBottomNavBarLayout {
+class LiquidGlassTabBarLayout {
   final int itemCount;
   final double width;
   final double height;
@@ -22,7 +22,7 @@ class LiquidGlassBottomNavBarLayout {
   /// and below the bar so it reads as a clear "raised" element.
   final double pillExtraHeight;
 
-  const LiquidGlassBottomNavBarLayout({
+  const LiquidGlassTabBarLayout({
     required this.itemCount,
     this.width = 280,
     this.height = 64,
@@ -36,7 +36,7 @@ class LiquidGlassBottomNavBarLayout {
   double get pillWidth => cellWidth;
   double get pillHeight => cellHeight + pillExtraHeight;
 
-  LiquidGlassBottomNavBarLayout copyWith({
+  LiquidGlassTabBarLayout copyWith({
     int? itemCount,
     double? width,
     double? height,
@@ -44,7 +44,7 @@ class LiquidGlassBottomNavBarLayout {
     double? padding,
     double? pillExtraHeight,
   }) {
-    return LiquidGlassBottomNavBarLayout(
+    return LiquidGlassTabBarLayout(
       itemCount: itemCount ?? this.itemCount,
       width: width ?? this.width,
       height: height ?? this.height,

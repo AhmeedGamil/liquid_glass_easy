@@ -34,7 +34,7 @@ import '../utils/liquid_glass_touch.dart';
 class LiquidGlassButton extends StatelessWidget {
   const LiquidGlassButton({
     super.key,
-    required this.label,
+    this.label,
     this.icon,
     this.onPressed,
     this.width,
@@ -48,30 +48,11 @@ class LiquidGlassButton extends StatelessWidget {
     this.iconSize = 20,
     this.touch,
     this.child,
-  });
-
-  /// A button whose content is entirely your own widget — an SVG, an
-  /// image, a badge row, two lines of text. [label] is unused (it is
-  /// filled with an empty string) and [icon] is dropped.
-  const LiquidGlassButton.custom({
-    super.key,
-    required Widget this.child,
-    this.onPressed,
-    this.width,
-    this.height = 48,
-    this.padding = const EdgeInsets.symmetric(horizontal: 20),
-    this.style,
-    this.visibility = true,
-    this.foregroundColor = Colors.white,
-    this.fontSize = 16,
-    this.fontWeight = FontWeight.w600,
-    this.iconSize = 20,
-    this.touch,
-  })  : label = '',
-        icon = null;
+  }) : assert(label != null || icon != null || child != null,
+            'Give the button something to show: a label, an icon, or a child.');
 
   /// Button label text. Ignored when [child] is set.
-  final String label;
+  final String? label;
 
   /// Optional leading icon. Ignored when [child] is set.
   final IconData? icon;
@@ -171,16 +152,17 @@ class LiquidGlassButton extends StatelessWidget {
         children: [
           if (icon != null) ...[
             Icon(icon, color: foregroundColor, size: iconSize),
-            const SizedBox(width: 8),
+            if (label != null) const SizedBox(width: 8),
           ],
-          Text(
-            label,
-            style: TextStyle(
-              color: foregroundColor,
-              fontSize: fontSize,
-              fontWeight: fontWeight,
+          if (label != null)
+            Text(
+              label!,
+              style: TextStyle(
+                color: foregroundColor,
+                fontSize: fontSize,
+                fontWeight: fontWeight,
+              ),
             ),
-          ),
         ],
       );
     }

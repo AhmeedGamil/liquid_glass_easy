@@ -10,7 +10,7 @@ import '../utils/liquid_glass_shape.dart';
 /// labels shell, and the morphing selection pill.
 ///
 /// This is the segmented-control variant of
-/// `LiquidGlassBottomNavBarLayout` — it follows the same
+/// `LiquidGlassTabBarLayout` — it follows the same
 /// dual-pipeline pattern (inner view captures the capsule, outer
 /// view draws the moving pill on top) but is sized for an inline
 /// labelled selector instead of a floating bottom bar.

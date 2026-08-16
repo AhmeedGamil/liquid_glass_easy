@@ -13,8 +13,8 @@ import 'tuning_store.dart';
 //   …or open it from the home menu.
 //
 // Every knob writes into the shared [TuningStore.slider], so the live
-// slider below reacts AND the Slider & Toggle page picks up the same
-// values (in memory, this session) — tune here, record the GIF there.
+// slider below reacts and any page reading the store picks up the same
+// values (in memory, this session).
 // =============================================================
 
 void main() {
@@ -48,10 +48,10 @@ class SliderMotionTunerPage extends StatefulWidget {
 class _SliderMotionTunerPageState extends State<SliderMotionTunerPage> {
   double _value = 0.5;
 
-  late double _window;
-  late double _coefficient;
-  late double _maxDeviation;
-  late double _responseTau;
+  late double _sampleWindow;
+  late double _sensitivity;
+  late double _maxDeformation;
+  late double _responseTime;
 
   @override
   void initState() {
@@ -60,17 +60,17 @@ class _SliderMotionTunerPageState extends State<SliderMotionTunerPage> {
   }
 
   void _seedFrom(LiquidGlassLensMotionSpec m) {
-    _window = m.window;
-    _coefficient = m.coefficient;
-    _maxDeviation = m.maxDeviation;
-    _responseTau = m.responseTau;
+    _sampleWindow = m.sampleWindow;
+    _sensitivity = m.sensitivity;
+    _maxDeformation = m.maxDeformation;
+    _responseTime = m.responseTime;
   }
 
   LiquidGlassLensMotionSpec get _motion => LiquidGlassLensMotionSpec(
-        window: _window,
-        coefficient: _coefficient,
-        maxDeviation: _maxDeviation,
-        responseTau: _responseTau,
+        sampleWindow: _sampleWindow,
+        sensitivity: _sensitivity,
+        maxDeformation: _maxDeformation,
+        responseTime: _responseTime,
       );
 
   /// Applies a local edit then commits it to the shared in-memory store.
@@ -89,10 +89,10 @@ LiquidGlassSlider(
   value: _value,
   onChanged: (v) => setState(() => _value = v),
   motion: const LiquidGlassLensMotionSpec(
-    window: ${_window.toStringAsFixed(2)},
-    coefficient: ${_coefficient.toStringAsFixed(5)},
-    maxDeviation: ${_maxDeviation.toStringAsFixed(2)},
-    responseTau: ${_responseTau.toStringAsFixed(2)},
+    sampleWindow: ${_sampleWindow.toStringAsFixed(2)},
+    sensitivity: ${_sensitivity.toStringAsFixed(5)},
+    maxDeformation: ${_maxDeformation.toStringAsFixed(2)},
+    responseTime: ${_responseTime.toStringAsFixed(2)},
   ),
 )''';
 
@@ -127,6 +127,9 @@ LiquidGlassSlider(
                         child: LiquidGlassSlider(
                           value: _value,
                           onChanged: (v) => setState(() => _value = v),
+                          // The shipped default track is black at 8 %,
+                          // which disappears on this dark panel.
+                          inactiveColor: const Color(0x3CFFFFFF),
                           layout: LiquidGlassSliderLayout(width: sliderW),
                           motion: _motion,
                         ),
@@ -152,19 +155,19 @@ LiquidGlassSlider(
                         'wide, braking squashes it tall.',
                         style: TextStyle(fontSize: 12, color: Colors.white54)),
                     const SizedBox(height: 8),
-                    TunerParamSlider('maxDeviation', _maxDeviation, 0, 0.5,
-                        _maxDeviation.toStringAsFixed(2),
-                        (v) => _update(() => _maxDeviation = v)),
-                    TunerParamSlider('coefficient', _coefficient, 0, 0.0003,
-                        _coefficient.toStringAsFixed(5),
-                        (v) => _update(() => _coefficient = v)),
+                    TunerParamSlider('maxDeformation', _maxDeformation, 0, 0.5,
+                        _maxDeformation.toStringAsFixed(2),
+                        (v) => _update(() => _maxDeformation = v)),
+                    TunerParamSlider('sensitivity', _sensitivity, 0, 0.0003,
+                        _sensitivity.toStringAsFixed(5),
+                        (v) => _update(() => _sensitivity = v)),
                     const Divider(color: Colors.white12, height: 24),
-                    TunerParamSlider('window', _window, 0.05, 0.8,
-                        _window.toStringAsFixed(2),
-                        (v) => _update(() => _window = v)),
-                    TunerParamSlider('responseTau', _responseTau, 0, 0.6,
-                        _responseTau.toStringAsFixed(2),
-                        (v) => _update(() => _responseTau = v)),
+                    TunerParamSlider('sampleWindow', _sampleWindow, 0.05, 0.8,
+                        _sampleWindow.toStringAsFixed(2),
+                        (v) => _update(() => _sampleWindow = v)),
+                    TunerParamSlider('responseTime', _responseTime, 0, 0.6,
+                        _responseTime.toStringAsFixed(2),
+                        (v) => _update(() => _responseTime = v)),
                   ],
                 ),
               ),

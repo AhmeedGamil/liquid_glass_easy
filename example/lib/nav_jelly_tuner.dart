@@ -14,8 +14,8 @@ import 'tuning_store.dart';
 //   …or open it from the home menu.
 //
 // Every control writes straight into the shared [TuningStore.nav], so the
-// glass nav bar below reacts live AND the polished scaffold demo picks up
-// the same values (in memory, this session) — tune here, record the GIF there.
+// glass nav bar below reacts live and any page reading the store picks up
+// the same values (in memory, this session).
 //
 //   Travel spring — the positional slide (bounce vs glide).
 //   Motion        — the acceleration squash/stretch of the pill.
@@ -60,10 +60,10 @@ class _NavJellyTunerPageState extends State<NavJellyTunerPage> {
   late double _lightDirection;
 
   // Motion (acceleration squash/stretch) knobs.
-  late double _window;
-  late double _coefficient;
-  late double _maxDeviation;
-  late double _responseTau;
+  late double _sampleWindow;
+  late double _sensitivity;
+  late double _maxDeformation;
+  late double _responseTime;
 
   // Background (frosted tint): an opaque base hue + an opacity.
   late Color _bgBase;
@@ -90,19 +90,19 @@ class _NavJellyTunerPageState extends State<NavJellyTunerPage> {
     _growHeight = n.growHeight;
     _lightDirection = n.lightDirection;
     final m = n.motion;
-    _window = m.window;
-    _coefficient = m.coefficient;
-    _maxDeviation = m.maxDeviation;
-    _responseTau = m.responseTau;
+    _sampleWindow = m.sampleWindow;
+    _sensitivity = m.sensitivity;
+    _maxDeformation = m.maxDeformation;
+    _responseTime = m.responseTime;
     _bgOpacity = n.background.a;
     _bgBase = n.background.withValues(alpha: 1);
   }
 
   LiquidGlassLensMotionSpec get _motion => LiquidGlassLensMotionSpec(
-        window: _window,
-        coefficient: _coefficient,
-        maxDeviation: _maxDeviation,
-        responseTau: _responseTau,
+        sampleWindow: _sampleWindow,
+        sensitivity: _sensitivity,
+        maxDeformation: _maxDeformation,
+        responseTime: _responseTime,
       );
 
   Color get _bg => _bgBase.withValues(alpha: _bgOpacity);
@@ -131,17 +131,17 @@ class _NavJellyTunerPageState extends State<NavJellyTunerPage> {
   }
 
   String get _snippet => '''
-LiquidGlassNavPillStyle(
+LiquidGlassTabPillStyle(
   mode: LiquidGlassPillMode.both,
   animated: true,
   travelStiffness: ${_travelStiffness.round()},
   travelDamping: ${_travelDamping.toStringAsFixed(1)},
   growHeight: ${_growHeight.round()},
   motion: const LiquidGlassLensMotionSpec(
-    window: ${_window.toStringAsFixed(2)},
-    coefficient: ${_coefficient.toStringAsFixed(5)},
-    maxDeviation: ${_maxDeviation.toStringAsFixed(2)},
-    responseTau: ${_responseTau.toStringAsFixed(2)},
+    sampleWindow: ${_sampleWindow.toStringAsFixed(2)},
+    sensitivity: ${_sensitivity.toStringAsFixed(5)},
+    maxDeformation: ${_maxDeformation.toStringAsFixed(2)},
+    responseTime: ${_responseTime.toStringAsFixed(2)},
   ),
 )
 // bar: lightDirection ${_lightDirection.round()}, '''
@@ -280,34 +280,34 @@ LiquidGlassNavPillStyle(
                             fontSize: 12, color: Colors.white54, height: 1.3)),
                     const SizedBox(height: 8),
                     TunerParamSlider(
-                        'maxDeviation',
-                        _maxDeviation,
+                        'maxDeformation',
+                        _maxDeformation,
                         0,
                         0.5,
-                        _maxDeviation.toStringAsFixed(2),
-                        (v) => _update(() => _maxDeviation = v)),
+                        _maxDeformation.toStringAsFixed(2),
+                        (v) => _update(() => _maxDeformation = v)),
                     TunerParamSlider(
-                        'coefficient',
-                        _coefficient,
+                        'sensitivity',
+                        _sensitivity,
                         0,
                         0.0003,
-                        _coefficient.toStringAsFixed(5),
-                        (v) => _update(() => _coefficient = v)),
+                        _sensitivity.toStringAsFixed(5),
+                        (v) => _update(() => _sensitivity = v)),
                     const Divider(color: Colors.white12, height: 24),
                     TunerParamSlider(
-                        'window',
-                        _window,
+                        'sampleWindow',
+                        _sampleWindow,
                         0.05,
                         0.8,
-                        _window.toStringAsFixed(2),
-                        (v) => _update(() => _window = v)),
+                        _sampleWindow.toStringAsFixed(2),
+                        (v) => _update(() => _sampleWindow = v)),
                     TunerParamSlider(
-                        'responseTau',
-                        _responseTau,
+                        'responseTime',
+                        _responseTime,
                         0,
                         0.6,
-                        _responseTau.toStringAsFixed(2),
-                        (v) => _update(() => _responseTau = v)),
+                        _responseTime.toStringAsFixed(2),
+                        (v) => _update(() => _responseTime = v)),
                   ],
                 ),
               ),
@@ -322,7 +322,7 @@ LiquidGlassNavPillStyle(
           ),
         ),
       ),
-      bottomNavigationBar: LiquidGlassBottomNavBar(
+      bottomNavigationBar: LiquidGlassTabBar(
         width: width - 32,
         selectedIndex: _index,
         onChanged: (i) => setState(() => _index = i),

@@ -7,6 +7,7 @@ import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_touch.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
+import 'package:liquid_glass_easy/src/widgets/components/liquid_glass_shadow.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart';
 
 /// Represents a single lens in the LiquidGlass system, configured
@@ -300,11 +301,28 @@ class LiquidGlassAppearance {
   /// Whether the inner, non-distorted region is transparent.
   final bool enableInnerRadiusTransparent;
 
+  /// Contact shadow around the lens — the soft dark band that hugs its
+  /// rim and pools underneath, so the glass reads as sitting in the page
+  /// rather than floating on it. `null` (the default) draws none.
+  ///
+  /// Honored by [LiquidGlassLens]: the lens wraps itself in the
+  /// [LiquidGlassShadow] this describes (its `child` is ignored), with
+  /// the ring's corner defaulting to the lens shape's own radius. The
+  /// wrap lives *inside* the flex deformation's box, so on a lens with
+  /// [LiquidGlassBehavior.touch] the ring swells, leans and springs back
+  /// with the body instead of staying frozen on the rest silhouette.
+  /// Its `visible` flag composes with the lens's own `visibility`.
+  ///
+  /// Not supported inside a [LiquidGlassBlender]: a merged metaball
+  /// silhouette has no single ring to cast.
+  final LiquidGlassShadow? shadow;
+
   const LiquidGlassAppearance({
     this.saturation = 1.0,
     this.blur = const LiquidGlassBlur(),
     this.color = Colors.transparent,
     this.enableInnerRadiusTransparent = false,
+    this.shadow,
   });
 
   LiquidGlassAppearance copyWith({
@@ -312,6 +330,7 @@ class LiquidGlassAppearance {
     LiquidGlassBlur? blur,
     Color? color,
     bool? enableInnerRadiusTransparent,
+    LiquidGlassShadow? shadow,
   }) {
     return LiquidGlassAppearance(
       saturation: saturation ?? this.saturation,
@@ -319,6 +338,7 @@ class LiquidGlassAppearance {
       color: color ?? this.color,
       enableInnerRadiusTransparent:
           enableInnerRadiusTransparent ?? this.enableInnerRadiusTransparent,
+      shadow: shadow ?? this.shadow,
     );
   }
 }

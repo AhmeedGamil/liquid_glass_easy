@@ -9,7 +9,7 @@ import '../liquid_glass_shadow.dart';
 
 /// Which renderer(s) get the full iOS-26 **glass-refracting** morphing
 /// pill (the dual-pipeline animated bar). See
-/// [LiquidGlassBottomNavBar.glassPill] for how to opt in.
+/// [LiquidGlassTabBar.glassPill] for how to opt in.
 enum LiquidGlassPillMode {
   /// No glass pill — the lightweight single-lens bar (instant, or a
   /// soft sliding highlight with `animated: true`). Works everywhere.
@@ -23,10 +23,10 @@ enum LiquidGlassPillMode {
   both,
 }
 
-/// **Item** group for [LiquidGlassBottomNavBar]: how each tab's icon
+/// **Item** group for [LiquidGlassTabBar]: how each tab's icon
 /// and label render. Defaults mirror the bar's flat parameters, so
 /// swapping APIs is lossless.
-class LiquidGlassNavItemStyle {
+class LiquidGlassTabItemStyle {
   /// Color of the selected item's icon + label.
   final Color selectedColor;
 
@@ -36,8 +36,32 @@ class LiquidGlassNavItemStyle {
   /// Icon size for every item.
   final double iconSize;
 
+  /// Icon size for the item **under the glass** — and only there. `null`
+  /// (the default) keeps [iconSize], so nothing changes unless asked.
+  ///
+  /// This is the **glass's** state, not the selection's: it applies
+  /// while the moving glass pill is over an item — lifted on it,
+  /// dragging across it, sweeping past it mid-travel — and it scales
+  /// with how much of the pill still reads as glass, so as the landed
+  /// pill sheds into the static rest pill the icon glides back down to
+  /// [iconSize] with it instead of popping at the swap. A flat pill is
+  /// not glass: the static rest highlight, the sliding tier's soft
+  /// pill and a hidden pill never enlarge anything — a selected tab
+  /// shows its selection through color and weight alone.
+  ///
+  /// While the pill travels, the layer inside it draws at this size
+  /// while the layer outside stays at [iconSize], so mid-slide the clip
+  /// edge joins two sizes. A modest delta reads as the glass magnifying
+  /// the icon; a large one reads as a seam.
+  final double? underGlassIconSize;
+
   /// Label font size. Labels are only shown for items that provide one.
   final double labelFontSize;
+
+  /// Label font size for the item **under the glass**. `null` (the
+  /// default) keeps [labelFontSize]. Same rules as [underGlassIconSize]:
+  /// the glass's state, not the selection's.
+  final double? underGlassLabelFontSize;
 
   /// Vertical gap between the icon and its label, in logical pixels.
   final double iconLabelGap;
@@ -48,11 +72,13 @@ class LiquidGlassNavItemStyle {
   /// Font weight of unselected items' labels.
   final FontWeight unselectedFontWeight;
 
-  const LiquidGlassNavItemStyle({
+  const LiquidGlassTabItemStyle({
     this.selectedColor = Colors.white,
     this.unselectedColor = Colors.white70,
     this.iconSize = 24,
+    this.underGlassIconSize,
     this.labelFontSize = 10.5,
+    this.underGlassLabelFontSize,
     this.iconLabelGap = 2,
     this.selectedFontWeight = FontWeight.w600,
     this.unselectedFontWeight = FontWeight.w500,
@@ -62,24 +88,45 @@ class LiquidGlassNavItemStyle {
   Color colorFor({required bool selected}) =>
       selected ? selectedColor : unselectedColor;
 
+  /// Resolves the icon size for a cell by how much glass is over it:
+  /// a lerp from the shared [iconSize] (`0`) to [underGlassIconSize]
+  /// (`1`), so the enlargement fades in and out with the glass itself —
+  /// through the landing handover it glides back down instead of
+  /// popping when the static pill takes over. Selection alone never
+  /// changes size.
+  double iconSizeFor({required double underGlass}) =>
+      iconSize + ((underGlassIconSize ?? iconSize) - iconSize) * underGlass;
+
+  /// Resolves the label font size for a cell by how much glass is over
+  /// it — same lerp as [iconSizeFor].
+  double labelFontSizeFor({required double underGlass}) =>
+      labelFontSize +
+      ((underGlassLabelFontSize ?? labelFontSize) - labelFontSize) *
+          underGlass;
+
   /// Resolves the label weight for a cell in [selected] state.
   FontWeight fontWeightFor({required bool selected}) =>
       selected ? selectedFontWeight : unselectedFontWeight;
 
-  LiquidGlassNavItemStyle copyWith({
+  LiquidGlassTabItemStyle copyWith({
     Color? selectedColor,
     Color? unselectedColor,
     double? iconSize,
+    double? underGlassIconSize,
     double? labelFontSize,
+    double? underGlassLabelFontSize,
     double? iconLabelGap,
     FontWeight? selectedFontWeight,
     FontWeight? unselectedFontWeight,
   }) {
-    return LiquidGlassNavItemStyle(
+    return LiquidGlassTabItemStyle(
       selectedColor: selectedColor ?? this.selectedColor,
       unselectedColor: unselectedColor ?? this.unselectedColor,
       iconSize: iconSize ?? this.iconSize,
+      underGlassIconSize: underGlassIconSize ?? this.underGlassIconSize,
       labelFontSize: labelFontSize ?? this.labelFontSize,
+      underGlassLabelFontSize:
+          underGlassLabelFontSize ?? this.underGlassLabelFontSize,
       iconLabelGap: iconLabelGap ?? this.iconLabelGap,
       selectedFontWeight: selectedFontWeight ?? this.selectedFontWeight,
       unselectedFontWeight: unselectedFontWeight ?? this.unselectedFontWeight,
@@ -87,22 +134,61 @@ class LiquidGlassNavItemStyle {
   }
 }
 
-/// **Selection pill** group for [LiquidGlassBottomNavBar]: everything
+/// **Magnifier pill** group for [LiquidGlassTabPillStyle]: the invisible
+/// second pill mounted **under** the moving glass pill on the Impeller
+/// path. It shares the glass pill's silhouette, lift, travel, squash and
+/// shed exactly, but is transparent, unblurred, undistorted, rimless and
+/// shadowless — its one job is to magnify the **bar** seen under the
+/// pill (it sits below the icon shell, so the icons keep their size).
+///
+/// Impeller only: stacked lenses chain there, so the glass pill above
+/// refracts this pill's output. The Skia capture path never mounts it,
+/// whatever these fields say.
+class LiquidGlassTabMagnifierPillStyle {
+  /// Whether the magnifier pill is mounted at all. A feature switch, not
+  /// an animated visibility — when mounted it already appears and
+  /// retires with the glass pill's own show/hide.
+  final bool enabled;
+
+  /// Magnification of the bar seen under the pill. Below `1` the bar
+  /// recedes (reads pushed back); `1` is inert. Ramps in with the
+  /// pill's lift and back out through the landing handover.
+  final double magnification;
+
+  const LiquidGlassTabMagnifierPillStyle({
+    this.enabled = true,
+    this.magnification = 0.87,
+  });
+
+  LiquidGlassTabMagnifierPillStyle copyWith({
+    bool? enabled,
+    double? magnification,
+  }) {
+    return LiquidGlassTabMagnifierPillStyle(
+      enabled: enabled ?? this.enabled,
+      magnification: magnification ?? this.magnification,
+    );
+  }
+}
+
+/// **Selection pill** group for [LiquidGlassTabBar]: everything
 /// about the highlight behind the active tab — its look, whether it
 /// slides, and whether/where it upgrades to the glass-refracting
 /// morphing pill. Defaults mirror the bar's flat parameters, so
 /// swapping APIs is lossless.
 ///
 /// The three tiers, all configured here:
-///  • static highlight — the defaults ([animated] false, [mode] none);
-///  • sliding highlight — [animated] true: the pill slides between tabs
-///    with the iOS-26 icon-reveal, drawn inside the lens (works on
-///    every renderer);
-///  • glass-refracting morphing pill — [mode] other than
-///    [LiquidGlassPillMode.none]: the dual-pipeline pill that refracts
+///  • glass-refracting morphing pill — **the default** ([mode]
+///    [LiquidGlassPillMode.both]): the dual-pipeline pill that refracts
 ///    the bar itself. The `distortion`/`growHeight`/… knobs below apply
-///    to this tier only.
-class LiquidGlassNavPillStyle {
+///    to this tier only. A settled bar costs no shader pass, no clip
+///    and no capture, on either backend.
+///  • sliding highlight — [mode] none + [animated] true: the pill
+///    slides between tabs with the iOS-26 icon-reveal, drawn inside
+///    the lens (works on every renderer);
+///  • static highlight — [mode] none, [animated] false: the flat
+///    instant highlight, the cheapest tier of all.
+class LiquidGlassTabPillStyle {
   /// Which renderer(s) use the glass-refracting morphing pill.
   final LiquidGlassPillMode mode;
 
@@ -126,8 +212,11 @@ class LiquidGlassNavPillStyle {
   /// Blur behind the moving **glass** pill (glass [mode]s only).
   final LiquidGlassBlur blur;
 
-  /// How much taller the glass pill grows than the bar at the peak of a
-  /// transition (glass [mode]s only) — the pill's main size knob.
+  /// How much taller than the bar the glass pill stands while it is
+  /// lifted (glass [mode]s only) — the pill's main size knob.
+  ///
+  /// It inflates to this the instant a tab is tapped, holds it for the
+  /// whole travel, and comes back down once it has landed.
   final double growHeight;
 
   /// Refraction strength of the moving glass pill (glass [mode]s only).
@@ -198,28 +287,22 @@ class LiquidGlassNavPillStyle {
   /// inside the bar capsule and a taller overhang would climb out of it.
   final LiquidGlassLensMotionSpec motion;
 
-  /// Contact shadow around the **moving glass pill** (glass [mode]s only)
-  /// — the soft dark band that hugs its rim and pools underneath, so the
-  /// pill reads as lifted off the bar rather than painted on it. `null`
-  /// (the default) draws none.
-  ///
-  /// It wraps the pill's lens rather than living inside it, so the arc
-  /// below the pill is not clipped off at the outline, and it tracks the
-  /// live outline stretch so the ring stays on the rim while the pill
-  /// squashes. It fades out with the pill at rest.
-  final LiquidGlassShadow? shadow;
+  /// The Impeller-only **magnifier pill** under the moving glass pill —
+  /// see [LiquidGlassTabMagnifierPillStyle]. Defaults to enabled at
+  /// magnification `0.87`.
+  final LiquidGlassTabMagnifierPillStyle magnifierPill;
 
-  const LiquidGlassNavPillStyle({
-    this.mode = LiquidGlassPillMode.none,
+  const LiquidGlassTabPillStyle({
+    this.mode = LiquidGlassPillMode.both,
     this.show = true,
-    this.color = const Color(0x26FFFFFF),
+    this.color = const Color(0x2EAEAEB2),
     this.animated = false,
     this.animationDuration = const Duration(milliseconds: 320),
     this.animationCurve = Curves.easeOutCubic,
     this.blur = const LiquidGlassBlur(),
-    this.growHeight = 12,
-    this.distortion = 0.06,
-    this.distortionWidth = 10,
+    this.growHeight = 9,
+    this.distortion = 0.04,
+    this.distortionWidth = 12,
     this.magnification = 1,
     this.enableInnerRadiusTransparent = false,
     this.shape,
@@ -228,17 +311,26 @@ class LiquidGlassNavPillStyle {
     this.travelStiffness = 280,
     this.travelDamping = 31.4,
     // Tuned for tab-scale travel: the sampling window and response ease of
-    // the motion pill, with the deviation ceiling brought down to ±12 %.
+    // the motion pill, with the deformation ceiling brought down to ±12 %.
     this.motion = const LiquidGlassLensMotionSpec(
-      window: 0.3,
-      coefficient: 0.00007,
-      maxDeviation: 0.12,
-      responseTau: 0.18,
+      sampleWindow: 0.3,
+      sensitivity: 0.00007,
+      maxDeformation: 0.12,
+      responseTime: 0.18,
     ),
-    this.shadow,
+    this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
   });
 
-  LiquidGlassNavPillStyle copyWith({
+  /// The tuned default contact shadow of the moving glass pill — a soft
+  /// ring that spreads past the rim (no inset tuck, a wider blur), so
+  /// the pill reads as floating over the bar. It rides the default-built
+  /// appearance in [effectiveGlass], the same place every lens carries
+  /// its shadow; author [glassStyle] with its own `appearance.shadow` to
+  /// replace it, or with an appearance carrying none to drop it.
+  static const LiquidGlassShadow _defaultShadow =
+      LiquidGlassShadow(blur: 9, opacity: 0.3, inset: 0);
+
+  LiquidGlassTabPillStyle copyWith({
     LiquidGlassPillMode? mode,
     bool? show,
     Color? color,
@@ -257,9 +349,9 @@ class LiquidGlassNavPillStyle {
     double? travelStiffness,
     double? travelDamping,
     LiquidGlassLensMotionSpec? motion,
-    LiquidGlassShadow? shadow,
+    LiquidGlassTabMagnifierPillStyle? magnifierPill,
   }) {
-    return LiquidGlassNavPillStyle(
+    return LiquidGlassTabPillStyle(
       mode: mode ?? this.mode,
       show: show ?? this.show,
       color: color ?? this.color,
@@ -279,22 +371,25 @@ class LiquidGlassNavPillStyle {
       travelStiffness: travelStiffness ?? this.travelStiffness,
       travelDamping: travelDamping ?? this.travelDamping,
       motion: motion ?? this.motion,
-      shadow: shadow ?? this.shadow,
+      magnifierPill: magnifierPill ?? this.magnifierPill,
     );
   }
 
   /// The moving glass pill's resolved look: [glassStyle] when set,
   /// otherwise built from the individual glass-pill fields (preserving the
-  /// shipped defaults — a ~11% white tint and the flat refraction knobs).
+  /// shipped defaults — **pure refraction**: no tint of its own, since over
+  /// glass a fill only flattens the capsule, with a thin-rimmed continuous
+  /// capsule shape and the flat refraction knobs).
   LiquidGlassStyle get effectiveGlass {
     final g = glassStyle;
     return LiquidGlassStyle(
-      shape: g?.shape ?? shape,
+      shape: g?.shape ?? shape ?? const LiquidGlassShape(borderWidth: 0.5),
       appearance: g?.appearance ??
           LiquidGlassAppearance(
-            color: const Color(0x1CFFFFFF), // white, alpha 28
+            color: Colors.transparent,
             blur: blur,
             enableInnerRadiusTransparent: enableInnerRadiusTransparent,
+            shadow: _defaultShadow,
           ),
       refraction: g?.refraction ??
           LiquidGlassRefraction(

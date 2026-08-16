@@ -10,7 +10,7 @@ import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart' show OpticalBorder;
 import '../utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
-import '../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../utils/liquid_glass_lens_motion.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_shadow.dart';
@@ -96,13 +96,19 @@ class LiquidGlassMotionPill extends StatefulWidget {
   final Widget? cover;
 
   /// Contact shadow drawn around the pill — the soft dark band that hugs
-  /// the rim and pools underneath. `null` (the default) draws none.
+  /// the rim and pools underneath.
   ///
-  /// It wraps the lens rather than living inside it, so the half that
-  /// falls BELOW the pill survives instead of being clipped away; the
-  /// pill also hands it the current outline stretch so the ring tracks
-  /// an elliptical cap while the glass is squashed. See
-  /// [LiquidGlassShadow].
+  /// Normally left `null`: the shadow travels with the rest of the look,
+  /// in `style.appearance.shadow`, and this is the override for a caller
+  /// that has to state it apart from the style. `null` on both draws
+  /// none.
+  ///
+  /// Either way it wraps the lens rather than living inside it, so the
+  /// half that falls BELOW the pill survives instead of being clipped
+  /// away; the pill also hands it the current outline stretch so the ring
+  /// tracks an elliptical cap while the glass is squashed. That wrap is
+  /// why the style's shadow is lifted out of the appearance before the
+  /// lens sees it — see [_resolveStyle]. See [LiquidGlassShadow].
   ///
   /// It paints behind the glass, so an opaque [cover] at rest covers the
   /// shadow along with the glass beneath it.
@@ -320,7 +326,8 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     // handed the morph's own corner and the live stretch, so the ring
     // stays on the rim while the pill squashes. It paints BEHIND, so the
     // glass — and the solid cover at rest — sit over it.
-    final LiquidGlassShadow? shadow = widget.shadow;
+    final LiquidGlassShadow? shadow =
+        widget.shadow ?? (widget.style ?? _defaultStyle).appearance.shadow;
     if (shadow != null) {
       pill = LiquidGlassShadow(
         blur: shadow.blur,
@@ -377,7 +384,17 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     final double comp = stretchX > 0 ? 1.0 / stretchX : 1.0;
     return LiquidGlassStyle(
       shape: shape,
-      appearance: base.appearance,
+      // Everything the appearance carries EXCEPT its shadow: that one is
+      // pulled out and wrapped around the lens in build(), so leaving it
+      // here would draw the ring a second time — clipped to the outline,
+      // and without the stretch that keeps it on the rim.
+      appearance: LiquidGlassAppearance(
+        saturation: base.appearance.saturation,
+        blur: base.appearance.blur,
+        color: base.appearance.color,
+        enableInnerRadiusTransparent:
+            base.appearance.enableInnerRadiusTransparent,
+      ),
       refraction: base.refraction.copyWith(
         distortionWidth: base.refraction.distortionWidth * bandScale * comp,
       ),

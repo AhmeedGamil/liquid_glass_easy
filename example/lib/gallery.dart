@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 
 import 'touch_page.dart';
-import 'experimental_switch_page.dart';
+import 'switch_page.dart';
 import 'control_center_page.dart';
-import 'corner_style_page.dart';
 import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
 import 'flex_tuner.dart';
-import 'scaffold_demo.dart';
-import 'scaffold_svg_demo.dart';
-import 'settings_glass_page.dart';
-import 'settings_switcher_page.dart';
+import 'basic_controls_page.dart';
 import 'slider_motion_tuner.dart';
-import 'slider_toggle_page.dart';
-import 'experimental_split_nav_page.dart';
-import 'split_nav_page.dart';
+import 'slider_page.dart';
+import 'tab_bar_page.dart';
+import 'showcases/photos_library_page.dart';
 
 // =============================================================
 // Liquid Glass Easy - example gallery.
@@ -23,9 +19,9 @@ import 'split_nav_page.dart';
 // A home menu that opens each demo as its OWN route, so only one glass
 // capture pipeline is live at a time (kind to the Impeller multi-lens
 // ceiling). The tuner pages write to a shared, in-memory store
-// (TuningStore) whose values flow into the polished demos - tune a
-// control, then record a clean GIF in the real demo. Values are not
-// persisted; they reset to the shipped defaults on restart.
+// (TuningStore) and preview the result on a live control of their own.
+// Values are not persisted; they reset to the shipped defaults on
+// restart.
 //
 // Run it with:  flutter run -t lib/gallery.dart
 // =============================================================
@@ -97,33 +93,12 @@ class HomePage extends StatelessWidget {
       builder: (_) => const ControlCenterPage(),
     ),
     _Destination(
-      title: 'Scaffold + Glass Nav',
-      subtitle: 'Floating glass bottom nav over a music feed',
-      icon: Icons.dashboard_rounded,
-      gradient: const [Color(0xFF7C5CFF), Color(0xFF4B2D7A)],
-      builder: (_) => const ScaffoldDemo(),
-    ),
-    _Destination(
-      title: 'Scaffold + SVG Nav',
-      subtitle: 'The same bar, but every tab glyph is an SVG asset',
-      icon: Icons.image_rounded,
-      gradient: const [Color(0xFF4FB3FF), Color(0xFF7C5CFF)],
-      builder: (_) => const ScaffoldSvgDemo(),
-    ),
-    _Destination(
-      title: 'Split Nav Bar',
-      subtitle: 'Ink-dark tab capsule + a detached search circle',
-      icon: Icons.splitscreen_rounded,
-      gradient: const [Color(0xFFFF3B30), Color(0xFF7A1410)],
-      builder: (_) => const SplitNavPage(),
-    ),
-    _Destination(
-      title: 'Split Nav Bar (direct)',
-      subtitle: 'The same bar on a light page, driving the glass-pill '
-          'engine directly',
-      icon: Icons.tune_rounded,
+      title: 'Tab Bar',
+      subtitle: 'The same bar on a light page: one wide frosted capsule '
+          'with a squashing glass pill',
+      icon: Icons.view_carousel_rounded,
       gradient: const [Color(0xFFFF6B5A), Color(0xFFB3241A)],
-      builder: (_) => const ExperimentalSplitNavPage(),
+      builder: (_) => const TabBarPage(),
     ),
     _Destination(
       title: 'Touch',
@@ -133,53 +108,53 @@ class HomePage extends StatelessWidget {
       builder: (_) => const TouchPage(),
     ),
     _Destination(
-      title: 'Slider & Toggle',
-      subtitle: 'Live glass sliders + switches',
+      title: 'Switch',
+      subtitle: 'Three glass switches whose thumb rides your finger',
       icon: Icons.toggle_on_rounded,
-      gradient: const [Color(0xFF2DD4BF), Color(0xFF0E8C7E)],
-      builder: (_) => const SliderTogglePage(),
-    ),
-    _Destination(
-      title: 'Switches & Sliders',
-      subtitle: 'Sliding-thumb toggles, track sizes, and blue glass sliders',
-      icon: Icons.toggle_on_rounded,
-      gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
-      builder: (_) => const ExperimentalSwitchPage(),
-    ),
-    _Destination(
-      title: 'Settings',
-      subtitle: 'Wide glass buttons fused into one surface, over a gradient',
-      icon: Icons.settings_rounded,
-      gradient: const [Color(0xFF9F7BFF), Color(0xFF4C2FAE)],
-      builder: (_) => const SettingsGlassPage(),
-    ),
-    _Destination(
-      title: 'Settings Switches',
-      subtitle: 'Titled list rows that each end in a glass switch',
-      icon: Icons.toggle_off_rounded,
       gradient: const [Color(0xFF34C759), Color(0xFF1B7A38)],
-      builder: (_) => const SettingsSwitcherPage(),
+      builder: (_) => const SwitchPage(),
     ),
     _Destination(
-      title: 'Corner Styles',
-      subtitle: 'rounded, squircle, continuous - compared',
-      icon: Icons.rounded_corner_rounded,
-      gradient: const [Color(0xFFFF5C8A), Color(0xFFB12A57)],
-      builder: (_) => const CornerStylePage(),
+      title: 'Slider',
+      subtitle: 'Blue glass sliders — the same thumb, carried along a track',
+      icon: Icons.tune_rounded,
+      gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
+      builder: (_) => const SliderPage(),
+    ),
+    _Destination(
+      title: 'Basic Controls',
+      subtitle: 'A single switch and a single slider, on a bare page',
+      icon: Icons.tune_rounded,
+      gradient: const [Color(0xFF8E8E93), Color(0xFF3A3A3C)],
+      builder: (_) => const BasicControlsPage(),
+    ),
+  ];
+
+  /// Whole app screens, rebuilt with the components. Each file under
+  /// `lib/showcases/` is a complete page with its own `main()`, so it
+  /// also runs standalone.
+  static final List<_Destination> _showcases = [
+    _Destination(
+      title: 'Photo Library',
+      subtitle: 'Edge-to-edge photo grid under a glass title bar and a '
+          'split bottom bar',
+      icon: Icons.photo_library_rounded,
+      gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
+      builder: (_) => const PhotosLibraryPage(),
     ),
   ];
 
   static final List<_Destination> _tuners = [
     _Destination(
       title: 'Nav Motion Tuner',
-      subtitle: 'Tune the nav pill motion + bar look -> Scaffold demo',
+      subtitle: 'Tune the nav pill motion + bar look on a live bar',
       icon: Icons.science_rounded,
       gradient: const [Color(0xFFFFB020), Color(0xFFD97A06)],
       builder: (_) => const NavJellyTunerPage(),
     ),
     _Destination(
       title: 'Slider Motion Tuner',
-      subtitle: 'Tune the slider thumb jelly -> Slider & Toggle',
+      subtitle: 'Tune the slider thumb jelly on a live slider',
       icon: Icons.biotech_rounded,
       gradient: const [Color(0xFFB79CFF), Color(0xFF6E4DD8)],
       builder: (_) => const SliderMotionTunerPage(),
@@ -230,6 +205,13 @@ class HomePage extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 26),
+              _SectionLabel('Showcases'),
+              const SizedBox(height: 12),
+              for (final d in _showcases) ...[
+                _DestinationCard(d: d, onTap: () => _open(context, d)),
+                const SizedBox(height: 12),
+              ],
+              const SizedBox(height: 14),
               _SectionLabel('Demos'),
               const SizedBox(height: 12),
               for (final d in _demos) ...[

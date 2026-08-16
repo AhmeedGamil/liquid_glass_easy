@@ -11,17 +11,13 @@
 These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract** the content behind them — recreating the iOS 26 Liquid Glass look with stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
 <p>
+  <img src="showcases/liquid_glass_tab_bar.gif" width="56%" alt="Liquid Glass Tab Bar"/>
+  <img src="showcases/liquid_glass_slider_switch.gif" width="42%" alt="Liquid Glass Slider and Switch"/>
+</p>
+
+<p>
   <img src="showcases/liquid_glass_blending.gif" width="36%" alt="Liquid Glass Blending"/>
-  <img src="showcases/liquid_glass_bottom_nav_bar.gif" width="63%" alt="Liquid Glass Bottom Nav Bar"/>
-</p>
-
-<p>
   <img src="showcases/liquid_glass_flex.gif" width="36%" alt="Liquid Glass Flex — touch deformation"/>
-</p>
-
-<p>
-  <img src="showcases/liquid_glass_slider.gif" width="49%" alt="Liquid Glass Slider"/>
-  <img src="showcases/liquid_glass_toggle.gif" width="49%" alt="Liquid Glass Toggle"/>
 </p>
 
 <p>
@@ -41,10 +37,10 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 |---|---|---|
 | **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with `LiquidGlassStyle`: shape, appearance, refraction. |
 | **Touch** | `LiquidGlassTouch` | How glass answers a finger. Carries `LiquidGlassFlex`: press and it swells, drag and it deforms, release and it springs back. |
-| **Jelly** | `LiquidGlassJelly` | Squash-and-stretch motion driven by a value, tuned by `LiquidGlassJellyConfig` — the physics behind the slider thumb and nav pill. |
+| **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
 | **Blend** | `LiquidGlassBlender` | Merges 2–6 lenses into one surface, joined by a smooth metaball bridge. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
-| **Components** | `LiquidGlassSlider`, `LiquidGlassToggle`, `LiquidGlassButton`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassBottomNavBar`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
+| **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
 
 ---
 
@@ -152,13 +148,12 @@ their own background and work anywhere on both engines.
 | Component | Skia requirement |
 |---|---|
 | `LiquidGlassSlider` | **None** — self-contained, it owns its background. Works anywhere on both engines. |
-| `LiquidGlassToggle` | **None** — refracts its own track. Works anywhere on both engines. |
+| `LiquidGlassSwitch` | **None** — refracts its own track. Works anywhere on both engines. |
 | `LiquidGlassScaffold` | **None** — it *is* the pipeline; its child lenses refract the body on both engines. |
 | `LiquidGlassButton` | Needs an ancestor `LiquidGlassView` (frosted fallback without one). |
 | `LiquidGlassAppBar` | Needs an ancestor `LiquidGlassView`. |
-| `LiquidGlassTabBar` | Needs an ancestor `LiquidGlassView`. |
-| `LiquidGlassBottomNavBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassBottomNavBar.withImpeller(...)`. |
-| `LiquidGlassDraggable`, `LiquidGlassJelly` | Inherit whatever the lens or content they wrap requires. |
+| `LiquidGlassTabBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassTabBar.withImpeller(...)`. |
+| `LiquidGlassDraggable` | Inherits whatever the lens it wraps requires. |
 
 > **Migration note:** the old position-driven lens API (`LiquidGlass`) is
 > **no longer used** — it has been replaced by `LiquidGlassLens`. Write new code
@@ -196,7 +191,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^3.5.0
+  liquid_glass_easy: ^4.0.0
 ```
 
 ```bash
@@ -329,6 +324,7 @@ LiquidGlassStyle({
 | `blur` | `LiquidGlassBlur()` | Blur applied to content beneath the glass. |
 | `saturation` | `1.0` | `1.0` = unchanged, `0.0` = grayscale. |
 | `enableInnerRadiusTransparent` | `false` | Whether the inner, non-distorted region is transparent. |
+| `shadow` | `null` | Contact shadow (`LiquidGlassShadow`) the lens wraps itself in — part of the material, so it travels wherever the style goes. Components take their shadow from here, never as a separate parameter. |
 
 #### `LiquidGlassShape`
 
@@ -487,33 +483,68 @@ ScrollConfiguration(
 ## Drop-in Components
 
 ```dart
-// A glass slider with a jelly thumb that refracts the track.
+// A glass slider — the thumb lifts into clear glass under your finger
+// and deforms from acceleration as it travels.
 LiquidGlassSlider(
   value: volume,
   onChanged: (v) => setState(() => volume = v),
+  width: 320,
 );
 
-// A glass toggle.
-LiquidGlassToggle(
+// A glass switch.
+LiquidGlassSwitch(
   value: wifi,
   activeColor: const Color(0xFF0A84FF),
   onChanged: (v) => setState(() => wifi = v),
+  width: 63,
+  height: 28,
 );
 ```
 
+Both size themselves, so a `SizedBox` around one does nothing — give
+them `width` / `height` instead. Those two are a shorthand for the same
+fields on `layout`, which is where the rest of the geometry lives (the
+thumb's resting and lifted sizes, the track thickness, the end icons).
+
+Both also ship the tuned look out of the box, exposed as
+`LiquidGlassSlider.defaultStyle` / `LiquidGlassSwitch.defaultStyle`: a
+**clear** thumb — refraction and a soft rim, no tint — with a tucked-in
+contact shadow riding `defaultStyle.appearance.shadow`. Change one facet
+without retyping the rest
+(`style: LiquidGlassSlider.defaultStyle.copyWith(refraction: …)`), or
+hand over an appearance carrying no shadow to drop the shadow.
+
 Each component is self-contained and styled through the same
 `LiquidGlassStyle` vocabulary. Other components: `LiquidGlassButton`,
-`LiquidGlassAppBar`, `LiquidGlassBottomNavBar`, `LiquidGlassTabBar`,
-`LiquidGlassScaffold`, `LiquidGlassJelly`.
+`LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassScaffold`.
 
-### Custom icons — SVG, PNG, anything
+### Tab bar — the moving glass pill
 
-Tabs aren't limited to `IconData`. `LiquidGlassTabBarItem.custom` draws its
-glyph through a builder, so any widget works — an `SvgPicture`, an
-`Image`, a `CustomPaint`:
+`LiquidGlassTabBar`'s selection pill is real glass on **every renderer**
+by default: it lifts off the tab the moment you tap, travels on a spring
+— stretching as it launches, squashing as it brakes — and refracts the
+bar's own capsule as it passes. A settled bar costs no shader pass at
+all. The tier is chosen by `LiquidGlassTabPillStyle.mode` (`both` /
+`impellerOnly` / `none`), and the pill's look, motion and contact shadow
+are tuned defaults — the shadow authored, like every lens's, on its glass
+style's `appearance.shadow` (the bar capsule's likewise on the bar
+`style`'s appearance).
+
+The tab **under** the pill is its own state: `underGlassIconSize` and
+`underGlassLabelFontSize` on `LiquidGlassTabItemStyle` let the icon and
+label render bigger while the glass is over them. The enlargement is the
+glass's effect, not the selection's — it rides under the pill for the
+whole travel and glides back down through the landing.
+
+### Custom icons & labels — SVG, PNG, rich text, anything
+
+Tabs aren't limited to `IconData`. Give `LiquidGlassTabBarItem` an
+`iconBuilder` instead of an `icon` and the glyph is drawn through your
+builder, so any widget works — an `SvgPicture`, an `Image`, a
+`CustomPaint`:
 
 ```dart
-LiquidGlassTabBarItem.custom(
+LiquidGlassTabBarItem(
   label: 'Home',
   iconBuilder: (context, i) => SvgPicture.asset(
     i.selected ? 'assets/home_fill.svg' : 'assets/home.svg',
@@ -533,9 +564,38 @@ and calls the builder for each. Multi-colour art can simply ignore the
 colour. `LiquidGlassButton` and `LiquidGlassTabBarAction` take a `child`
 for the same reason.
 
-### Bottom nav bar — standalone with `.withImpeller`
+Labels have the same escape hatch: `labelBuilder` draws the label line
+instead of the plain `Text` — a custom font, rich text, a badge row. It
+receives the already-resolved `textStyle` (color, size, weight) for the
+layer being drawn, so `copyWith` keeps the stock look and changes only
+what you need — and like `iconBuilder` it runs once per rendered layer,
+so a custom label follows the pill's reveal too:
 
-`LiquidGlassBottomNavBar` shows its animated, glass-refracting **morph
+```dart
+LiquidGlassTabBarItem(
+  icon: Icons.inbox_rounded,
+  label: 'Inbox',
+  labelBuilder: (context, l) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(l.text!, style: l.textStyle),
+      const SizedBox(width: 3),
+      Container(
+        width: 6,
+        height: 6,
+        decoration: const BoxDecoration(
+          color: Colors.red,
+          shape: BoxShape.circle,
+        ),
+      ),
+    ],
+  ),
+);
+```
+
+### Tab bar — standalone with `.withImpeller`
+
+`LiquidGlassTabBar` shows its animated, glass-refracting **morph
 selection pill** when it's driven by a `LiquidGlassScaffold`, which owns the
 capture pipeline and hands the bar the page as its background.
 
@@ -548,7 +608,7 @@ over your page:
 Stack(
   children: [
     MyPage(),
-    LiquidGlassBottomNavBar.withImpeller(
+    LiquidGlassTabBar.withImpeller(
       items: items,
       selectedIndex: index,
       onChanged: (i) => setState(() => index = i),

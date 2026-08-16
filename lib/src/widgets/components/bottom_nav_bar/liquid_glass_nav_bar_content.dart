@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/liquid_glass_shape.dart';
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
 import 'liquid_glass_nav_bar_pill.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
 /// Crisp content layer (selection pill + icons + labels + taps)
-/// drawn on top of the [LiquidGlassBottomNavBar] capsule, inside the
+/// drawn on top of the [LiquidGlassTabBar] capsule, inside the
 /// lens `child` so it is clipped to the capsule and stays sharp.
 class BottomNavBarContent extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
@@ -18,7 +18,7 @@ class BottomNavBarContent extends StatelessWidget {
   final Color selectionColor;
 
   /// Icon + label styling for every cell.
-  final LiquidGlassNavItemStyle itemStyle;
+  final LiquidGlassTabItemStyle itemStyle;
 
   /// Corner shape (and optional border) of the selection pill. When
   /// `null`, a plain capsule is used.

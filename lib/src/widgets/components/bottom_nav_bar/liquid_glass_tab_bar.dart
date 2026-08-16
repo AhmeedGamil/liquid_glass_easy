@@ -9,8 +9,7 @@ import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_border_mode.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_shape.dart';
-import '../liquid_glass_shadow.dart';
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_animated_nav_bar.dart';
 import 'liquid_glass_nav_bar_animated_content.dart';
 import 'liquid_glass_nav_bar_content.dart';
@@ -43,16 +42,15 @@ export 'liquid_glass_nav_bar_style.dart';
 /// When [pillStyle]'s `mode` enables the glass-refracting morph pill, a
 /// `LiquidGlassScaffold` swaps in the self-contained dual-pipeline
 /// variant via [buildGlassPillBar].
-class LiquidGlassBottomNavBar extends StatelessWidget {
-  const LiquidGlassBottomNavBar({
+class LiquidGlassTabBar extends StatelessWidget {
+  const LiquidGlassTabBar({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.onChanged,
-    this.itemStyle = const LiquidGlassNavItemStyle(),
-    this.pillStyle = const LiquidGlassNavPillStyle(),
+    this.itemStyle = const LiquidGlassTabItemStyle(),
+    this.pillStyle = const LiquidGlassTabPillStyle(),
     this.style,
-    this.shadow,
     this.visibility = true,
     this.width = 300,
     this.height = 64,
@@ -76,7 +74,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   /// ```dart
   /// Stack(children: [
   ///   myPage,
-  ///   LiquidGlassBottomNavBar.withImpeller(
+  ///   LiquidGlassTabBar.withImpeller(
   ///     items: items, selectedIndex: i, onChanged: (v) => setState(...),
   ///   ),
   /// ])
@@ -89,15 +87,14 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   /// positioned at the bottom), not a black capture. For the refracting
   /// morph pill on Skia, use `LiquidGlassScaffold` / [buildGlassPillBar]
   /// with a real `body`.
-  const LiquidGlassBottomNavBar.withImpeller({
+  const LiquidGlassTabBar.withImpeller({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.onChanged,
-    this.itemStyle = const LiquidGlassNavItemStyle(),
-    this.pillStyle = const LiquidGlassNavPillStyle(),
+    this.itemStyle = const LiquidGlassTabItemStyle(),
+    this.pillStyle = const LiquidGlassTabPillStyle(),
     this.style,
-    this.shadow,
     this.visibility = true,
     this.width = 300,
     this.height = 64,
@@ -109,7 +106,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
 
-  /// True when built via [LiquidGlassBottomNavBar.withImpeller]: render
+  /// True when built via [LiquidGlassTabBar.withImpeller]: render
   /// the bodyless Impeller morph-pill overlay from [build] instead of the
   /// single-lens capsule. Internal.
   final bool _impellerStandalone;
@@ -124,33 +121,20 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   final ValueChanged<int> onChanged;
 
   /// Icon + label styling of the tabs (colors, icon size, label font).
-  final LiquidGlassNavItemStyle itemStyle;
+  final LiquidGlassTabItemStyle itemStyle;
 
   /// Everything about the selection pill — highlight look, slide
   /// animation, and the glass-refracting morph mode.
-  final LiquidGlassNavPillStyle pillStyle;
+  final LiquidGlassTabPillStyle pillStyle;
 
   /// The **bar capsule**'s look as one [LiquidGlassStyle] (shape +
   /// appearance + refraction), taken as the complete look. When `null` the
   /// tuned [defaultStyle] (full-pill optical-border shape, faint white
   /// tint, default refraction) is used. To keep the tuned default but
   /// change a single facet, compose with `copyWith`, e.g.
-  /// `LiquidGlassBottomNavBar.defaultStyle.copyWith(shape: …)`. Honored by
+  /// `LiquidGlassTabBar.defaultStyle.copyWith(shape: …)`. Honored by
   /// both the plain and glass-pill bars.
   final LiquidGlassStyle? style;
-
-  /// Contact shadow around the **bar capsule** — the soft dark band that
-  /// hugs its rim and pools underneath, so the bar reads as sitting in the
-  /// page rather than floating on it. `null` (the default) draws none, and
-  /// its corner follows the capsule's shape when [LiquidGlassShadow.cornerRadius]
-  /// is left null.
-  ///
-  /// Honored by every tier. On the glass-pill bar it is drawn into the
-  /// inner stack, so it lands inside the moving pill's capture and the
-  /// pill refracts the bar's own shadow; on the plain single-lens bar it
-  /// wraps the capsule lens, painting behind the glass. It follows
-  /// [visibility] either way.
-  final LiquidGlassShadow? shadow;
 
   /// Whether the bar is shown; toggling animates the glass in/out.
   final bool visibility;
@@ -186,7 +170,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   /// height-tracking full-pill optical-border shape when [style] supplies
   /// no shape. Compose with `copyWith` to tweak one facet while keeping
   /// the rest of the tuned look, e.g.
-  /// `style: LiquidGlassBottomNavBar.defaultStyle.copyWith(shape: …)`.
+  /// `style: LiquidGlassTabBar.defaultStyle.copyWith(shape: …)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
     appearance: LiquidGlassAppearance(
       color: Color(0x16FFFFFF), // white, alpha 22
@@ -204,7 +188,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
 
   /// Geometry derived from this bar's size/margins, used by the animated
   /// glass variant.
-  LiquidGlassBottomNavBarLayout get navLayout => LiquidGlassBottomNavBarLayout(
+  LiquidGlassTabBarLayout get navLayout => LiquidGlassTabBarLayout(
         itemCount: items.length,
         width: width,
         height: height,
@@ -248,7 +232,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
     bool outerNeedsRealtime = false,
   }) {
     final base = navLayout;
-    final layout = LiquidGlassBottomNavBarLayout(
+    final layout = LiquidGlassTabBarLayout(
       itemCount: base.itemCount,
       width: base.width,
       height: base.height,
@@ -276,7 +260,9 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       barShape: barStyle.shape,
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
-      barShadow: shadow,
+      // The bar capsule's contact shadow rides its style's appearance —
+      // the same place every lens carries one.
+      barShadow: barStyle.appearance.shadow,
       pillBlur: glassStyle.appearance.blur,
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
@@ -284,11 +270,12 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
       pillEnableInnerRadiusTransparent:
           glassStyle.appearance.enableInnerRadiusTransparent,
       pillShape: glassStyle.shape,
-      pillShadow: pillStyle.shadow,
+      pillShadow: glassStyle.appearance.shadow,
       restStyle: restStyle,
       travelStiffness: pillStyle.travelStiffness,
       travelDamping: pillStyle.travelDamping,
       motion: pillStyle.motion,
+      magnifierPill: pillStyle.magnifierPill,
       pixelRatio: pixelRatio,
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
@@ -321,12 +308,12 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
   ///
   /// To tweak a single facet while keeping the rest of the tuned look,
   /// compose from the default rather than passing a bare style, e.g.
-  /// `style: LiquidGlassBottomNavBar.defaultStyle.copyWith(shape: …)`.
+  /// `style: LiquidGlassTabBar.defaultStyle.copyWith(shape: …)`.
   LiquidGlassStyle get effectiveBarStyle => defaultStyle.merge(style);
 
   @override
   Widget build(BuildContext context) {
-    // Bodyless Impeller path (LiquidGlassBottomNavBar.withImpeller).
+    // Bodyless Impeller path (LiquidGlassTabBar.withImpeller).
     if (_impellerStandalone) {
       // Impeller: the self-contained morph-pill bar over an empty,
       // transparent body. The pill samples the LIVE backdrop (the page
@@ -368,7 +355,7 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
 
   /// The plain frosted single-lens bar (icons + selection highlight inside
   /// one [LiquidGlassLens]). The default render path, and the Skia/Web
-  /// fallback for [LiquidGlassBottomNavBar.withImpeller].
+  /// fallback for [LiquidGlassTabBar.withImpeller].
   Widget _buildPlainBar(BuildContext context) {
     final barStyle = effectiveBarStyle;
     final LiquidGlassShape effectiveShape = barStyle.shape ??
@@ -412,7 +399,10 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
             pillShape: restStyle.shape,
           );
 
-    final Widget bar = SizedBox(
+    // The bar's contact shadow rides the lens's appearance
+    // (`appearance.shadow`): the lens wraps itself in the ring, painting
+    // it behind the glass and composing its visibility with the bar's.
+    return SizedBox(
       width: width,
       height: height,
       child: LiquidGlassLens(
@@ -424,22 +414,6 @@ class LiquidGlassBottomNavBar extends StatelessWidget {
         visibility: visibility,
         child: content,
       ),
-    );
-
-    final LiquidGlassShadow? s = shadow;
-    if (s == null) return bar;
-    // Wrapping the lens rather than going inside it: the ring paints
-    // behind the glass (so the capsule sits over its own shadow) and is
-    // unclipped, so the arc that pools below the bar survives.
-    return LiquidGlassShadow(
-      blur: s.blur,
-      opacity: s.opacity,
-      color: s.color,
-      offset: s.offset,
-      cornerRadius: s.cornerRadius ?? effectiveShape.cornerRadius,
-      inset: s.inset,
-      visible: s.visible && visibility,
-      child: bar,
     );
   }
 }

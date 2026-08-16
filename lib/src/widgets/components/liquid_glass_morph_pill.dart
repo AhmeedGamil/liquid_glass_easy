@@ -133,12 +133,47 @@ LiquidGlass buildLiquidGlassMorphPill({
   Widget? child,
 }) {
   final h = spec.restHeight + extraHeight;
+  final LiquidGlassStyle resolved = resolveLiquidGlassMorphPillStyle(
+    height: h,
+    style: style,
+    defaultCornerStyle: defaultCornerStyle,
+    defaultBorderWidth: defaultBorderWidth,
+    refractionWidthScale: refractionWidthScale,
+  );
+  return LiquidGlass(
+    child: child,
+    geometry: LiquidGlassGeometry(
+      position: LiquidGlassOffsetPosition(
+        left: left,
+        bottom: bottom - extraHeight / 2,
+      ),
+      width: spec.width,
+      height: h,
+    ),
+    shape: resolved.shape!,
+    refraction: resolved.refraction,
+    appearance: resolved.appearance,
+  );
+}
+
+/// Resolves the morph pill's material at its current [height] — the
+/// same shape/refraction/appearance resolution [buildLiquidGlassMorphPill]
+/// applies, exposed on its own for hosts that render the pill as a
+/// layout-driven [LiquidGlassLens] instead of a positioned config.
+LiquidGlassStyle resolveLiquidGlassMorphPillStyle({
+  required double height,
+  LiquidGlassStyle? style,
+  LiquidGlassCornerStyle defaultCornerStyle =
+      LiquidGlassCornerStyle.roundedRectangle,
+  double defaultBorderWidth = 1.0,
+  double refractionWidthScale = 1.0,
+}) {
   // The pill morphs as it grows, so without an explicit shape it stays a
   // height-tracking capsule. A caller-supplied style.shape is honored.
   final LiquidGlassShape shape = style?.shape ??
       LiquidGlassShape(
         cornerStyle: defaultCornerStyle,
-        cornerRadius: h / 2,
+        cornerRadius: height / 2,
         borderWidth: defaultBorderWidth,
         lightIntensity: 1.3,
         lightDirection: 80,
@@ -172,19 +207,10 @@ LiquidGlass buildLiquidGlassMorphPill({
         color: Colors.white.withAlpha(28),
         blur: const LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
       );
-  return LiquidGlass(
-    child: child,
-    geometry: LiquidGlassGeometry(
-      position: LiquidGlassOffsetPosition(
-        left: left,
-        bottom: bottom - extraHeight / 2,
-      ),
-      width: spec.width,
-      height: h,
-    ),
+  return LiquidGlassStyle(
     shape: shape,
-    refraction: refraction,
     appearance: appearance,
+    refraction: refraction,
   );
 }
 

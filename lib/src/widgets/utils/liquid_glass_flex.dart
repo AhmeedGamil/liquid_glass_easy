@@ -5,7 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 
 import '../liquid_glass_config.dart';
-import 'liquid_glass_jelly_spring.dart';
+import 'liquid_glass_spring.dart';
 import 'liquid_glass_refraction_type.dart';
 
 /// Touch-driven **soft-body deformation** for a lens that does not move.

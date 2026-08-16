@@ -6,21 +6,22 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../controllers/liquid_glass_view_controller.dart';
+import '../../lens/liquid_glass_lens.dart';
 import '../../liquid_glass.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
 import '../../utils/liquid_glass_blur.dart' show LiquidGlassBlur;
 import '../../utils/liquid_glass_eager_pan.dart';
-import '../../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_morph_pill.dart';
 import '../liquid_glass_shadow.dart';
-import 'liquid_glass_toggle_layout.dart';
-import 'liquid_glass_toggle_track.dart';
+import 'liquid_glass_switch_layout.dart';
+import 'liquid_glass_switch_track.dart';
 
-export 'liquid_glass_toggle_layout.dart';
-export 'liquid_glass_toggle_track.dart';
+export 'liquid_glass_switch_layout.dart';
+export 'liquid_glass_switch_track.dart';
 
 /// A drop-in liquid-glass switch, in the sliding style where the thumb
 /// is picked up and carried rather than snapped between two ends.
@@ -38,7 +39,7 @@ export 'liquid_glass_toggle_track.dart';
 ///  * **The thumb rides the finger 1:1**, relative to where it was at
 ///    touch-down, with a `sqrt(overrun)` rubber band past the two
 ///    resting positions, saturating at
-///    [LiquidGlassToggleLayout.overshootRoom] — the room the capture view
+///    [LiquidGlassSwitchLayout.overshootRoom] — the room the capture view
 ///    actually reserves, which an unbounded `sqrt` would spend under a
 ///    mouse. The track never deforms — the give is all in the thumb's
 ///    overshoot.
@@ -58,7 +59,7 @@ export 'liquid_glass_toggle_track.dart';
 ///    without ever expanding the thumb.
 ///
 /// ```dart
-/// LiquidGlassToggle(
+/// LiquidGlassSwitch(
 ///   value: _on,
 ///   onChanged: (v) => setState(() => _on = v),
 ///   activeColor: const Color(0xFF34C759),
@@ -73,25 +74,31 @@ export 'liquid_glass_toggle_track.dart';
 /// the overhang refracts the live backdrop directly.
 ///
 /// ## Sizing
-/// Every measurement lives on [layout] — a [LiquidGlassToggleLayout]
-/// giving the track's width and height, the thumb's resting size and the
-/// size it swells to. The resting positions, the travel, the rubber
-/// band's limits and the capture view are all derived from those, so
-/// resizing the track is a one-line change:
+/// The track's two sizes are parameters here:
 ///
 /// ```dart
-/// LiquidGlassToggle(
+/// LiquidGlassSwitch(
 ///   value: _on,
 ///   onChanged: (v) => setState(() => _on = v),
-///   layout: const LiquidGlassToggleLayout(width: 84, height: 38),
+///   width: 84,
+///   height: 38,
 /// )
 /// ```
+///
+/// They size the **track**, not the thumb. For the whole switch in
+/// proportion, scale the layout — `layout: const LiquidGlassSwitchLayout()
+/// .scaled(1.4)` — and for anything finer, state it on [layout]
+/// outright: a [LiquidGlassSwitchLayout] carries the track's width and
+/// height, the thumb's resting size and the size it swells to. The
+/// resting positions, the travel, the rubber band's limits and the
+/// capture view are all derived from those. [width] and [height] are a
+/// shorthand for the layout's own two fields and win over them.
 ///
 /// The control's layout footprint is the track alone (63×28 by default)
 /// while the glass painted around it is larger: the expanded thumb and
 /// its bounce overflow the footprint deliberately and are not clipped to
 /// it. See [reserveSwellRoom] if an ancestor clips.
-class LiquidGlassToggle extends StatefulWidget {
+class LiquidGlassSwitch extends StatefulWidget {
   /// Whether the switch is on.
   final bool value;
 
@@ -108,24 +115,45 @@ class LiquidGlassToggle extends StatefulWidget {
   /// Color of the contracted rest thumb.
   final Color thumbColor;
 
+  /// Width of the track — the capsule the thumb rides along, and the
+  /// control's layout footprint.
+  ///
+  /// The size most callers want, so it sits here rather than only on
+  /// [LiquidGlassSwitchLayout.width] — it is a shorthand for exactly that
+  /// field and wins over it when both are given. `null` (the default)
+  /// leaves the layout in charge. Widening the track lengthens the
+  /// travel; it does not resize the thumb.
+  final double? width;
+
+  /// Height of the track. The track is always a capsule, so its corner
+  /// radius is half of this.
+  ///
+  /// A shorthand for [LiquidGlassSwitchLayout.height], and wins over it.
+  ///
+  /// It sizes the **track**, not the thumb — the thumb is a separate
+  /// tuned pair (rest and held), and a track shortened past it leaves the
+  /// handle overhanging. To resize the whole switch in proportion, scale
+  /// the layout instead: `layout: const LiquidGlassSwitchLayout()
+  /// .scaled(1.4)`.
+  final double? height;
+
   /// Size of the track and of the thumb that rides it. Defaults to the
   /// iOS-26 63×28 capsule; everything else — the resting positions, the
   /// travel, the rubber band, the capture view — is derived from it.
-  final LiquidGlassToggleLayout layout;
+  /// [width] and [height] override the two same-named fields on it;
+  /// everything else is only settable here.
+  final LiquidGlassSwitchLayout layout;
 
-  /// Glass look of the expanded thumb; null keeps the tuned default —
-  /// a clear pill, refraction and rim only, with no tint washing over
-  /// what it magnifies.
-  final LiquidGlassStyle? style;
-
-  /// Contact shadow around the thumb — the soft dark band that hugs its
-  /// rim and pools underneath. `null` (the default) draws none.
+  /// Glass look of the expanded thumb, its contact shadow included;
+  /// `null` keeps [defaultStyle]. To change one facet and keep the rest,
+  /// compose from it:
+  /// `LiquidGlassSwitch.defaultStyle.copyWith(refraction: …)`.
   ///
-  /// It **arrives with the glass**: its strength is tied to the morph, so
-  /// the solid rest pill wears nothing and the shadow fades up as the
-  /// thumb becomes a glass pill under your finger. It is also painted
-  /// beneath the thumb, so the glass sits over its own shadow.
-  final LiquidGlassShadow? shadow;
+  /// The shadow lives in `appearance.shadow` — retune it with
+  /// `defaultStyle.copyWith(appearance: defaultStyle.appearance.copyWith(
+  /// shadow: …))`, or drop it by handing over an appearance that carries
+  /// none.
+  final LiquidGlassStyle? style;
 
   /// Whether to claim layout space for the thumb's swell.
   ///
@@ -134,7 +162,7 @@ class LiquidGlassToggle extends StatefulWidget {
   /// ancestor (a `ClipRRect`, a `Card`, a scroll view with
   /// `clipBehavior` on) cuts the swell off at the track's edge. Set this
   /// to `true` in that case: the switch then measures
-  /// [LiquidGlassToggleLayout.viewWidth] × `viewHeight`, large enough to
+  /// [LiquidGlassSwitchLayout.viewWidth] × `viewHeight`, large enough to
   /// contain the swell and the rubber band's overrun.
   final bool reserveSwellRoom;
 
@@ -142,25 +170,74 @@ class LiquidGlassToggle extends StatefulWidget {
   /// less for cheaper captures, `0.0` for the device pixel ratio.
   final double pixelRatio;
 
-  const LiquidGlassToggle({
+  const LiquidGlassSwitch({
     super.key,
     required this.value,
     required this.onChanged,
     this.activeColor = const Color(0xFF34C759),
     this.inactiveColor = const Color(0x4C787880),
     this.thumbColor = Colors.white,
-    this.layout = const LiquidGlassToggleLayout(),
+    this.width,
+    this.height,
+    this.layout = const LiquidGlassSwitchLayout(),
     this.style,
-    this.shadow,
     this.reserveSwellRoom = false,
     this.pixelRatio = 1.0,
   });
 
+  /// The tuned default thumb glass: a clear pill — refraction and rim
+  /// only, no tint. The glass shows what is behind it rather than
+  /// washing over it, so the solid body, not a milky fill, is what reads
+  /// as the thumb.
+  ///
+  /// The blur is deliberately near-zero: at thumb size the refraction
+  /// reads sharper over a photo without one.
+  ///
+  /// The contact shadow is tucked in (`inset: 3`), so the glass overhangs
+  /// it — at thumb size a full-width halo reads as a glow rather than as
+  /// contact. It **arrives with the glass**: its strength is tied to the
+  /// morph, so the solid rest pill wears nothing and the shadow fades up
+  /// as the thumb becomes a glass pill under your finger. It is painted
+  /// beneath the thumb, so the glass sits over its own shadow.
+  static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
+    shape: LiquidGlassShape.continuousRoundedRectangle(
+      lightDirection: 39,
+      // The rim's glint sits between gray and white rather than at pure
+      // white, which reads softer on pale backgrounds.
+      lightColor: Color(0xB2C8C8C8),
+    ),
+    appearance: LiquidGlassAppearance(
+      color: Color(0x00FFFFFF),
+      blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
+      shadow: LiquidGlassShadow(inset: 3),
+    ),
+    refraction: LiquidGlassRefraction(
+      distortion: 0.12,
+      distortionWidth: 13,
+      chromaticAberration: 0.002,
+    ),
+  );
+
   @override
-  State<LiquidGlassToggle> createState() => _LiquidGlassToggleState();
+  State<LiquidGlassSwitch> createState() => _LiquidGlassSwitchState();
 }
 
-class _LiquidGlassToggleState extends State<LiquidGlassToggle>
+/// [base] wearing [shadow] — including `null`, which `copyWith` cannot
+/// express (it reads a null argument as "keep the old one").
+LiquidGlassAppearance _withShadow(
+  LiquidGlassAppearance base,
+  LiquidGlassShadow? shadow,
+) {
+  return LiquidGlassAppearance(
+    saturation: base.saturation,
+    blur: base.blur,
+    color: base.color,
+    enableInnerRadiusTransparent: base.enableInnerRadiusTransparent,
+    shadow: shadow,
+  );
+}
+
+class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
     with TickerProviderStateMixin {
   static const double _tapTimeThreshold = 0.15; // seconds
   static const double _edgeToggleThreshold = 5; // px
@@ -173,21 +250,6 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
   static const double _expandStiffness = 826, _expandDamping = 34.5; // .4 ζ.6
   static const double _contractStiffness = 270, _contractDamping = 23; // .6 ζ.7
   static const double _positionStiffness = 339, _positionDamping = 36.8; // .5 ζ1
-
-  /// A clear pill: rim and refraction, no tint. The glass shows what is
-  /// behind it rather than washing over it, so the solid body — not a
-  /// milky fill — is what reads as the thumb.
-  static const LiquidGlassStyle _clearStyle = LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      color: Color(0x00FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.12,
-      distortionWidth: 14,
-      chromaticAberration: 0.002,
-    ),
-  );
 
   /// The one shape every **non-glass** surface wears: the track capsule, the
   /// shrunken copy of it behind the lens, and the solid rest pill. They are
@@ -249,7 +311,18 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
   Duration? _tickerLast;
 
   // ── Geometry, all read off the layout ─────────────────────────────
-  LiquidGlassToggleLayout get _l => widget.layout;
+
+  /// The geometry actually in force: [LiquidGlassSwitch.layout] with the
+  /// widget's own [LiquidGlassSwitch.width] / [LiquidGlassSwitch.height]
+  /// folded in. Held rather than recomputed, since every getter below
+  /// reads it many times a frame.
+  late LiquidGlassSwitchLayout _l = _resolveLayout();
+
+  LiquidGlassSwitchLayout _resolveLayout() =>
+      (widget.width == null && widget.height == null)
+          ? widget.layout
+          : widget.layout.copyWith(width: widget.width, height: widget.height);
+
   double get _minThumbCX => _l.minThumbCenterX;
   double get _maxThumbCX => _l.maxThumbCenterX;
 
@@ -270,8 +343,15 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
   }
 
   @override
-  void didUpdateWidget(LiquidGlassToggle oldWidget) {
+  void didUpdateWidget(LiquidGlassSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // The resting positions the "did it resize?" test below compares
+    // against, taken before the layout is refreshed — read off
+    // `oldWidget.layout` they would ignore a `width:`/`height:` set on
+    // the widget itself.
+    final double oldMinCX = _l.minThumbCenterX;
+    final double oldMaxCX = _l.maxThumbCenterX;
+    _l = _resolveLayout();
     // A parent echoing back our own onChanged arrives with
     // widget.value == _isOn and must be a no-op. A genuinely external
     // change animates like a programmatic set: glide and
@@ -285,8 +365,7 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
     // at rest would be stranded at the old one. Idle, it is placed at
     // the new position outright; mid-gesture the finger still owns it
     // and only the spring's destination is refreshed.
-    final resized = oldWidget.layout.minThumbCenterX != _minThumbCX ||
-        oldWidget.layout.maxThumbCenterX != _maxThumbCX;
+    final resized = oldMinCX != _minThumbCX || oldMaxCX != _maxThumbCX;
     if (resized && !_pointerDown) {
       if (_thumbSpringTarget == null) {
         _thumbCX = _targetThumbCX;
@@ -529,13 +608,15 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
     final pillH =
         l.thumbHeight + (l.expandedThumbHeight - l.thumbHeight) * _morph;
     final restOpacity = (1.0 - _morph).clamp(0.0, 1.0);
-    final LiquidGlassShadow? shadow = widget.shadow;
+    final LiquidGlassStyle pillStyle =
+        widget.style ?? LiquidGlassSwitch.defaultStyle;
+    final LiquidGlassShadow? shadow = pillStyle.appearance.shadow;
 
     // The pill's outline, resolved the same way `buildLiquidGlassMorphPill`
     // resolves it below. Three things have to agree on it: the glass, the
     // solid rest pill riding on top of the glass, and the hole the track
     // cuts underneath — so it is derived once, here.
-    final LiquidGlassShape? styleShape = (widget.style ?? _clearStyle).shape;
+    final LiquidGlassShape? styleShape = pillStyle.shape;
     final LiquidGlassCornerStyle pillCorner =
         styleShape?.cornerStyle ?? LiquidGlassCornerStyle.roundedRectangle;
     final double pillRadius = styleShape?.cornerRadius ?? pillH / 2;
@@ -570,7 +651,7 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
                 duration: const Duration(milliseconds: 250),
                 curve: Curves.easeInOut,
                 tween: Tween<double>(end: _isOn ? 1.0 : 0.0),
-                builder: (context, t, _) => LiquidGlassToggleTrack(
+                builder: (context, t, _) => LiquidGlassSwitchTrack(
                   key: _trackKey,
                   value: _isOn,
                   layout: l,
@@ -597,74 +678,84 @@ class _LiquidGlassToggleState extends State<LiquidGlassToggle>
             ),
           ],
         ),
-        children: [
-          buildLiquidGlassMorphPill(
-            spec: LiquidGlassMorphPillSpec(
+        children: const [],
+        // The thumb is a layout-driven [LiquidGlassLens] in the view's
+        // child slot: on Skia it refracts this view's captured track, on
+        // Impeller the live backdrop — same material resolution the
+        // classic morph-pill config applied, via
+        // [resolveLiquidGlassMorphPillStyle]. Its contact shadow rides
+        // the lens's `appearance.shadow` (the ring paints behind the
+        // glass, above the captured track), still faded with the morph
+        // so only the glass pill ever casts one.
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Positioned(
+              left: padX + _thumbCX - pillW / 2,
+              bottom: (viewHeight - pillH) / 2,
               width: pillW,
-              restHeight: pillH,
-              extraHeight: 0,
-              restRadius: pillH / 2,
-            ),
-            left: padX + _thumbCX - pillW / 2,
-            bottom: (viewHeight - pillH) / 2,
-            extraHeight: 0,
-            style: widget.style ?? _clearStyle,
-            // Keep the refraction band proportional while the pill
-            // is below its full (expanded) size.
-            refractionWidthScale:
-                (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
-            defaultCornerStyle: LiquidGlassCornerStyle.roundedRectangle,
-            defaultBorderWidth: 0.6,
-            // The contracted rest pill rides on top of the glass
-            // and fades with the morph; the whole control is one
-            // gesture surface, so it takes no pointers.
-            child: IgnorePointer(
-              child: Opacity(
-                opacity: restOpacity,
-                // Cut to the shared surface corner, not a capsule of its
-                // own: the families have to agree or the fill shows a gap
-                // at the caps against the glass beneath it. The radius is
-                // still the pill's, since this fills the pill's rect —
-                // only the family is shared.
-                child: liquidGlassClip(
-                  shape: LiquidGlassShape(
-                    cornerStyle: _surfaceCorner,
-                    cornerRadius: pillRadius,
-                    clipQuality: LiquidGlassClipQuality.exact,
+              height: pillH,
+              child: LiquidGlassLens(
+                honorBackdropAlpha: true,
+                style: () {
+                  final LiquidGlassStyle resolved =
+                      resolveLiquidGlassMorphPillStyle(
+                    height: pillH,
+                    style: pillStyle,
+                    // Keep the refraction band proportional while the pill
+                    // is below its full (expanded) size.
+                    refractionWidthScale:
+                        (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
+                    defaultCornerStyle: LiquidGlassCornerStyle.roundedRectangle,
+                    defaultBorderWidth: 0.6,
+                  );
+                  // Re-stated at every morph step rather than carried
+                  // through: the shadow arrives WITH the glass, so at rest
+                  // the one the style carries is taken back off and above
+                  // rest it is re-made at morph strength.
+                  final LiquidGlassShadow? atMorph =
+                      (shadow == null || _morph <= 0.001)
+                          ? null
+                          : LiquidGlassShadow(
+                              blur: shadow.blur,
+                              opacity: shadow.opacity * _morph,
+                              color: shadow.color,
+                              offset: shadow.offset,
+                              cornerRadius: shadow.cornerRadius ?? pillH / 2,
+                              inset: shadow.inset,
+                              visible: shadow.visible,
+                            );
+                  return LiquidGlassStyle(
+                    shape: resolved.shape,
+                    appearance: _withShadow(resolved.appearance, atMorph),
+                    refraction: resolved.refraction,
+                  );
+                }(),
+                // The contracted rest pill rides on top of the glass
+                // and fades with the morph; the whole control is one
+                // gesture surface, so it takes no pointers.
+                child: IgnorePointer(
+                  child: Opacity(
+                    opacity: restOpacity,
+                    // Cut to the shared surface corner, not a capsule of its
+                    // own: the families have to agree or the fill shows a gap
+                    // at the caps against the glass beneath it. The radius is
+                    // still the pill's, since this fills the pill's rect —
+                    // only the family is shared.
+                    child: liquidGlassClip(
+                      shape: LiquidGlassShape(
+                        cornerStyle: _surfaceCorner,
+                        cornerRadius: pillRadius,
+                        clipQuality: LiquidGlassClipQuality.exact,
+                      ),
+                      child: ColoredBox(color: widget.thumbColor),
+                    ),
                   ),
-                  child: ColoredBox(color: widget.thumbColor),
                 ),
               ),
             ),
-          ),
-        ],
-        // Beneath the thumb lens, above the captured track: the
-        // contact shadow, faded in with the morph so only the glass
-        // pill ever casts one.
-        child: shadow == null || _morph <= 0.001
-            ? null
-            : Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned(
-                    left: padX + _thumbCX - pillW / 2,
-                    bottom: (viewHeight - pillH) / 2,
-                    width: pillW,
-                    height: pillH,
-                    child: IgnorePointer(
-                      child: LiquidGlassShadow(
-                        blur: shadow.blur,
-                        opacity: shadow.opacity * _morph,
-                        color: shadow.color,
-                        offset: shadow.offset,
-                        cornerRadius: shadow.cornerRadius ?? pillH / 2,
-                        inset: shadow.inset,
-                        visible: shadow.visible,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+          ],
+        ),
       ),
     );
 

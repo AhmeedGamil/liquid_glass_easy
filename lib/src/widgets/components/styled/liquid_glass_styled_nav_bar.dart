@@ -32,10 +32,13 @@ import '../../utils/liquid_glass_border_mode.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../bottom_nav_bar/liquid_glass_nav_bar_layout.dart'
-    show LiquidGlassBottomNavBarLayout;
+    show LiquidGlassTabBarLayout;
 import '../liquid_glass_morph_pill.dart' show liquidGlassMorphEnvelope;
-import '../liquid_glass_tab_bar.dart'
-    show LiquidGlassTabBarItem, buildLiquidGlassNavGlyph;
+import '../liquid_glass_tab_item.dart'
+    show
+        LiquidGlassTabBarItem,
+        buildLiquidGlassNavGlyph,
+        buildLiquidGlassNavLabel;
 import 'liquid_glass_styles.dart';
 
 /// Self-contained, drop-in **styled** animated liquid-glass bottom nav bar —
@@ -57,7 +60,7 @@ import 'liquid_glass_styles.dart';
 ///   items: items,
 ///   selectedIndex: index,
 ///   onChanged: (i) => setState(() => index = i),
-///   layout: LiquidGlassBottomNavBarLayout(itemCount: items.length, width: 300),
+///   layout: LiquidGlassTabBarLayout(itemCount: items.length, width: 300),
 ///   refraction: const LiquidGlassRefraction(distortion: 0.10), // override
 ///   // appearance / shape left null -> bar defaults are used
 ///   itemStyle: const LiquidGlassNavBarItemStyle(),
@@ -72,7 +75,7 @@ class LiquidGlassStyledNavBar extends StatefulWidget {
 
   /// Bar geometry (size, position, padding). The bottom margin should
   /// already include any safe-area inset.
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
 
   /// Lenses composited in the **outer** view, above the bar (app bar, side
   /// action, extra glass).
@@ -104,7 +107,7 @@ class LiquidGlassStyledNavBar extends StatefulWidget {
   final LiquidGlassMotion motion;
 
   /// The moving glass pill's look + size.
-  final LiquidGlassNavPillStyle pill;
+  final LiquidGlassTabPillStyle pill;
 
   /// Capture/render pipeline settings forwarded to both internal views.
   final LiquidGlassRenderConfig render;
@@ -124,7 +127,7 @@ class LiquidGlassStyledNavBar extends StatefulWidget {
     this.shape,
     this.itemStyle = const LiquidGlassNavBarItemStyle(),
     this.motion = const LiquidGlassMotion(),
-    this.pill = const LiquidGlassNavPillStyle(),
+    this.pill = const LiquidGlassTabPillStyle(),
     this.render = const LiquidGlassRenderConfig(),
   });
 
@@ -163,7 +166,7 @@ class _LiquidGlassStyledNavBarState extends State<LiquidGlassStyledNavBar>
   double _barLeft = 0;
   double _effBottomMargin = 0;
 
-  LiquidGlassBottomNavBarLayout get _layout => widget.layout;
+  LiquidGlassTabBarLayout get _layout => widget.layout;
 
   @override
   void initState() {
@@ -537,7 +540,7 @@ class _LiquidGlassStyledNavBarState extends State<LiquidGlassStyledNavBar>
   }
 
   Widget _buildInner({
-    required LiquidGlassBottomNavBarLayout layout,
+    required LiquidGlassTabBarLayout layout,
     double? pillFrac,
     double? pillW,
     double? pillH,
@@ -596,7 +599,7 @@ class _LiquidGlassStyledNavBarState extends State<LiquidGlassStyledNavBar>
 /// each config group is an optional override merged over the bar default: a
 /// `null` group keeps the default, a supplied group wins.
 LiquidGlass _buildStyledNavCapsule({
-  required LiquidGlassBottomNavBarLayout layout,
+  required LiquidGlassTabBarLayout layout,
   LiquidGlassRefraction? refraction,
   LiquidGlassAppearance? appearance,
   LiquidGlassShape? shape,
@@ -642,7 +645,7 @@ LiquidGlass _buildStyledNavCapsule({
 /// `buildLiquidGlassBottomNavPill` (its own optical-rim look is kept; the pill
 /// surface is intentionally not exposed as a group in this sandbox).
 LiquidGlass _buildStyledNavPill({
-  required LiquidGlassBottomNavBarLayout layout,
+  required LiquidGlassTabBarLayout layout,
   required double animatedIndex,
   required double parentWidth,
   Key? key,
@@ -744,7 +747,7 @@ class _StyledRestPill extends StatelessWidget {
 class _StyledNavShell extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
   final int selectedIndex;
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
   final LiquidGlassNavBarItemStyle itemStyle;
   final double? highlightFrac;
   final double? highlightWidth;
@@ -859,7 +862,7 @@ class _StyledNavShell extends StatelessWidget {
 
 class _StyledIconRow extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
   final LiquidGlassNavBarItemStyle itemStyle;
   final int? selectedIndex;
   final bool forceSelected;
@@ -924,15 +927,15 @@ class _StyledShellTab extends StatelessWidget {
             size: itemStyle.iconSize,
             selected: selected,
           ),
-          if (item.label != null) ...[
+          if (item.hasLabel) ...[
             const SizedBox(height: 2),
-            Text(
-              item.label!,
-              style: TextStyle(
-                fontSize: itemStyle.labelFontSize,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                color: color,
-              ),
+            buildLiquidGlassNavLabel(
+              context,
+              item,
+              color: color,
+              fontSize: itemStyle.labelFontSize,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              selected: selected,
             ),
           ],
         ],

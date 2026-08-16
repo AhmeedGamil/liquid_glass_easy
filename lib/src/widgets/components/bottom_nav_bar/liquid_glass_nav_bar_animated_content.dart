@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/liquid_glass_shape.dart';
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
 import 'liquid_glass_nav_bar_pill.dart';
 import 'liquid_glass_nav_bar_pill_clippers.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
-/// Animated content layer for [LiquidGlassBottomNavBar] when
+/// Animated content layer for [LiquidGlassTabBar] when
 /// `animated: true`.
 ///
 /// Owns its own [AnimationController] and runs the whole effect inside
@@ -27,7 +27,7 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
   final double itemPadding;
   final bool showSelectionPill;
   final Color selectionColor;
-  final LiquidGlassNavItemStyle itemStyle;
+  final LiquidGlassTabItemStyle itemStyle;
   final Duration duration;
   final Curve curve;
 
@@ -64,7 +64,7 @@ class _AnimatedBottomNavBarContentState
   late double _fromIndex;
 
   /// Fractional index the pill is travelling **to** (the committed
-  /// [LiquidGlassBottomNavBar.selectedIndex]).
+  /// [LiquidGlassTabBar.selectedIndex]).
   late double _toIndex;
 
   @override

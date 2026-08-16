@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../utils/liquid_glass_shape.dart';
-import 'liquid_glass_toggle_layout.dart';
+import 'liquid_glass_switch_layout.dart';
 
 /// Solid white pill — the at-rest toggle thumb.
 class SolidWhiteToggleThumb extends StatelessWidget {
@@ -183,7 +183,7 @@ class ToggleBodyPainter extends CustomPainter {
 /// The shrunken copy holds one size for the whole slide; it only shifts
 /// by the small amount a lens of that magnification would shift it (see
 /// [ToggleBodyPainter]), so it never appears to scale under the glass.
-class LiquidGlassToggleTrack extends StatelessWidget {
+class LiquidGlassSwitchTrack extends StatelessWidget {
   final bool value;
 
   /// Tap handler for the track itself. `null` adds no detector at all —
@@ -191,7 +191,7 @@ class LiquidGlassToggleTrack extends StatelessWidget {
   /// wants, so nothing competes with it from inside the capture.
   final ValueChanged<bool>? onChanged;
 
-  final LiquidGlassToggleLayout layout;
+  final LiquidGlassSwitchLayout layout;
 
   /// `0` at rest (no hole, plain capsule), `1` at the peak of the
   /// slide (max-size hole). It sizes the **hole** only — the shrunken
@@ -243,13 +243,13 @@ class LiquidGlassToggleTrack extends StatelessWidget {
   final LiquidGlassCornerStyle cornerStyle;
   final LiquidGlassCornerStyle holeCornerStyle;
 
-  const LiquidGlassToggleTrack({
+  const LiquidGlassSwitchTrack({
     super.key,
     required this.value,
     this.onChanged,
     this.tint = const Color(0xFF34C759),
     this.offColor = const Color(0x66808080),
-    this.layout = const LiquidGlassToggleLayout(),
+    this.layout = const LiquidGlassSwitchLayout(),
     this.showRestThumb = true,
     this.pinchFraction = 0,
     this.travelFraction = 0,

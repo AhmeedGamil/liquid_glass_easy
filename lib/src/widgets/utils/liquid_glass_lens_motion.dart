@@ -14,8 +14,7 @@ import 'dart:ui' show Offset;
 /// (or arriving from a glide) squashes it narrow and tall; constant
 /// speed leaves it undeformed — force, not speed, is what deforms it.
 ///
-/// This class is physics only, the same layering as
-/// `LiquidGlassJellySpring`: the caller owns the `Ticker`, calls
+/// This class is physics only: the caller owns the `Ticker`, calls
 /// [start] when the effect goes live (the thumb lifts, the pill starts
 /// moving), [track] every frame with the current position, and [stop]
 /// the moment the effect ends (an instant reset, masked by whatever
@@ -27,40 +26,43 @@ import 'dart:ui' show Offset;
 /// a *negative* deviation). A horizontal mover passes `Offset(x, 0)`
 /// and gets the collapsed one-axis behaviour.
 class LiquidGlassLensMotionSpec {
-  /// Time window for calculating average acceleration, in seconds.
-  final double window;
+  /// How many seconds of recent motion are averaged to read the force —
+  /// bigger = calmer, smaller = twitchier.
+  final double sampleWindow;
 
-  /// Coefficient converting acceleration (px/s²) to scale deviation.
-  final double coefficient;
+  /// The gain from acceleration (px/s²) to scale deviation — how
+  /// strongly a given force deforms the body.
+  final double sensitivity;
 
-  /// Maximum |deviation| (clamped for visual stability).
-  final double maxDeviation;
+  /// The hard cap on |deviation| — how far the two scales may stray
+  /// from `1` (clamped for visual stability).
+  final double maxDeformation;
 
   /// Seconds for the deviation to ease toward the acceleration's
   /// answer, instead of snapping to it every frame.
   /// `0` restores the frame-locked response; higher = slower, dreamier.
-  final double responseTau;
+  final double responseTime;
 
-  /// The stretch slider's tuned values (a coefficient of 0.00005
+  /// The stretch slider's tuned values (a sensitivity of 0.00005
   /// with no response ease is the undamped equivalent).
   const LiquidGlassLensMotionSpec({
-    this.window = 0.3,
-    this.coefficient = 0.00007,
-    this.maxDeviation = 0.3,
-    this.responseTau = 0.18,
+    this.sampleWindow = 0.3,
+    this.sensitivity = 0.00007,
+    this.maxDeformation = 0.3,
+    this.responseTime = 0.18,
   });
 
   LiquidGlassLensMotionSpec copyWith({
-    double? window,
-    double? coefficient,
-    double? maxDeviation,
-    double? responseTau,
+    double? sampleWindow,
+    double? sensitivity,
+    double? maxDeformation,
+    double? responseTime,
   }) {
     return LiquidGlassLensMotionSpec(
-      window: window ?? this.window,
-      coefficient: coefficient ?? this.coefficient,
-      maxDeviation: maxDeviation ?? this.maxDeviation,
-      responseTau: responseTau ?? this.responseTau,
+      sampleWindow: sampleWindow ?? this.sampleWindow,
+      sensitivity: sensitivity ?? this.sensitivity,
+      maxDeformation: maxDeformation ?? this.maxDeformation,
+      responseTime: responseTime ?? this.responseTime,
     );
   }
 
@@ -68,14 +70,14 @@ class LiquidGlassLensMotionSpec {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LiquidGlassLensMotionSpec &&
-          other.window == window &&
-          other.coefficient == coefficient &&
-          other.maxDeviation == maxDeviation &&
-          other.responseTau == responseTau;
+          other.sampleWindow == sampleWindow &&
+          other.sensitivity == sensitivity &&
+          other.maxDeformation == maxDeformation &&
+          other.responseTime == responseTime;
 
   @override
   int get hashCode =>
-      Object.hash(window, coefficient, maxDeviation, responseTau);
+      Object.hash(sampleWindow, sensitivity, maxDeformation, responseTime);
 }
 
 /// The running simulation behind [LiquidGlassLensMotionSpec]. One
@@ -122,13 +124,13 @@ class LiquidGlassLensMotion {
   double track(Offset position, {required double now, required double dt}) {
     if (!_tracking) return _deviation;
     _history.add((position, now));
-    final cutoff = now - spec.window;
+    final cutoff = now - spec.sampleWindow;
     _history.removeWhere((s) => s.$2 < cutoff);
-    final raw = (_averageAcceleration() * spec.coefficient)
-        .clamp(-spec.maxDeviation, spec.maxDeviation);
-    final ease = spec.responseTau <= 0
+    final raw = (_averageAcceleration() * spec.sensitivity)
+        .clamp(-spec.maxDeformation, spec.maxDeformation);
+    final ease = spec.responseTime <= 0
         ? 1.0
-        : (dt / spec.responseTau).clamp(0.0, 1.0);
+        : (dt / spec.responseTime).clamp(0.0, 1.0);
     _deviation += (raw - _deviation) * ease;
     return _deviation;
   }

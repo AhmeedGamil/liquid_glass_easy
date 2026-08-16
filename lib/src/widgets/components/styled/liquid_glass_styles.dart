@@ -110,7 +110,7 @@ class LiquidGlassNavBarItemStyle {
 /// **Pill** group — the moving glass selection pill's look + size (the
 /// iOS-26 morphing pill that slides between tabs). Defaults reproduce the
 /// shipping bar's pill.
-class LiquidGlassNavPillStyle {
+class LiquidGlassTabPillStyle {
   /// Blur behind the moving glass pill.
   final LiquidGlassBlur blur;
 
@@ -134,7 +134,7 @@ class LiquidGlassNavPillStyle {
   /// When `true`, the pill's inner area is transparent.
   final bool enableInnerRadiusTransparent;
 
-  const LiquidGlassNavPillStyle({
+  const LiquidGlassTabPillStyle({
     this.blur = const LiquidGlassBlur(),
     this.growHeight = 16,
     this.distortion = 0.06,
@@ -144,7 +144,7 @@ class LiquidGlassNavPillStyle {
     this.enableInnerRadiusTransparent = false,
   });
 
-  LiquidGlassNavPillStyle copyWith({
+  LiquidGlassTabPillStyle copyWith({
     LiquidGlassBlur? blur,
     double? growHeight,
     double? distortion,
@@ -153,7 +153,7 @@ class LiquidGlassNavPillStyle {
     double? magnification,
     bool? enableInnerRadiusTransparent,
   }) {
-    return LiquidGlassNavPillStyle(
+    return LiquidGlassTabPillStyle(
       blur: blur ?? this.blur,
       growHeight: growHeight ?? this.growHeight,
       distortion: distortion ?? this.distortion,

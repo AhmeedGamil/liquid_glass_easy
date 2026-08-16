@@ -8,8 +8,10 @@ import '../utils/liquid_glass_glyph.dart';
 /// child (e.g. a dock or app grid) so the glass refracts whatever is
 /// behind it.
 class LiquidGlassAppIcon extends StatelessWidget {
-  /// The icon glyph displayed at the center.
-  final IconData icon;
+  /// The icon glyph displayed at the center. Ignored when [iconBuilder]
+  /// is set — and may be left `null` when the builder draws the glyph
+  /// entirely.
+  final IconData? icon;
 
   /// Optional label rendered below the icon. When `null`, only the
   /// rounded square is drawn (useful inside a tight dock).
@@ -34,27 +36,15 @@ class LiquidGlassAppIcon extends StatelessWidget {
 
   const LiquidGlassAppIcon({
     super.key,
-    required this.icon,
+    this.icon,
     this.label,
     this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
     this.foregroundColor = Colors.white,
     this.size = 56,
     this.onTap,
     this.iconBuilder,
-  });
-
-  /// A tile whose glyph is drawn entirely by [iconBuilder] — no
-  /// [IconData] needed. [icon] is filled with a placeholder that is
-  /// never rendered.
-  const LiquidGlassAppIcon.custom({
-    super.key,
-    required LiquidGlassGlyphBuilder this.iconBuilder,
-    this.label,
-    this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
-    this.foregroundColor = Colors.white,
-    this.size = 56,
-    this.onTap,
-  }) : icon = kLiquidGlassCustomGlyph;
+  }) : assert(icon != null || iconBuilder != null,
+            'Give the tile a glyph: an icon or an iconBuilder.');
 
   @override
   Widget build(BuildContext context) {

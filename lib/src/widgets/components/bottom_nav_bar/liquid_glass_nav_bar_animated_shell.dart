@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
 import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_pill_clippers.dart';
@@ -38,10 +38,10 @@ import 'liquid_glass_nav_bar_style.dart';
 class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
   final int selectedIndex;
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
 
   /// Icon + label styling for every cell.
-  final LiquidGlassNavItemStyle itemStyle;
+  final LiquidGlassTabItemStyle itemStyle;
 
   /// Fractional index (`0..itemCount-1`) of the moving glass pill's
   /// center. Pass the same value you use for
@@ -69,17 +69,25 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   /// Absolute bottom inset of the bar. Defaults to `layout.bottomMargin`.
   final double? bottom;
 
+  /// How much of the moving pill currently reads as **glass**, `0`–`1`
+  /// — the bar's shed/return signal. The under-glass sizes on the
+  /// inside-the-pill layer lerp on this, so the enlargement rides the
+  /// glass through travel and glides back out through the landing
+  /// handover instead of popping when the static pill takes over.
+  final double underGlass;
+
   const LiquidGlassAnimatedBottomNavBarShell({
     super.key,
     required this.items,
     required this.selectedIndex,
     required this.layout,
-    this.itemStyle = const LiquidGlassNavItemStyle(),
+    this.itemStyle = const LiquidGlassTabItemStyle(),
     this.highlightFrac,
     this.highlightWidth,
     this.highlightHeight,
     this.left,
     this.bottom,
+    this.underGlass = 1,
   });
 
   @override
@@ -144,6 +152,10 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
                     layout: layout,
                     itemStyle: itemStyle,
                     forceSelected: true,
+                    // Only what the pill covers is visible in this
+                    // layer, so it is under glass exactly as much as
+                    // the pill still IS glass.
+                    selectedUnderGlass: underGlass,
                   ),
                 ),
               ),

@@ -32,7 +32,7 @@ import 'liquid_glass_nav_bar_layout.dart';
 /// the jelly effect during a drag. Always grows symmetrically (left
 /// and right) so the pill stays centered on its base index.
 LiquidGlass buildLiquidGlassBottomNavPill({
-  required LiquidGlassBottomNavBarLayout layout,
+  required LiquidGlassTabBarLayout layout,
   required double animatedIndex,
   required double parentWidth,
 
@@ -151,7 +151,7 @@ LiquidGlass buildLiquidGlassBottomNavPill({
 /// (built with [buildLiquidGlassBottomNavPill]) running in the
 /// OUTER view refracts the bar's glass output.
 LiquidGlass buildLiquidGlassBottomNavCapsule({
-  required LiquidGlassBottomNavBarLayout layout,
+  required LiquidGlassTabBarLayout layout,
 
   /// Overrides the default bottom-center placement. When non-null the
   /// capsule lens uses this position directly (so the whole animated

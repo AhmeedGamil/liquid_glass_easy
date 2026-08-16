@@ -11,8 +11,9 @@ import 'liquid_glass_app_icon.dart';
 
 /// Lightweight description of a single entry in [LiquidGlassDock].
 class LiquidGlassDockApp {
-  /// The entry's glyph. Ignored when [iconBuilder] is set.
-  final IconData icon;
+  /// The entry's glyph. Ignored when [iconBuilder] is set — and may be
+  /// left `null` when the builder draws the entry entirely.
+  final IconData? icon;
 
   final List<Color> gradient;
   final VoidCallback? onTap;
@@ -22,19 +23,12 @@ class LiquidGlassDockApp {
   final LiquidGlassGlyphBuilder? iconBuilder;
 
   const LiquidGlassDockApp({
-    required this.icon,
+    this.icon,
     this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
     this.onTap,
     this.iconBuilder,
-  });
-
-  /// An entry drawn entirely by [iconBuilder] — no [IconData] needed.
-  /// [icon] is filled with a placeholder that is never rendered.
-  const LiquidGlassDockApp.custom({
-    required LiquidGlassGlyphBuilder this.iconBuilder,
-    this.gradient = const [Color(0xFF4FB3FF), Color(0xFF1E69DE)],
-    this.onTap,
-  }) : icon = kLiquidGlassCustomGlyph;
+  }) : assert(icon != null || iconBuilder != null,
+            'Give the entry a glyph: an icon or an iconBuilder.');
 }
 
 /// A horizontal dock of app icons inside a single liquid-glass blob with

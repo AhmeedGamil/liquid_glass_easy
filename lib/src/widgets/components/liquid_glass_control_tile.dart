@@ -21,7 +21,7 @@ import '../utils/liquid_glass_shape.dart';
 class LiquidGlassControlTile extends StatelessWidget {
   const LiquidGlassControlTile({
     super.key,
-    required this.icon,
+    this.icon,
     required this.active,
     this.label,
     this.activeColor = const Color(0xFF34C759),
@@ -33,28 +33,12 @@ class LiquidGlassControlTile extends StatelessWidget {
     this.style,
     this.visibility = true,
     this.iconBuilder,
-  });
+  }) : assert(icon != null || iconBuilder != null,
+            'Give the tile a glyph: an icon or an iconBuilder.');
 
-  /// A tile whose glyph is drawn entirely by [iconBuilder] — no
-  /// [IconData] needed. [icon] is filled with a placeholder that is
-  /// never rendered.
-  const LiquidGlassControlTile.custom({
-    super.key,
-    required LiquidGlassGlyphBuilder this.iconBuilder,
-    required this.active,
-    this.label,
-    this.activeColor = const Color(0xFF34C759),
-    this.onTap,
-    this.size = 80,
-    this.shape,
-    this.appearance,
-    this.refraction = _defaultRefraction,
-    this.style,
-    this.visibility = true,
-  }) : icon = kLiquidGlassCustomGlyph;
-
-  /// The tile glyph. Ignored when [iconBuilder] is set.
-  final IconData icon;
+  /// The tile glyph. Ignored when [iconBuilder] is set — and may be
+  /// left `null` when the builder draws the glyph entirely.
+  final IconData? icon;
 
   /// Draws the glyph instead of [icon] — an SVG, a PNG, a `CustomPaint`.
   /// Receives the glyph color (white) and box (`size * 0.42`), plus

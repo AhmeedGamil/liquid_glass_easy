@@ -79,7 +79,7 @@ class _LiquidMenuPageState extends State<LiquidMenuPage>
       refractionType: OpticalRefraction(
         refraction: 1.5,
         refractionWidth: 22,
-        depth: 0.7,
+        depth: 0.4,
       ),
     ),
   );

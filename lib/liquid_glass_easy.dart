@@ -37,7 +37,11 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart'
 // CustomPaint) and the state it is handed — resolved color, box size,
 // and whether this layer draws the selected state.
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_glyph.dart'
-    show LiquidGlassGlyph, LiquidGlassGlyphBuilder;
+    show
+        LiquidGlassGlyph,
+        LiquidGlassGlyphBuilder,
+        LiquidGlassLabel,
+        LiquidGlassLabelBuilder;
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_draggable.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_border_mode.dart';
@@ -45,8 +49,7 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_spring.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_jelly_config.dart';
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_spring.dart';
 // How a surface answers a finger. LiquidGlassTouch is the group; today it
 // carries the flex — press a lens and it compresses, drag it and it
 // elongates along the pull while pinching in the cross axis, four edges
@@ -65,9 +68,6 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_flex.dart'
 // Generic glass UI atoms a developer composes into their app.
 // Each is a single LiquidGlass lens placed in a LiquidGlassView.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_button.dart';
-// Jelly: a reusable squash/stretch wrapper driven by a 1-D value — the
-// slider/nav-bar jelly physics exposed as a drop-in widget.
-export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_jelly.dart';
 // Drop-in glass form controls. Only the high-level widgets + their
 // layout descriptors are public; the low-level track/thumb builders stay
 // internal.
@@ -82,28 +82,28 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_shadow.dar
     show LiquidGlassShadow;
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_lens_motion.dart'
     show LiquidGlassLensMotion, LiquidGlassLensMotionSpec;
-export 'package:liquid_glass_easy/src/widgets/components/toggle/liquid_glass_toggle.dart'
-    show LiquidGlassToggle, LiquidGlassToggleLayout;
+export 'package:liquid_glass_easy/src/widgets/components/switch/liquid_glass_switch.dart'
+    show LiquidGlassSwitch, LiquidGlassSwitchLayout;
 // Scaffold: a Scaffold-style layout that owns the LiquidGlassView
 // pipeline and composes the app bar + bottom nav + side action slots.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_scaffold.dart';
 // App bar: a floating glass top bar (leading / title / actions).
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_app_bar.dart';
-// Tab bar: only the non-animated [LiquidGlassTabBar] is public. The
-// animated variant ([LiquidGlassAnimatedTabBar]) is hidden while its
-// motion work is still being finished.
-export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_tab_bar.dart'
-    show LiquidGlassTabBar, LiquidGlassTabBarItem, LiquidGlassTabBarAction;
-// Bottom nav: only the single drop-in [LiquidGlassBottomNavBar] is
+// Tab items + the side-floating action that pairs with the tab bar.
+// The tab bar widget itself lives below, in the bottom_nav_bar export.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_tab_item.dart'
+    show LiquidGlassTabBarItem, LiquidGlassTabBarAction;
+// Tab bar: only the single drop-in [LiquidGlassTabBar] is
 // public. The lower-level building blocks (shell / capsule / static
 // pill / layout) and the animated pieces are hidden — the drop-in
 // widget supersedes them for app developers.
-export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dart'
+export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_tab_bar.dart'
     show
-        LiquidGlassBottomNavBar,
+        LiquidGlassTabBar,
         LiquidGlassPillMode,
-        LiquidGlassNavItemStyle,
-        LiquidGlassNavPillStyle;
+        LiquidGlassTabItemStyle,
+        LiquidGlassTabPillStyle,
+        LiquidGlassTabMagnifierPillStyle;
 
 // ── Internal / showcase-only / animation-in-progress ───────
 // The following are intentionally NOT exported:
@@ -122,8 +122,8 @@ export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_g
 //   • the lower-level bottom-nav building blocks and the animated
 //     tab bar / bottom nav shells, including the dual-pipeline
 //     [LiquidGlassAnimatedNavBar] — it is internal machinery that
-//     [LiquidGlassBottomNavBar] builds via buildGlassPillBar; configure
-//     it through [LiquidGlassBottomNavBar] instead.
+//     [LiquidGlassTabBar] builds via buildGlassPillBar; configure
+//     it through [LiquidGlassTabBar] instead.
 // The example app still drives all of these in its showcase and
 // imports them directly from 'src' (with an implementation_imports
 // ignore) instead of relying on the public barrel.

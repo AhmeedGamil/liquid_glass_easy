@@ -1,17 +1,8 @@
 import 'package:flutter/material.dart';
-// The dual-pipeline glass-pill engine and its layout descriptor are
-// internal machinery — a host normally reaches them through
-// `LiquidGlassBottomNavBar` / `LiquidGlassScaffold`. This page drives the
-// bar directly so it can hand in its own `body`.
-// ignore: implementation_imports
-import 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_animated_nav_bar.dart';
-// ignore: implementation_imports
-import 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_glass_bottom_nav_bar.dart';
-
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 /// Standalone entry point so this demo can be launched directly with:
-///   flutter run -t lib/experimental_split_nav_page.dart
+///   flutter run -t lib/tab_bar_page.dart
 void main() {
   runApp(
     MaterialApp(
@@ -21,29 +12,27 @@ void main() {
         useMaterial3: true,
         scaffoldBackgroundColor: Colors.transparent,
       ),
-      home: const ExperimentalSplitNavPage(),
+      home: const TabBarPage(),
     ),
   );
 }
 
 // =============================================================
-// `split_nav_page.dart` driving [LiquidGlassAnimatedNavBar] directly —
-// the glass-pill engine with every knob in reach, including the two
-// contact shadows and the pill's motion spec.
+// The glass-pill nav bar on a LIGHT page: one wide, centred frosted-white
+// capsule holding all four tabs, with the red belonging to the selected
+// STATE rather than to one tab.
 //
-// Re-lit for a light page: the tabs sit in one wide, centred frosted-white
-// capsule, with the red belonging to the selected STATE rather than to one
-// tab.
+// A drop-in pairing — `LiquidGlassScaffold` for the page,
+// `LiquidGlassTabBar` for the bar — with the selection pill turned up to
+// the glass-refracting tier (`pillStyle.mode`). Everything the pill does
+// is configured through `LiquidGlassTabPillStyle`: its glass look, its
+// resting look, its contact shadow and its motion.
 //
 // The pill's deformation comes from acceleration: its drawn position is
 // sampled every frame in pixels, differentiated twice, and the averaged
 // acceleration scales it oppositely on the two axes — stretching wide and
 // flat as it launches off a tab, squashing narrow and tall as it brakes
 // into the next, and sitting undeformed at constant speed.
-//
-// The same engine through the public API (scaffold + drop-in bar):
-//   flutter run -t lib/split_nav_page.dart
-//   flutter run -t lib/experimental_split_nav_page.dart (direct)
 // =============================================================
 
 /// The red the selected tab burns in — the one saturated colour on the
@@ -69,15 +58,14 @@ LiquidGlassShape _glassShape(double cornerRadius) =>
       ),
     );
 
-class ExperimentalSplitNavPage extends StatefulWidget {
-  const ExperimentalSplitNavPage({super.key});
+class TabBarPage extends StatefulWidget {
+  const TabBarPage({super.key});
 
   @override
-  State<ExperimentalSplitNavPage> createState() =>
-      _ExperimentalSplitNavPageState();
+  State<TabBarPage> createState() => _TabBarPageState();
 }
 
-class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
+class _TabBarPageState extends State<TabBarPage> {
   int _index = 1;
 
   static const double _barHeight = 60;
@@ -99,11 +87,13 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
   /// selected inside it, so the red is wiped on as the pill arrives
   /// instead of switching under it.
   static LiquidGlassTabBarItem _tab(IconData icon, String label) {
-    return LiquidGlassTabBarItem.custom(
+    return LiquidGlassTabBarItem(
       label: label,
       iconBuilder: (context, i) => Icon(
         icon,
-        size: _iconRest,
+        // Under the glass the glyph is drawn at its own size; the bar
+        // hands the builder the box, the builder only has to fill it.
+        size: i.underGlass == true ? 24 : _iconRest,
         color: i.color,
         shadows: i.selected
             ? [Shadow(color: i.color.withValues(alpha: 0.85), blurRadius: 14)]
@@ -129,41 +119,37 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
     // tabs comfortably grouped on tablets.
     final double screen = MediaQuery.sizeOf(context).width;
     final double barWidth = (screen - _edge * 2).clamp(280.0, 560.0);
-    final double bottom = _bottom + MediaQuery.paddingOf(context).bottom;
 
-    return Scaffold(
-      body: LiquidGlassAnimatedNavBar(
-        body: _OnAirFeed(title: _titles[_index]),
+    return LiquidGlassScaffold(
+      pixelRatio: 1,
+      useSync: true,
+      body: _OnAirFeed(title: _titles[_index]),
+
+      // ── the wide, centred tab capsule ────────────────────────────
+      bottomNavigationBar: LiquidGlassTabBar(
         items: _items,
         selectedIndex: _index,
         onChanged: (i) => setState(() => _index = i),
-        pixelRatio: 1,
-        useSync: true,
-
-        // ── the wide, centred tab capsule ──────────────────────────
-        layout: LiquidGlassBottomNavBarLayout(
-          itemCount: _items.length,
-          width: barWidth,
-          height: _barHeight,
-          bottomMargin: bottom,
-          padding: 3,
-          pillExtraHeight: 12,
+        width: barWidth,
+        height: _barHeight,
+        itemPadding: 3,
+        // The scaffold adds the safe-area inset on top of this.
+        margin: const EdgeInsets.only(bottom: _bottom),
+        style: LiquidGlassStyle(
+          shape: _glassShape(_barHeight / 2),
+          appearance: const LiquidGlassAppearance(
+            color: Color(0x8FFFFFFF),
+            blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
+            // The bar's contact shadow lives in the material, like any
+            // lens's: the capsule wraps itself in this ring.
+            shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
+          ),
+          refraction: const LiquidGlassRefraction(
+            distortion: 0.06,
+            distortionWidth: 26,
+          ),
         ),
-        barPosition: LiquidGlassAlignPosition(
-          alignment: Alignment.bottomCenter,
-          margin: EdgeInsets.only(bottom: bottom),
-        ),
-        barShape: _glassShape(_barHeight / 2),
-        barAppearance: const LiquidGlassAppearance(
-          color: Color(0x8FFFFFFF),
-          blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-        ),
-        barRefraction: const LiquidGlassRefraction(
-          distortion: 0.06,
-          distortionWidth: 26,
-        ),
-        barShadow: const LiquidGlassShadow(blur: 9, opacity: 0.13,),
-        itemStyle: const LiquidGlassNavItemStyle(
+        itemStyle: const LiquidGlassTabItemStyle(
           // The one place the selected look is decided — icon, bloom and
           // label all read it, on every tab.
           selectedColor: _kBrand,
@@ -171,45 +157,32 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
           iconSize: _iconRest,
           labelFontSize: 10,
           iconLabelGap: 2,
+          underGlassIconSize: 30,
+          underGlassLabelFontSize: 10,
           selectedFontWeight: FontWeight.w700,
           unselectedFontWeight: FontWeight.w600,
         ),
 
-        // ── the moving pill ────────────────────────────────────────
-        // No tint of its own — over white glass a fill would only flatten
-        // the capsule. It is pure refraction, as in the original.
-        pillColor: Colors.transparent,
-        pillGrowHeight: 9,
-        pillShape: LiquidGlassShape(borderWidth: 0.5),
-        pillRefraction: const LiquidGlassRefraction(
-          distortion: 0.04,
-          distortionWidth: 12,
-          chromaticAberration: 0.0015,
-          magnification: 1,
-        ),
-        // The squash/stretch replacing the jelly. ±12 % rather than the
-        // slider thumb's ±30 %: this pill lives inside a 60 px capsule.
-        motion: const LiquidGlassLensMotionSpec(
-          window: 0.3,
-          coefficient: 0.00007,
-          maxDeviation: 0.12,
-          responseTau: 0.18,
-        ),
-        pillShadow: const LiquidGlassShadow(
-          blur: 4,
-          opacity: 0.16,
-          inset: 2,
-        ),
-        // Where it comes to rest: a barely-there grey. The bar is thin
-        // glass now, so the resting patch only has to hint at which tab
-        // is selected — the red glyph is already saying it.
-        restStyle: LiquidGlassStyle(
-          shape: _glassShape(28),
-          appearance: const LiquidGlassAppearance(color: Color(0x2EAEAEB2)),
-          refraction: const LiquidGlassRefraction(
-            distortion: 0.015,
-            distortionWidth: 8,
-            chromaticAberration: 0.0002,
+        // ── the moving pill ──────────────────────────────────────
+        // The glass-refracting tier, its look, its motion and its
+        // contact shadow are all the tuned defaults now — pure
+        // refraction over a thin-rimmed capsule, ±12 % squash, a tight
+        // tucked-in ring. The one thing this page decides is where the
+        // pill comes to rest. A different pill shadow would be authored
+        // where every lens's is — on the glass style's
+        // `appearance.shadow`.
+        pillStyle: LiquidGlassTabPillStyle(
+          // The tier knob, spelled out even though `both` is the default:
+          // `both` = the glass-refracting pill on every renderer,
+          // `impellerOnly` = glass on Impeller, flat highlight on
+          // Skia/Web, `none` = the flat tier everywhere.
+          mode: LiquidGlassPillMode.both,
+          // Where it comes to rest: a barely-there grey. The bar is thin
+          // glass now, so the resting patch only has to hint at which tab
+          // is selected — the red glyph is already saying it.
+          rest: LiquidGlassStyle(
+            shape: _glassShape(28),
+            appearance: const LiquidGlassAppearance(color: Color(0x2EAEAEB2)),
           ),
         ),
       ),
@@ -218,9 +191,8 @@ class _ExperimentalSplitNavPageState extends State<ExperimentalSplitNavPage> {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  The page behind the glass — a red-lit radio station, so both
-//  pieces of glass have real colour to bend. Copied verbatim from
-//  split_nav_page.dart so the two read identically.
+//  The page behind the glass — a red-lit radio station, so the bar
+//  has real colour to bend.
 // ════════════════════════════════════════════════════════════════
 
 class _OnAirFeed extends StatelessWidget {

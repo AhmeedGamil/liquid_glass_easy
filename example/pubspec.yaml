@@ -25,5 +25,3 @@ flutter:
   assets:
     # Outline + filled SVG pairs driving the "Scaffold + SVG Nav" demo.
     - assets/icons/
-    # Wallpaper behind the experimental slider pages.
-    - assets/background.jpeg

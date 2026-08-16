@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../components/liquid_glass_shadow.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_touch.dart';
@@ -404,18 +405,22 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
           if (mounted) setState(() {});
         }).catchError((Object _) {});
       }
-      return _FrostedGlassFallback(
-        shape: shape,
-        shapeScale: shapeScale,
-        appearance: appearance,
-        visible: widget.visibility,
-        child: widget.child == null
-            ? null
-            : liquidGlassFlexChild(
-                deform: deform,
-                restSize: restSize,
-                child: widget.child!,
-              ),
+      return _withAppearanceShadow(
+        _FrostedGlassFallback(
+          shape: shape,
+          shapeScale: shapeScale,
+          appearance: appearance,
+          visible: widget.visibility,
+          child: widget.child == null
+              ? null
+              : liquidGlassFlexChild(
+                  deform: deform,
+                  restSize: restSize,
+                  child: widget.child!,
+                ),
+        ),
+        appearance,
+        shape,
       );
     }
 
@@ -450,22 +455,53 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // (glassEnabled = false, no backdrop cost) and the child is removed
     // entirely, so nothing is left behind.
     final bool visible = widget.visibility;
-    return _RawLiquidGlassLens(
-      mode: mode,
-      mainShader: _mainShader!,
-      borderShader: _borderShader,
-      shape: shape,
-      shapeScale: shapeScale,
-      clipScale: clipScale,
-      refraction: refraction,
-      appearance: appearance,
-      borderAlpha: 1.0,
-      glassEnabled: visible,
-      honorBackdropAlpha: widget.honorBackdropAlpha,
-      screenSize: screenSize,
-      devicePixelRatio: dpr,
-      scope: scope,
-      child: visible ? clippedChild : null,
+    return _withAppearanceShadow(
+      _RawLiquidGlassLens(
+        mode: mode,
+        mainShader: _mainShader!,
+        borderShader: _borderShader,
+        shape: shape,
+        shapeScale: shapeScale,
+        clipScale: clipScale,
+        refraction: refraction,
+        appearance: appearance,
+        borderAlpha: 1.0,
+        glassEnabled: visible,
+        honorBackdropAlpha: widget.honorBackdropAlpha,
+        screenSize: screenSize,
+        devicePixelRatio: dpr,
+        scope: scope,
+        child: visible ? clippedChild : null,
+      ),
+      appearance,
+      shape,
+    );
+  }
+
+  /// Wraps [lens] in the appearance's contact shadow, when one is set.
+  ///
+  /// This sits *inside* [liquidGlassFlexBox]'s positioning, so the ring
+  /// takes the **deformed** box as its own: under a flex press it swells,
+  /// leans and springs back with the glass instead of staying frozen on
+  /// the rest silhouette. The ring's corner defaults to the lens shape's
+  /// clip radius, and its visibility composes with the lens's own.
+  Widget _withAppearanceShadow(
+    Widget lens,
+    LiquidGlassAppearance appearance,
+    LiquidGlassShape shape,
+  ) {
+    final LiquidGlassShadow? s = appearance.shadow;
+    if (s == null) return lens;
+    return LiquidGlassShadow(
+      blur: s.blur,
+      opacity: s.opacity,
+      color: s.color,
+      offset: s.offset,
+      cornerRadius: s.cornerRadius ?? liquidGlassClipCornerRadius(shape),
+      scale: s.scale,
+      inset: s.inset,
+      visible: s.visible && widget.visibility,
+      child: lens,
     );
   }
 }

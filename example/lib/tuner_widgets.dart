@@ -76,7 +76,7 @@ class TunerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: Colors.white.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(22),
         border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
       ),

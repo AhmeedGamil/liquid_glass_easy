@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import '../liquid_glass_tab_bar.dart' show LiquidGlassTabBarItem;
+import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
 import 'liquid_glass_nav_bar_layout.dart';
 
@@ -22,13 +22,13 @@ import 'liquid_glass_nav_bar_layout.dart';
 /// **Important:** wrap this in [IgnorePointer] when you also place a
 /// gesture overlay over the bar, otherwise the inner `InkWell`s will
 /// race the overlay's drag recognizer.
-class LiquidGlassBottomNavBarShell extends StatelessWidget {
+class LiquidGlassTabBarShell extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
 
-  const LiquidGlassBottomNavBarShell({
+  const LiquidGlassTabBarShell({
     super.key,
     required this.items,
     required this.selectedIndex,

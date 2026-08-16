@@ -11,7 +11,7 @@ import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_border_mode.dart'
     show ClassicBorder, LiquidGlassBorderType, OpticalBorder;
 import '../../utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
-import '../../utils/liquid_glass_jelly_spring.dart' show liquidGlassSpringStep;
+import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_lens_motion.dart';
 import '../../utils/liquid_glass_refraction_type.dart';
 import '../../utils/liquid_glass_shape.dart';
@@ -38,7 +38,9 @@ import '../liquid_glass_shadow.dart';
 ///  * **Morph.** While [active], the pill spring-grows from [restSize]
 ///    to [activeSize]; on deactivation it contracts on the landing spring.
 ///    That same progress interpolates [restStyle] into [style] on one
-///    persistent lens — nothing is cross-faded, inserted or removed.
+///    persistent lens — nothing is cross-faded, inserted or removed. A
+///    host running its own size model supplies [envelopeSize] and the
+///    two halves separate: its size, this widget's material.
 ///  * **Squash/stretch.** While motion tracking is requested, [center] is
 ///    sampled every frame into the acceleration model; the resulting
 ///    deviation scales the pill oppositely on the two axes. When travel ends,
@@ -88,6 +90,17 @@ class LiquidGlassNavBarMotionPill extends StatefulWidget {
 
   /// Size of the expanded (lifted) glass pill.
   final Size activeSize;
+
+  /// The pill's size this frame BEFORE the acceleration deformation,
+  /// supplied by the host. When set it replaces the
+  /// [restSize]→[activeSize] interpolation for geometry only.
+  ///
+  /// [morphProgress] goes on driving the material, so the two can run on
+  /// separate springs: a host whose glass arrives fast under a size that
+  /// is still wobbling into place hands the size in here and the look in
+  /// [morphProgress]. [restSize] and [activeSize] are still read for the
+  /// corner and rim endpoints.
+  final Size? envelopeSize;
 
   /// Glass look at the fully lifted endpoint. Null keeps the tuned default.
   final LiquidGlassStyle? style;
@@ -173,6 +186,7 @@ class LiquidGlassNavBarMotionPill extends StatefulWidget {
     this.resetMotionOnStop = false,
     required this.restSize,
     required this.activeSize,
+    this.envelopeSize,
     this.style,
     this.restStyle = const LiquidGlassStyle(),
     this.motion = const LiquidGlassLensMotionSpec(),
@@ -363,8 +377,11 @@ class _LiquidGlassNavBarMotionPillState
   ({double morphW, double morphH, double pillW, double pillH}) _metrics() {
     final Size rest = widget.restSize;
     final Size active = widget.activeSize;
-    final double morphW = rest.width + (active.width - rest.width) * _morph;
-    final double morphH = rest.height + (active.height - rest.height) * _morph;
+    final Size? envelope = widget.envelopeSize;
+    final double morphW =
+        envelope?.width ?? rest.width + (active.width - rest.width) * _morph;
+    final double morphH = envelope?.height ??
+        rest.height + (active.height - rest.height) * _morph;
     final double d = _deviation;
     return (
       morphW: morphW,
@@ -654,6 +671,10 @@ class _LiquidGlassNavBarMotionPillState
       enableInnerRadiusTransparent: t < 0.5
           ? from.enableInnerRadiusTransparent
           : to.enableInnerRadiusTransparent,
+      // Deliberately NO shadow: the pill draws its own tracked ring
+      // (scaled with the outline, faded with the rim), and the bar
+      // hoists an appearance-authored shadow into that path — leaving
+      // it here would have the inner lens wrap a second, frozen ring.
     );
   }
 

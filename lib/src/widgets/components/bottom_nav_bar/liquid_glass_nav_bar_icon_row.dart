@@ -1,30 +1,44 @@
 import 'package:flutter/material.dart';
 
-import '../liquid_glass_tab_bar.dart'
-    show LiquidGlassTabBarItem, buildLiquidGlassNavGlyph;
+import '../liquid_glass_tab_item.dart'
+    show
+        LiquidGlassTabBarItem,
+        buildLiquidGlassNavGlyph,
+        buildLiquidGlassNavLabel;
 import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
 /// The single icon + label cell shared by every bottom-nav tier (the
 /// static bar, the sliding bar, and the glass-morph shell). Driven
-/// entirely by [LiquidGlassNavItemStyle], so colors, sizes, the
+/// entirely by [LiquidGlassTabItemStyle], so colors, sizes, the
 /// icon→label gap, and the label weights all flow from one descriptor —
 /// there is no hardcoded styling here.
 class LiquidGlassNavTabCell extends StatelessWidget {
   final LiquidGlassTabBarItem item;
   final bool selected;
-  final LiquidGlassNavItemStyle style;
+
+  /// How much **glass** is over this cell in the layer being drawn,
+  /// `0`–`1` — the glass's state, distinct from [selected]. `1` while
+  /// the moving glass pill covers it, easing back to `0` as the landed
+  /// pill sheds into the static rest pill, and always `0` under a flat
+  /// pill or none. The under-glass sizes lerp on this; color, weight
+  /// and icon art key off [selected].
+  final double underGlass;
+
+  final LiquidGlassTabItemStyle style;
 
   const LiquidGlassNavTabCell({
     super.key,
     required this.item,
     required this.selected,
-    this.style = const LiquidGlassNavItemStyle(),
+    this.underGlass = 0,
+    this.style = const LiquidGlassTabItemStyle(),
   });
 
   @override
   Widget build(BuildContext context) {
     final color = style.colorFor(selected: selected);
+    final double glass = underGlass.clamp(0.0, 1.0);
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -33,18 +47,20 @@ class LiquidGlassNavTabCell extends StatelessWidget {
             context,
             item,
             color: color,
-            size: style.iconSize,
+            size: style.iconSizeFor(underGlass: glass),
             selected: selected,
+            underGlass: glass > 0,
           ),
-          if (item.label != null) ...[
+          if (item.hasLabel) ...[
             SizedBox(height: style.iconLabelGap),
-            Text(
-              item.label!,
-              style: TextStyle(
-                fontSize: style.labelFontSize,
-                fontWeight: style.fontWeightFor(selected: selected),
-                color: color,
-              ),
+            buildLiquidGlassNavLabel(
+              context,
+              item,
+              color: color,
+              fontSize: style.labelFontSizeFor(underGlass: glass),
+              fontWeight: style.fontWeightFor(selected: selected),
+              selected: selected,
+              underGlass: glass > 0,
             ),
           ],
         ],
@@ -101,10 +117,10 @@ class NavBarTapRow extends StatelessWidget {
 /// the iOS-26 highlight effect.
 class NavBarIconRow extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
-  final LiquidGlassBottomNavBarLayout layout;
+  final LiquidGlassTabBarLayout layout;
 
   /// Icon/label styling for every cell.
-  final LiquidGlassNavItemStyle itemStyle;
+  final LiquidGlassTabItemStyle itemStyle;
 
   /// When supplied, the matching cell renders in its selected
   /// state. Ignored when [forceSelected] or [forceUnselected] is
@@ -119,14 +135,23 @@ class NavBarIconRow extends StatelessWidget {
   /// "outside-the-pill" layer.
   final bool forceUnselected;
 
+  /// How much glass, `0`–`1`, sits over the cells rendering selected:
+  /// the moving glass pill's presence on the inside-the-pill layer
+  /// (only what the pill covers is visible there), easing to `0` as the
+  /// landed pill sheds into the static rest pill. `0` — the default —
+  /// when nothing over the selection is glass: then selected cells keep
+  /// the shared sizes and differ by color/weight alone.
+  final double selectedUnderGlass;
+
   const NavBarIconRow({
     super.key,
     required this.items,
     required this.layout,
-    this.itemStyle = const LiquidGlassNavItemStyle(),
+    this.itemStyle = const LiquidGlassTabItemStyle(),
     this.selectedIndex,
     this.forceSelected = false,
     this.forceUnselected = false,
+    this.selectedUnderGlass = 0,
   });
 
   @override
@@ -144,6 +169,10 @@ class NavBarIconRow extends StatelessWidget {
                     : forceUnselected
                         ? false
                         : i == selectedIndex,
+                underGlass: (forceSelected ||
+                        (!forceUnselected && i == selectedIndex))
+                    ? selectedUnderGlass
+                    : 0,
                 style: itemStyle,
               ),
             ),

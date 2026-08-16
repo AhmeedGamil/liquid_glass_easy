@@ -12,7 +12,7 @@ import '../utils/liquid_glass_shape.dart';
 
 /// **Label** group for [LiquidGlassSegmented]: how each segment's text
 /// renders in selected / unselected state. Mirrors
-/// [LiquidGlassNavItemStyle] so the component family reads the same.
+/// [LiquidGlassTabItemStyle] so the component family reads the same.
 @immutable
 class LiquidGlassSegmentedLabelStyle {
   /// Color of the selected segment's label.
@@ -66,7 +66,7 @@ class LiquidGlassSegmentedLabelStyle {
 /// glass-refracting pill or a flat tinted one, whether it slides, its
 /// morph "bulge", and the look of each pill state.
 ///
-/// Mirrors [LiquidGlassNavPillStyle]:
+/// Mirrors [LiquidGlassTabPillStyle]:
 ///  • [glass] `false` → a lightweight tinted pill (the [restStyle] fill),
 ///    which slides when [animated];
 ///  • [glass] `true` → a real [LiquidGlassLens] morphing pill that
@@ -169,7 +169,7 @@ class LiquidGlassSegmentedPillStyle {
 }
 
 /// A drop-in liquid-glass **segmented control** with a morphing glass
-/// pill — the inline sibling of [LiquidGlassBottomNavBar].
+/// pill — the inline sibling of [LiquidGlassTabBar].
 ///
 /// The capsule is one [LiquidGlassLens] styled by [style]; the active
 /// segment is marked by a selection pill configured through [pillStyle]

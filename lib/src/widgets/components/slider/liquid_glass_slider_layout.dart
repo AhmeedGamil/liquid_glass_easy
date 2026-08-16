@@ -59,28 +59,28 @@ class LiquidGlassSliderLayout {
   });
 
   /// The inset [horizontalInset] falls back to, for a squash/stretch
-  /// ceiling of [maxDeviation] (`0` for a slider that does not deform).
+  /// ceiling of [maxDeformation] (`0` for a slider that does not deform).
   ///
   /// Three things have to fit: half the lifted thumb's overhang past the
   /// track ends, the width the deformation can add, and the rubber-band
   /// overshoot past a bound.
-  double derivedHorizontalInset(double maxDeviation) =>
+  double derivedHorizontalInset(double maxDeformation) =>
       (liftedThumbWidth - thumbWidth) / 2 +
-      liftedThumbWidth * maxDeviation / 2 +
+      liftedThumbWidth * maxDeformation / 2 +
       8;
 
   /// The height [height] falls back to: the lifted thumb at full squash,
   /// plus a little for the expand spring's overshoot.
-  double derivedHeight(double maxDeviation) =>
-      liftedThumbHeight * (1 + maxDeviation) + 2;
+  double derivedHeight(double maxDeformation) =>
+      liftedThumbHeight * (1 + maxDeformation) + 2;
 
   /// The inset actually used — [horizontalInset] when set, else derived.
-  double resolveHorizontalInset(double maxDeviation) =>
-      horizontalInset ?? derivedHorizontalInset(maxDeviation);
+  double resolveHorizontalInset(double maxDeformation) =>
+      horizontalInset ?? derivedHorizontalInset(maxDeformation);
 
   /// The height actually used — [height] when set, else derived.
-  double resolveHeight(double maxDeviation) =>
-      math.max(liftedThumbHeight, height ?? derivedHeight(maxDeviation));
+  double resolveHeight(double maxDeformation) =>
+      math.max(liftedThumbHeight, height ?? derivedHeight(maxDeformation));
 
   LiquidGlassSliderLayout copyWith({
     double? width,
