@@ -6,6 +6,7 @@ import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_shadow.dart';
 
 /// A floating action button (FAB) rendered as liquid glass.
 ///
@@ -42,7 +43,6 @@ class LiquidGlassFab extends StatelessWidget {
     this.iconSize = 24.0,
     this.heroTag,
     this.tooltip,
-    this.elevation = 0.0,
   })  : label = null,
         height = null,
         width = null,
@@ -55,7 +55,7 @@ class LiquidGlassFab extends StatelessWidget {
     required this.label,
     this.icon,
     this.onPressed,
-    double height = 48.0,
+    double this.height = 48.0,
     this.width,
     this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
     this.style,
@@ -64,9 +64,7 @@ class LiquidGlassFab extends StatelessWidget {
     this.iconSize = 20.0,
     this.heroTag,
     this.tooltip,
-    this.elevation = 0.0,
   })  : child = null,
-        height = height,
         size = height,
         isExtended = true;
 
@@ -112,15 +110,15 @@ class LiquidGlassFab extends StatelessWidget {
   /// Optional tooltip string.
   final String? tooltip;
 
-  /// Optional shadow elevation behind the lens.
-  final double elevation;
-
   /// Whether this is an extended FAB layout.
   final bool isExtended;
 
   static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
     blur: LiquidGlassBlur(sigmaX: 4, sigmaY: 4),
+    // The contact shadow rides the appearance, like every lens's; hand
+    // over an appearance carrying none to drop it.
+    shadow: LiquidGlassShadow(blur: 9, opacity: 0.25),
   );
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
@@ -194,7 +192,6 @@ class LiquidGlassFab extends StatelessWidget {
         visibility: visibility,
         child: Material(
           color: Colors.transparent,
-          elevation: elevation,
           borderRadius: BorderRadius.circular(
             liquidGlassClipCornerRadius(effectiveShape),
           ),

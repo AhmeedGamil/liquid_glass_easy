@@ -193,6 +193,16 @@ class LiquidGlassScaffold extends StatelessWidget {
             ? (bottomNavigationBar as LiquidGlassTabBar).alignment
             : Alignment.bottomCenter;
 
+    // Vertical room the FAB keeps clear above the bar: the bar's real
+    // height plus its bottom margin when it is the package's tab bar,
+    // the default bar height otherwise.
+    final double navClearance = bottomNavigationBar == null
+        ? 0
+        : bottomNavigationBar is LiquidGlassTabBar
+            ? (bottomNavigationBar as LiquidGlassTabBar).height +
+                navMargin.bottom
+            : 64;
+
     // The glass overlays float outside any Scaffold/Material, so bare
     // Text/Icon in the app bar, nav, side action, or `lenses` would inherit
     // Flutter's yellow error text style. A transparent Material paints
@@ -236,7 +246,7 @@ class LiquidGlassScaffold extends StatelessWidget {
           if (floatingActionButton != null)
             Positioned(
               top: pad.top + actionMargin,
-              bottom: pad.bottom + actionMargin + (bottomNavigationBar != null ? 64 : 0),
+              bottom: pad.bottom + actionMargin + navClearance,
               left: actionMargin,
               right: actionMargin,
               child: Align(
