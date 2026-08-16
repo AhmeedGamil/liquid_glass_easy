@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'touch_page.dart';
 import 'switch_page.dart';
 import 'control_center_page.dart';
+import 'fab_dialog_demo.dart';
 import 'lens_image_page.dart';
 import 'liquid_menu_page.dart';
 import 'nav_jelly_tuner.dart';
@@ -127,6 +128,13 @@ class HomePage extends StatelessWidget {
       icon: Icons.tune_rounded,
       gradient: const [Color(0xFF8E8E93), Color(0xFF3A3A3C)],
       builder: (_) => const BasicControlsPage(),
+    ),
+    _Destination(
+      title: 'FAB & Alert Dialog',
+      subtitle: 'Liquid glass FABs and animated glass alert dialogs',
+      icon: Icons.add_alert_rounded,
+      gradient: const [Color(0xFFFF7A00), Color(0xFFFF0055)],
+      builder: (_) => const FabAndDialogDemoPage(),
     ),
   ];
 

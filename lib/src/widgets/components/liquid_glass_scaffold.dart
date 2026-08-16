@@ -62,6 +62,12 @@ class LiquidGlassScaffold extends StatelessWidget {
   /// [LiquidGlassTabBarAction].
   final Widget? bottomNavigationBarAction;
 
+  /// A floating action button, typically a [LiquidGlassFab].
+  final Widget? floatingActionButton;
+
+  /// Position of [floatingActionButton]. Defaults to bottom-right.
+  final AlignmentGeometry floatingActionButtonAlignment;
+
   /// Extra free-floating glass widgets composited between the [body] and
   /// the bars. An escape hatch — position each with your own
   /// `Align`/`Positioned`.
@@ -110,6 +116,8 @@ class LiquidGlassScaffold extends StatelessWidget {
     this.appBar,
     this.bottomNavigationBar,
     this.bottomNavigationBarAction,
+    this.floatingActionButton,
+    this.floatingActionButtonAlignment = Alignment.bottomRight,
     this.lenses = const [],
     this.backgroundColor,
     this.safeArea = true,
@@ -153,9 +161,13 @@ class LiquidGlassScaffold extends StatelessWidget {
       );
     }
 
-    final Widget background = backgroundColor == null
+    final Widget rawBackground = backgroundColor == null
         ? body
         : ColoredBox(color: backgroundColor!, child: body);
+    final Widget background = Material(
+      type: MaterialType.transparency,
+      child: rawBackground,
+    );
 
     return LiquidGlassView(
       controller: controller,
@@ -220,6 +232,17 @@ class LiquidGlassScaffold extends StatelessWidget {
               bottom: pad.bottom + navMargin.bottom,
               right: actionMargin,
               child: bottomNavigationBarAction!,
+            ),
+          if (floatingActionButton != null)
+            Positioned(
+              top: pad.top + actionMargin,
+              bottom: pad.bottom + actionMargin + (bottomNavigationBar != null ? 64 : 0),
+              left: actionMargin,
+              right: actionMargin,
+              child: Align(
+                alignment: floatingActionButtonAlignment,
+                child: floatingActionButton!,
+              ),
             ),
         ],
       ),
