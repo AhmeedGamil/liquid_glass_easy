@@ -95,6 +95,17 @@ void packLiquidGlassUniforms(
   /// samples the full live backdrop, so it leaves these at the defaults.
   Offset imageOffset = Offset.zero,
   Size? imageSize,
+
+  /// Lens-space → shader-space affine map for a lens under an ancestor
+  /// transform (scale / rotation): row-major linear part `[[a,b],[c,d]]`
+  /// plus [xformOffset], its translation in logical px. Identity — the
+  /// default — is every untransformed lens and the whole Skia path, which
+  /// draws in local space and needs no map. Main shader only.
+  double xformA = 1,
+  double xformB = 0,
+  double xformC = 0,
+  double xformD = 1,
+  Offset xformOffset = Offset.zero,
 }) {
   final double selectedLightMode =
       (shape.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
@@ -213,11 +224,22 @@ void packLiquidGlassUniforms(
     shader.setFloat(i++, scale);
   }
 
-  // u_shapeScale — LAST in both shaders, so it sits after the main-only pair
-  // above and the border shader's indices still line up. A ratio, so it is
-  // deliberately not multiplied by `scale`.
+  // u_shapeScale — last uniform the BORDER shader declares. A ratio, so it
+  // is deliberately not multiplied by `scale`.
   shader.setFloat(i++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx);
   shader.setFloat(i++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
+
+  // u_xformRow / u_xformOff — the ancestor-transform map, main shader only
+  // and LAST there. The linear part is a ratio; the translation is a
+  // position, so it scales like every other one.
+  if (includeLensColor) {
+    shader.setFloat(i++, xformA);
+    shader.setFloat(i++, xformB);
+    shader.setFloat(i++, xformC);
+    shader.setFloat(i++, xformD);
+    shader.setFloat(i++, xformOffset.dx * scale);
+    shader.setFloat(i++, xformOffset.dy * scale);
+  }
 }
 
 /// One lens's contribution to the metaball field, in the SAME logical-pixel

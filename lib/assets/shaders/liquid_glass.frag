@@ -115,6 +115,11 @@ uniform float u_shapeAaPx;
 // whole rest-space path below then collapses to the original math.
 uniform vec2 u_shapeScale;
 
+// Lens→shader affine map for ancestor transforms (scale/rotation):
+// shader = [[x,y],[z,w]]·lens + off. Identity when untransformed.
+uniform vec4 u_xformRow;
+uniform vec2 u_xformOff;
+
 
 out vec4 frag_color;
 
@@ -158,9 +163,18 @@ vec4 finalSample(
     vec2 refractedPx,
     float shapeMask,
     float caShift,
+    bool xformed,
     out vec3 preTintColor
 ){
     vec3 refrColor;
+
+    // Geometry ran in LENS space; the backdrop lives in shader space —
+    // map the refracted position back through the forward transform.
+    if (xformed) {
+        refractedPx = mat2(u_xformRow.x, u_xformRow.z,
+                           u_xformRow.y, u_xformRow.w)
+                      * refractedPx + u_xformOff;
+    }
 
     // Map the refracted PARENT-pixel position into the bound texture's
     // [u_imageOffset, u_imageOffset + u_imageSize] rect. Full-frame =
@@ -231,6 +245,22 @@ void main() {
     // Fragment coordinate setup
     // ===============================
     vec2 fragPx   = FlutterFragCoord().xy;
+
+    // Under an ancestor transform the geometry runs in LENS space: map
+    // the fragment through the inverse; sampling maps back (finalSample).
+    bool xformed = any(notEqual(u_xformRow, vec4(1.0, 0.0, 0.0, 1.0))) ||
+                   any(notEqual(u_xformOff, vec2(0.0)));
+    if (xformed) {
+        float det = u_xformRow.x * u_xformRow.w - u_xformRow.y * u_xformRow.z;
+        if (abs(det) < 1e-6) {
+            xformed = false;
+        } else {
+            fragPx = mat2(u_xformRow.w, -u_xformRow.z,
+                          -u_xformRow.y, u_xformRow.x)
+                     * (fragPx - u_xformOff) / det;
+        }
+    }
+
     float invResY = 1.0 / u_resolution.y;
     vec2 uvNorm   = fragPx * invResY;
 
@@ -321,7 +351,7 @@ void main() {
         // No chromatic aberration outside the distortion band.
         vec4 base = (u_enableBackgroundTransparency > 0.5)
         ? vec4(0.0)
-        : finalSample(magPx, shapeMask, 0.0, preTintCol);
+        : finalSample(magPx, shapeMask, 0.0, xformed, preTintCol);
 
         vec3 ambientCol = preTintCol;
         vec4 borderPremul = getSweepBorder(
@@ -408,7 +438,7 @@ void main() {
     // zoneT so the colour fringing is strongest at the shape edge (zoneT→1)
     // and fades to none at the band's inner boundary (zoneT→0).
     float caShift = u_chromaticAberration * zoneT;
-    vec4 base = finalSample(refrPx, shapeMask, caShift, preTintCol2);
+    vec4 base = finalSample(refrPx, shapeMask, caShift, xformed, preTintCol2);
 
     vec3 ambientCol2 = preTintCol2;
     vec4 borderPremul = getSweepBorder(

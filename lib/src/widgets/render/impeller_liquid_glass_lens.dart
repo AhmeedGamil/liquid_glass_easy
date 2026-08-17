@@ -82,14 +82,41 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
   /// actually moves (AppBar present, scroll, rotation, etc.).
   Offset _layerGlobalOffset = Offset.zero;
 
-  /// Re-reads this widget's global offset and rebuilds if it changed.
+  /// The linear part of the box's global transform, row-major. Identity
+  /// for every lens that only sits somewhere (the common case); real
+  /// values when an ancestor scales or rotates it — an animated dialog,
+  /// a hero flight — which the shader then honors as a lens→shader map
+  /// instead of drawing the untransformed rect and getting clipped.
+  double _xformA = 1, _xformB = 0, _xformC = 0, _xformD = 1;
+
+  /// Whether an ancestor carries scale/rotation. Translation-only lenses
+  /// keep the exact legacy screen-space uniforms, bit-identical.
+  bool get _hasLinearXform =>
+      (_xformA - 1).abs() > 1e-4 ||
+      _xformB.abs() > 1e-4 ||
+      _xformC.abs() > 1e-4 ||
+      (_xformD - 1).abs() > 1e-4;
+
+  /// Re-reads this widget's global transform and rebuilds if it changed.
   void _syncLayerOffset() {
     if (!mounted) return;
     final box = context.findRenderObject() as RenderBox?;
     if (box == null || !box.attached || !box.hasSize) return;
-    final next = box.localToGlobal(Offset.zero);
-    if ((next - _layerGlobalOffset).distanceSquared > 0.01) {
-      setState(() => _layerGlobalOffset = next);
+    // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d, [12..13]=t.
+    final s = box.getTransformTo(null).storage;
+    final next = Offset(s[12], s[13]);
+    if ((next - _layerGlobalOffset).distanceSquared > 0.01 ||
+        (s[0] - _xformA).abs() > 1e-4 ||
+        (s[4] - _xformB).abs() > 1e-4 ||
+        (s[1] - _xformC).abs() > 1e-4 ||
+        (s[5] - _xformD).abs() > 1e-4) {
+      setState(() {
+        _layerGlobalOffset = next;
+        _xformA = s[0];
+        _xformB = s[4];
+        _xformC = s[1];
+        _xformD = s[5];
+      });
     }
   }
 
@@ -113,6 +140,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     required Offset lensPosition,
     required double animValue,
     required double devicePixelRatio,
+    required bool linearXform,
   }) {
     final cfg = widget.config;
     final shape = cfg.effectiveShape;
@@ -169,6 +197,13 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
       honorBackdropAlpha: false,
+      // Under ancestor scale/rotation the shader runs its geometry in
+      // lens space through this map; identity keeps the legacy path.
+      xformA: linearXform ? _xformA : 1,
+      xformB: linearXform ? _xformB : 0,
+      xformC: linearXform ? _xformC : 0,
+      xformD: linearXform ? _xformD : 1,
+      xformOffset: linearXform ? _layerGlobalOffset : Offset.zero,
     );
   }
 
@@ -221,7 +256,12 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     final Size resolution = (viewSize.width > 0 && viewSize.height > 0)
         ? viewSize
         : widget.parentSize;
-    final Offset screenLensPosition = lensPosition + _layerGlobalOffset;
+    // Under ancestor scale/rotation the position stays LENS-LOCAL and the
+    // whole placement — translation included — rides the xform map, so
+    // the shader's geometry lands exactly where the widget clip does.
+    final bool linearXform = _hasLinearXform;
+    final Offset screenLensPosition =
+        linearXform ? lensPosition : lensPosition + _layerGlobalOffset;
 
     _setMainShaderUniformsForBackdrop(
       shader: shader,
@@ -229,6 +269,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       lensPosition: screenLensPosition,
       animValue: animValue,
       devicePixelRatio: dpr,
+      linearXform: linearXform,
     );
 
     // Order matters: blur FIRST (below), shader SECOND (on top).
