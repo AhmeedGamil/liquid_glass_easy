@@ -1,10 +1,47 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 
+import '../lens/liquid_glass_transform_tracking.dart';
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
 import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
+
+/// Per-frame transform probe for the Impeller lens: the tracking layer
+/// fires whenever an ANCESTOR moves this subtree without rebuilding it —
+/// a route transition's ScaleTransition, a scroll — which no build-side
+/// callback can see. The lens then re-syncs after that frame.
+class _LensXformProbe extends SingleChildRenderObjectWidget {
+  const _LensXformProbe({required this.onMoved, super.child});
+
+  final VoidCallback onMoved;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderLensXformProbe(onMoved);
+
+  @override
+  void updateRenderObject(
+          BuildContext context, covariant _RenderLensXformProbe renderObject) =>
+      renderObject.onMoved = onMoved;
+}
+
+class _RenderLensXformProbe extends RenderProxyBox
+    with LensTransformTrackingMixin {
+  _RenderLensXformProbe(this.onMoved);
+
+  VoidCallback onMoved;
+
+  @override
+  void onGlobalTransformChanged() => onMoved();
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    pushTransformTracking(context, offset);
+    super.paint(context, offset);
+  }
+}
 
 /// Impeller render path for a single lens, extracted from
 /// `LiquidGlassWidget`.
@@ -113,7 +150,15 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     _xformD = s[5];
   }
 
-  /// Re-reads this widget's global transform and rebuilds if it changed.
+  /// The previous post-frame sample, kept apart from what build consumed.
+  /// Comparing successive FRAMES (not build vs. now — the build-time
+  /// sample makes those equal by construction) is what keeps the rebuild
+  /// chain alive for the whole flight of an animated ancestor transform.
+  double _lastA = 1, _lastB = 0, _lastC = 0, _lastD = 1;
+  Offset _lastOffset = Offset.zero;
+
+  /// Re-reads this widget's global transform and rebuilds if it changed —
+  /// against what the last build consumed OR against last frame's sample.
   void _syncLayerOffset() {
     if (!mounted) return;
     final box = context.findRenderObject() as RenderBox?;
@@ -121,11 +166,21 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d, [12..13]=t.
     final s = box.getTransformTo(null).storage;
     final next = Offset(s[12], s[13]);
-    if ((next - _layerGlobalOffset).distanceSquared > 0.01 ||
-        (s[0] - _xformA).abs() > 1e-4 ||
-        (s[4] - _xformB).abs() > 1e-4 ||
-        (s[1] - _xformC).abs() > 1e-4 ||
-        (s[5] - _xformD).abs() > 1e-4) {
+    bool differs(double a, double b, double c, double d, Offset o) =>
+        (next - o).distanceSquared > 0.01 ||
+        (s[0] - a).abs() > 1e-4 ||
+        (s[4] - b).abs() > 1e-4 ||
+        (s[1] - c).abs() > 1e-4 ||
+        (s[5] - d).abs() > 1e-4;
+    final bool staleBuild =
+        differs(_xformA, _xformB, _xformC, _xformD, _layerGlobalOffset);
+    final bool moving = differs(_lastA, _lastB, _lastC, _lastD, _lastOffset);
+    _lastA = s[0];
+    _lastB = s[4];
+    _lastC = s[1];
+    _lastD = s[5];
+    _lastOffset = next;
+    if (staleBuild || moving) {
       setState(() {
         _layerGlobalOffset = next;
         _xformA = s[0];
@@ -299,7 +354,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // refracts that. So the background is blurred *before* refraction,
     // not "refract sharp, then blur the result". The shader also draws
     // the border, which stays sharp because it's the topmost pass.
-    return Stack(
+    return _LensXformProbe(
+      onMoved: _onLayerMoved,
+      child: Stack(
       children: [
         // Blur the backdrop under the lens first, clipped to the lens
         // shape. This is the input the shader will refract.
@@ -378,7 +435,14 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
           ),
         ),
       ],
+      ),
     );
+  }
+
+  /// Deferred re-sync for the transform probe: it fires during scene
+  /// building, where setState is illegal — check after the frame lands.
+  void _onLayerMoved() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncLayerOffset());
   }
 
   @override
