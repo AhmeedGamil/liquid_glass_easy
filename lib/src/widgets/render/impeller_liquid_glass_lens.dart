@@ -97,6 +97,22 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       _xformC.abs() > 1e-4 ||
       (_xformD - 1).abs() > 1e-4;
 
+  /// Re-reads the box's CURRENT global transform during build. Ancestor
+  /// paint transforms (a running ScaleTransition) update parent-first in
+  /// the same frame, so a build-time read is exact — the post-frame sync
+  /// alone would hand the shader last frame's matrix the whole flight,
+  /// and the border would still clip on the fast early frames.
+  void _sampleTransformInBuild() {
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null || !box.attached || !box.hasSize) return;
+    final s = box.getTransformTo(null).storage;
+    _layerGlobalOffset = Offset(s[12], s[13]);
+    _xformA = s[0];
+    _xformB = s[4];
+    _xformC = s[1];
+    _xformD = s[5];
+  }
+
   /// Re-reads this widget's global transform and rebuilds if it changed.
   void _syncLayerOffset() {
     if (!mounted) return;
@@ -256,6 +272,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     final Size resolution = (viewSize.width > 0 && viewSize.height > 0)
         ? viewSize
         : widget.parentSize;
+    // Fresh matrix for THIS frame; the post-frame sync only schedules the
+    // rebuilds that get us here while the transform keeps moving.
+    _sampleTransformInBuild();
     // Under ancestor scale/rotation the position stays LENS-LOCAL and the
     // whole placement — translation included — rides the xform map, so
     // the shader's geometry lands exactly where the widget clip does.
