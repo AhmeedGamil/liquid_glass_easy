@@ -99,8 +99,8 @@ void packLiquidGlassUniforms(
   /// Lens-space → shader-space affine map for a lens under an ancestor
   /// transform (scale / rotation): row-major linear part `[[a,b],[c,d]]`
   /// plus [xformOffset], its translation in logical px. Identity — the
-  /// default — is every untransformed lens and the whole Skia path, which
-  /// draws in local space and needs no map. Main shader only.
+  /// default — is every untransformed lens. "Shader space" is the screen on
+  /// Impeller and the captured view on Skia; both shaders take the map.
   double xformA = 1,
   double xformB = 0,
   double xformC = 0,
@@ -229,17 +229,15 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx);
   shader.setFloat(i++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
 
-  // u_xformRow / u_xformOff — the ancestor-transform map, main shader only
-  // and LAST there. The linear part is a ratio; the translation is a
-  // position, so it scales like every other one.
-  if (includeLensColor) {
-    shader.setFloat(i++, xformA);
-    shader.setFloat(i++, xformB);
-    shader.setFloat(i++, xformC);
-    shader.setFloat(i++, xformD);
-    shader.setFloat(i++, xformOffset.dx * scale);
-    shader.setFloat(i++, xformOffset.dy * scale);
-  }
+  // u_xformRow / u_xformOff — the ancestor-transform map, LAST on both
+  // shaders. The linear part is a ratio; the translation is a position,
+  // so it scales like every other one.
+  shader.setFloat(i++, xformA);
+  shader.setFloat(i++, xformB);
+  shader.setFloat(i++, xformC);
+  shader.setFloat(i++, xformD);
+  shader.setFloat(i++, xformOffset.dx * scale);
+  shader.setFloat(i++, xformOffset.dy * scale);
 }
 
 /// One lens's contribution to the metaball field, in the SAME logical-pixel

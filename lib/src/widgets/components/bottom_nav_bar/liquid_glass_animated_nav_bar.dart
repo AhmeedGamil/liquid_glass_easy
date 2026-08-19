@@ -526,12 +526,23 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   // ── Capture lifecycle ────────────────────────────────────────────
   void _startCapture() {
     if (!widget.realTimeCapture) _innerViewController.startRealtimeCapture();
+    // The OUTER view is the one the moving pill samples on Skia, and it
+    // sleeps at rest — so it is woken here, at the gesture, rather than
+    // being left to the rebuilt widget's `realTimeCapture` flag alone.
+    // The wake retires the sleep-time capture with it, so the pill's
+    // first frame refracts the live bar and not the snapshot from
+    // whenever the bar last settled. Idempotent when already live.
+    if (!widget.outerNeedsRealtime) {
+      _outerViewController.startRealtimeCapture();
+    }
   }
 
   void _maybeStopCapture() {
-    if (widget.realTimeCapture) return; // keep the inner pipeline live
     if (!_travelActive && !_tabDragging) {
-      _innerViewController.stopRealtimeCapture();
+      if (!widget.realTimeCapture) _innerViewController.stopRealtimeCapture();
+      if (!widget.outerNeedsRealtime) {
+        _outerViewController.stopRealtimeCapture();
+      }
     }
   }
 

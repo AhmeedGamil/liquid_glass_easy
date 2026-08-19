@@ -88,6 +88,11 @@ uniform vec2 u_imageSize;
 // value exactly or the rim stops hugging the fill.
 uniform vec2 u_shapeScale;
 
+// Lens->shader affine map for ancestor transforms, as in liquid_glass.frag.
+// This pass only ever DRAWS in lens space, so it maps on sampling alone.
+uniform vec4 u_xformRow;
+uniform vec2 u_xformOff;
+
 out vec4 frag_color;
 
 #define REFRACTION_SHAPE    0
@@ -115,6 +120,17 @@ vec3 applySaturation(vec3 color, float saturation) {
 }
 
 vec3 sampleAmbientColor(vec2 refractedPx) {
+    // Geometry ran in LENS space under an ancestor transform; the capture
+    // lives in shader space, so map the sample position forward.
+    bool xformed = any(notEqual(u_xformRow, vec4(1.0, 0.0, 0.0, 1.0))) ||
+                   any(notEqual(u_xformOff, vec2(0.0)));
+    float det = u_xformRow.x * u_xformRow.w - u_xformRow.y * u_xformRow.z;
+    if (xformed && abs(det) > 1e-6) {
+        refractedPx = mat2(u_xformRow.x, u_xformRow.z,
+                           u_xformRow.y, u_xformRow.w)
+                      * refractedPx + u_xformOff;
+    }
+
     // Map parent-pixel position into the bound texture's region rect.
     // Full-frame = refractedPx / u_resolution (old behavior).
     vec2 sampleUV = clamp((refractedPx - u_imageOffset) / u_imageSize,

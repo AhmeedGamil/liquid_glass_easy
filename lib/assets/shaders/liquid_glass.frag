@@ -246,19 +246,22 @@ void main() {
     // ===============================
     vec2 fragPx   = FlutterFragCoord().xy;
 
-    // Under an ancestor transform the geometry runs in LENS space: map
-    // the fragment through the inverse; sampling maps back (finalSample).
+    // Under an ancestor transform the geometry runs in LENS space and
+    // the refracted sample maps back out (finalSample).
     bool xformed = any(notEqual(u_xformRow, vec4(1.0, 0.0, 0.0, 1.0))) ||
                    any(notEqual(u_xformOff, vec2(0.0)));
     if (xformed) {
         float det = u_xformRow.x * u_xformRow.w - u_xformRow.y * u_xformRow.z;
-        if (abs(det) < 1e-6) {
-            xformed = false;
-        } else {
+        if (abs(det) < 1e-6) xformed = false;
+    #ifndef LIQUID_GLASS_SKIA
+        // Impeller's fragments arrive in screen space, so map them in.
+        // Skia draws the lens locally: they are lens space already.
+        if (xformed) {
             fragPx = mat2(u_xformRow.w, -u_xformRow.z,
                           -u_xformRow.y, u_xformRow.x)
                      * (fragPx - u_xformOff) / det;
         }
+    #endif
     }
 
     float invResY = 1.0 / u_resolution.y;

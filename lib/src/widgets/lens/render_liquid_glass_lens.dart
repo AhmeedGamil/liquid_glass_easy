@@ -22,13 +22,50 @@ enum LiquidGlassLensRenderMode {
   skiaCapture,
 }
 
+/// The Impeller lens's shader pass, resolved at **compositing time**.
+///
+/// The one job of this layer is timing. A scroll moves the lens by
+/// re-offsetting retained layers — the lens's `paint()` never runs, so
+/// uniforms packed at paint time are one frame stale, and the glass
+/// visibly trails its own (always-correct) clip. Scene building is the
+/// one stage that is both late enough (layout and paint are final) and
+/// guaranteed to run every frame ([alwaysNeedsAddToScene]), so the
+/// transform sampled here is exact: pack the uniforms, wrap the shader,
+/// push the backdrop — all inside [addToScene]. `pushBackdropFilter`
+/// converts the filter to its native form right here, so the uniforms
+/// it captures are the ones just packed.
+class _ImpellerShaderBackdropLayer extends ContainerLayer {
+  /// The lens this layer paints for. Cleared on detach so a dead render
+  /// object is never sampled.
+  RenderLiquidGlassLens? renderObject;
+
+  @override
+  bool get alwaysNeedsAddToScene => true;
+
+  @override
+  void addToScene(ui.SceneBuilder builder) {
+    final RenderLiquidGlassLens? lens = renderObject;
+    if (lens == null || !lens.attached) return;
+    lens._packImpellerMainUniforms();
+    engineLayer = builder.pushBackdropFilter(
+      ui.ImageFilter.shader(lens._mainShader),
+      oldLayer: engineLayer as ui.BackdropFilterEngineLayer?,
+    );
+    addChildrenToScene(builder);
+    builder.pop();
+  }
+}
+
 /// Layout-driven liquid-glass lens render object.
 ///
 /// The lens **is** this box: its size comes from layout and its position
 /// from the render tree — there are no position/width/height inputs.
-/// Uniforms are computed at paint time from the box's actual transform,
-/// and [LensTransformTrackingMixin] repaints the lens whenever an
-/// ancestor moves it (scroll, transitions) without rebuilding anything.
+/// On the Impeller path the shader uniforms are packed at **compositing
+/// time** by [_ImpellerShaderBackdropLayer], so they always carry this
+/// frame's final transform — even when a scroll moves the lens by
+/// re-offsetting retained layers without ever repainting it. The Skia
+/// path packs at paint time and uses [LensTransformTrackingMixin] to
+/// repaint when an ancestor moves it (one frame late by construction).
 ///
 /// This render object is **animation-free by design**: it paints exactly
 /// the [refraction]/[appearance]/[borderAlpha] values it is given. The
@@ -260,8 +297,9 @@ class RenderLiquidGlassLens extends RenderProxyBox
       _cachedOutlineCorner = _shape.cornerStyle;
     }
     // `shift` copies, so skip it where the offset is zero — which is both
-    // clip call sites. The Skia draw genuinely needs the view-space copy:
-    // its shader reads FlutterFragCoord() in the draw's own space.
+    // clip call sites, and the Skia draw too once an ancestor transform
+    // puts it in lens space. Only the view-space draw needs the shifted
+    // copy: its shader reads FlutterFragCoord() in the draw's own space.
     return rect.topLeft == Offset.zero
         ? _cachedOutline!
         : _cachedOutline!.shift(rect.topLeft);
@@ -278,8 +316,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
       LayerHandle<ClipPathLayer>();
   final LayerHandle<BackdropFilterLayer> _blurLayerHandle =
       LayerHandle<BackdropFilterLayer>();
-  final LayerHandle<BackdropFilterLayer> _shaderLayerHandle =
-      LayerHandle<BackdropFilterLayer>();
+  final LayerHandle<_ImpellerShaderBackdropLayer> _shaderLayerHandle =
+      LayerHandle<_ImpellerShaderBackdropLayer>();
+  final LayerHandle<ClipRectLayer> _shaderClipRectLayerHandle =
+      LayerHandle<ClipRectLayer>();
   final LayerHandle<ClipRRectLayer> _skiaBlurClipLayerHandle =
       LayerHandle<ClipRRectLayer>();
 
@@ -292,6 +332,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
   @override
   void detach() {
     _captureRevision?.removeListener(markNeedsPaint);
+    _shaderLayerHandle.layer?.renderObject = null;
     super.detach();
   }
 
@@ -301,6 +342,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _clipPathLayerHandle.layer = null;
     _blurLayerHandle.layer = null;
     _shaderLayerHandle.layer = null;
+    _shaderClipRectLayerHandle.layer = null;
     _skiaBlurClipLayerHandle.layer = null;
     _skiaBlurClipPathLayerHandle.layer = null;
     super.dispose();
@@ -327,6 +369,13 @@ class RenderLiquidGlassLens extends RenderProxyBox
     bool honorBackdropAlpha = false,
     Offset imageOffset = Offset.zero,
     Size? imageSize,
+    // Lens→shader affine map for ancestor scale/rotation. Shader space is
+    // the screen on Impeller, the captured view on Skia.
+    double xformA = 1,
+    double xformB = 0,
+    double xformC = 0,
+    double xformD = 1,
+    Offset xformOffset = Offset.zero,
   }) {
     packLiquidGlassUniforms(
       shader,
@@ -353,6 +402,11 @@ class RenderLiquidGlassLens extends RenderProxyBox
       honorBackdropAlpha: honorBackdropAlpha,
       imageOffset: imageOffset,
       imageSize: imageSize,
+      xformA: xformA,
+      xformB: xformB,
+      xformC: xformC,
+      xformD: xformD,
+      xformOffset: xformOffset,
     );
   }
 
@@ -362,7 +416,12 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    pushTransformTracking(context, offset);
+    // The Impeller pass samples its own transform at compositing time
+    // (see _ImpellerShaderBackdropLayer); only the Skia capture path
+    // still needs the probe to repaint when an ancestor moves it.
+    if (_mode == LiquidGlassLensRenderMode.skiaCapture) {
+      pushTransformTracking(context, offset);
+    }
 
     // Disabled (fully hidden) or zero-sized: skip the glass entirely —
     // no backdrop cost — but keep painting the child; whether IT hides
@@ -382,17 +441,33 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   // ── Impeller: live backdrop, no captures ──────────────────────────
 
-  void _paintImpeller(PaintingContext context, Offset offset) {
-    // Under ImageFilter.shader, FlutterFragCoord() is screen-space
-    // physical pixels, so position/resolution are global. Computed at
-    // paint time, where the transform is exact for this frame.
-    final Offset globalTopLeft =
-        MatrixUtils.transformPoint(getTransformTo(null), Offset.zero);
-
+  /// Packs the main-shader uniforms for the Impeller backdrop pass.
+  ///
+  /// Under ImageFilter.shader, FlutterFragCoord() is screen-space
+  /// physical pixels, so position/resolution are global. Called from
+  /// [_ImpellerShaderBackdropLayer.addToScene] during scene building —
+  /// after all layout and paint — so the transform is final for the
+  /// frame, scroll offsets included.
+  void _packImpellerMainUniforms() {
+    final Matrix4 transform = getTransformTo(null);
+    // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d, [12..13]=t.
+    final s = transform.storage;
+    // Ancestor scale/rotation? The clip rides the layer tree and gets it
+    // for free; the shader paints from these uniforms and does not. So
+    // the geometry goes LENS-LOCAL — position included — and the shader
+    // maps fragments through the inverse of this lens→screen map (and
+    // refracted samples forward). Translation-only keeps the legacy
+    // screen-space uniforms bit-identical.
+    final bool linearXform = (s[0] - 1).abs() > 1e-4 ||
+        s[4].abs() > 1e-4 ||
+        s[1].abs() > 1e-4 ||
+        (s[5] - 1).abs() > 1e-4;
     _packUniforms(
       _mainShader,
       resolution: _screenSize,
-      lensPosition: globalTopLeft,
+      lensPosition: linearXform
+          ? Offset.zero
+          : MatrixUtils.transformPoint(transform, Offset.zero),
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.
@@ -401,51 +476,112 @@ class RenderLiquidGlassLens extends RenderProxyBox
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
       honorBackdropAlpha: false,
+      xformA: linearXform ? s[0] : 1,
+      xformB: linearXform ? s[4] : 0,
+      xformC: linearXform ? s[1] : 0,
+      xformD: linearXform ? s[5] : 1,
+      xformOffset: linearXform ? Offset(s[12], s[13]) : Offset.zero,
     );
+  }
 
-    void paintGlass(PaintingContext context, Offset offset) {
-        // Order matters: blur first (below), shader second (on top) —
-        // stacked BackdropFilters chain, so the shader refracts the
-        // already-blurred backdrop and draws its sharp border last.
-        if (_useBlur) {
-          final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
-          blurLayer.filter = ui.ImageFilter.blur(
-            sigmaX: _appearance.blur.sigmaX,
-            sigmaY: _appearance.blur.sigmaY,
-          );
-          context.pushLayer(
-              blurLayer, (PaintingContext context, Offset offset) {}, offset);
-        } else {
-          _blurLayerHandle.layer = null;
-        }
+  /// How far the shader pass's rectangular clip extends past the lens box,
+  /// in logical px. Covers the outer half of the shader's centered edge-AA
+  /// ramp (and any rim feather), so the visible outline never meets the clip.
+  static const double _shaderClipPad = 2.0;
 
-        final shaderLayer = _shaderLayerHandle.layer ??= BackdropFilterLayer();
-        shaderLayer.filter = ui.ImageFilter.shader(_mainShader);
+  void _paintImpeller(PaintingContext context, Offset offset) {
+    // Order matters: blur first (below), shader second (on top) — stacked
+    // BackdropFilters chain, so the shader refracts the already-blurred
+    // backdrop and draws its sharp border last. The blur keeps the exact
+    // outline clip: unlike the shader, blur FILLS its clip, so a looser
+    // one would halo blurred backdrop outside the glass.
+    if (_useBlur) {
+      void paintBlur(PaintingContext context, Offset offset) {
+        final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
+        blurLayer.filter = ui.ImageFilter.blur(
+          sigmaX: _appearance.blur.sigmaX,
+          sigmaY: _appearance.blur.sigmaY,
+        );
+        context.pushLayer(
+            blurLayer, (PaintingContext context, Offset offset) {}, offset);
+      }
+
+      if (_exactClip) {
+        _clipLayerHandle.layer = null;
+        _clipPathLayerHandle.layer = context.pushClipPath(
+          needsCompositing,
+          offset,
+          Offset.zero & size,
+          _outlinePath(Offset.zero & size),
+          paintBlur,
+          oldLayer: _clipPathLayerHandle.layer,
+        );
+      } else {
+        _clipPathLayerHandle.layer = null;
+        _clipLayerHandle.layer = context.pushClipRRect(
+          needsCompositing,
+          offset,
+          Offset.zero & size,
+          _outlineRRect(Offset.zero & size),
+          paintBlur,
+          oldLayer: _clipLayerHandle.layer,
+        );
+      }
+    } else {
+      _blurLayerHandle.layer = null;
+      _clipLayerHandle.layer = null;
+      _clipPathLayerHandle.layer = null;
+    }
+
+    // The shader draws the outline itself (centered edge AA in
+    // computeShapeMask), so its clip is only a BOUND, not the silhouette:
+    // a padded rect, snapped outward to whole physical pixels. Fractional
+    // clip bounds are what re-frame the engine's backdrop intermediates
+    // every frame while the lens moves or squashes — the in-flight content
+    // wobble. On the pixel grid the bounds only ever step by exact texels,
+    // which the sharp pass survives, while the shader's fractional
+    // geometry keeps the visible outline sub-pixel smooth. Outside the
+    // outline the shader emits zero coverage, so the padding shows the
+    // untouched backdrop and stays invisible.
+    Rect shaderClip = Rect.fromLTWH(
+      -_shaderClipPad,
+      -_shaderClipPad,
+      size.width + 2 * _shaderClipPad,
+      size.height + 2 * _shaderClipPad,
+    );
+    final s = getTransformTo(null).storage;
+    // Snapping is only meaningful when screen space is a pure translation
+    // of lens space; under ancestor scale/rotation the padded rect still
+    // bounds the (lens-local) shader geometry and is left as-is.
+    final bool translationOnly = (s[0] - 1).abs() < 1e-4 &&
+        s[4].abs() < 1e-4 &&
+        s[1].abs() < 1e-4 &&
+        (s[5] - 1).abs() < 1e-4;
+    if (translationOnly) {
+      final double dpr = _devicePixelRatio;
+      final double ox = s[12], oy = s[13];
+      shaderClip = Rect.fromLTRB(
+        ((ox + shaderClip.left) * dpr).floorToDouble() / dpr - ox,
+        ((oy + shaderClip.top) * dpr).floorToDouble() / dpr - oy,
+        ((ox + shaderClip.right) * dpr).ceilToDouble() / dpr - ox,
+        ((oy + shaderClip.bottom) * dpr).ceilToDouble() / dpr - oy,
+      );
+    }
+    _shaderClipRectLayerHandle.layer = context.pushClipRect(
+      needsCompositing,
+      offset,
+      shaderClip,
+      (PaintingContext context, Offset offset) {
+        // No uniforms packed here: the layer does that itself at
+        // compositing time, when the frame's transform is final.
+        final shaderLayer =
+            _shaderLayerHandle.layer ??= _ImpellerShaderBackdropLayer();
+        shaderLayer.renderObject = this;
         context.pushLayer(
             shaderLayer, (PaintingContext context, Offset offset) {}, offset);
-    }
-
-    if (_exactClip) {
-      _clipLayerHandle.layer = null;
-      _clipPathLayerHandle.layer = context.pushClipPath(
-        needsCompositing,
-        offset,
-        Offset.zero & size,
-        _outlinePath(Offset.zero & size),
-        paintGlass,
-        oldLayer: _clipPathLayerHandle.layer,
-      );
-    } else {
-      _clipPathLayerHandle.layer = null;
-      _clipLayerHandle.layer = context.pushClipRRect(
-        needsCompositing,
-        offset,
-        Offset.zero & size,
-        _outlineRRect(Offset.zero & size),
-        paintGlass,
-        oldLayer: _clipLayerHandle.layer,
-      );
-    }
+      },
+      oldLayer: _shaderClipRectLayerHandle.layer,
+    );
 
     // Child on top of the glass.
     super.paint(context, offset);
@@ -470,40 +606,62 @@ class RenderLiquidGlassLens extends RenderProxyBox
     // FlutterFragCoord() in the draw's local space, so translating the
     // canvas into view space makes fragments, uniforms and the sampled
     // image all agree — wherever this lens sits in the tree.
-    final Offset lensPosInView =
-        MatrixUtils.transformPoint(getTransformTo(viewBox), Offset.zero);
+    final Matrix4 toView = getTransformTo(viewBox);
+    // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d.
+    final s = toView.storage;
+    final Offset lensPosInView = MatrixUtils.transformPoint(toView, Offset.zero);
     final Size viewSize = viewBox.size;
     final bool useBlur = _useBlur;
+
+    // Ancestor scale/rotation? Then no canvas translation can put the
+    // draw's local space onto the view's — the lens is turned inside it,
+    // and a shader reading its fragments as view pixels samples the
+    // capture somewhere else entirely. So the geometry stays LENS-local
+    // (the space the canvas draws in anyway) and the shader maps the
+    // refracted sample forward through this lens→view map. Translation
+    // only keeps the legacy view-space uniforms bit-identical.
+    final bool linearXform = (s[0] - 1).abs() > 1e-4 ||
+        s[4].abs() > 1e-4 ||
+        s[1].abs() > 1e-4 ||
+        (s[5] - 1).abs() > 1e-4;
+    // Where the shape sits in the space the shader evaluates: at the
+    // lens's own origin when transformed, at its view position otherwise.
+    final Offset shaderOrigin = linearXform ? Offset.zero : lensPosInView;
 
     _packUniforms(
       _mainShader,
       resolution: viewSize,
-      lensPosition: lensPosInView,
+      lensPosition: shaderOrigin,
       scale: 1.0,
       // Blur path: suppress the main-pass border; a sharp border pass
       // is drawn on top of the blur below (mirrors the legacy painter).
       borderWidth: useBlur ? 0.0 : _fullBorderWidth,
       includeLensColor: true,
       honorBackdropAlpha: _honorBackdropAlpha,
+      xformA: linearXform ? s[0] : 1,
+      xformB: linearXform ? s[4] : 0,
+      xformC: linearXform ? s[1] : 0,
+      xformD: linearXform ? s[5] : 1,
+      xformOffset: linearXform ? lensPosInView : Offset.zero,
     );
     _mainShader.setImageSampler(0, image);
 
-    final Rect viewSpaceRect = lensPosInView & size;
-    final RRect viewSpaceRRect = _outlineRRect(viewSpaceRect);
-    final Path? viewSpacePath = _exactClip ? _outlinePath(viewSpaceRect) : null;
+    final Rect shaderRect = shaderOrigin & size;
+    final RRect shaderRRect = _outlineRRect(shaderRect);
+    final Path? shaderPath = _exactClip ? _outlinePath(shaderRect) : null;
 
     final ui.Canvas canvas = context.canvas;
     canvas
       ..save()
-      ..translate(offset.dx - lensPosInView.dx, offset.dy - lensPosInView.dy);
-    if (viewSpacePath != null) {
+      ..translate(offset.dx - shaderOrigin.dx, offset.dy - shaderOrigin.dy);
+    if (shaderPath != null) {
       canvas
-        ..clipPath(viewSpacePath)
-        ..drawPath(viewSpacePath, Paint()..shader = _mainShader);
+        ..clipPath(shaderPath)
+        ..drawPath(shaderPath, Paint()..shader = _mainShader);
     } else {
       canvas
-        ..clipRRect(viewSpaceRRect)
-        ..drawRRect(viewSpaceRRect, Paint()..shader = _mainShader);
+        ..clipRRect(shaderRRect)
+        ..drawRRect(shaderRRect, Paint()..shader = _mainShader);
     }
     canvas.restore();
 
@@ -547,19 +705,25 @@ class RenderLiquidGlassLens extends RenderProxyBox
         _packUniforms(
           borderShader,
           resolution: viewSize,
-          lensPosition: lensPosInView,
+          lensPosition: shaderOrigin,
           scale: 1.0,
           borderWidth: _fullBorderWidth,
           includeLensColor: false,
           honorBackdropAlpha: _honorBackdropAlpha,
+          // Same space as the main pass, so the rim hugs the same outline
+          // and reads the backdrop from the same place.
+          xformA: linearXform ? s[0] : 1,
+          xformB: linearXform ? s[4] : 0,
+          xformC: linearXform ? s[1] : 0,
+          xformD: linearXform ? s[5] : 1,
+          xformOffset: linearXform ? lensPosInView : Offset.zero,
         );
         borderShader.setImageSampler(0, image);
         final ui.Canvas borderCanvas = context.canvas;
         borderCanvas
           ..save()
-          ..translate(
-              offset.dx - lensPosInView.dx, offset.dy - lensPosInView.dy)
-          ..drawPath(viewSpacePath ?? (Path()..addRRect(viewSpaceRRect)),
+          ..translate(offset.dx - shaderOrigin.dx, offset.dy - shaderOrigin.dy)
+          ..drawPath(shaderPath ?? (Path()..addRRect(shaderRRect)),
               Paint()..shader = borderShader)
           ..restore();
       }

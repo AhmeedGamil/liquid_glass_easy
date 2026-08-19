@@ -231,6 +231,31 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// shared) and the web HTML/Canvaskit pipeline need this.
   bool get _usePerLensShaders => _useImpeller || isWeb;
 
+  /// True when [_image] belongs to an earlier frame, so the next lens to
+  /// paint must re-capture before sampling it. Only the synchronous
+  /// Skia path sets this — see [_capturesAtPaintTime].
+  bool _imageStale = false;
+
+  /// Whether this view refreshes its capture **inside** the frame that
+  /// uses it, rather than after that frame has painted.
+  ///
+  /// The pump runs in the transient-callback phase, before the frame is
+  /// built or painted, so anything it rasterizes there is last frame's
+  /// picture; capturing after `endOfFrame` instead only moves the
+  /// staleness to the consumer, which then paints a frame behind. On the
+  /// sync path there is a third option: mark the cache stale in the
+  /// pump and let the first lens to paint rasterize the background —
+  /// which, being an earlier sibling in the Stack, has already painted
+  /// THIS frame. Same one `toImageSync` per frame, no lag.
+  ///
+  /// The async path (`useSync: false`) keeps the after-the-frame
+  /// `toImage()` it exists for, and so does [LiquidGlassView.regionCapture]
+  /// — a paint-time capture is full-frame, and would leave the per-lens
+  /// sub-images (which carry their own rects) frozen at whatever the
+  /// pump last produced.
+  bool get _capturesAtPaintTime =>
+      !_useImpeller && widget.useSync && !widget.regionCapture;
+
   @override
   void initState() {
     super.initState();
@@ -249,17 +274,18 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       )..addListener(() async {
           if (!_realtimeCaptureEnabled) return;
           final interval = _refreshInterval;
-          // If deviceRefreshRate → capture every frame
-          if (interval == null) {
-            await _captureWidgetSafe();
+          // deviceRefreshRate → every frame; otherwise throttle to the
+          // selected rate.
+          if (interval != null) {
+            final now = DateTime.now();
+            if (now.difference(lastCaptureTime) < interval) return;
+            lastCaptureTime = now;
+          }
+          if (_capturesAtPaintTime) {
+            _markCaptureStale();
             return;
           }
-          // Otherwise throttle based on selected refresh rate
-          final now = DateTime.now();
-          if (now.difference(lastCaptureTime) >= interval) {
-            lastCaptureTime = now;
-            await _captureWidgetSafe();
-          }
+          await _captureWidgetSafe();
         });
     }
     widget.controller?.attach(
@@ -518,6 +544,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
         } else {
           _image = newImage;
           _imageRegion = null;
+          _imageStale = false;
           _imagesPerLens = null;
           _regionsPerLens = null;
           // Wake the lens-anywhere lenses (scope listeners). Safe here:
@@ -552,16 +579,24 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// paint-time code (where InheritedWidget lookups are not allowed).
   double _devicePixelRatio = 1.0;
 
-  /// Synchronous paint-time capture fallback for the Skia / Web path.
+  /// Synchronous paint-time capture for the Skia / Web path.
   ///
-  /// Called by the lens painters during their `paint()` when no captured
-  /// image exists yet — i.e. the very first frame after this view is
-  /// created (page change, first mount). The background RepaintBoundary
-  /// is an earlier sibling in the Stack, so by the time a lens paints,
-  /// the boundary's layer has already been painted **this frame** and
-  /// `toImageSync` can rasterize it immediately. That removes the final
-  /// one-frame gap where lenses were invisible while waiting for the
-  /// post-frame capture.
+  /// Called by the lens painters during their `paint()` when the capture
+  /// they would sample is missing or stale — the very first frame after
+  /// this view is created (page change, first mount), and every live
+  /// frame on the sync path ([_capturesAtPaintTime]). The background
+  /// RepaintBoundary is an earlier sibling in the Stack, so by the time
+  /// a lens paints, the boundary's layer has already been painted **this
+  /// frame** and `toImageSync` can rasterize it immediately.
+  ///
+  /// That timing is the whole point. A capture taken before the frame
+  /// (the pump) or after it (`endOfFrame`) is a frame behind whatever
+  /// samples it, which on a moving lens shows up as the backdrop
+  /// trailing the glass — and on a lens whose pipeline was asleep, as
+  /// the snapshot from when it went to sleep. Here the picture and the
+  /// lens sampling it are the same frame. The first lens to paint pays
+  /// for the rasterization and caches it into [_image]; the rest of the
+  /// frame's lenses reuse it.
   ///
   /// Always captures the full frame — never a region — because the
   /// painters calling this were built with null `imageOffset`/`imageSize`
@@ -569,20 +604,21 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// per-frame pipeline. The result is cached into [_image] so the other
   /// lenses painting in the same frame reuse it instead of re-capturing.
   ///
-  /// Soft-fails to null (lens skips the frame), matching the existing
-  /// capture pipeline's behavior.
+  /// Soft-fails to the previous capture — a frame-old backdrop beats a
+  /// lens that skips its glass for a frame — or to null when there has
+  /// never been one, matching the existing capture pipeline's behavior.
   ui.Image? _capturePaintTimeSync() {
-    if (_image != null) return _image;
+    if (_image != null && !_imageStale) return _image;
     try {
       final context = _repaintKey.currentContext;
-      if (context == null) return null;
+      if (context == null) return _image;
       final boundary = context.findRenderObject();
       if (boundary is! RenderRepaintBoundary || !boundary.attached) {
-        return null;
+        return _image;
       }
       // ignore: invalid_use_of_protected_member
       final layer = boundary.layer;
-      if (layer is! OffsetLayer) return null;
+      if (layer is! OffsetLayer) return _image;
 
       double pixelRatio =
           widget.pixelRatio <= 0 ? _devicePixelRatio : widget.pixelRatio;
@@ -596,9 +632,10 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       );
       _image = img;
       _imageRegion = null;
+      _imageStale = false;
       return img;
     } catch (_) {
-      return null;
+      return _image;
     }
   }
 
@@ -615,7 +652,24 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   void _applyRealtimeCapture(bool enabled) {
     if (_realtimeCaptureEnabled == enabled) return;
     _realtimeCaptureEnabled = enabled;
+    // Waking: whatever is cached dates from when the pipeline went to
+    // sleep, and the pump's first refresh is a frame away — so the lens
+    // would refract that snapshot on the one frame it is most
+    // conspicuous, the frame the glass appears on. Retire it here and
+    // the very next paint rasterizes the live background instead.
+    if (enabled && _capturesAtPaintTime) _markCaptureStale();
     _syncFramePump();
+  }
+
+  /// Retires the cached capture for this frame and wakes every lens
+  /// sampling it, so one of them re-rasterizes the background during
+  /// paint. Cheap: nothing is captured until a lens actually asks.
+  void _markCaptureStale() {
+    _imageStale = true;
+    // Lens-anywhere lenses read the capture at paint time; without this
+    // a frame where nothing else touched them would reuse the retired
+    // picture instead of taking a new one.
+    _captureRevision.value++;
   }
 
   /// Whether anything still needs a frame every vsync.
@@ -664,7 +718,11 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   // only notifies dependents on real configuration changes.
 
   /// Latest full-frame capture for descendant `LiquidGlassLens` widgets.
-  ui.Image? _currentImageForLens() => _image;
+  ///
+  /// Null while the cache is retired, which is what sends the lens on to
+  /// its `captureFallback` ([_capturePaintTimeSync]) for a picture of
+  /// the frame it is painting into.
+  ui.Image? _currentImageForLens() => _imageStale ? null : _image;
 
   /// The background boundary box — the coordinate space captures live in.
   RenderBox? _backgroundBoxForLens() =>
@@ -777,7 +835,13 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
               border: _usePerLensShaders
                   ? borderList![index]
                   : _shaders['liquid_glass_border'] as ui.FragmentShader?,
-              sharedImage: hasOwn ? perImgs[index] : _image,
+              // A retired cache is handed over as null so the painter
+              // falls through to the paint-time capture. Region images
+              // are untouched: they carry their own rect, which the
+              // full-frame fallback would not match.
+              sharedImage: hasOwn
+                  ? perImgs[index]
+                  : (_imageStale ? null : _image),
               sharedImageRegion:
                   hasOwn ? _regionsPerLens![index] : _imageRegion,
               captureFallback: _useImpeller ? null : _capturePaintTimeSync,
