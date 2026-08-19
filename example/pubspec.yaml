@@ -11,13 +11,8 @@ dependencies:
     sdk: flutter
 
   flutter_svg: ^2.3.0
-  # Gallery picker for the shader lab's backdrop.
-  image_picker: ^1.1.2
   liquid_glass_easy:
     path: ../
-  # Experimental shader lab; lives outside the published package.
-  kitchen_glass_lab:
-    path: ../kitchen/experimental
 
 dev_dependencies:
   flutter_test:
