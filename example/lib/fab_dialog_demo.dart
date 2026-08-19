@@ -12,6 +12,10 @@ class FabAndDialogDemoPage extends StatefulWidget {
 class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   bool _useExtendedFab = true;
 
+  /// The in-page panel, held as state because the scaffold slot has no
+  /// route behind it to remember whether it is open.
+  bool _inPageDialogOpen = false;
+
   void _openAlertDialog(BuildContext context) {
     showLiquidGlassDialog(
       context: context,
@@ -72,6 +76,27 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
           ],
         ),
       ),
+    );
+  }
+
+  /// The scaffold's own dialog slot: same glass, but a widget in the lens
+  /// layer rather than a route, so it refracts the live feed on Skia too.
+  Widget _buildInPageDialog() {
+    return LiquidGlassAlertDialog(
+      icon: const Icon(Icons.layers_rounded,
+          color: Color(0xFF2DD4BF), size: 36),
+      title: const Text('In-Page Panel'),
+      content: const Text(
+        'This one is a slot on the scaffold, not a pushed route. It lives '
+        'inside the same LiquidGlassView as the bars, so it refracts the '
+        'scrolling cards on every backend.',
+      ),
+      actions: [
+        LiquidGlassButton(
+          label: 'Close',
+          onPressed: () => setState(() => _inPageDialogOpen = false),
+        ),
+      ],
     );
   }
 
@@ -216,6 +241,17 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
                       ),
                       onPressed: () => _openCustomDialog(context),
                       ),
+                      LiquidGlassButton(
+                        label: 'In-Page Panel',
+                        icon: Icons.layers_rounded,
+                        style: LiquidGlassButton.defaultStyle.copyWith(
+                          appearance: const LiquidGlassAppearance(
+                            color: Color(0x402DD4BF),
+                          ),
+                        ),
+                        onPressed: () =>
+                            setState(() => _inPageDialogOpen = true),
+                      ),
                     ],
                   ),
                 ),
@@ -231,6 +267,8 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
           ),
         ],
       ),
+      dialog: _inPageDialogOpen ? _buildInPageDialog() : null,
+      onDialogDismissed: () => setState(() => _inPageDialogOpen = false),
       floatingActionButton: Builder(
         builder: (context) => _useExtendedFab
             ? LiquidGlassFab.extended(

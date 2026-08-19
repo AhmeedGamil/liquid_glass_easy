@@ -45,7 +45,7 @@ import 'bottom_nav_bar/liquid_glass_tab_bar.dart';
 ///
 /// Slots are composited bottom-to-top:
 /// `lenses` → `appBar` → `bottomNavigationBar` →
-/// `bottomNavigationBarAction` → `floatingActionButton`.
+/// `bottomNavigationBarAction` → `floatingActionButton` → `dialog`.
 class LiquidGlassScaffold extends StatelessWidget {
   /// Clearance assumed under the FAB for a bottom bar the scaffold cannot
   /// measure. Override it with [floatingActionButtonClearance].
@@ -87,6 +87,33 @@ class LiquidGlassScaffold extends StatelessWidget {
   /// [kFallbackNavClearance] — set this when yours is a different height.
   /// Ignored unless the button is aligned toward the bottom.
   final double? floatingActionButtonClearance;
+
+  /// A glass panel laid over the page, inside this scaffold's own view.
+  ///
+  /// Unlike `showLiquidGlassDialog`, which pushes a route, this one is an
+  /// ordinary widget in the lens layer: it refracts the live [body] on
+  /// every backend, and can be merged with the other slots' glass by a
+  /// `LiquidGlassBlender`. What it gives up is the navigator — there is no
+  /// `Future` to await and no route on the stack, so you hold the open/
+  /// closed state yourself and set this back to `null` to close it.
+  ///
+  /// Typically a [LiquidGlassDialog] or [LiquidGlassAlertDialog].
+  final Widget? dialog;
+
+  /// Called when the [dialog] asks to close — a tap on the barrier or a
+  /// system back gesture. Clear [dialog] from here; the panel plays its
+  /// exit animation on the way out.
+  final VoidCallback? onDialogDismissed;
+
+  /// Scrim painted under [dialog] and over everything else. It fades with
+  /// the panel and swallows taps meant for the page beneath.
+  final Color dialogBarrierColor;
+
+  /// Whether tapping the barrier fires [onDialogDismissed].
+  final bool dialogBarrierDismissible;
+
+  /// How long [dialog] takes to appear and to leave.
+  final Duration dialogTransitionDuration;
 
   /// Extra free-floating glass widgets composited between the [body] and
   /// the bars. An escape hatch — position each with your own
@@ -139,6 +166,11 @@ class LiquidGlassScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.floatingActionButtonAlignment = AlignmentDirectional.bottomEnd,
     this.floatingActionButtonClearance,
+    this.dialog,
+    this.onDialogDismissed,
+    this.dialogBarrierColor = const Color(0x80000000),
+    this.dialogBarrierDismissible = true,
+    this.dialogTransitionDuration = const Duration(milliseconds: 350),
     this.lenses = const [],
     this.backgroundColor,
     this.safeArea = true,
@@ -178,6 +210,7 @@ class LiquidGlassScaffold extends StatelessWidget {
         // hidden; with none, the capture can sleep at rest.
         outerNeedsRealtime: appBar != null ||
             bottomNavigationBarAction != null ||
+            dialog != null ||
             lenses.isNotEmpty,
       );
     }
@@ -289,7 +322,160 @@ class LiquidGlassScaffold extends StatelessWidget {
                 child: floatingActionButton!,
               ),
             ),
+          // Last, so the barrier covers the bars as a route's would.
+          _LiquidGlassScaffoldDialog(
+            dialog: dialog,
+            barrierColor: dialogBarrierColor,
+            barrierDismissible: dialogBarrierDismissible,
+            onDismissed: onDialogDismissed,
+            duration: dialogTransitionDuration,
+            useSafeArea: safeArea,
+          ),
         ],
+      ),
+    );
+  }
+}
+
+/// Drives [LiquidGlassScaffold.dialog]: barrier, entrance, and the exit it
+/// has to finish painting after the caller has already let the widget go.
+class _LiquidGlassScaffoldDialog extends StatefulWidget {
+  final Widget? dialog;
+  final Color barrierColor;
+  final bool barrierDismissible;
+  final VoidCallback? onDismissed;
+  final Duration duration;
+  final bool useSafeArea;
+
+  const _LiquidGlassScaffoldDialog({
+    required this.dialog,
+    required this.barrierColor,
+    required this.barrierDismissible,
+    required this.onDismissed,
+    required this.duration,
+    required this.useSafeArea,
+  });
+
+  @override
+  State<_LiquidGlassScaffoldDialog> createState() =>
+      _LiquidGlassScaffoldDialogState();
+}
+
+class _LiquidGlassScaffoldDialogState extends State<_LiquidGlassScaffoldDialog>
+    with SingleTickerProviderStateMixin {
+  // Same shape as the route presenter's: a soft overshoot in, a sharp
+  // pull out.
+  static const Curve _in = Cubic(0.16, 1.0, 0.3, 1.0);
+  static const Curve _out = Cubic(0.7, 0.0, 0.84, 0.0);
+
+  late final AnimationController _controller;
+  late final CurvedAnimation _curve;
+
+  /// The last dialog handed to us. Outlives `widget.dialog` going null so
+  /// the panel can animate out instead of vanishing.
+  Widget? _outgoing;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      reverseDuration: widget.duration,
+      value: widget.dialog == null ? 0.0 : 1.0,
+    );
+    _curve = CurvedAnimation(
+      parent: _controller,
+      curve: _in,
+      reverseCurve: _out,
+    );
+    _outgoing = widget.dialog;
+    _controller.addStatusListener(_onStatus);
+  }
+
+  void _onStatus(AnimationStatus status) {
+    // Fully closed: drop the widget we were only holding on to for the
+    // exit, so its lens stops costing a capture.
+    if (status == AnimationStatus.dismissed && widget.dialog == null) {
+      setState(() => _outgoing = null);
+    }
+  }
+
+  @override
+  void didUpdateWidget(_LiquidGlassScaffoldDialog oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _controller.duration = widget.duration;
+    _controller.reverseDuration = widget.duration;
+    if (widget.dialog != null) {
+      _outgoing = widget.dialog;
+      _controller.forward();
+    } else if (oldWidget.dialog != null) {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.removeStatusListener(_onStatus);
+    _curve.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _dismiss() => widget.onDismissed?.call();
+
+  @override
+  Widget build(BuildContext context) {
+    final Widget? panel = widget.dialog ?? _outgoing;
+    if (panel == null) return const SizedBox.shrink();
+
+    // Open means "the caller still wants it". While closing we keep
+    // painting but stop taking input, and let a back gesture through
+    // rather than swallowing it to close something already on its way out.
+    final bool open = widget.dialog != null;
+
+    // No Center here: the dialog widgets align themselves, and the scale
+    // rides the full-screen box exactly as the route presenter's does.
+    Widget content = panel;
+    if (widget.useSafeArea) content = SafeArea(child: content);
+
+    return PopScope(
+      canPop: !open,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) _dismiss();
+      },
+      child: IgnorePointer(
+        ignoring: !open,
+        child: AnimatedBuilder(
+          animation: _controller,
+          // Handed through so the panel's own subtree is not rebuilt on
+          // every frame of the transition.
+          child: content,
+          builder: (context, child) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                // The scrim may fade freely — it is not glass. The panel
+                // itself never gets an opacity layer: that would isolate
+                // its lens from the page and drop the refraction
+                // mid-flight, which is the whole point of the glass.
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: widget.barrierDismissible ? _dismiss : null,
+                  child: ColoredBox(
+                    color: widget.barrierColor.withValues(
+                      alpha: widget.barrierColor.a * _controller.value,
+                    ),
+                  ),
+                ),
+                Transform.scale(
+                  scale: 0.84 + 0.16 * _curve.value,
+                  child: child,
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
