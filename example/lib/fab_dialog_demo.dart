@@ -12,7 +12,7 @@ class FabAndDialogDemoPage extends StatefulWidget {
 class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   bool _useExtendedFab = true;
 
-  void _openAlertDialog() {
+  void _openAlertDialog(BuildContext context) {
     showLiquidGlassDialog(
       context: context,
       builder: (context) => LiquidGlassAlertDialog(
@@ -43,7 +43,7 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
     );
   }
 
-  void _openCustomDialog() {
+  void _openCustomDialog(BuildContext context) {
     showLiquidGlassDialog(
       context: context,
       builder: (context) => LiquidGlassDialog(
@@ -188,23 +188,25 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
                 const SizedBox(height: 24),
 
                 // Control action bar
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  alignment: WrapAlignment.center,
-                  children: [
-                    LiquidGlassButton(
-                      label: _useExtendedFab ? 'Icon FAB' : 'Extended FAB',
-                      icon: Icons.swap_horiz_rounded,
-                      onPressed: () => setState(() => _useExtendedFab = !_useExtendedFab),
-                    ),
+                Builder(
+                  builder: (context) => Wrap(
+                    spacing: 12,
+                    runSpacing: 12,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      LiquidGlassButton(
+                        label: _useExtendedFab ? 'Icon FAB' : 'Extended FAB',
+                        icon: Icons.swap_horiz_rounded,
+                        onPressed: () =>
+                            setState(() => _useExtendedFab = !_useExtendedFab),
+                      ),
                     LiquidGlassButton(
                       label: 'Alert Dialog',
                       icon: Icons.add_alert_rounded,
                       style: LiquidGlassButton.defaultStyle.copyWith(
                         appearance: const LiquidGlassAppearance(color: Color(0x407C5CFF)),
                       ),
-                      onPressed: _openAlertDialog,
+                      onPressed: () => _openAlertDialog(context),
                     ),
                     LiquidGlassButton(
                       label: 'Custom Dialog',
@@ -212,9 +214,10 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
                       style: LiquidGlassButton.defaultStyle.copyWith(
                         appearance: const LiquidGlassAppearance(color: Color(0x405BC0FF)),
                       ),
-                      onPressed: _openCustomDialog,
-                    ),
-                  ],
+                      onPressed: () => _openCustomDialog(context),
+                      ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 32),
 
@@ -228,16 +231,18 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
           ),
         ],
       ),
-      floatingActionButton: _useExtendedFab
-          ? LiquidGlassFab.extended(
-              icon: Icons.add_rounded,
-              label: const Text('New Action'),
-              onPressed: _openAlertDialog,
-            )
-          : LiquidGlassFab(
-              icon: Icons.add_rounded,
-              onPressed: _openAlertDialog,
-            ),
+      floatingActionButton: Builder(
+        builder: (context) => _useExtendedFab
+            ? LiquidGlassFab.extended(
+                icon: Icons.add_rounded,
+                label: const Text('New Action'),
+                onPressed: () => _openAlertDialog(context),
+              )
+            : LiquidGlassFab(
+                icon: Icons.add_rounded,
+                onPressed: () => _openAlertDialog(context),
+              ),
+      ),
     );
   }
 }

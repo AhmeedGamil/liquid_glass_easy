@@ -65,3 +65,65 @@ class LiquidGlassLensScope extends InheritedWidget {
         backgroundRenderBox != oldWidget.backgroundRenderBox;
   }
 }
+
+/// Carries a view's [LiquidGlassLensScope] across a route boundary.
+///
+/// A dialog or menu opened with `showGeneralDialog` builds inside the
+/// navigator's overlay, not inside the view that captured the page, so a
+/// lens up there has no capture to refract and the Skia path falls back
+/// to flat frost. The view plants one of these around its whole subtree;
+/// `InheritedTheme.capture` — the same call that carries `Theme` into a
+/// route — collects it, and [wrap] re-plants a real scope inside the
+/// route. On Impeller nothing changes: the lens was already sampling the
+/// live backdrop and never needed the scope at all.
+///
+/// Lenses do not look this up, only the scope proper. That is deliberate:
+/// a lens sitting in the view's own `backgroundWidget` still finds
+/// nothing and stays frosted, rather than refracting a capture of itself.
+class LiquidGlassLensScopePortal extends InheritedTheme {
+  /// See [LiquidGlassLensScope.useImpellerBackdrop].
+  final bool useImpellerBackdrop;
+
+  /// See [LiquidGlassLensScope.captureRevision].
+  final ValueListenable<int> captureRevision;
+
+  /// See [LiquidGlassLensScope.currentImage].
+  final ui.Image? Function() currentImage;
+
+  /// See [LiquidGlassLensScope.captureFallback].
+  final ui.Image? Function() captureFallback;
+
+  /// See [LiquidGlassLensScope.backgroundRenderBox].
+  final RenderBox? Function() backgroundRenderBox;
+
+  const LiquidGlassLensScopePortal({
+    super.key,
+    required this.useImpellerBackdrop,
+    required this.captureRevision,
+    required this.currentImage,
+    required this.captureFallback,
+    required this.backgroundRenderBox,
+    required super.child,
+  });
+
+  @override
+  Widget wrap(BuildContext context, Widget child) {
+    return LiquidGlassLensScope(
+      useImpellerBackdrop: useImpellerBackdrop,
+      captureRevision: captureRevision,
+      currentImage: currentImage,
+      captureFallback: captureFallback,
+      backgroundRenderBox: backgroundRenderBox,
+      child: child,
+    );
+  }
+
+  @override
+  bool updateShouldNotify(covariant LiquidGlassLensScopePortal oldWidget) {
+    return useImpellerBackdrop != oldWidget.useImpellerBackdrop ||
+        captureRevision != oldWidget.captureRevision ||
+        currentImage != oldWidget.currentImage ||
+        captureFallback != oldWidget.captureFallback ||
+        backgroundRenderBox != oldWidget.backgroundRenderBox;
+  }
+}

@@ -731,7 +731,16 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   @override
   Widget build(BuildContext context) {
     _devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    return Stack(
+    // Wraps the whole view, background included, so anything below can
+    // hand this view's capture to a route it pushes (see the portal's
+    // doc). Lenses still bind to the inner scope around `child` only.
+    return LiquidGlassLensScopePortal(
+      useImpellerBackdrop: _useImpeller,
+      captureRevision: _captureRevision,
+      currentImage: _currentImageForLens,
+      captureFallback: _capturePaintTimeSync,
+      backgroundRenderBox: _backgroundBoxForLens,
+      child: Stack(
       // Tight constraints for both the captured background and the
       // lens-rendering layer. Without this, in a loose Stack, the
       // RepaintBoundary and the LayoutBuilder can end up at
@@ -772,7 +781,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
             animation: _controller!,
             builder: (context, _) => _buildLensLayout(),
           ),
-      ],
+        ],
+      ),
     );
   }
 
