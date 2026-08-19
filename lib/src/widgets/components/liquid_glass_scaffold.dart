@@ -44,8 +44,13 @@ import 'bottom_nav_bar/liquid_glass_tab_bar.dart';
 /// ### Z-order
 ///
 /// Slots are composited bottom-to-top:
-/// `lenses` → `appBar` → `bottomNavigationBar` → `bottomNavigationBarAction`.
+/// `lenses` → `appBar` → `bottomNavigationBar` →
+/// `bottomNavigationBarAction` → `floatingActionButton`.
 class LiquidGlassScaffold extends StatelessWidget {
+  /// Clearance assumed under the FAB for a bottom bar the scaffold cannot
+  /// measure. Override it with [floatingActionButtonClearance].
+  static const double kFallbackNavClearance = 64;
+
   /// The primary content of the screen. Rendered behind every glass slot
   /// and used as the background the lenses refract.
   final Widget body;
@@ -63,10 +68,25 @@ class LiquidGlassScaffold extends StatelessWidget {
   final Widget? bottomNavigationBarAction;
 
   /// A floating action button, typically a [LiquidGlassFab].
+  ///
+  /// With the default alignment this shares the bottom-end corner with
+  /// [bottomNavigationBarAction]; the button is lifted clear of the bar,
+  /// so use both only when there is a [bottomNavigationBar] between them.
   final Widget? floatingActionButton;
 
-  /// Position of [floatingActionButton]. Defaults to bottom-right.
+  /// Position of [floatingActionButton]. Defaults to the bottom-end
+  /// corner — bottom-right in LTR, bottom-left in RTL. Pass a plain
+  /// [Alignment] to pin a physical side, or any offset to nudge it.
   final AlignmentGeometry floatingActionButtonAlignment;
+
+  /// Room kept clear below a bottom-aligned [floatingActionButton] so it
+  /// floats above the [bottomNavigationBar].
+  ///
+  /// Left `null` the scaffold measures a [LiquidGlassTabBar] itself. Any
+  /// other bar can't be measured from here, so it falls back to
+  /// [kFallbackNavClearance] — set this when yours is a different height.
+  /// Ignored unless the button is aligned toward the bottom.
+  final double? floatingActionButtonClearance;
 
   /// Extra free-floating glass widgets composited between the [body] and
   /// the bars. An escape hatch — position each with your own
@@ -117,7 +137,8 @@ class LiquidGlassScaffold extends StatelessWidget {
     this.bottomNavigationBar,
     this.bottomNavigationBarAction,
     this.floatingActionButton,
-    this.floatingActionButtonAlignment = Alignment.bottomRight,
+    this.floatingActionButtonAlignment = AlignmentDirectional.bottomEnd,
+    this.floatingActionButtonClearance,
     this.lenses = const [],
     this.backgroundColor,
     this.safeArea = true,
@@ -147,7 +168,7 @@ class LiquidGlassScaffold extends StatelessWidget {
         body: body,
         backgroundColor: backgroundColor,
         bottomInset: pad.bottom,
-        outerChild: _outerSlots(pad, includeNavBar: false),
+        outerChild: _outerSlots(context, pad, includeNavBar: false),
         pixelRatio: pixelRatio,
         useSync: useSync,
         useImpellerBackdrop: useImpellerBackdrop,
@@ -177,14 +198,18 @@ class LiquidGlassScaffold extends StatelessWidget {
       refreshRate: refreshRate,
       useImpellerBackdrop: useImpellerBackdrop,
       backgroundWidget: background,
-      child: _outerSlots(pad, includeNavBar: true),
+      child: _outerSlots(context, pad, includeNavBar: true),
     );
   }
 
   /// Builds the full-screen `Stack` of glass slots placed over the body.
   /// When [includeNavBar] is false the bottom nav bar is omitted (the
   /// glass-pill path renders the bar itself).
-  Widget _outerSlots(EdgeInsets pad, {required bool includeNavBar}) {
+  Widget _outerSlots(
+    BuildContext context,
+    EdgeInsets pad, {
+    required bool includeNavBar,
+  }) {
     final EdgeInsets navMargin = bottomNavigationBar is LiquidGlassTabBar
         ? (bottomNavigationBar as LiquidGlassTabBar).margin
         : EdgeInsets.zero;
@@ -193,15 +218,25 @@ class LiquidGlassScaffold extends StatelessWidget {
             ? (bottomNavigationBar as LiquidGlassTabBar).alignment
             : Alignment.bottomCenter;
 
-    // Vertical room the FAB keeps clear above the bar: the bar's real
-    // height plus its bottom margin when it is the package's tab bar,
-    // the default bar height otherwise.
-    final double navClearance = bottomNavigationBar == null
-        ? 0
-        : bottomNavigationBar is LiquidGlassTabBar
-            ? (bottomNavigationBar as LiquidGlassTabBar).height +
-                navMargin.bottom
-            : 64;
+    // Where the FAB actually lands, once RTL has had its say.
+    // resolve() asserts on a null direction for the directional defaults,
+    // and nothing guarantees a Directionality above a bare scaffold.
+    final Alignment fabAlignment = floatingActionButtonAlignment
+        .resolve(Directionality.maybeOf(context) ?? TextDirection.ltr);
+
+    // Vertical room the FAB keeps clear above the bar: whatever the caller
+    // set, else the tab bar's real height plus its bottom margin, else a
+    // guess — no other bar reports its height to us.
+    // Only bottom-leaning alignments are lifted; for the rest the bar is
+    // nowhere near, and trimming the box would drag `center` off-centre.
+    final double navClearance =
+        bottomNavigationBar == null || fabAlignment.y <= 0
+            ? 0
+            : floatingActionButtonClearance ??
+                (bottomNavigationBar is LiquidGlassTabBar
+                    ? (bottomNavigationBar as LiquidGlassTabBar).height +
+                        navMargin.bottom
+                    : kFallbackNavClearance);
 
     // The glass overlays float outside any Scaffold/Material, so bare
     // Text/Icon in the app bar, nav, side action, or `lenses` would inherit
@@ -250,7 +285,7 @@ class LiquidGlassScaffold extends StatelessWidget {
               left: actionMargin,
               right: actionMargin,
               child: Align(
-                alignment: floatingActionButtonAlignment,
+                alignment: fabAlignment,
                 child: floatingActionButton!,
               ),
             ),
