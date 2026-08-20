@@ -40,7 +40,7 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
 | **Blend** | `LiquidGlassBlender` | Merges 2–6 lenses into one surface, joined by a smooth metaball bridge. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
-| **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
+| **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassAlertDialog`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
 
 ---
 
@@ -152,6 +152,8 @@ their own background and work anywhere on both engines.
 | `LiquidGlassScaffold` | **None** — it *is* the pipeline; its child lenses refract the body on both engines. |
 | `LiquidGlassButton` | Needs an ancestor `LiquidGlassView` (frosted fallback without one). |
 | `LiquidGlassAppBar` | Needs an ancestor `LiquidGlassView`. |
+| `LiquidGlassFab` | Needs an ancestor `LiquidGlassView`. |
+| `LiquidGlassAlertDialog` | Open it from a context inside a `LiquidGlassView`. |
 | `LiquidGlassTabBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassTabBar.withImpeller(...)`. |
 | `LiquidGlassDraggable` | Inherits whatever the lens it wraps requires. |
 
@@ -191,7 +193,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^4.0.0
+  liquid_glass_easy: ^4.1.0
 ```
 
 ```bash
@@ -516,7 +518,8 @@ hand over an appearance carrying no shadow to drop the shadow.
 
 Each component is self-contained and styled through the same
 `LiquidGlassStyle` vocabulary. Other components: `LiquidGlassButton`,
-`LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassScaffold`.
+`LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`,
+`LiquidGlassAlertDialog`, `LiquidGlassScaffold`.
 
 ### Tab bar — the moving glass pill
 
