@@ -1,9 +1,11 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../lens/liquid_glass_lens.dart';
+import '../lens/liquid_glass_lens_scope.dart';
 import '../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../liquid_glass_style.dart';
@@ -86,9 +88,12 @@ class LiquidGlassMotionPill extends StatefulWidget {
   final double contractDamping;
 
   /// Widget drawn over the glass at rest and faded out as the morph
-  /// expands — the slider passes its solid white pill here. Laid out at
-  /// rest size and pixel-stretched with the outline, so it deforms as
-  /// one body with the glass. Takes no pointers.
+  /// expands — the slider passes its solid white pill here. It is its
+  /// own layer above the lens, sized to the glass's VISIBLE extent (the
+  /// deformed box plus the shader's edge-AA reach on the Impeller
+  /// backdrop path) and clipped to the matching outline with the same
+  /// stretch, so at rest it hides the glass completely and deforms as
+  /// one body with it. Takes no pointers.
   ///
   /// It is **clipped to the pill's own outline**, so pass a plain fill: a
   /// rounded rectangle of its own would only cut back inside that outline
@@ -294,32 +299,55 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
         childTranslateY: 0,
         pressAmount: 0,
       ),
-      child: cover == null
-          ? null
-          : IgnorePointer(
-              child: Opacity(
-                opacity: coverOpacity,
-                child: liquidGlassClip(
-                  // The cover is the pill's own face at rest, so it takes
-                  // the glass's outline instead of a capsule of its own —
-                  // the continuous corner leaves the edge a third of a
-                  // radius further out than a circular one, and the two
-                  // silhouettes disagree at the caps otherwise.
-                  //
-                  // Exact: the corner is CUT to the curve the shader draws
-                  // rather than approximated by an RRect. Only the outline
-                  // fields matter to a clip. The clip lives in rest space —
-                  // the lens stretches its pixels with everything else.
-                  shape: LiquidGlassShape(
-                    cornerStyle: style.shape!.cornerStyle,
-                    cornerRadius: style.shape!.cornerRadius,
-                    clipQuality: LiquidGlassClipQuality.exact,
-                  ),
-                  child: cover,
-                ),
-              ),
-            ),
     );
+
+    // The cover is the pill's own face at rest, so it has to hide the
+    // glass completely. On the Impeller backdrop path the shader draws
+    // its edge-AA ramp half a logical px PAST the outline (the lens's
+    // layer clip no longer trims it), so the cover reaches the same
+    // distance and the two silhouettes coincide; the Skia path still
+    // trims the glass at the outline with a canvas clip, so there the
+    // cover stays on it. That reach is why the cover is a layer of its
+    // own above the lens rather than its child: the lens clips a child
+    // to its box.
+    Widget? coverLayer;
+    if (cover != null) {
+      final LiquidGlassLensScope? scope =
+          LiquidGlassLensScope.maybeOf(context);
+      final bool impellerGlass =
+          (scope?.useImpellerBackdrop ?? true) &&
+              ui.ImageFilter.isShaderFilterSupported;
+      final double outset = impellerGlass ? 0.5 : 0.0;
+      final LiquidGlassShape shape = style.shape!;
+      coverLayer = Positioned(
+        left: deformedTopLeft.dx - outset,
+        top: deformedTopLeft.dy - outset,
+        width: math.max(1.0, pillW + 2 * outset),
+        height: math.max(1.0, pillH + 2 * outset),
+        child: IgnorePointer(
+          child: Opacity(
+            opacity: coverOpacity,
+            child: liquidGlassClip(
+              // The glass's outline instead of a capsule of its own — the
+              // continuous corner leaves the edge a third of a radius
+              // further out than a circular one, and the two silhouettes
+              // disagree at the caps otherwise. Exact: CUT to the curve the
+              // shader draws rather than approximated by an RRect; pushed
+              // out by the same reach as the box. Only the outline fields
+              // matter to a clip. The live stretch goes in as the clip's
+              // scale, so the caps stay elliptical with the glass.
+              shape: LiquidGlassShape(
+                cornerStyle: shape.cornerStyle,
+                cornerRadius: shape.cornerRadius + outset,
+                clipQuality: LiquidGlassClipQuality.exact,
+              ),
+              shapeScale: Offset(scaleX, scaleY),
+              child: cover,
+            ),
+          ),
+        ),
+      );
+    }
 
     // The shadow WRAPS the glass instead of riding inside it, so the arc
     // that pools below the pill is not clipped off at the outline. It is
@@ -352,6 +380,8 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
           height: math.max(1.0, pillH),
           child: pill,
         ),
+        // Above the glass and its shadow, as the lens child was.
+        if (coverLayer != null) coverLayer,
       ],
     );
   }
