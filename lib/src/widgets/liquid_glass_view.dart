@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -6,10 +7,18 @@ import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.d
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens_scope.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_adaptivity.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 // Flutter only re-exports `internal` from foundation.dart on newer SDKs.
 // ignore: unnecessary_import
 import 'package:meta/meta.dart';
+
+class _AdaptiveSampleRegion {
+  final Rect rect;
+  final ui.Path? mask;
+
+  const _AdaptiveSampleRegion(this.rect, this.mask);
+}
 
 // Main container that renders LiquidGlass lenses on top of a background
 class LiquidGlassView extends StatefulWidget {
@@ -137,6 +146,21 @@ class LiquidGlassView extends StatefulWidget {
   /// anywhere `child` lenses.
   final bool honorBackdropAlpha;
 
+  /// Enables the background-luminance sampler behind
+  /// `LiquidGlassAdaptivity` (see `LiquidGlassStyle.adaptivity`): a tiny
+  /// second capture of [backgroundWidget] at a low pixel ratio and frame
+  /// limit.
+  ///
+  /// `null` (the default) means **no sampling for this view** — adaptive
+  /// descendants fall back to their manual `permanentBrightness` /
+  /// platform brightness. Pass `const LiquidGlassAdaptiveSampling()` to
+  /// opt in with the standard tuning (pixelRatio 0.05, frameLimit 8).
+  /// Even when set, the sampler runs only while at least one descendant
+  /// has adaptivity enabled — otherwise it costs nothing, not even a
+  /// timer. And while it runs, captures are idle-gated: a static screen
+  /// (no rendered frames) triggers no captures at all.
+  final LiquidGlassAdaptiveSampling? adaptiveSampling;
+
   /// Creates a liquid-glass view: a background-capture / refraction
   /// provider. Place `LiquidGlassLens` widgets anywhere inside [child] —
   /// they connect to this view automatically. There is no positioned-lens
@@ -151,7 +175,8 @@ class LiquidGlassView extends StatefulWidget {
       this.useSync = true,
       this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
       this.useImpellerBackdrop,
-      this.regionCapture = false})
+      this.regionCapture = false,
+      this.adaptiveSampling})
       : children = const [],
         honorBackdropAlpha = false;
 
@@ -172,7 +197,8 @@ class LiquidGlassView extends StatefulWidget {
       this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
       this.useImpellerBackdrop,
       this.regionCapture = false,
-      this.honorBackdropAlpha = false});
+      this.honorBackdropAlpha = false,
+      this.adaptiveSampling});
 
   @override
   State<LiquidGlassView> createState() => _LiquidGlassViewState();
@@ -292,6 +318,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       captureOnce: _captureOnce,
       startRealtime: _startRealtimeCapture,
       stopRealtime: _stopRealtimeCapture,
+      registerAdaptiveClient: _registerAdaptiveClient,
+      unregisterAdaptiveClient: _unregisterAdaptiveClient,
     );
 
     // If the programs were already compiled by a previous view (any
@@ -639,6 +667,175 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     }
   }
 
+  // ===== Adaptive background-luminance sampler =====
+  // Powers `LiquidGlassAdaptivity` (see LiquidGlassStyle.adaptivity): a
+  // tiny second capture of the background boundary — separate from the
+  // rendering capture and from the frame loop — that measures mean
+  // perceptual background lightness under each registered lens. Timer-driven at
+  // `adaptiveSampling.frameLimit` Hz, self-paced (a tick is skipped
+  // while the previous readback is still in flight), idle-gated (no
+  // captures while no frames are rendered — see [_adaptiveSawFrame]),
+  // and alive only while at least one lens is registered.
+  // Backend-agnostic: it rasterizes the background RepaintBoundary,
+  // which exists on both the Skia and Impeller paths.
+  final Set<LiquidGlassAdaptiveClient> _adaptiveClients =
+      <LiquidGlassAdaptiveClient>{};
+  Timer? _adaptiveTimer;
+  bool _adaptiveSampleBusy = false;
+
+  /// Idle gate: `true` while at least one frame has been rendered since
+  /// the last successful sample. Pixels can only change through a
+  /// rendered frame, so while this is `false` the screen is guaranteed
+  /// pixel-identical to the previous sample and the tick skips its
+  /// capture entirely — an idle page costs one boolean check per tick,
+  /// no rasterize, no readback. Any frame (scroll, animation, anything)
+  /// re-opens the gate via the post-frame callback armed after each
+  /// sample. Note: on the Skia path with `realTimeCapture` the view's
+  /// own capture loop renders continuously, so the gate stays open
+  /// there — the saving applies to Impeller (and snapshot-mode Skia),
+  /// where an idle screen genuinely produces no frames.
+  bool _adaptiveSawFrame = true;
+
+  Duration get _adaptiveInterval {
+    final double fps = widget.adaptiveSampling?.frameLimit ?? 8;
+    final int ms = fps > 0 ? (1000 / fps).round() : 125;
+    return Duration(milliseconds: ms.clamp(16, 2000));
+  }
+
+  void _registerAdaptiveClient(LiquidGlassAdaptiveClient client) {
+    _adaptiveClients.add(client);
+    _adaptiveTimer ??=
+        Timer.periodic(_adaptiveInterval, (_) => _adaptiveSampleTick());
+    // Serve the newcomer right away instead of waiting a full interval.
+    // Post-frame so the boundary is guaranteed to have painted.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _adaptiveSampleTick());
+  }
+
+  void _unregisterAdaptiveClient(LiquidGlassAdaptiveClient client) {
+    _adaptiveClients.remove(client);
+    if (_adaptiveClients.isEmpty) {
+      _adaptiveTimer?.cancel();
+      _adaptiveTimer = null;
+    }
+  }
+
+  Future<void> _adaptiveSampleTick() async {
+    final LiquidGlassAdaptiveSampling? sampling = widget.adaptiveSampling;
+    if (sampling == null) return;
+    if (_adaptiveSampleBusy || _adaptiveClients.isEmpty || !mounted) return;
+    // Idle gate: no frame has been rendered since the last sample, so
+    // the screen (and every client's region) is pixel-identical — skip
+    // the capture. See [_adaptiveSawFrame].
+    if (!_adaptiveSawFrame) return;
+    final BuildContext? ctx = _repaintKey.currentContext;
+    if (ctx == null) return;
+    final RenderObject? boundary = ctx.findRenderObject();
+    if (boundary is! RenderRepaintBoundary ||
+        !boundary.attached ||
+        boundary.size.isEmpty) {
+      return;
+    }
+    _adaptiveSampleBusy = true;
+    try {
+      final Size bgSize = boundary.size;
+      final Rect backgroundBounds = Offset.zero & bgSize;
+      final Map<LiquidGlassAdaptiveClient, List<_AdaptiveSampleRegion>>
+          sampleRegions =
+          <LiquidGlassAdaptiveClient, List<_AdaptiveSampleRegion>>{};
+      final List<Rect> allVisibleRegions = <Rect>[];
+      for (final LiquidGlassAdaptiveClient client
+          in List<LiquidGlassAdaptiveClient>.of(_adaptiveClients)) {
+        try {
+          final List<_AdaptiveSampleRegion> regions = <_AdaptiveSampleRegion>[];
+          for (final Rect rawRegion in client.adaptiveRegions(boundary)) {
+            final Rect visible = rawRegion.intersect(backgroundBounds);
+            if (visible.isEmpty) continue;
+            regions.add(_AdaptiveSampleRegion(
+              visible,
+              client.adaptiveMaskPath(boundary, rawRegion),
+            ));
+            allVisibleRegions.add(visible);
+          }
+          if (regions.isNotEmpty) sampleRegions[client] = regions;
+        } catch (_) {
+          // A detached client is skipped without starving the others.
+        }
+      }
+      if (sampleRegions.isEmpty) return;
+
+      // Keep the cheap base ratio for large surfaces, but raise it when a
+      // small lens would otherwise be represented by only a few texels.
+      final double ratio =
+          liquidGlassAdaptiveCaptureRatio(sampling, allVisibleRegions);
+
+      final ui.Image img = await boundary.toImage(pixelRatio: ratio);
+      final ByteData? bytes =
+          await img.toByteData(format: ui.ImageByteFormat.rawRgba);
+      final int w = img.width, h = img.height;
+      img.dispose();
+      if (bytes == null || !mounted || w == 0 || h == 0) return;
+
+      // Close the idle gate until the next rendered frame proves the
+      // screen could have changed. Armed only after a successful
+      // readback, so a soft-failed sample retries on the next tick.
+      _adaptiveSawFrame = false;
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => _adaptiveSawFrame = true);
+
+      final double sx = w / bgSize.width, sy = h / bgSize.height;
+      for (final MapEntry<LiquidGlassAdaptiveClient,
+          List<_AdaptiveSampleRegion>> entry in sampleRegions.entries) {
+        final LiquidGlassAdaptiveClient client = entry.key;
+        if (!_adaptiveClients.contains(client)) continue;
+        double luminanceSum = 0;
+        double lightnessSum = 0;
+        int count = 0;
+        int lightCount = 0;
+        for (final _AdaptiveSampleRegion sampledRegion in entry.value) {
+          final Rect region = sampledRegion.rect;
+          final int x0 = (region.left * sx).floor().clamp(0, w - 1);
+          final int x1 = (region.right * sx).ceil().clamp(x0 + 1, w);
+          final int y0 = (region.top * sy).floor().clamp(0, h - 1);
+          final int y1 = (region.bottom * sy).ceil().clamp(y0 + 1, h);
+
+          for (int y = y0; y < y1; y++) {
+            int o = (y * w + x0) * 4;
+            for (int x = x0; x < x1; x++, o += 4) {
+              final ui.Path? mask = sampledRegion.mask;
+              if (mask != null &&
+                  !mask.contains(Offset((x + 0.5) / sx, (y + 0.5) / sy))) {
+                continue;
+              }
+              if (bytes.getUint8(o + 3) == 0) continue;
+              final double luminance = liquidGlassRelativeLuminanceFromSrgb8(
+                bytes.getUint8(o),
+                bytes.getUint8(o + 1),
+                bytes.getUint8(o + 2),
+              );
+              final double lightness = liquidGlassPerceptualLightness(luminance);
+              luminanceSum += luminance;
+              lightnessSum += lightness;
+              if (lightness >= 0.5) lightCount++;
+              count++;
+            }
+          }
+        }
+        if (count > 0) {
+          client.onAdaptiveSample(LiquidGlassBackdropSample(
+            meanLuminance: luminanceSum / count,
+            meanLightness: lightnessSum / count,
+            lightFraction: lightCount / count,
+            sampleCount: count,
+          ));
+        }
+      }
+    } catch (_) {
+      // Soft-fail: skip this sample, the next tick retries.
+    } finally {
+      _adaptiveSampleBusy = false;
+    }
+  }
+
   Future<void> _captureOnce() async {
     await _captureWidgetSafe();
     if (mounted) setState(() {});
@@ -709,6 +906,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   void dispose() {
     widget.controller?.detach();
     _controller?.dispose();
+    _adaptiveTimer?.cancel();
+    _adaptiveTimer = null;
+    _adaptiveClients.clear();
     _captureRevision.dispose();
     super.dispose();
   }
@@ -740,6 +940,10 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       currentImage: _currentImageForLens,
       captureFallback: _capturePaintTimeSync,
       backgroundRenderBox: _backgroundBoxForLens,
+      registerAdaptiveClient:
+          widget.adaptiveSampling == null ? null : _registerAdaptiveClient,
+      unregisterAdaptiveClient:
+          widget.adaptiveSampling == null ? null : _unregisterAdaptiveClient,
       child: Stack(
       // Tight constraints for both the captured background and the
       // lens-rendering layer. Without this, in a loose Stack, the
@@ -763,6 +967,15 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
             currentImage: _currentImageForLens,
             captureFallback: _capturePaintTimeSync,
             backgroundRenderBox: _backgroundBoxForLens,
+            // Adaptive sampling is opt-in per view: without a config the
+            // scope offers no registration and adaptive descendants fall
+            // back to manual/platform verdicts.
+            registerAdaptiveClient: widget.adaptiveSampling == null
+                ? null
+                : _registerAdaptiveClient,
+            unregisterAdaptiveClient: widget.adaptiveSampling == null
+                ? null
+                : _unregisterAdaptiveClient,
             child: widget.child!,
           ),
         // The lens layout itself is identical on both paths. The

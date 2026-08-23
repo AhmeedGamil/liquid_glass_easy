@@ -3,11 +3,13 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
+import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_adaptive_area.dart';
 
 /// Description of a single tab in [LiquidGlassTabBar].
 class LiquidGlassTabBarItem {
@@ -134,7 +136,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     super.key,
     this.icon,
     this.onTap,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.size = 56,
     this.style,
     this.visibility = true,
@@ -158,8 +160,16 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   /// Tap callback.
   final VoidCallback? onTap;
 
-  /// Color of the glyph.
-  final Color foregroundColor;
+  /// Color of the glyph. `null` (the default) means white — or, while
+  /// the action's adaptivity is active, the animated adaptive content
+  /// color. An explicit color always wins and never adapts.
+  ///
+  /// **Adaptivity outranks this.** On an adaptive surface the color comes
+  /// from the verdict, whatever is named here — a pinned foreground would
+  /// otherwise defeat the one thing adaptivity exists to guarantee. Opt
+  /// the surface out with `adaptivity: LiquidGlassAdaptivity.none` to
+  /// pin a color on it.
+  final Color? foregroundColor;
 
   /// Diameter of the circular button.
   final double size;
@@ -205,6 +215,18 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final LiquidGlassStyle resolved = defaultStyle.merge(style);
+    // Explicit glyph color always wins and never adapts. When unset:
+    // white — or, with adaptivity active (own style or an enclosing
+    // area, `.none` opting out), `null` so the lens's ambient adaptive
+    // content color reaches the Icon.
+    final LiquidGlassAdaptivity? adapt = resolved.adaptivity ??
+        LiquidGlassAdaptiveArea.maybeOf(context)?.adaptivity;
+    final bool adaptive = adapt != null && !adapt.isNone;
+    // Adaptivity outranks an explicit foreground: null hands the glyph
+    // to the lens's ambient adaptive color. Opt a surface out with
+    // `LiquidGlassAdaptivity.none` to pin a color on it.
+    final Color? effectiveForeground =
+        adaptive ? null : (foregroundColor ?? Colors.white);
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: size / 2,
@@ -226,6 +248,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
           shape: effectiveShape,
           appearance: resolved.appearance,
           refraction: resolved.refraction,
+          adaptivity: resolved.adaptivity,
         ),
         visibility: visibility,
         child: Material(
@@ -239,12 +262,12 @@ class LiquidGlassTabBarAction extends StatelessWidget {
               // scale-down keep custom content inside the circle instead
               // of letting it drive the button's size.
               child: child == null
-                  ? Icon(icon, color: foregroundColor, size: size * 0.46)
+                  ? Icon(icon, color: effectiveForeground, size: size * 0.46)
                   : IconTheme.merge(
                       data: IconThemeData(
-                          color: foregroundColor, size: size * 0.46),
+                          color: effectiveForeground, size: size * 0.46),
                       child: DefaultTextStyle.merge(
-                        style: TextStyle(color: foregroundColor),
+                        style: TextStyle(color: effectiveForeground),
                         child: FittedBox(fit: BoxFit.scaleDown, child: child),
                       ),
                     ),

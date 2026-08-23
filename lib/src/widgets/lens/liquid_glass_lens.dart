@@ -2,9 +2,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../components/liquid_glass_adaptive_area.dart';
 import '../components/liquid_glass_shadow.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
+import '../utils/liquid_glass_adaptivity.dart';
+import '../utils/liquid_glass_adaptivity_driver.dart';
 import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
@@ -151,17 +154,64 @@ class LiquidGlassLens extends StatefulWidget {
 }
 
 class _LiquidGlassLensState extends State<LiquidGlassLens>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin, LiquidGlassAdaptiveClient {
   /// One-time debug notice when a lens has to degrade to frosted glass.
   static bool _warnedFrostedFallback = false;
+
+  // ===== Adaptivity (LiquidGlassStyle.adaptivity) =====
+  // The shared verdict machine (see [LiquidGlassAdaptivityDriver]) does
+  // all deciding/animating; this state only registers with the view's
+  // sampler and paints from the driver's colors.
+  late final LiquidGlassAdaptivityDriver _adaptDriver =
+      LiquidGlassAdaptivityDriver(vsync: this);
+
+  /// Registration bookkeeping against the view's sampler. The register
+  /// tear-off doubles as the identity of "who we're registered with".
+  void Function(LiquidGlassAdaptiveClient)? _adaptRegisteredWith;
+  void Function(LiquidGlassAdaptiveClient)? _adaptUnregister;
+
+  /// The adaptivity in force for the frame being built, or `null` when
+  /// the lens is not adaptive. Set at the top of [build] and read by the
+  /// palette helpers below, so every paint path picks the flip up
+  /// without threading it through each signature.
+  LiquidGlassAdaptivity? _activeAdaptivity;
 
   // Resolved look: read straight from the style; a null shape falls back
   // to the default continuous rounded rectangle (with the cheap circular
   // rounded-rectangle clip).
   LiquidGlassShape get _shape =>
       widget.style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
-  LiquidGlassAppearance get _appearance => widget.style.appearance;
+  LiquidGlassAppearance get _appearance =>
+      _adaptAppearance(widget.style.appearance);
   LiquidGlassRefraction get _refraction => widget.style.refraction;
+
+  /// Overrides [base]'s color with the frame's adaptive glass tint. A
+  /// non-adaptive lens gets [base] back untouched.
+  LiquidGlassAppearance _adaptAppearance(LiquidGlassAppearance base) {
+    final LiquidGlassAdaptivity? adaptivity = _activeAdaptivity;
+    if (adaptivity == null) return base;
+    return base.copyWith(color: _adaptDriver.glassColor(adaptivity));
+  }
+
+  /// Wraps [child] so any `Icon`/`Text` that doesn't hardcode a color
+  /// follows the verdict. Returns [child] unchanged when not adaptive.
+  Widget? _adaptContent(BuildContext context, Widget? child) {
+    final LiquidGlassAdaptivity? adaptivity = _activeAdaptivity;
+    if (adaptivity == null || child == null) return child;
+    final Color content = _adaptDriver.contentColor(adaptivity);
+    return LiquidGlassAdaptiveVerdictScope(
+      // The content color covers Icon/Text; the verdict itself is for
+      // children carrying their own palette (the nav bar's rest pill).
+      flipT: _adaptDriver.flipT,
+      child: IconTheme(
+        data: IconTheme.of(context).copyWith(color: content),
+        child: DefaultTextStyle.merge(
+          style: TextStyle(color: content),
+          child: child,
+        ),
+      ),
+    );
+  }
 
   /// Per-lens shader instances, created from the shared program cache.
   /// Deliberately not disposed manually: retained layers may still
@@ -208,12 +258,127 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
 
   @override
   void dispose() {
+    _adaptUnregister?.call(this);
+    _adaptUnregister = null;
+    _adaptRegisteredWith = null;
+    _adaptDriver.dispose();
     _flexDriver?.dispose();
     super.dispose();
   }
 
+  /// The adaptivity controller flipped: rebuild so sampling
+  /// registration and the driver's verdict source follow the switch.
+  void _adaptResync() {
+    if (mounted) setState(() {});
+  }
+
+  /// Keeps registration with the view's sampler in sync with the style.
+  /// Safe to call every build: it's a no-op unless something changed.
+  void _syncRegistration({
+    required void Function(LiquidGlassAdaptiveClient)? register,
+    required void Function(LiquidGlassAdaptiveClient)? unregister,
+  }) {
+    if (!identical(register, _adaptRegisteredWith)) {
+      _adaptUnregister?.call(this);
+      _adaptUnregister = null;
+      _adaptRegisteredWith = register;
+      if (register != null) {
+        register(this);
+        _adaptUnregister = unregister;
+      }
+    }
+  }
+
+  @override
+  Rect? adaptiveRegion(RenderBox backgroundBox) {
+    if (!mounted) return null;
+    final RenderObject? ro = context.findRenderObject();
+    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return null;
+    try {
+      final transform = ro.getTransformTo(backgroundBox);
+      return MatrixUtils.transformRect(transform, Offset.zero & ro.size);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  ui.Path? adaptiveMaskPath(RenderBox backgroundBox, Rect region) {
+    if (!mounted) return null;
+    final RenderObject? ro = context.findRenderObject();
+    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return null;
+    try {
+      final transform = ro.getTransformTo(backgroundBox);
+      // Rest-space outline: the sampler reads the backdrop, not the
+      // deformed glass, so a press must not shrink the sampled region.
+      return liquidGlassOutlinePath(_shape, ro.size, const Offset(1, 1))
+          .transform(transform.storage);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void onAdaptiveSample(LiquidGlassBackdropSample sample) {
+    if (!mounted) return;
+    _adaptDriver.onBackdropSample(sample);
+  }
+
   @override
   Widget build(BuildContext context) {
+    // Adaptivity precedence: the style's own config, else the enclosing
+    // area's — and `LiquidGlassAdaptivity.none` opts out of both. The
+    // verdict source: manual override → explicit link → enclosing
+    // area's link → own sampling → platform brightness.
+    final LiquidGlassAdaptiveAreaScope? areaScope =
+        LiquidGlassAdaptiveArea.maybeOf(context);
+    final LiquidGlassAdaptivity? resolved =
+        widget.style.adaptivity ?? areaScope?.adaptivity;
+    final LiquidGlassAdaptivity? adaptivity =
+        (resolved?.isNone ?? false) ? null : resolved;
+    final LiquidGlassAdaptivityLink? follow =
+        adaptivity == null ? null : (adaptivity.link ?? areaScope?.link);
+    // A host's sampler redirect (e.g. the nav bar's outer view routing
+    // clients to its inner pre-glass sampler) wins over the enclosing
+    // view's own sampler.
+    final LiquidGlassAdaptiveSamplerScope? samplerScope =
+        LiquidGlassAdaptiveSamplerScope.maybeOf(context);
+    final LiquidGlassLensScope? lensScope =
+        LiquidGlassLensScope.maybeOf(context);
+    final void Function(LiquidGlassAdaptiveClient)? adaptRegister =
+        samplerScope?.register ?? lensScope?.registerAdaptiveClient;
+    final void Function(LiquidGlassAdaptiveClient)? adaptUnregister =
+        samplerScope?.unregister ?? lensScope?.unregisterAdaptiveClient;
+    final bool wantSampling = _adaptDriver.samplingWanted(adaptivity,
+        following: follow != null, canRegister: adaptRegister != null);
+
+    _syncRegistration(
+        register: wantSampling ? adaptRegister : null,
+        unregister: adaptUnregister);
+    _adaptDriver.onResync = _adaptResync;
+    _adaptDriver.sync(
+      adaptivity,
+      follow: follow,
+      canSample: adaptRegister != null,
+      platformBrightness:
+          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+    );
+
+    _activeAdaptivity = adaptivity;
+    if (adaptivity == null) return _buildAdaptive(context);
+
+    // Rebuild the lens subtree while the palette animates — the driver's
+    // controller is idle between flips, so this costs nothing at rest.
+    return AnimatedBuilder(
+      animation: _adaptDriver.listenable!,
+      builder: (context, _) {
+        _activeAdaptivity = adaptivity;
+        return _buildAdaptive(context);
+      },
+    );
+  }
+
+  Widget _buildAdaptive(BuildContext context) {
     // When an ancestor LiquidGlassBlender is present, this lens stops
     // painting its own glass: it hands its geometry to the blender, which
     // merges all member lenses into one metaball surface.
@@ -315,8 +480,13 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     }
 
     if (blenderScope != null) {
+      final Widget? content = _adaptContent(context, widget.child);
       return blenderScope.buildMember(
-        style: widget.style,
+        // An adaptive member hands the blender its flipped tint, so the
+        // merged surface carries the verdict too.
+        style: _activeAdaptivity == null
+            ? widget.style
+            : widget.style.copyWith(appearance: _appearance),
         visible: widget.visibility,
         // Layout has already resized this member's box; the SCALE is the part
         // the blender cannot infer from it, and the metaball needs it to
@@ -324,12 +494,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         shapeScale: restSize.isEmpty
             ? const Offset(1, 1)
             : deform.scaleFrom(restSize),
-        child: widget.child == null
+        child: content == null
             ? null
             : liquidGlassFlexChild(
                 deform: deform,
                 restSize: restSize,
-                child: widget.child!,
+                child: content,
               ),
       );
     }
@@ -351,9 +521,10 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     final bool deformed = !deform.isRest && !restSize.isEmpty;
 
     final LiquidGlassAppearance appearance =
-        style?.appearance ?? _appearance;
+        _adaptAppearance(style?.appearance ?? widget.style.appearance);
     final LiquidGlassRefraction baseRefraction =
         style?.refraction ?? _refraction;
+    final Widget? content = _adaptContent(context, widget.child);
 
     // The shape is passed through untouched. The shader evaluates it at REST
     // size in a domain divided by `shapeScale`, so the whole outline stretches
@@ -411,12 +582,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
           shapeScale: shapeScale,
           appearance: appearance,
           visible: widget.visibility,
-          child: widget.child == null
+          child: content == null
               ? null
               : liquidGlassFlexChild(
                   deform: deform,
                   restSize: restSize,
-                  child: widget.child!,
+                  child: content,
                 ),
         ),
         appearance,
@@ -435,7 +606,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // Clip at the deformed lens bounds, scale the content inside it: the
     // child stretches as pixels but can never spill past the glass edge.
     final double clipRadius = liquidGlassClipCornerRadius(shape);
-    final Widget? clippedChild = widget.child == null
+    final Widget? clippedChild = content == null
         ? null
         : ClipRRect(
             // Elliptical while deformed, so the clip follows the stretched
@@ -447,7 +618,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
             child: liquidGlassFlexChild(
               deform: deform,
               restSize: restSize,
-              child: widget.child!,
+              child: content,
             ),
           );
 

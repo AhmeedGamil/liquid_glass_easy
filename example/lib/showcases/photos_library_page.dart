@@ -72,6 +72,7 @@ LiquidGlassShape _frostShape(double cornerRadius) =>
 /// into the frost it just washed out.
 LiquidGlassStyle _frost(double cornerRadius, {LiquidGlassShadow? shadow}) =>
     LiquidGlassStyle(
+      adaptivity: LiquidGlassAdaptivity(),
       shape: _frostShape(cornerRadius),
       appearance: LiquidGlassAppearance(
         color: const Color(0x6EFFFFFF),
@@ -85,6 +86,23 @@ LiquidGlassStyle _frost(double cornerRadius, {LiquidGlassShadow? shadow}) =>
         chromaticAberration: 0.002,
       ),
     );
+
+/// What the frost does about the photograph under it. The material is
+/// light on both verdicts — ink is the constant here, and the only
+/// thing that reads over a black frame AND a blown-out sky — so the
+/// tint is what adapts: it thins to the page's own frost over a dark
+/// photo and thickens over a bright one, keeping the ink's contrast.
+/// [continuousGlassColor] glides it rather than switching, so a scroll
+/// through mixed frames never snaps.
+const LiquidGlassAdaptivity _adapt = LiquidGlassAdaptivity(
+  glassColorOnDark: Color(0x6EFFFFFF),
+  contentColorOnDark: _kInk,
+  glassColorOnLight: Color(0x99FFFFFF),
+  contentColorOnLight: _kInk,
+  duration: Duration(milliseconds: 300),
+  initialBrightness: Brightness.dark,
+  continuousGlassColor: true,
+);
 
 /// A press response light enough for controls this small — they swell
 /// under the finger and spring back, without moving.
@@ -191,6 +209,11 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
         useSync: true,
         backgroundColor: Colors.black,
         actionMargin: _edge,
+        // Every glass slot below — header controls, the tab capsule,
+        // the search circle — inherits these palettes and judges the
+        // photographs behind ITSELF, so nothing here has to be told
+        // about the grid.
+        adaptivity: const LiquidGlassScaffoldAdaptivity(_adapt,sampling: LiquidGlassAdaptiveSampling()),
 
         // ── the photographs, edge to edge and under everything ─────
         body: _PhotoGrid(
@@ -262,7 +285,7 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           size: _barHeight,
           onTap: _search,
           touch: _press,
-          foregroundColor: _kInk,
+          //foregroundColor: _kInk,
           style: _frost(_barHeight / 2),
         ),
       ),
@@ -357,7 +380,7 @@ class _LibraryHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12),
             onPressed: onSelect,
             touch: _press,
-            foregroundColor: selecting ? _kTint : _kInk,
+            //foregroundColor: selecting ? _kTint : _kInk,
             fontSize: 16,
             fontWeight: FontWeight.w600,
             style: _frost(_controlHeight / 2),
@@ -399,7 +422,7 @@ class _PhotoGrid extends StatelessWidget {
           padding: EdgeInsets.only(bottom: bottomInset + 108),
           physics: const BouncingScrollPhysics(),
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
+            crossAxisCount: 2,
             crossAxisSpacing: 3,
             mainAxisSpacing: 3,
           ),

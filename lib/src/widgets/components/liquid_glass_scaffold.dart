@@ -1,9 +1,104 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../controllers/liquid_glass_view_controller.dart';
 import '../liquid_glass_view.dart';
+import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_refresh_rate.dart';
 import 'bottom_nav_bar/liquid_glass_tab_bar.dart';
+import 'liquid_glass_adaptive_area.dart';
+import 'liquid_glass_app_bar.dart';
+
+/// The scaffold's adaptivity: the palettes its glass chrome wears, and
+/// the edge strips that drive the **system bars**.
+///
+/// Two jobs, deliberately kept apart:
+///
+///  • **System chrome.** When [LiquidGlassScaffold.systemChrome] asks
+///    for a side, the scaffold pins an invisible strip along that
+///    screen edge — the status bar's at the top, the navigation bar's
+///    at the bottom — samples it, and drives that bar's icon brightness
+///    from the result. A strip judges nothing but its own system bar.
+///  • **Chrome palettes.** [adaptivity] is handed down to the app bar,
+///    the bottom bar, the action button and any `lenses`, each of which
+///    resolves its **own** verdict from the background directly behind
+///    itself. One config, one verdict per surface.
+///
+/// A strip never captures the chrome: the app bar is judged by the
+/// pixels behind the app bar, not by the status bar's strip. Coupling
+/// goes the other way round — point a strip at an area's link with
+/// [topFollowLink] / [bottomFollowLink] and the system bar mirrors
+/// that area's verdict. A following strip stops sampling entirely, so
+/// it has no region of its own and [topHeight] / [bottomHeight] no
+/// longer apply to it.
+///
+/// The config's own `link` is deliberately never inherited by the
+/// chrome — otherwise every surface would follow it by accident.
+///
+/// A surface escapes the inherited palettes with
+/// `LiquidGlassAdaptivity.none`; its own `style.adaptivity` overrides
+/// them. `LiquidGlassScaffold.adaptivity` left `null` (the default) →
+/// nothing adapts unless a widget opts in itself.
+@immutable
+class LiquidGlassScaffoldAdaptivity {
+  /// Palettes, thresholds and controller for the scaffold's glass
+  /// chrome and for the system-bar strips. Inherited by every chrome
+  /// surface — minus its `link`, which is never inherited (see
+  /// [topLink]).
+  final LiquidGlassAdaptivity adaptivity;
+
+  /// Makes the TOP strip **follow** this link instead of judging the
+  /// status bar's own band — hand it the link a `LiquidGlassAdaptiveArea`
+  /// publishes on and the status bar mirrors that area.
+  ///
+  /// A following strip samples nothing, so it has no region and
+  /// [topHeight] is ignored: there is no pixel height to get wrong.
+  /// It inherits the area's verdict wholesale, including a
+  /// `permanentBrightness` the area may be pinned to.
+  final LiquidGlassAdaptivityLink? topFollowLink;
+
+  /// Makes the BOTTOM strip follow this link instead of judging the
+  /// navigation bar's own band. See [topFollowLink]; [bottomHeight] is
+  /// likewise ignored while following.
+  final LiquidGlassAdaptivityLink? bottomFollowLink;
+
+  /// Tuning of the background-luminance sampler serving the strips and
+  /// the chrome — see [LiquidGlassAdaptiveSampling]. The default is the
+  /// standard tiny capture (pixelRatio 0.05, 8 samples/s), so it never
+  /// needs to be written unless you want different numbers.
+  final LiquidGlassAdaptiveSampling sampling;
+
+  /// How tall a band the TOP system bar is judged from, measured from
+  /// the top screen edge (the status bar is inside it, not added to
+  /// it). `null` — the default — derives it from the safe-area inset,
+  /// floored so a zero inset (`safeArea: false`) still samples
+  /// something instead of freezing the chrome.
+  ///
+  /// Ignored while [topFollowLink] is set: a following strip judges
+  /// nothing. Prefer following an area over guessing a height.
+  final double? topHeight;
+
+  /// How tall a band the BOTTOM system bar is judged from, measured
+  /// from the bottom screen edge. `null` = the safe-area inset,
+  /// floored — gesture navigation leaves only a few pixels. Ignored
+  /// while [bottomFollowLink] is set.
+  final double? bottomHeight;
+
+  /// Debug: outline each strip the scaffold pins (cyan), so the
+  /// invisible strips' size and position can be verified on screen.
+  /// Same idea as the blender's `debugClipBounds`. Off by default.
+  final bool debugBounds;
+
+  const LiquidGlassScaffoldAdaptivity(
+    this.adaptivity, {
+    this.topFollowLink,
+    this.bottomFollowLink,
+    this.sampling = const LiquidGlassAdaptiveSampling(),
+    this.topHeight,
+    this.bottomHeight,
+    this.debugBounds = false,
+  });
+}
 
 /// A `Scaffold`-style layout for liquid-glass UIs.
 ///
@@ -46,7 +141,7 @@ import 'bottom_nav_bar/liquid_glass_tab_bar.dart';
 /// Slots are composited bottom-to-top:
 /// `lenses` → `appBar` → `bottomNavigationBar` →
 /// `bottomNavigationBarAction` → `floatingActionButton` → `dialog`.
-class LiquidGlassScaffold extends StatelessWidget {
+class LiquidGlassScaffold extends StatefulWidget {
   /// Clearance assumed under the FAB for a bottom bar the scaffold cannot
   /// measure. Override it with [floatingActionButtonClearance].
   static const double kFallbackNavClearance = 64;
@@ -157,6 +252,24 @@ class LiquidGlassScaffold extends StatelessWidget {
   /// automatic Skia / Impeller detection.
   final bool? useImpellerBackdrop;
 
+  /// Drives the OS status / navigation bar icon brightness from the
+  /// scaffold's adaptivity verdict, so the system chrome flips with the
+  /// glass instead of staying pinned.
+  ///
+  /// Each requested side pins an invisible strip along that screen edge
+  /// which samples it and annotates the bar — on [adaptivity]'s
+  /// palettes when one is configured, else on the defaults, so this
+  /// works on its own. The strips judge only the system bars; the glass
+  /// chrome judges its own backdrop. [LiquidGlassSystemChrome.none]
+  /// (the default) puts nothing in the tree at all.
+  final LiquidGlassSystemChrome systemChrome;
+
+  /// The palettes this scaffold's glass chrome wears, plus the strips
+  /// that drive the system bars — see [LiquidGlassScaffoldAdaptivity].
+  /// `null` (the default) means nothing adapts unless a widget opts in
+  /// itself.
+  final LiquidGlassScaffoldAdaptivity? adaptivity;
+
   const LiquidGlassScaffold({
     super.key,
     required this.body,
@@ -182,79 +295,203 @@ class LiquidGlassScaffold extends StatelessWidget {
     this.useSync = true,
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
+    this.systemChrome = LiquidGlassSystemChrome.none,
+    this.adaptivity,
   });
+
+  @override
+  State<LiquidGlassScaffold> createState() => _LiquidGlassScaffoldState();
+}
+
+class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
+  /// Smallest strip a system bar may be judged from. A safe-area inset
+  /// can be a handful of pixels (gesture navigation) or zero
+  /// (`safeArea: false`); a zero-height strip samples nothing and would
+  /// silently freeze the chrome on its entry guess.
+  static const double _kMinStripExtent = 24;
+
+  /// The config, or `null` when absent or opted out with
+  /// `LiquidGlassAdaptivity.none`.
+  LiquidGlassScaffoldAdaptivity? get _cfg {
+    final LiquidGlassScaffoldAdaptivity? c = widget.adaptivity;
+    return (c == null || c.adaptivity.isNone) ? null : c;
+  }
+
+  /// What the glass chrome inherits: the config's palettes, thresholds
+  /// and controller — but NOT its link. Dropping the link is what makes
+  /// each surface resolve its own verdict from its own backdrop instead
+  /// of following a strip (see [LiquidGlassScaffoldAdaptivity]).
+  LiquidGlassAdaptivity? get _inheritedChromeAdaptivity =>
+      _cfg?.adaptivity.withoutLink();
+
+  bool get _chromeStatusSide =>
+      widget.systemChrome == LiquidGlassSystemChrome.statusBar ||
+      widget.systemChrome == LiquidGlassSystemChrome.both;
+
+  bool get _chromeNavSide =>
+      widget.systemChrome == LiquidGlassSystemChrome.navigationBar ||
+      widget.systemChrome == LiquidGlassSystemChrome.both;
+
+  /// Whether anything at all needs the sampler running.
+  bool _needsSampling(Widget? nav) {
+    if (_cfg != null) return true;
+    if (widget.systemChrome != LiquidGlassSystemChrome.none) return true;
+    // An adaptive bar (its own style.adaptivity) samples through this
+    // view — opt in automatically so it just works.
+    return nav is LiquidGlassTabBar && nav.effectiveBarStyle.adaptivity != null;
+  }
 
   @override
   Widget build(BuildContext context) {
     // Safe-area insets. The bars are shifted off the system UI, while the
     // body keeps filling the whole window behind the glass.
     final EdgeInsets pad =
-        safeArea ? MediaQuery.of(context).padding : EdgeInsets.zero;
+        widget.safeArea ? MediaQuery.of(context).padding : EdgeInsets.zero;
+
+    final LiquidGlassAdaptiveSampling? sampling =
+        _needsSampling(widget.bottomNavigationBar)
+            ? (_cfg?.sampling ?? const LiquidGlassAdaptiveSampling())
+            : null;
 
     // Glass-pill morph path: the bar owns the whole-screen dual pipeline,
     // so the scaffold hands it the body plus the composed outer slots.
-    final nav = bottomNavigationBar;
+    final nav = widget.bottomNavigationBar;
     if (nav is LiquidGlassTabBar &&
-        nav.resolveGlassPill(useImpellerBackdrop: useImpellerBackdrop)) {
+        nav.resolveGlassPill(useImpellerBackdrop: widget.useImpellerBackdrop)) {
       return nav.buildGlassPillBar(
-        body: body,
-        backgroundColor: backgroundColor,
+        body: widget.body,
+        backgroundColor: widget.backgroundColor,
         bottomInset: pad.bottom,
         outerChild: _outerSlots(context, pad, includeNavBar: false),
-        pixelRatio: pixelRatio,
-        useSync: useSync,
-        useImpellerBackdrop: useImpellerBackdrop,
-        realTimeCapture: realTimeCapture,
+        pixelRatio: widget.pixelRatio,
+        useSync: widget.useSync,
+        useImpellerBackdrop: widget.useImpellerBackdrop,
+        realTimeCapture: widget.realTimeCapture,
         // The bar's outer pipeline also carries OUR overlay slots. If any of
         // them is a lens it needs a live capture even while the pill is
         // hidden; with none, the capture can sleep at rest.
-        outerNeedsRealtime: appBar != null ||
-            bottomNavigationBarAction != null ||
-            dialog != null ||
-            lenses.isNotEmpty,
+        outerNeedsRealtime: widget.appBar != null ||
+            widget.bottomNavigationBarAction != null ||
+            widget.floatingActionButton != null ||
+            widget.dialog != null ||
+            widget.lenses.isNotEmpty,
+        adaptiveSampling: sampling,
+        // The chrome strips (and any adaptive slot) live in `outerChild`
+        // — this redirects them to the bar's single INNER sampler (the
+        // pre-glass body image), so the whole pipeline runs exactly one
+        // sampler and nothing ever reads its own glass back.
+        outerAdaptiveSampling: sampling,
+        // The bar judges its OWN capsule rect like every other surface;
+        // the system navigation bar is driven by the bottom strip in
+        // `outerChild`, not by the bar's verdict.
+        areaAdaptivity: _inheritedChromeAdaptivity,
+        systemChrome: LiquidGlassSystemChrome.none,
       );
     }
 
-    final Widget rawBackground = backgroundColor == null
-        ? body
-        : ColoredBox(color: backgroundColor!, child: body);
+    final Widget rawBackground = widget.backgroundColor == null
+        ? widget.body
+        : ColoredBox(color: widget.backgroundColor!, child: widget.body);
     final Widget background = Material(
       type: MaterialType.transparency,
       child: rawBackground,
     );
 
     return LiquidGlassView(
-      controller: controller,
-      pixelRatio: pixelRatio,
-      realTimeCapture: realTimeCapture,
-      useSync: useSync,
-      refreshRate: refreshRate,
-      useImpellerBackdrop: useImpellerBackdrop,
+      controller: widget.controller,
+      pixelRatio: widget.pixelRatio,
+      realTimeCapture: widget.realTimeCapture,
+      useSync: widget.useSync,
+      refreshRate: widget.refreshRate,
+      useImpellerBackdrop: widget.useImpellerBackdrop,
+      adaptiveSampling: sampling,
       backgroundWidget: background,
       child: _outerSlots(context, pad, includeNavBar: true),
+    );
+  }
+
+  /// One system-bar strip: an invisible band pinned to a screen edge,
+  /// there purely to drive that bar's icon brightness. It never
+  /// contains the chrome — the chrome sits above it in the stack and
+  /// judges its own backdrop.
+  ///
+  /// Two modes. With [followLink] it **follows**: it samples nothing
+  /// and mirrors whatever that link carries, so its height is only
+  /// enough to cover the probe point Flutter reads the annotation at.
+  /// Without one it **judges** its own band at [height].
+  Widget? _systemStrip({
+    required LiquidGlassAdaptivity adaptivity,
+    required bool debugBounds,
+    required bool top,
+    required double height,
+    required bool driveChrome,
+    required LiquidGlassAdaptivityLink? followLink,
+    required Brightness platformBrightness,
+  }) {
+    // A strip exists only to annotate: with the side switched off there
+    // is nothing for it to do, following or not.
+    if (!driveChrome) return null;
+    final LiquidGlassSystemChrome chrome = top
+        ? LiquidGlassSystemChrome.statusBar
+        : LiquidGlassSystemChrome.navigationBar;
+    return Positioned(
+      left: 0,
+      right: 0,
+      top: top ? 0 : null,
+      bottom: top ? null : 0,
+      height: height,
+      child: IgnorePointer(
+        child: followLink == null
+            ? LiquidGlassAdaptiveArea(
+                adaptivity: adaptivity,
+                debugBounds: debugBounds,
+                systemChrome: chrome,
+                child: const SizedBox.expand(),
+              )
+            : _ChromeFollower(
+                link: followLink,
+                chrome: chrome,
+                debugBounds: debugBounds,
+                // Until the followed area delivers its first verdict,
+                // sit on the same guess the palettes use.
+                fallback: adaptivity.permanentBrightness ??
+                    adaptivity.initialBrightness ??
+                    platformBrightness,
+              ),
+      ),
     );
   }
 
   /// Builds the full-screen `Stack` of glass slots placed over the body.
   /// When [includeNavBar] is false the bottom nav bar is omitted (the
   /// glass-pill path renders the bar itself).
+  ///
+  /// Adaptivity here is two independent things. The **system strips**
+  /// are invisible bands at the screen edges that judge only the OS
+  /// bars. The **chrome** — app bar, bottom bar, action, `lenses` —
+  /// sits above them as ordinary slots and inherits the config's
+  /// palettes through a link-less [LiquidGlassAdaptiveAreaScope], so
+  /// each surface samples the background directly behind itself.
+  /// Coupling a surface to a strip is opt-in: publish the strip on
+  /// `topLink`/`bottomLink` and put the same link on that surface's own
+  /// adaptivity.
   Widget _outerSlots(
     BuildContext context,
     EdgeInsets pad, {
     required bool includeNavBar,
   }) {
-    final EdgeInsets navMargin = bottomNavigationBar is LiquidGlassTabBar
-        ? (bottomNavigationBar as LiquidGlassTabBar).margin
-        : EdgeInsets.zero;
-    final Alignment navAlignment =
-        bottomNavigationBar is LiquidGlassTabBar
-            ? (bottomNavigationBar as LiquidGlassTabBar).alignment
-            : Alignment.bottomCenter;
+    final LiquidGlassTabBar? navBar =
+        widget.bottomNavigationBar is LiquidGlassTabBar
+            ? widget.bottomNavigationBar as LiquidGlassTabBar
+            : null;
+    final EdgeInsets navMargin = navBar?.margin ?? EdgeInsets.zero;
+    final Alignment navAlignment = navBar?.alignment ?? Alignment.bottomCenter;
+    final LiquidGlassScaffoldAdaptivity? cfg = _cfg;
 
     // Where the FAB actually lands, once RTL has had its say.
     // resolve() asserts on a null direction for the directional defaults,
     // and nothing guarantees a Directionality above a bare scaffold.
-    final Alignment fabAlignment = floatingActionButtonAlignment
+    final Alignment fabAlignment = widget.floatingActionButtonAlignment
         .resolve(Directionality.maybeOf(context) ?? TextDirection.ltr);
 
     // Vertical room the FAB keeps clear above the bar: whatever the caller
@@ -263,33 +500,73 @@ class LiquidGlassScaffold extends StatelessWidget {
     // Only bottom-leaning alignments are lifted; for the rest the bar is
     // nowhere near, and trimming the box would drag `center` off-centre.
     final double navClearance =
-        bottomNavigationBar == null || fabAlignment.y <= 0
+        widget.bottomNavigationBar == null || fabAlignment.y <= 0
             ? 0
-            : floatingActionButtonClearance ??
-                (bottomNavigationBar is LiquidGlassTabBar
-                    ? (bottomNavigationBar as LiquidGlassTabBar).height +
-                        navMargin.bottom
-                    : kFallbackNavClearance);
+            : widget.floatingActionButtonClearance ??
+                (navBar != null
+                    ? navBar.height + navMargin.bottom
+                    : LiquidGlassScaffold.kFallbackNavClearance);
+
+    // Strip geometry: the system bar's own inset, floored so it stays
+    // samplable. These describe what the OS bars are JUDGED from — they
+    // never move any chrome, whose layout stays owned by the scaffold's
+    // own params.
+    final double topStripH = cfg?.topHeight ??
+        (pad.top > _kMinStripExtent ? pad.top : _kMinStripExtent);
+    final double bottomStripH = cfg?.bottomHeight ??
+        (pad.bottom > _kMinStripExtent ? pad.bottom : _kMinStripExtent);
+    final Brightness platformBrightness =
+        MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light;
+
+    // A strip is pinned for a requested system-bar side even with no
+    // config at all — `systemChrome` alone is a complete feature, and
+    // then the strip judges on the default palettes.
+    final LiquidGlassAdaptivity stripAdaptivity =
+        cfg?.adaptivity ?? const LiquidGlassAdaptivity();
+    final bool stripDebug = cfg?.debugBounds ?? false;
+    final Widget? topStrip = _systemStrip(
+      adaptivity: stripAdaptivity,
+      debugBounds: stripDebug,
+      top: true,
+      height: topStripH,
+      driveChrome: _chromeStatusSide,
+      followLink: cfg?.topFollowLink,
+      platformBrightness: platformBrightness,
+    );
+    final Widget? bottomStrip = _systemStrip(
+      adaptivity: stripAdaptivity,
+      debugBounds: stripDebug,
+      top: false,
+      height: bottomStripH,
+      driveChrome: _chromeNavSide,
+      followLink: cfg?.bottomFollowLink,
+      platformBrightness: platformBrightness,
+    );
 
     // The glass overlays float outside any Scaffold/Material, so bare
     // Text/Icon in the app bar, nav, side action, or `lenses` would inherit
     // Flutter's yellow error text style. A transparent Material paints
     // nothing but installs the theme's DefaultTextStyle/IconTheme, so every
     // overlay slot is themed normally. Cheap and side-effect-free.
-    return Material(
+    Widget slots = Material(
       type: MaterialType.transparency,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          ...lenses,
-          if (appBar != null)
+          // Strips sit behind everything — invisible, hit-transparent,
+          // sampling their own edge and nothing else.
+          if (topStrip != null) topStrip,
+          if (bottomStrip != null) bottomStrip,
+          ...widget.lenses,
+          if (widget.appBar != null)
             Positioned(
-              top: pad.top + appBarTopMargin,
+              top: pad.top + widget.appBarTopMargin,
               left: 0,
               right: 0,
-              child: Align(alignment: Alignment.topCenter, child: appBar!),
+              child:
+                  Align(alignment: Alignment.topCenter, child: widget.appBar!),
             ),
-          if (includeNavBar && bottomNavigationBar != null)
+          if (includeNavBar && widget.bottomNavigationBar != null)
             Positioned(
               bottom: pad.bottom + navMargin.bottom,
               left: 0,
@@ -301,37 +578,88 @@ class LiquidGlassScaffold extends StatelessWidget {
                     left: navMargin.left,
                     right: navMargin.right,
                   ),
-                  child: bottomNavigationBar!,
+                  child: widget.bottomNavigationBar!,
                 ),
               ),
             ),
-          if (bottomNavigationBarAction != null)
+          if (widget.bottomNavigationBarAction != null)
             Positioned(
               bottom: pad.bottom + navMargin.bottom,
-              right: actionMargin,
-              child: bottomNavigationBarAction!,
+              right: widget.actionMargin,
+              child: widget.bottomNavigationBarAction!,
             ),
-          if (floatingActionButton != null)
+          if (widget.floatingActionButton != null)
             Positioned(
-              top: pad.top + actionMargin,
-              bottom: pad.bottom + actionMargin + navClearance,
-              left: actionMargin,
-              right: actionMargin,
+              top: pad.top + widget.actionMargin,
+              bottom: pad.bottom + widget.actionMargin + navClearance,
+              left: widget.actionMargin,
+              right: widget.actionMargin,
               child: Align(
                 alignment: fabAlignment,
-                child: floatingActionButton!,
+                child: widget.floatingActionButton!,
               ),
             ),
           // Last, so the barrier covers the bars as a route's would.
           _LiquidGlassScaffoldDialog(
-            dialog: dialog,
-            barrierColor: dialogBarrierColor,
-            barrierDismissible: dialogBarrierDismissible,
-            onDismissed: onDialogDismissed,
-            duration: dialogTransitionDuration,
-            useSafeArea: safeArea,
+            dialog: widget.dialog,
+            barrierColor: widget.dialogBarrierColor,
+            barrierDismissible: widget.dialogBarrierDismissible,
+            onDismissed: widget.onDialogDismissed,
+            duration: widget.dialogTransitionDuration,
+            useSafeArea: widget.safeArea,
           ),
         ],
+      ),
+    );
+
+    // Config WITHOUT the link: every chrome surface inherits the
+    // palettes and samples its own backdrop. A surface follows a strip
+    // only by carrying that strip's link itself.
+    final LiquidGlassAdaptivity? inherited = _inheritedChromeAdaptivity;
+    if (inherited != null) {
+      slots = LiquidGlassAdaptiveAreaScope(adaptivity: inherited, child: slots);
+    }
+    return slots;
+  }
+}
+
+
+/// A system-bar strip that FOLLOWS a link instead of judging pixels.
+///
+/// It owns no driver and registers with no sampler: it just relays the
+/// verdict some `LiquidGlassAdaptiveArea` published. That is what frees
+/// a following strip from having a height to configure — it has no
+/// region, only the footprint needed to cover the point Flutter probes
+/// for the annotation.
+class _ChromeFollower extends StatelessWidget {
+  final LiquidGlassAdaptivityLink link;
+  final LiquidGlassSystemChrome chrome;
+  final Brightness fallback;
+  final bool debugBounds;
+
+  const _ChromeFollower({
+    required this.link,
+    required this.chrome,
+    required this.fallback,
+    required this.debugBounds,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<Brightness?>(
+      valueListenable: link,
+      builder: (context, verdict, _) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: liquidGlassSystemChromeStyle(verdict ?? fallback, chrome),
+        child: debugBounds
+            ? const DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.fromBorderSide(
+                    BorderSide(color: Color(0xFF00FFFF), width: 2),
+                  ),
+                ),
+                child: SizedBox.expand(),
+              )
+            : const SizedBox.expand(),
       ),
     );
   }

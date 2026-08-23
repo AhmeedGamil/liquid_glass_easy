@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/liquid_glass_adaptivity.dart';
+import '../liquid_glass_adaptive_area.dart';
+
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
@@ -27,6 +30,10 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
   final double itemPadding;
   final bool showSelectionPill;
   final Color selectionColor;
+
+  /// Palette the sliding pill flips between when the bar is adaptive.
+  /// See [BottomNavBarContent.selectionAdaptivity].
+  final LiquidGlassAdaptivity? selectionAdaptivity;
   final LiquidGlassTabItemStyle itemStyle;
   final Duration duration;
   final Curve curve;
@@ -36,6 +43,12 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
   /// the icon-reveal clip. When `null`, a plain capsule is used.
   final LiquidGlassShape? pillShape;
 
+  /// Unselected cells follow the ambient adaptive content color
+  /// (installed by the hosting lens) instead of the style's fixed color;
+  /// the selected cell keeps `itemStyle.selectedColor`. Set when the
+  /// bar's `style.adaptivity` is enabled.
+  final bool adaptive;
+
   const AnimatedBottomNavBarContent({
     super.key,
     required this.items,
@@ -44,10 +57,12 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
     required this.itemPadding,
     required this.showSelectionPill,
     required this.selectionColor,
+    this.selectionAdaptivity,
     required this.itemStyle,
     required this.duration,
     required this.curve,
     this.pillShape,
+    this.adaptive = false,
   });
 
   @override
@@ -108,6 +123,8 @@ class _AnimatedBottomNavBarContentState
 
   @override
   Widget build(BuildContext context) {
+    final Color pillColor = LiquidGlassAdaptiveVerdictScope.resolve(
+        context, widget.selectionAdaptivity, widget.selectionColor);
     // The lens `child` subtree has no ambient Material, so wrap it in a
     // transparent one — this provides the [DefaultTextStyle] the labels
     // need (otherwise they render with the debug yellow underline) and
@@ -140,7 +157,7 @@ class _AnimatedBottomNavBarContentState
                       rect: pillRect,
                       child: CustomPaint(
                         painter: LiquidGlassNavPillSurfacePainter(
-                          color: widget.selectionColor,
+                          color: pillColor,
                           shape: widget.pillShape,
                         ),
                       ),
@@ -202,6 +219,7 @@ class _AnimatedBottomNavBarContentState
               item: item,
               selected: forceSelected,
               style: widget.itemStyle,
+              adaptive: widget.adaptive,
             ),
           ),
       ],

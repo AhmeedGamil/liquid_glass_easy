@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_lens.dart';
+import '../utils/liquid_glass_adaptivity.dart';
+import 'liquid_glass_adaptive_area.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
@@ -42,7 +44,7 @@ class LiquidGlassButton extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 20),
     this.style,
     this.visibility = true,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.fontSize = 16,
     this.fontWeight = FontWeight.w600,
     this.iconSize = 20,
@@ -103,7 +105,16 @@ class LiquidGlassButton extends StatelessWidget {
   final LiquidGlassTouch? touch;
 
   /// Color of the label text and icon.
-  final Color foregroundColor;
+  ///
+  /// **Adaptivity outranks this.** On an adaptive surface the color comes
+  /// from the verdict, whatever is named here — a pinned foreground would
+  /// otherwise defeat the one thing adaptivity exists to guarantee, which
+  /// is that content stays legible over whatever passes beneath it. To
+  /// keep a fixed color on an adaptive surface, opt that surface out with
+  /// `adaptivity: LiquidGlassAdaptivity.none`.
+  ///
+  /// `null` (the default) is white on a non-adaptive surface.
+  final Color? foregroundColor;
 
   /// Font size of the label.
   final double fontSize;
@@ -114,14 +125,12 @@ class LiquidGlassButton extends StatelessWidget {
   /// Size of the leading [icon].
   final double iconSize;
 
-  static const LiquidGlassAppearance _defaultAppearance =
-      LiquidGlassAppearance(
+  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
     blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
   );
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.07,
     distortionWidth: 24,
     chromaticAberration: 0.002,
@@ -143,7 +152,7 @@ class LiquidGlassButton extends StatelessWidget {
   /// The child path installs the foreground as *ambient* theme data
   /// rather than baking it in, so a bare `Icon`/`Text` matches the
   /// built-in row while anything carrying its own color keeps it.
-  Widget _content() {
+  Widget _content(Color? foregroundColor) {
     final Widget? custom = child;
     if (custom == null) {
       return Row(
@@ -182,6 +191,11 @@ class LiquidGlassButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final LiquidGlassStyle resolved = defaultStyle.merge(style);
+    // Adaptivity from this button's own style or an enclosing area
+    // (`.none` opting out) — the same chain the app bar uses.
+    final LiquidGlassAdaptivity? adapt = resolved.adaptivity ??
+        LiquidGlassAdaptiveArea.maybeOf(context)?.adaptivity;
+    final bool adaptive = adapt != null && !adapt.isNone;
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: height / 2,
@@ -204,21 +218,33 @@ class LiquidGlassButton extends StatelessWidget {
           shape: effectiveShape,
           appearance: resolved.appearance,
           refraction: resolved.refraction,
+          adaptivity: resolved.adaptivity,
         ),
         visibility: visibility,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(
-              liquidGlassClipCornerRadius(effectiveShape),
+        // Below the lens, so `IconTheme.of` sees the adaptive content
+        // color it installs. Reading the color here rather than letting
+        // the Text inherit it is deliberate: `Material` sits between
+        // this and the content and overwrites the ambient
+        // DefaultTextStyle, so an inherited label color would come back
+        // as the app theme's, not the verdict's.
+        child: Builder(builder: (context) {
+          final Color? foreground = adaptive
+              ? IconTheme.of(context).color
+              : (foregroundColor ?? Colors.white);
+          return Material(
+            color: Colors.transparent,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(
+                liquidGlassClipCornerRadius(effectiveShape),
+              ),
+              onTap: onPressed,
+              child: Padding(
+                padding: padding,
+                child: Center(child: _content(foreground)),
+              ),
             ),
-            onTap: onPressed,
-            child: Padding(
-              padding: padding,
-              child: Center(child: _content()),
-            ),
-          ),
-        ),
+          );
+        }),
       ),
     );
   }

@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Flutter injects this into the debug/profile manifests only, so a
+         RELEASE build has no network at all without it declared here —
+         which silently breaks the demos that load remote photos. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="liquid_glass_easy_example"
         android:name="${applicationName}"

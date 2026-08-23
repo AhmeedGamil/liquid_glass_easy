@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import 'liquid_glass_config.dart';
+import 'utils/liquid_glass_adaptivity.dart';
 import 'utils/liquid_glass_shape.dart';
 
 /// The **look** of a liquid-glass surface, bundled into one reusable
@@ -40,10 +41,17 @@ class LiquidGlassStyle {
   /// non-refracting consumers.
   final LiquidGlassRefraction refraction;
 
+  /// iOS-style adaptivity: glass tint + content color flip between two
+  /// palettes based on the background behind the lens. `null` (default)
+  /// disables the feature entirely. Honored by `LiquidGlassLens`; while
+  /// active, its glass color overrides [appearance]'s `color`.
+  final LiquidGlassAdaptivity? adaptivity;
+
   const LiquidGlassStyle({
     this.shape,
     this.appearance = const LiquidGlassAppearance(),
     this.refraction = const LiquidGlassRefraction(),
+    this.adaptivity,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -51,17 +59,19 @@ class LiquidGlassStyle {
     LiquidGlassShape? shape,
     LiquidGlassAppearance? appearance,
     LiquidGlassRefraction? refraction,
+    LiquidGlassAdaptivity? adaptivity,
   }) {
     return LiquidGlassStyle(
       shape: shape ?? this.shape,
       appearance: appearance ?? this.appearance,
       refraction: refraction ?? this.refraction,
+      adaptivity: adaptivity ?? this.adaptivity,
     );
   }
 
   /// Overlays [other] on top of this style: [other]'s [appearance] and
-  /// [refraction] replace this one's, and its [shape] wins when set
-  /// (falling back to this style's shape when `other.shape` is `null`).
+  /// [refraction] replace this one's, and its [shape] and [adaptivity]
+  /// win when set (falling back to this style's when `null`).
   /// Returns this style unchanged when [other] is `null`. Useful for a
   /// base/theme style with per-surface overrides.
   LiquidGlassStyle merge(LiquidGlassStyle? other) {
@@ -70,6 +80,7 @@ class LiquidGlassStyle {
       shape: other.shape ?? shape,
       appearance: other.appearance,
       refraction: other.refraction,
+      adaptivity: other.adaptivity ?? adaptivity,
     );
   }
 }

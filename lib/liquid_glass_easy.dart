@@ -28,6 +28,29 @@ export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart'
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
 
+// Adaptivity: glass tint + content color flip with the background behind
+// the lens (LiquidGlassStyle.adaptivity + LiquidGlassView.adaptiveSampling).
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_adaptivity.dart'
+    show
+        LiquidGlassAdaptivity,
+        LiquidGlassAdaptiveSampling,
+        LiquidGlassAdaptivityLink,
+        LiquidGlassAdaptivityController,
+        LiquidGlassSystemChrome;
+// Adaptive area: an invisible region that samples once and drives the
+// verdict for every adaptive widget inside it (the group form of
+// adaptivity — no link wiring needed).
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_adaptive_area.dart'
+    show LiquidGlassAdaptiveArea, LiquidGlassAdaptiveAreaScope;
+// Adaptive content: makes bare icons/text (no glass behind them) follow
+// the animated adaptive content color, like a lens child would.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_adaptive_content.dart'
+    show LiquidGlassAdaptiveContent;
+// Scroll edge treatment: an adaptive fading dim band pinned over a
+// scrollable's edge, keeping floating glass elements legible (the
+// dimming variant of iOS 26's scroll edge effect).
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_scroll_edge.dart'
+    show LiquidGlassScrollEdge, LiquidGlassEdge, LiquidGlassScrollEdgeStyle;
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 // The two clip helpers are shared between the widget-level clip and the
 // render object's own, so they are library-wide but not API.

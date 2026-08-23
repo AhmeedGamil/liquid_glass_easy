@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_lens.dart';
+import '../utils/liquid_glass_adaptivity.dart';
+import 'liquid_glass_adaptive_area.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
@@ -39,7 +41,7 @@ class LiquidGlassFab extends StatelessWidget {
     this.padding = const EdgeInsets.all(16),
     this.style,
     this.visibility = true,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.iconSize = 24.0,
     this.heroTag,
     this.tooltip,
@@ -47,7 +49,8 @@ class LiquidGlassFab extends StatelessWidget {
         height = null,
         width = null,
         isExtended = false,
-        assert(icon != null || child != null, 'Either icon or child must be provided.');
+        assert(icon != null || child != null,
+            'Either icon or child must be provided.');
 
   /// Extended FAB constructor with label and optional icon.
   const LiquidGlassFab.extended({
@@ -60,7 +63,7 @@ class LiquidGlassFab extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
     this.style,
     this.visibility = true,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.iconSize = 20.0,
     this.heroTag,
     this.tooltip,
@@ -98,8 +101,17 @@ class LiquidGlassFab extends StatelessWidget {
   /// Whether the FAB is shown; toggling animates glass in/out.
   final bool visibility;
 
-  /// Foreground color for icon/text.
-  final Color foregroundColor;
+  /// Color of the label text and icon.
+  ///
+  /// **Adaptivity outranks this.** On an adaptive surface the color comes
+  /// from the verdict, whatever is named here — a pinned foreground would
+  /// otherwise defeat the one thing adaptivity exists to guarantee, which
+  /// is that content stays legible over whatever passes beneath it. To
+  /// keep a fixed color on an adaptive surface, opt that surface out with
+  /// `adaptivity: LiquidGlassAdaptivity.none`.
+  ///
+  /// `null` (the default) is white on a non-adaptive surface.
+  final Color? foregroundColor;
 
   /// Icon size.
   final double iconSize;
@@ -153,31 +165,40 @@ class LiquidGlassFab extends StatelessWidget {
           ),
         );
 
-    Widget content;
-    if (child != null) {
-      content = child!;
-    } else if (isExtended) {
-      content = Row(
-        mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (icon != null) ...[
-            Icon(icon, color: foregroundColor, size: iconSize),
-            const SizedBox(width: 8),
-          ],
-          DefaultTextStyle.merge(
-            style: TextStyle(
-              color: foregroundColor,
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
+    // Adaptivity from this FAB's own style or an enclosing area
+    // (`.none` opting out) — the same chain the app bar uses.
+    final LiquidGlassAdaptivity? adapt = resolved.adaptivity ??
+        LiquidGlassAdaptiveArea.maybeOf(context)?.adaptivity;
+    final bool adaptive = adapt != null && !adapt.isNone;
+
+    Widget buildContent(Color? foregroundColor) {
+      Widget content;
+      if (child != null) {
+        content = child!;
+      } else if (isExtended) {
+        content = Row(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: foregroundColor, size: iconSize),
+              const SizedBox(width: 8),
+            ],
+            DefaultTextStyle.merge(
+              style: TextStyle(
+                color: foregroundColor,
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+              ),
+              child: label!,
             ),
-            child: label!,
-          ),
-        ],
-      );
-    } else {
-      content = Icon(icon, color: foregroundColor, size: iconSize);
+          ],
+        );
+      } else {
+        content = Icon(icon, color: foregroundColor, size: iconSize);
+      }
+      return content;
     }
 
     Widget result = SizedBox(
@@ -188,28 +209,40 @@ class LiquidGlassFab extends StatelessWidget {
           shape: effectiveShape,
           appearance: resolved.appearance,
           refraction: resolved.refraction,
+          // Was dropped: a FAB styled with its own adaptivity never
+          // reached the lens, so only an enclosing area could flip it.
+          adaptivity: resolved.adaptivity,
         ),
         visibility: visibility,
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(
-            liquidGlassClipCornerRadius(effectiveShape),
-          ),
-          child: InkWell(
+        // Below the lens, so `IconTheme.of` sees the adaptive content
+        // color it installs. Read here rather than inherited because
+        // `Material` overwrites the ambient DefaultTextStyle, and an
+        // inherited label color would come back as the app theme's.
+        child: Builder(builder: (context) {
+          final Color? foreground = adaptive
+              ? IconTheme.of(context).color
+              : (foregroundColor ?? Colors.white);
+          return Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(
               liquidGlassClipCornerRadius(effectiveShape),
             ),
-            onTap: onPressed,
-            child: Padding(
-              padding: padding,
-              child: Center(
-                widthFactor: effectiveWidth == null ? 1.0 : null,
-                heightFactor: 1.0,
-                child: content,
+            child: InkWell(
+              borderRadius: BorderRadius.circular(
+                liquidGlassClipCornerRadius(effectiveShape),
+              ),
+              onTap: onPressed,
+              child: Padding(
+                padding: padding,
+                child: Center(
+                  widthFactor: effectiveWidth == null ? 1.0 : null,
+                  heightFactor: 1.0,
+                  child: buildContent(foreground),
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        }),
       ),
     );
 

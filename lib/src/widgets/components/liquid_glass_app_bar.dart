@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
+import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
 import '../utils/liquid_glass_touch.dart';
+import 'liquid_glass_adaptive_area.dart';
 
 /// A floating, drop-in liquid-glass **app bar** — a translucent bar with
 /// an optional [leading] widget, a [title], and trailing [actions], all
@@ -47,7 +49,7 @@ class LiquidGlassAppBar extends StatelessWidget {
     this.actionSpacing = 8,
     this.style,
     this.visibility = true,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.fontSize = 18,
     this.touch,
   });
@@ -102,8 +104,17 @@ class LiquidGlassAppBar extends StatelessWidget {
   /// a restrained spec such as [LiquidGlassFlex.subtle] if you enable it.
   final LiquidGlassTouch? touch;
 
-  /// Color applied to icons and text inside the bar.
-  final Color foregroundColor;
+  /// Color applied to icons and text inside the bar. `null` (the
+  /// default) means white — or, while the bar's adaptivity is active,
+  /// the animated adaptive content color. An explicit color always wins
+  /// and never adapts.
+  ///
+  /// **Adaptivity outranks this.** On an adaptive surface the color comes
+  /// from the verdict, whatever is named here — a pinned foreground would
+  /// otherwise defeat the one thing adaptivity exists to guarantee. Opt
+  /// the surface out with `adaptivity: LiquidGlassAdaptivity.none` to
+  /// pin a color on it.
+  final Color? foregroundColor;
 
   /// Font size of the [title] when it is a plain [Text].
   final double fontSize;
@@ -134,6 +145,18 @@ class LiquidGlassAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final LiquidGlassStyle resolved = defaultStyle.merge(style);
+    // Foreground: an explicit color always wins and never adapts. When
+    // unset, white — unless adaptivity is active (own style or an
+    // enclosing area, `.none` opting out), in which case `null` lets the
+    // lens's ambient adaptive content color flow through.
+    final LiquidGlassAdaptivity? adapt = resolved.adaptivity ??
+        LiquidGlassAdaptiveArea.maybeOf(context)?.adaptivity;
+    final bool adaptive = adapt != null && !adapt.isNone;
+    // Adaptivity outranks an explicit foreground: null hands the glyph
+    // to the lens's ambient adaptive color. Opt a surface out with
+    // `LiquidGlassAdaptivity.none` to pin a color on it.
+    final Color? effectiveForeground =
+        adaptive ? null : (foregroundColor ?? Colors.white);
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: height / 2,
@@ -156,6 +179,7 @@ class LiquidGlassAppBar extends StatelessWidget {
           shape: effectiveShape,
           appearance: resolved.appearance,
           refraction: resolved.refraction,
+          adaptivity: resolved.adaptivity,
         ),
         visibility: visibility,
         child: _AppBarContent(
@@ -165,7 +189,7 @@ class LiquidGlassAppBar extends StatelessWidget {
           centerTitle: centerTitle,
           horizontalPadding: horizontalPadding,
           actionSpacing: actionSpacing,
-          foregroundColor: foregroundColor,
+          foregroundColor: effectiveForeground,
           fontSize: fontSize,
         ),
       ),
@@ -183,7 +207,10 @@ class _AppBarContent extends StatelessWidget {
   final bool centerTitle;
   final double horizontalPadding;
   final double actionSpacing;
-  final Color foregroundColor;
+
+  /// `null` = leave the ambient color in place (the lens's adaptive
+  /// content color while adaptivity is active).
+  final Color? foregroundColor;
   final double fontSize;
 
   const _AppBarContent({
@@ -199,6 +226,8 @@ class _AppBarContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // A null color merges as "keep the ambient" — the adaptive content
+    // color installed by the lens.
     // Theme icons + text so a bare Icon()/Text() inherits the bar's
     // foreground color without the caller having to set it.
     final Widget content = IconTheme.merge(

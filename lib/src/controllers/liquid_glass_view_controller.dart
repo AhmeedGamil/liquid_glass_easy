@@ -1,24 +1,36 @@
 import 'dart:ui';
 
+import 'package:meta/meta.dart';
+
+import '../widgets/lens/liquid_glass_lens_scope.dart';
+
 class LiquidGlassViewController {
   Future<void> Function()? _captureOnce;
   VoidCallback? _startRealtimeCapture;
   VoidCallback? _stopRealtimeCapture;
+  void Function(LiquidGlassAdaptiveClient client)? _registerAdaptiveClient;
+  void Function(LiquidGlassAdaptiveClient client)? _unregisterAdaptiveClient;
 
   void attach({
     required Future<void> Function() captureOnce,
     required VoidCallback startRealtime,
     required VoidCallback stopRealtime,
+    void Function(LiquidGlassAdaptiveClient client)? registerAdaptiveClient,
+    void Function(LiquidGlassAdaptiveClient client)? unregisterAdaptiveClient,
   }) {
     _captureOnce = captureOnce;
     _startRealtimeCapture = startRealtime;
     _stopRealtimeCapture = stopRealtime;
+    _registerAdaptiveClient = registerAdaptiveClient;
+    _unregisterAdaptiveClient = unregisterAdaptiveClient;
   }
 
   void detach() {
     _captureOnce = null;
     _startRealtimeCapture = null;
     _stopRealtimeCapture = null;
+    _registerAdaptiveClient = null;
+    _unregisterAdaptiveClient = null;
   }
 
   /// Captures a single static frame of the background widget of the LiquidGlassView.
@@ -66,5 +78,20 @@ class LiquidGlassViewController {
   /// Safe to call even if real-time capture is not active.
   void stopRealtimeCapture() {
     _stopRealtimeCapture?.call();
+  }
+
+  /// Subscribes a client to the attached view's adaptive sampler. Used
+  /// by hosts (the animated nav bar) to redirect out-of-view clients to
+  /// this view's single sampler. No-op while detached or when the view
+  /// has no `adaptiveSampling`.
+  @internal
+  void registerAdaptiveClient(LiquidGlassAdaptiveClient client) {
+    _registerAdaptiveClient?.call(client);
+  }
+
+  /// Removes a client from the attached view's adaptive sampler.
+  @internal
+  void unregisterAdaptiveClient(LiquidGlassAdaptiveClient client) {
+    _unregisterAdaptiveClient?.call(client);
   }
 }

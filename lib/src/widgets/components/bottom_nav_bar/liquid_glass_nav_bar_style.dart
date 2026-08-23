@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
+import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_lens_motion.dart';
 import '../../utils/liquid_glass_shape.dart';
@@ -405,11 +406,41 @@ class LiquidGlassTabPillStyle {
   /// borderless highlight filled with [color] (the shipped ~15% white),
   /// with corners from [shape]. A border appears only when the resolved
   /// shape carries a `borderColor`.
+  /// The palette the static pill flips on whenever the bar adapts and
+  /// [rest] names no palette of its own.
+  ///
+  /// The bar's adaptivity may be its own `style.adaptivity` or one
+  /// inherited from an enclosing `LiquidGlassAdaptiveArea` /
+  /// `LiquidGlassScaffold` — the source makes no difference to what the
+  /// pill has to do. The pill sits ON the capsule and has to contrast
+  /// it, so a capsule that darkens over a dark page while the pill holds
+  /// a fixed light fill leaves a light pill on a dark bar.
+  ///
+  /// Set `rest`'s `adaptivity` to override this palette, or
+  /// `LiquidGlassAdaptivity.none` to hold a caller-chosen fill fixed.
+  ///
+  /// Opposite polarity to the bar's glass, and the same as its content:
+  /// the pill has to contrast the BAR it sits on, and an adaptive bar
+  /// darkens over a dark page and lightens over a light one. The light
+  /// side runs a little heavier because black on a bright surface needs
+  /// more alpha to read as the same step — at 18%/20% both land near a
+  /// 1.6:1 step against the capsule.
+  static const LiquidGlassAdaptivity defaultRestAdaptivity =
+      LiquidGlassAdaptivity(
+    glassColorOnDark: Color(0x2EFFFFFF),
+    glassColorOnLight: Color(0x33000000),
+  );
+
   LiquidGlassStyle get effectiveRest {
     final r = rest;
     return LiquidGlassStyle(
       shape: r?.shape ?? shape,
       appearance: r?.appearance ?? LiquidGlassAppearance(color: color),
+      // Carried, not dropped: the static pill resolves it against the
+      // BAR's verdict, so the pill flips with the bar rather than
+      // sampling a backdrop it cannot see (its own rect reads the
+      // capsule's tint, not the page).
+      adaptivity: r?.adaptivity,
       // Explicitly inert, not merely "ignored". The static pill never
       // reads this, but the moving pill interpolates FROM it, and
       // `LiquidGlassStyle`'s default refraction is the full-strength one

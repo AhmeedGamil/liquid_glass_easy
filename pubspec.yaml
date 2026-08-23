@@ -39,3 +39,4 @@ flutter:
     - lib/assets/shaders/liquid_glass_border_skia.frag
     - lib/assets/shaders/metaball_glass.frag
     - lib/assets/shaders/metaball_glass_skia.frag
+    - lib/assets/shaders/scroll_edge_blur.frag

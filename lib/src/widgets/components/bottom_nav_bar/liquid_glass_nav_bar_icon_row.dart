@@ -27,17 +27,38 @@ class LiquidGlassNavTabCell extends StatelessWidget {
 
   final LiquidGlassTabItemStyle style;
 
+  /// When `true` (the bar's `style.adaptivity` is set), **unselected**
+  /// cells ignore the style's fixed color and follow the **ambient
+  /// adaptive content color** instead — the animated `IconTheme` color
+  /// installed by the hosting lens (plain tiers) or by the animated bar
+  /// (glass tier). The selected cell keeps [LiquidGlassTabItemStyle
+  /// .selectedColor] when that color is a **distinct accent**; when the
+  /// style gives it no accent (`selectedColor == unselectedColor`) the
+  /// selected cell is just content and follows the adaptive color too.
+  final bool adaptive;
+
   const LiquidGlassNavTabCell({
     super.key,
     required this.item,
     required this.selected,
     this.underGlass = 0,
     this.style = const LiquidGlassTabItemStyle(),
+    this.adaptive = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = style.colorFor(selected: selected);
+    Color color = style.colorFor(selected: selected);
+    // The adaptive content color arrives through IconTheme (animated
+    // every frame of a palette flip by the lens / animated bar). The
+    // selected cell joins in only when the style gives it no distinct
+    // accent — identical selected/unselected colors mean "just content";
+    // a distinct selectedColor is a deliberate accent and stays pinned.
+    if (adaptive &&
+        (!selected || style.selectedColor == style.unselectedColor)) {
+      final Color? content = IconTheme.of(context).color;
+      if (content != null) color = content;
+    }
     final double glass = underGlass.clamp(0.0, 1.0);
     return Center(
       child: Column(
@@ -143,6 +164,10 @@ class NavBarIconRow extends StatelessWidget {
   /// the shared sizes and differ by color/weight alone.
   final double selectedUnderGlass;
 
+  /// Forwarded to every [LiquidGlassNavTabCell]: cells follow the
+  /// ambient adaptive content color instead of the style's fixed colors.
+  final bool adaptive;
+
   const NavBarIconRow({
     super.key,
     required this.items,
@@ -152,6 +177,7 @@ class NavBarIconRow extends StatelessWidget {
     this.forceSelected = false,
     this.forceUnselected = false,
     this.selectedUnderGlass = 0,
+    this.adaptive = false,
   });
 
   @override
@@ -174,6 +200,7 @@ class NavBarIconRow extends StatelessWidget {
                     ? selectedUnderGlass
                     : 0,
                 style: itemStyle,
+                adaptive: adaptive,
               ),
             ),
         ],

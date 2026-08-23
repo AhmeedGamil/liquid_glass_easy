@@ -69,6 +69,13 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   /// Absolute bottom inset of the bar. Defaults to `layout.bottomMargin`.
   final double? bottom;
 
+  /// Unselected cells follow the ambient adaptive content color
+  /// (installed by the animated bar around this shell) instead of the
+  /// style's fixed color; the selected cell keeps
+  /// `itemStyle.selectedColor`. Set when the bar's `style.adaptivity`
+  /// is enabled.
+  final bool adaptive;
+
   /// How much of the moving pill currently reads as **glass**, `0`–`1`
   /// — the bar's shed/return signal. The under-glass sizes on the
   /// inside-the-pill layer lerp on this, so the enlargement rides the
@@ -88,6 +95,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
     this.left,
     this.bottom,
     this.underGlass = 1,
+    this.adaptive = false,
   });
 
   @override
@@ -120,6 +128,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
                     layout: layout,
                     itemStyle: itemStyle,
                     forceUnselected: true,
+                    adaptive: adaptive,
                   ),
                 ),
               ),
@@ -132,6 +141,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
                   layout: layout,
                   itemStyle: itemStyle,
                   selectedIndex: selectedIndex,
+                  adaptive: adaptive,
                 ),
               ),
             ),
@@ -152,6 +162,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
                     layout: layout,
                     itemStyle: itemStyle,
                     forceSelected: true,
+                    adaptive: adaptive,
                     // Only what the pill covers is visible in this
                     // layer, so it is under glass exactly as much as
                     // the pill still IS glass.

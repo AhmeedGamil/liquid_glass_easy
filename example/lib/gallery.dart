@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'debug_flags.dart';
 import 'touch_page.dart';
 import 'switch_page.dart';
 import 'control_center_page.dart';
@@ -12,6 +13,9 @@ import 'basic_controls_page.dart';
 import 'slider_motion_tuner.dart';
 import 'slider_page.dart';
 import 'tab_bar_page.dart';
+import 'trip_page.dart';
+import 'trip_settle_page.dart';
+import 'white_page.dart';
 import 'showcases/photos_library_page.dart';
 
 // =============================================================
@@ -36,17 +40,24 @@ class GalleryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF7C5CFF),
+    // The perf overlay is rebuilt from a notifier rather than a const
+    // flag so a page can hide it while judging how the glass LOOKS —
+    // the graphs sit right over the chrome most demos put at the top.
+    return ValueListenableBuilder<bool>(
+      valueListenable: showPerfOverlay,
+      builder: (BuildContext context, bool perf, Widget? _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        showPerformanceOverlay: perf,
+        theme: ThemeData(
           brightness: Brightness.dark,
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFF7C5CFF),
+            brightness: Brightness.dark,
+          ),
+          useMaterial3: true,
         ),
-        useMaterial3: true,
+        home: const HomePage(),
       ),
-      home: const HomePage(),
     );
   }
 }
@@ -135,6 +146,27 @@ class HomePage extends StatelessWidget {
       icon: Icons.add_alert_rounded,
       gradient: const [Color(0xFFFF7A00), Color(0xFFFF0055)],
       builder: (_) => const FabAndDialogDemoPage(),
+    ),
+    _Destination(
+      title: 'Thailand Trip',
+      subtitle: 'Photo header, glass nav bar + action — adaptive end to end',
+      icon: Icons.travel_explore_rounded,
+      gradient: const [Color(0xFF11998E), Color(0xFF38EF7D)],
+      builder: (_) => const TripPage(),
+    ),
+    _Destination(
+      title: 'Thailand — Settle',
+      subtitle: 'Palettes hold while scrolling, adaptOnce() when it settles',
+      icon: Icons.pause_circle_outline_rounded,
+      gradient: const [Color(0xFF136A8A), Color(0xFF267871)],
+      builder: (_) => const TripSettlePage(),
+    ),
+    _Destination(
+      title: 'White Room',
+      subtitle: 'The same glass chrome over a blank white page',
+      icon: Icons.crop_din_rounded,
+      gradient: const [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
+      builder: (_) => const WhitePage(),
     ),
   ];
 

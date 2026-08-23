@@ -8,7 +8,9 @@ import '../../liquid_glass_style.dart';
 import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_border_mode.dart';
 import '../../utils/liquid_glass_position.dart';
+import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_shape.dart';
+import '../liquid_glass_adaptive_area.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_animated_nav_bar.dart';
 import 'liquid_glass_nav_bar_animated_content.dart';
@@ -230,6 +232,11 @@ class LiquidGlassTabBar extends StatelessWidget {
     bool? useImpellerBackdrop,
     bool realTimeCapture = true,
     bool outerNeedsRealtime = false,
+    LiquidGlassAdaptiveSampling? adaptiveSampling,
+    LiquidGlassAdaptiveSampling? outerAdaptiveSampling,
+    LiquidGlassAdaptivity? areaAdaptivity,
+    LiquidGlassAdaptivityLink? areaLink,
+    LiquidGlassSystemChrome systemChrome = LiquidGlassSystemChrome.none,
   }) {
     final base = navLayout;
     final layout = LiquidGlassTabBarLayout(
@@ -280,6 +287,17 @@ class LiquidGlassTabBar extends StatelessWidget {
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
       realTimeCapture: realTimeCapture,
+      adaptivity: barStyle.adaptivity,
+      adaptiveSampling: adaptiveSampling,
+      outerAdaptiveSampling: outerAdaptiveSampling,
+      areaAdaptivity: areaAdaptivity,
+      areaLink: areaLink,
+      systemChrome: systemChrome,
+      // The bodyless standalone bar has nothing behind its inner view to
+      // sample (the real page is painted below the overlay, out of
+      // reach), so adaptivity falls back to a manual `permanentBrightness`,
+      // a followed link, or the platform brightness — like a standalone lens.
+      sampleBackground: !_impellerStandalone,
     );
   }
 
@@ -375,6 +393,22 @@ class LiquidGlassTabBar extends StatelessWidget {
     // opt-in border) so they match the glass-pill bar.
     final restStyle = pillStyle.effectiveRest;
 
+    // Adaptivity (style.adaptivity, or an enclosing adaptive area): the
+    // lens samples/follows, animates its glass tint, and installs the
+    // animated content color as the ambient IconTheme/DefaultTextStyle —
+    // the adaptive cells below pick it up from there.
+    final bool adaptive = barStyle.adaptivity != null ||
+        LiquidGlassAdaptiveArea.maybeOf(context) != null;
+    // A bar that adapts brings its pill along on the shipped palette,
+    // whether that adaptivity is the bar's OWN or inherited from an
+    // enclosing area/scaffold — the pill contrasts the CAPSULE, and the
+    // capsule flips either way. `rest.adaptivity` overrides the palette;
+    // `LiquidGlassAdaptivity.none` keeps a caller-chosen fill fixed.
+    final LiquidGlassAdaptivity? pillAdaptivity = adaptive
+        ? (restStyle.adaptivity ??
+            LiquidGlassTabPillStyle.defaultRestAdaptivity)
+        : null;
+
     final Widget content = pillStyle.animated
         ? AnimatedBottomNavBarContent(
             items: items,
@@ -383,10 +417,12 @@ class LiquidGlassTabBar extends StatelessWidget {
             itemPadding: itemPadding,
             showSelectionPill: pillStyle.show,
             selectionColor: restStyle.appearance.color,
+            selectionAdaptivity: pillAdaptivity,
             itemStyle: itemStyle,
             duration: pillStyle.animationDuration,
             curve: pillStyle.animationCurve,
             pillShape: restStyle.shape,
+            adaptive: adaptive,
           )
         : BottomNavBarContent(
             items: items,
@@ -395,8 +431,10 @@ class LiquidGlassTabBar extends StatelessWidget {
             itemPadding: itemPadding,
             showSelectionPill: pillStyle.show,
             selectionColor: restStyle.appearance.color,
+            selectionAdaptivity: pillAdaptivity,
             itemStyle: itemStyle,
             pillShape: restStyle.shape,
+            adaptive: adaptive,
           );
 
     // The bar's contact shadow rides the lens's appearance
@@ -410,6 +448,7 @@ class LiquidGlassTabBar extends StatelessWidget {
           shape: effectiveShape,
           appearance: barStyle.appearance,
           refraction: barStyle.refraction,
+          adaptivity: barStyle.adaptivity,
         ),
         visibility: visibility,
         child: content,

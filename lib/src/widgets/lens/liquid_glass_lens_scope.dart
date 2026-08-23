@@ -3,6 +3,47 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
+import '../utils/liquid_glass_adaptivity.dart';
+
+/// A descendant lens that wants background-luminance updates from the
+/// view's adaptive sampler (see `LiquidGlassAdaptivity`).
+///
+/// Pull-model contract: on every sample the view asks each client for
+/// its current region (so scrolled/moved lenses stay accurate for free)
+/// and pushes back one averaged luminance value.
+abstract mixin class LiquidGlassAdaptiveClient {
+  /// The lens rect in [backgroundBox] coordinates, or `null` when the
+  /// lens isn't laid out yet (that sample is skipped).
+  Rect? adaptiveRegion(RenderBox backgroundBox);
+
+  /// Every rect this client's verdict is voted over — ONE pixel pool
+  /// across all of them, so a client spanning disjoint strips (the
+  /// scaffold's shared-edges judge) gets a single combined vote, not
+  /// one per rect. Rects must not overlap (overlap pixels would vote
+  /// twice). Defaults to the single [adaptiveRegion].
+  List<Rect> adaptiveRegions(RenderBox backgroundBox) {
+    final Rect? region = adaptiveRegion(backgroundBox);
+    return region == null ? const <Rect>[] : <Rect>[region];
+  }
+
+  /// Optional exact mask for [region], expressed in [backgroundBox]
+  /// coordinates. `null` means the whole rectangle participates. A shaped
+  /// lens supplies its real outline so transparent bounding-box corners do
+  /// not influence the verdict.
+  ui.Path? adaptiveMaskPath(RenderBox backgroundBox, Rect region) => null;
+
+  /// Receives the background-only sample used by the perceptual lightness
+  /// classifier.
+  /// The default bridge keeps older custom clients that only override
+  /// [onAdaptiveLuminance] working.
+  void onAdaptiveSample(LiquidGlassBackdropSample sample) =>
+      onAdaptiveLuminance(sample.meanLuminance, sample.lightFraction);
+
+  /// Legacy sample callback: [luminance] is mean relative luminance and
+  /// [lightFraction] is the diagnostic share of perceptually light pixels.
+  void onAdaptiveLuminance(double luminance, double lightFraction) {}
+}
+
 /// Connection between a `LiquidGlassView` and the `LiquidGlassLens`
 /// widgets living anywhere inside its `child` subtree.
 ///
@@ -38,6 +79,19 @@ class LiquidGlassLensScope extends InheritedWidget {
   /// rect into this space with `getTransformTo`.
   final RenderBox? Function() backgroundRenderBox;
 
+  /// Subscribes a lens to the view's low-res background-luminance
+  /// sampler (`LiquidGlassAdaptivity`). `null` when the owning view has
+  /// no `adaptiveSampling` config — sampling is opt-in per view, and
+  /// adaptive descendants fall back to manual/platform verdicts. When
+  /// present, the sampler only runs while at least one client is
+  /// registered.
+  final void Function(LiquidGlassAdaptiveClient client)? registerAdaptiveClient;
+
+  /// Removes a lens from the adaptive sampler; the sampler stops when
+  /// the last client leaves. `null` iff [registerAdaptiveClient] is.
+  final void Function(LiquidGlassAdaptiveClient client)?
+      unregisterAdaptiveClient;
+
   const LiquidGlassLensScope({
     super.key,
     required this.useImpellerBackdrop,
@@ -45,12 +99,13 @@ class LiquidGlassLensScope extends InheritedWidget {
     required this.currentImage,
     required this.captureFallback,
     required this.backgroundRenderBox,
+    this.registerAdaptiveClient,
+    this.unregisterAdaptiveClient,
     required super.child,
   });
 
   static LiquidGlassLensScope? maybeOf(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<LiquidGlassLensScope>();
+    return context.dependOnInheritedWidgetOfExactType<LiquidGlassLensScope>();
   }
 
   @override
@@ -62,7 +117,9 @@ class LiquidGlassLensScope extends InheritedWidget {
         captureRevision != oldWidget.captureRevision ||
         currentImage != oldWidget.currentImage ||
         captureFallback != oldWidget.captureFallback ||
-        backgroundRenderBox != oldWidget.backgroundRenderBox;
+        backgroundRenderBox != oldWidget.backgroundRenderBox ||
+        registerAdaptiveClient != oldWidget.registerAdaptiveClient ||
+        unregisterAdaptiveClient != oldWidget.unregisterAdaptiveClient;
   }
 }
 
@@ -96,6 +153,15 @@ class LiquidGlassLensScopePortal extends InheritedTheme {
   /// See [LiquidGlassLensScope.backgroundRenderBox].
   final RenderBox? Function() backgroundRenderBox;
 
+  /// See [LiquidGlassLensScope.registerAdaptiveClient]. Carried across
+  /// the route so an adaptive lens inside a dialog samples the page's
+  /// background like one on the page would.
+  final void Function(LiquidGlassAdaptiveClient client)? registerAdaptiveClient;
+
+  /// See [LiquidGlassLensScope.unregisterAdaptiveClient].
+  final void Function(LiquidGlassAdaptiveClient client)?
+      unregisterAdaptiveClient;
+
   const LiquidGlassLensScopePortal({
     super.key,
     required this.useImpellerBackdrop,
@@ -103,6 +169,8 @@ class LiquidGlassLensScopePortal extends InheritedTheme {
     required this.currentImage,
     required this.captureFallback,
     required this.backgroundRenderBox,
+    this.registerAdaptiveClient,
+    this.unregisterAdaptiveClient,
     required super.child,
   });
 
@@ -114,6 +182,8 @@ class LiquidGlassLensScopePortal extends InheritedTheme {
       currentImage: currentImage,
       captureFallback: captureFallback,
       backgroundRenderBox: backgroundRenderBox,
+      registerAdaptiveClient: registerAdaptiveClient,
+      unregisterAdaptiveClient: unregisterAdaptiveClient,
       child: child,
     );
   }
@@ -124,6 +194,45 @@ class LiquidGlassLensScopePortal extends InheritedTheme {
         captureRevision != oldWidget.captureRevision ||
         currentImage != oldWidget.currentImage ||
         captureFallback != oldWidget.captureFallback ||
-        backgroundRenderBox != oldWidget.backgroundRenderBox;
+        backgroundRenderBox != oldWidget.backgroundRenderBox ||
+        registerAdaptiveClient != oldWidget.registerAdaptiveClient ||
+        unregisterAdaptiveClient != oldWidget.unregisterAdaptiveClient;
+  }
+}
+
+/// Redirects **where adaptive-sampling clients register**, overriding
+/// the enclosing [LiquidGlassLensScope]'s sampler while leaving its
+/// rendering half untouched.
+///
+/// Installed by a host whose slot subtree lives in a view whose captured
+/// image is the wrong one to sample — the animated nav bar's OUTER view
+/// captures the bar's glass already composited, so adaptive areas and
+/// lenses placed there register with the INNER (pre-glass) view's
+/// sampler through this scope instead. One sampler per pipeline, and no
+/// widget ever reads its own glass back.
+class LiquidGlassAdaptiveSamplerScope extends InheritedWidget {
+  /// Subscribes a client to the redirected sampler.
+  final void Function(LiquidGlassAdaptiveClient client) register;
+
+  /// Removes a client from the redirected sampler.
+  final void Function(LiquidGlassAdaptiveClient client) unregister;
+
+  const LiquidGlassAdaptiveSamplerScope({
+    super.key,
+    required this.register,
+    required this.unregister,
+    required super.child,
+  });
+
+  static LiquidGlassAdaptiveSamplerScope? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<LiquidGlassAdaptiveSamplerScope>();
+  }
+
+  @override
+  bool updateShouldNotify(covariant LiquidGlassAdaptiveSamplerScope oldWidget) {
+    // Hosts hand in identity-stable functions, so this only notifies
+    // when the redirect target really changes.
+    return register != oldWidget.register || unregister != oldWidget.unregister;
   }
 }

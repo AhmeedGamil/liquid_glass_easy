@@ -5,10 +5,16 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import 'package:flutter/services.dart' show SystemUiOverlayStyle;
+
 import '../../../controllers/liquid_glass_view_controller.dart';
 import 'liquid_glass_tab_bar.dart';
+import '../liquid_glass_adaptive_area.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import '../../lens/liquid_glass_lens.dart';
+import '../../lens/liquid_glass_lens_scope.dart';
+import '../../utils/liquid_glass_adaptivity.dart';
+import '../../utils/liquid_glass_adaptivity_driver.dart';
 import '../../liquid_glass.dart';
 import '../../utils/liquid_glass_border_mode.dart';
 import '../../liquid_glass_config.dart';
@@ -177,6 +183,57 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// Appearance (tint + blur) of the bar capsule.
   final LiquidGlassAppearance? barAppearance;
 
+  /// iOS-style adaptivity for the whole bar (same contract as
+  /// `LiquidGlassStyle.adaptivity`): the bar capsule's tint follows the
+  /// adaptive glass color and the shell's **unselected** icons/labels
+  /// the adaptive content color, flipping together as the background
+  /// behind the bar turns dark or light (the selected item keeps
+  /// [itemStyle]'s fixed `selectedColor`). The verdict comes from
+  /// sampling the captured [body] through the inner view (see
+  /// [sampleBackground]), a manual `permanentBrightness`, or a followed
+  /// link. `null` (default) disables the feature entirely.
+  final LiquidGlassAdaptivity? adaptivity;
+
+  /// Tuning for the body-luminance sampling behind [adaptivity]. `null`
+  /// uses the standard tuning (pixelRatio 0.05, frameLimit 8).
+  final LiquidGlassAdaptiveSampling? adaptiveSampling;
+
+  /// Sampling opt-in for adaptive areas/lenses a host places in
+  /// [outerChild] (e.g. `LiquidGlassScaffold`'s top / shared adaptivity
+  /// groups). Their registrations are redirected to the **inner** view's
+  /// sampler — the pre-glass body image — so the whole pipeline runs
+  /// ONE sampler and no widget ever reads its own glass back. `null`
+  /// (the default) leaves outer-slot clients without sampling.
+  final LiquidGlassAdaptiveSampling? outerAdaptiveSampling;
+
+  /// The host's area context for the bar — the adaptivity group (e.g. a
+  /// scaffold's shared-edges area or bottom band) the bar should behave
+  /// as if it sat inside. The bar renders in its own pipeline, so it can
+  /// never be a real descendant of that area; this is the explicit
+  /// stand-in. Used as the fallback palettes when [adaptivity] is null.
+  final LiquidGlassAdaptivity? areaAdaptivity;
+
+  /// The link that area publishes its verdict on. When the bar's
+  /// resolved adaptivity carries no link of its own, the bar follows
+  /// this one instead of sampling its own region — one shared verdict,
+  /// and the bar's own sampler stays off.
+  final LiquidGlassAdaptivityLink? areaLink;
+
+  /// Whether [adaptivity] may sample [body] through the inner view.
+  /// Pass `false` when [body] is an empty stand-in (the bodyless
+  /// standalone bar) — the verdict then falls back to the adaptivity's
+  /// `permanentBrightness`, its followed link, or platform brightness.
+  final bool sampleBackground;
+
+  /// Also drive the system navigation bar's icon brightness from this
+  /// bar's verdict (see [LiquidGlassSystemChrome]). The bar is a
+  /// full-screen widget, so it covers the navigation bar's probe point
+  /// by construction. Only the navigation-bar side applies on this path
+  /// (`both` acts as `navigationBar`; `statusBar` is ignored — a top
+  /// band here would have to sample the bar's own glass). Requires
+  /// [adaptivity]. Off by default.
+  final LiquidGlassSystemChrome systemChrome;
+
   /// Contact shadow around the **bar capsule** — the soft dark band that
   /// hugs its rim and pools underneath, so the bar reads as sitting in
   /// the page rather than floating on it. `null` (the default) draws
@@ -336,6 +393,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.useImpellerBackdrop,
     this.realTimeCapture = true,
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
+    this.adaptivity,
+    this.adaptiveSampling,
+    this.outerAdaptiveSampling,
+    this.areaAdaptivity,
+    this.areaLink,
+    this.sampleBackground = true,
+    this.systemChrome = LiquidGlassSystemChrome.none,
   });
 
   @override
@@ -344,11 +408,75 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 }
 
 class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, LiquidGlassAdaptiveClient {
   // Inner pipeline captures wallpaper + bar capsule; outer composites
   // the moving glass pill on top so it refracts the bar's own glass.
   final _outerViewController = LiquidGlassViewController();
   final _innerViewController = LiquidGlassViewController();
+
+  // ===== Adaptivity (widget.adaptivity) =====
+  // The shared verdict machine (see [LiquidGlassAdaptivityDriver]) does
+  // all deciding/animating. The sampling itself runs in the INNER view
+  // (it owns the captured body); a registrar in that view's child slot
+  // enrolls this state as the sampler's client, and every sample is
+  // forwarded to the driver.
+  late final LiquidGlassAdaptivityDriver _adaptDriver =
+      LiquidGlassAdaptivityDriver(vsync: this);
+
+  // Identity-stable redirect functions for the outer slots' adaptive
+  // clients (clients re-register whenever the function identity
+  // changes, so these are created exactly once). They forward to the
+  // inner view's sampler through its controller.
+  late final void Function(LiquidGlassAdaptiveClient) _outerAdaptiveRegister =
+      _innerViewController.registerAdaptiveClient;
+  late final void Function(LiquidGlassAdaptiveClient) _outerAdaptiveUnregister =
+      _innerViewController.unregisterAdaptiveClient;
+
+  /// Effective adaptivity for this build: the widget's own, else the
+  /// enclosing [LiquidGlassAdaptiveArea]'s. Resolved in [build].
+  LiquidGlassAdaptivity? _effAdaptivity;
+
+  /// The link the bar follows this build (explicit link, else the
+  /// enclosing area's). Null when the bar resolves its own verdict.
+  LiquidGlassAdaptivityLink? _adaptFollow;
+
+  /// Whether the verdict comes from sampling the captured body: no
+  /// manual override, no link/area to follow, and the body is real
+  /// (see [LiquidGlassAnimatedNavBar.sampleBackground]).
+  bool get _adaptSamples => _adaptDriver.samplingWanted(_effAdaptivity,
+      following: _adaptFollow != null, canRegister: widget.sampleBackground);
+
+  /// The adaptivity controller flipped: rebuild so sampling
+  /// registration and the driver's verdict source follow the switch.
+  void _adaptResync() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Rect? adaptiveRegion(RenderBox backgroundBox) {
+    if (!mounted) return null;
+    // The bar's rect in the inner background's coordinate space, from
+    // the same geometry the capsule lens is positioned with. (The inner
+    // background and the outer overlay share the full-screen size, so
+    // the build-time [_barLeft]/[_effBottomMargin] apply directly.)
+    final Size size = backgroundBox.size;
+    final double top = size.height - _effBottomMargin - _layout.height;
+    return Rect.fromLTWH(_barLeft, top, _layout.width, _layout.height);
+  }
+
+  @override
+  ui.Path? adaptiveMaskPath(RenderBox backgroundBox, Rect region) {
+    final LiquidGlassShape shape = widget.barShape ??
+        const LiquidGlassShape.roundedRectangle(cornerRadius: 40);
+    return liquidGlassOutlinePath(shape, region.size, const Offset(1, 1))
+        .shift(region.topLeft);
+  }
+
+  @override
+  void onAdaptiveSample(LiquidGlassBackdropSample sample) {
+    if (!mounted) return;
+    _adaptDriver.onBackdropSample(sample);
+  }
 
   /// Live selection driving the animation (source of truth internally).
   late int _tabIndex;
@@ -517,6 +645,9 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
   @override
   void dispose() {
+    // (Sampler unregistration is owned by the registrar widget inside
+    // the inner view — it unmounts with this subtree.)
+    _adaptDriver.dispose();
     _ticker?.dispose();
     _outerViewController.detach();
     _innerViewController.detach();
@@ -853,7 +984,29 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(builder: (context, constraints) {
+    // Adaptivity: resolve the effective config (own, else the enclosing
+    // area's) and sync the driver's verdict source. Its controller only
+    // drives the INNER stack (capsule tint + shell content color), which
+    // watches it through its own AnimatedBuilder in [_buildInner] —
+    // idle between flips.
+    final LiquidGlassAdaptiveAreaScope? areaScope =
+        LiquidGlassAdaptiveArea.maybeOf(context);
+    final LiquidGlassAdaptivity? resolvedAdapt =
+        widget.adaptivity ?? areaScope?.adaptivity ?? widget.areaAdaptivity;
+    _effAdaptivity = (resolvedAdapt?.isNone ?? false) ? null : resolvedAdapt;
+    _adaptFollow = _effAdaptivity == null
+        ? null
+        : (_effAdaptivity!.link ?? areaScope?.link ?? widget.areaLink);
+    _adaptDriver.onResync = _adaptResync;
+    _adaptDriver.sync(
+      _effAdaptivity,
+      follow: _adaptFollow,
+      canSample: widget.sampleBackground,
+      platformBrightness:
+          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+    );
+
+    final Widget bar = LayoutBuilder(builder: (context, constraints) {
       final parentWidth = constraints.maxWidth;
       final parentHeight = constraints.maxHeight;
 
@@ -1027,22 +1180,28 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 if (glassMounted)
                   Positioned.fill(
                     child: IgnorePointer(
-                      child: LiquidGlassNavBarMotionPill(
-                        center: Offset(pillCX, pillCY),
-                        active: _lifted,
-                        // The bar owns the size as well as the squash;
-                        // the pill's own morph spring stays out of it.
-                        morphProgress: morphProgress,
-                        envelopeSize: envelopeSize,
-                        restSize: pillRest,
-                        activeSize: pillLifted,
-                        style: _pillStyle(),
-                        restStyle: widget.restStyle,
-                        // The bar owns the model; the pill just draws it.
-                        deviation: dev,
-                        glassPresence: glassPresence,
-                        shadow: widget.pillShadow,
-                        honorBackdropAlpha: false,
+                      // Same resolved fill the flat pill paints — the
+                      // glass pill lerps INTO it, so a mismatch here
+                      // shows up as a colour pop at the hand-over.
+                      child: _withRestStyle(
+                        (LiquidGlassStyle rest) =>
+                            LiquidGlassNavBarMotionPill(
+                          center: Offset(pillCX, pillCY),
+                          active: _lifted,
+                          // The bar owns the size as well as the squash;
+                          // the pill's own morph spring stays out of it.
+                          morphProgress: morphProgress,
+                          envelopeSize: envelopeSize,
+                          restSize: pillRest,
+                          activeSize: pillLifted,
+                          style: _pillStyle(),
+                          restStyle: rest,
+                          // The bar owns the model; the pill just draws it.
+                          deviation: dev,
+                          glassPresence: glassPresence,
+                          shadow: widget.pillShadow,
+                          honorBackdropAlpha: false,
+                        ),
                       ),
                     ),
                   )
@@ -1055,14 +1214,19 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                     key: const ValueKey('lg-motion-nav-pill-static'),
                     left: pillCX - pillRest.width / 2,
                     top: pillCY - pillRest.height / 2,
-                    child: LiquidGlassBottomNavPillStatic(
-                      width: pillRest.width,
-                      height: pillRest.height,
-                      color: widget.restStyle.appearance.color,
-                      shape: widget.restStyle.shape,
-                    ),
+                    child: _restPill(pillRest),
                   ),
-                if (widget.outerChild != null) widget.outerChild!,
+                // Adaptive areas/lenses in the outer slots sample through
+                // the INNER view (the pre-glass body image) via this
+                // redirect — one sampler for the whole pipeline.
+                if (widget.outerChild != null)
+                  widget.outerAdaptiveSampling == null
+                      ? widget.outerChild!
+                      : LiquidGlassAdaptiveSamplerScope(
+                          register: _outerAdaptiveRegister,
+                          unregister: _outerAdaptiveUnregister,
+                          child: widget.outerChild!,
+                        ),
               ],
             ),
           ),
@@ -1100,6 +1264,28 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
         ],
       );
     });
+
+    // System chrome: annotate the (full-screen) bar so the navigation
+    // bar's icons flip with the verdict. Before any verdict the chrome
+    // sits on the same entry guess the palettes use.
+    final LiquidGlassAdaptivity? chromeAdaptivity = _effAdaptivity;
+    if (chromeAdaptivity != null &&
+        (widget.systemChrome == LiquidGlassSystemChrome.navigationBar ||
+            widget.systemChrome == LiquidGlassSystemChrome.both)) {
+      final Brightness guess = chromeAdaptivity.permanentBrightness ??
+          chromeAdaptivity.initialBrightness ??
+          MediaQuery.maybePlatformBrightnessOf(context) ??
+          Brightness.light;
+      return AnimatedBuilder(
+        animation: _adaptDriver.listenable!,
+        builder: (context, _) => AnnotatedRegion<SystemUiOverlayStyle>(
+          value: liquidGlassSystemChromeStyle(_adaptDriver.verdict ?? guess,
+              LiquidGlassSystemChrome.navigationBar),
+          child: bar,
+        ),
+      );
+    }
+    return bar;
   }
 
   /// The moving pill's look, assembled from the bar's pill-* knobs.
@@ -1188,6 +1374,65 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// lens, with the icon shell drawn on top. [magnifier] (Impeller only)
   /// slots between the capsule and the icons, so it recedes the bar
   /// without touching the icons drawn above it.
+  ///
+  /// The flat rest pill.
+  ///
+  /// When the bar is adaptive its fill rides the bar's OWN verdict — the
+  /// pill sits on the capsule, so sampling its own rect would read the
+  /// capsule's tint back instead of the page. It gets its own
+  /// AnimatedBuilder because this pill is built in [build], outside the
+  /// one wrapping the inner stack; without it the fill would settle only
+  /// on the next rebuild, arriving after the capsule it sits on.
+  /// Builds [child] with [restStyle]'s fill resolved against the bar's
+  /// verdict.
+  ///
+  /// A bar that adapts brings its pill along on the shipped palette,
+  /// whether that adaptivity is the bar's OWN or inherited from an
+  /// enclosing area/scaffold. The source does not change what the pill
+  /// has to do: it sits on the capsule, and a capsule that darkens over
+  /// a dark page leaves a fixed light fill reading as a light pill on a
+  /// dark bar. `rest.adaptivity` overrides this palette, and
+  /// `LiquidGlassAdaptivity.none` opts a caller-chosen fill out of the
+  /// flip entirely.
+  ///
+  /// Both the flat rest pill and the MOVING pill's resting endpoint go
+  /// through here, and they have to: the glass pill lerps toward this
+  /// fill and the flat pill is painted in it, so if only one adapted the
+  /// hand-over would swap one colour for another in a single frame.
+  ///
+  /// Its own [AnimatedBuilder] because both callers are built in
+  /// [build], outside the one wrapping the inner stack — without it the
+  /// fill would settle a rebuild late, arriving after the capsule.
+  Widget _withRestStyle(Widget Function(LiquidGlassStyle rest) child) {
+    final LiquidGlassAdaptivity palette = widget.restStyle.adaptivity ??
+        LiquidGlassTabPillStyle.defaultRestAdaptivity;
+    if (_effAdaptivity == null || palette.isNone) {
+      return child(widget.restStyle);
+    }
+    return AnimatedBuilder(
+      animation: _adaptDriver.listenable!,
+      builder: (context, _) => child(
+        widget.restStyle.copyWith(
+          appearance: widget.restStyle.appearance
+              .copyWith(color: _adaptDriver.glassColor(palette)),
+        ),
+      ),
+    );
+  }
+
+  Widget _restPill(Size size) => _withRestStyle(
+        (LiquidGlassStyle rest) => LiquidGlassBottomNavPillStatic(
+          width: size.width,
+          height: size.height,
+          color: rest.appearance.color,
+          shape: rest.shape,
+        ),
+      );
+
+  /// With adaptivity active the stack is rebuilt through an
+  /// [AnimatedBuilder] on the flip controller, so the capsule tint and
+  /// the shell's content color animate together on every verdict
+  /// change — and cost nothing between flips.
   Widget _buildInner({
     required LiquidGlassTabBarLayout layout,
     double? pillFrac,
@@ -1195,6 +1440,40 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     double? pillH,
     double pillGlass = 0,
     Widget? magnifier,
+  }) {
+    final LiquidGlassAdaptivity? adaptivity = _effAdaptivity;
+    if (adaptivity == null) {
+      return _buildInnerStack(
+        layout: layout,
+        pillFrac: pillFrac,
+        pillW: pillW,
+        pillH: pillH,
+        pillGlass: pillGlass,
+        magnifier: magnifier,
+      );
+    }
+    return AnimatedBuilder(
+      animation: _adaptDriver.listenable!,
+      builder: (context, _) => _buildInnerStack(
+        layout: layout,
+        pillFrac: pillFrac,
+        pillW: pillW,
+        pillH: pillH,
+        pillGlass: pillGlass,
+        magnifier: magnifier,
+        adaptivity: adaptivity,
+      ),
+    );
+  }
+
+  Widget _buildInnerStack({
+    required LiquidGlassTabBarLayout layout,
+    double? pillFrac,
+    double? pillW,
+    double? pillH,
+    double pillGlass = 0,
+    Widget? magnifier,
+    LiquidGlassAdaptivity? adaptivity,
   }) {
     final Widget background = widget.backgroundColor == null
         ? widget.body
@@ -1206,11 +1485,20 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     // paints behind the glass, lands inside the outer view's capture,
     // and the moving pill refracts it too. A shadow already carried by
     // [barAppearance] is honored when [barShadow] is unset.
-    final LiquidGlassAppearance capsuleAppearance = widget.barAppearance ??
+    LiquidGlassAppearance capsuleAppearance = widget.barAppearance ??
         LiquidGlassAppearance(
           color: Colors.white.withAlpha(22),
           blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
         );
+    // Resolve the adaptive palette for this frame: the capsule tint
+    // overrides the bar appearance's color, the content color reaches
+    // the shell's cells through IconTheme (see LiquidGlassNavTabCell).
+    Color? adaptiveContent;
+    if (adaptivity != null) {
+      adaptiveContent = _adaptDriver.contentColor(adaptivity);
+      capsuleAppearance = capsuleAppearance.copyWith(
+          color: _adaptDriver.glassColor(adaptivity));
+    }
     final LiquidGlassStyle capsuleStyle = LiquidGlassStyle(
       shape: widget.barShape ??
           LiquidGlassShape.roundedRectangle(
@@ -1235,6 +1523,32 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           ),
     );
 
+    Widget shell = LiquidGlassAnimatedBottomNavBarShell(
+      items: widget.items,
+      selectedIndex: _tabIndexCommitted,
+      itemStyle: widget.itemStyle,
+      layout: layout,
+      left: _barLeft,
+      bottom: _effBottomMargin,
+      highlightFrac: pillFrac,
+      highlightWidth: pillW,
+      highlightHeight: pillH,
+      underGlass: pillGlass,
+      adaptive: adaptivity != null,
+    );
+    if (adaptiveContent != null) {
+      // Same ambient contract as the lens child: the animated content
+      // color rides IconTheme/DefaultTextStyle and the adaptive cells
+      // resolve their selected/unselected strengths from it.
+      shell = IconTheme.merge(
+        data: IconThemeData(color: adaptiveContent),
+        child: DefaultTextStyle.merge(
+          style: TextStyle(color: adaptiveContent),
+          child: shell,
+        ),
+      );
+    }
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -1246,6 +1560,17 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
           useImpellerBackdrop: widget.useImpellerBackdrop,
           backgroundWidget: background,
+          // Body-luminance sampling for adaptivity: the inner view owns
+          // the captured body, so it hosts the sampler; the registrar in
+          // its child slot enrolls this state as the sampling client.
+          // The pipeline's SINGLE sampler: serves the bar's own verdict
+          // and any outer-slot areas/lenses redirected here through the
+          // outer view's sampler scope.
+          adaptiveSampling: _adaptSamples || widget.outerAdaptiveSampling != null
+              ? (widget.adaptiveSampling ??
+                  widget.outerAdaptiveSampling ??
+                  const LiquidGlassAdaptiveSampling())
+              : null,
           children: const [],
           // The capsule is a layout-driven [LiquidGlassLens] in the
           // view's child slot: on Skia it refracts this view's captured
@@ -1264,6 +1589,10 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                   child: LiquidGlassLens(style: capsuleStyle),
                 ),
               ),
+              // The bar's state lives OUTSIDE this view, so it cannot
+              // reach the scope itself — this registrar does it from in
+              // here and forwards every sample to the driver.
+              if (_adaptSamples) _AdaptiveClientRegistrar(client: this),
             ],
           ),
         ),
@@ -1276,21 +1605,68 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
         IgnorePointer(
           child: Material(
             type: MaterialType.transparency,
-            child: LiquidGlassAnimatedBottomNavBarShell(
-              items: widget.items,
-              selectedIndex: _tabIndexCommitted,
-              itemStyle: widget.itemStyle,
-              layout: layout,
-              left: _barLeft,
-              bottom: _effBottomMargin,
-              highlightFrac: pillFrac,
-              highlightWidth: pillW,
-              highlightHeight: pillH,
-              underGlass: pillGlass,
-            ),
+            child: shell,
           ),
         ),
       ],
     );
   }
+}
+
+/// Enrolls a [LiquidGlassAdaptiveClient] with the enclosing view's
+/// luminance sampler for as long as it is mounted. Placed in the inner
+/// view's `child:` slot so the animated bar's state — which lives
+/// OUTSIDE that view — can receive samples of the captured body.
+class _AdaptiveClientRegistrar extends StatefulWidget {
+  final LiquidGlassAdaptiveClient client;
+
+  const _AdaptiveClientRegistrar({required this.client});
+
+  @override
+  State<_AdaptiveClientRegistrar> createState() =>
+      _AdaptiveClientRegistrarState();
+}
+
+class _AdaptiveClientRegistrarState extends State<_AdaptiveClientRegistrar> {
+  /// The register tear-off doubles as the identity of "who we're
+  /// registered with" (same contract as the lens's bookkeeping).
+  void Function(LiquidGlassAdaptiveClient)? _registeredWith;
+  void Function(LiquidGlassAdaptiveClient)? _unregister;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
+    final void Function(LiquidGlassAdaptiveClient)? register =
+        scope?.registerAdaptiveClient;
+    if (!identical(register, _registeredWith)) {
+      _unregister?.call(widget.client);
+      _unregister = null;
+      _registeredWith = register;
+      if (register != null) {
+        register(widget.client);
+        _unregister = scope!.unregisterAdaptiveClient;
+      }
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _AdaptiveClientRegistrar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.client, widget.client)) {
+      _unregister?.call(oldWidget.client);
+      _registeredWith?.call(widget.client);
+    }
+  }
+
+  @override
+  void dispose() {
+    _unregister?.call(widget.client);
+    _unregister = null;
+    _registeredWith = null;
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
