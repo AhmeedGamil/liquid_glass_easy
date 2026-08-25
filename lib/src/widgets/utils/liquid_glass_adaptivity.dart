@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/material.dart' show Theme;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
@@ -106,10 +107,11 @@ class LiquidGlassBackdropSample {
 /// vanishes on unmount — no global state, nothing to undo.
 ///
 /// Only the **icon brightness** of the bars is driven; their colors are
-/// never touched. With [none] (the default) no `AnnotatedRegion` exists
-/// in the tree at all — the feature is completely off.
+/// never touched. With [none] no `AnnotatedRegion` exists in the tree at
+/// all — the feature is completely off. `LiquidGlassAdaptiveArea`
+/// defaults to [none]; `LiquidGlassScaffold` defaults to [statusBar].
 enum LiquidGlassSystemChrome {
-  /// System bars untouched (default).
+  /// System bars untouched.
   none,
 
   /// Drive the status bar's icon brightness.
@@ -278,6 +280,52 @@ class LiquidGlassAdaptivityController extends ChangeNotifier {
   }
 }
 
+/// Where a verdict comes from when there is nothing better: no
+/// `permanentBrightness`, no link to follow, no enclosing area, no
+/// sampler, and no `initialBrightness` guess.
+///
+/// It is the bottom of the chain, so it only decides anything for glass
+/// that cannot read its backdrop — a lens over a live Impeller backdrop,
+/// or any surface in a view that never opted into `adaptiveSampling`.
+enum LiquidGlassBrightnessFallback {
+  /// `Theme.of(context).brightness` — the app's own dark/light, the one
+  /// a `MaterialApp.themeMode` switch drives. The default: an app that
+  /// themes itself dark is overwhelmingly likely to be painting dark
+  /// backgrounds, which makes it the better guess at what the glass is
+  /// sitting on.
+  ///
+  /// The catch: `Theme` has no `maybeOf`, so with **no `Theme`
+  /// ancestor** — a bare `WidgetsApp`, a `CupertinoApp`, a widget test
+  /// with no `MaterialApp` — `Theme.of` silently returns Flutter's
+  /// fallback theme and this reads `Brightness.light` rather than
+  /// following the device. Use [platform] there.
+  appTheme,
+
+  /// `MediaQuery.platformBrightness` — the OS-level dark mode setting,
+  /// which `MaterialApp.themeMode` does **not** affect. Correct
+  /// everywhere, including outside Material, and the right choice when
+  /// the glass should track the device rather than the app.
+  platform,
+}
+
+/// The last-resort brightness for [adaptivity], resolved against
+/// [context] — see [LiquidGlassBrightnessFallback].
+///
+/// A null [adaptivity] takes the default source, so callers that resolve
+/// this before knowing whether they are adaptive get a sane answer.
+Brightness liquidGlassFallbackBrightness(
+  BuildContext context,
+  LiquidGlassAdaptivity? adaptivity,
+) {
+  switch (adaptivity?.brightnessFallback ??
+      LiquidGlassBrightnessFallback.appTheme) {
+    case LiquidGlassBrightnessFallback.appTheme:
+      return Theme.of(context).brightness;
+    case LiquidGlassBrightnessFallback.platform:
+      return MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light;
+  }
+}
+
 /// iOS-style adaptivity: the glass tint **and** the lens content switch
 /// between two palettes depending on whether the background behind the
 /// lens is dark or light.
@@ -304,8 +352,9 @@ class LiquidGlassAdaptivityController extends ChangeNotifier {
 ///    and frame rate (see `LiquidGlassView.adaptiveSampling`), converts the
 ///    sampled sRGB pixels to perceptual CIE L* lightness, and classifies the
 ///    area with temporal smoothing and hysteresis.
-/// 3. The platform brightness, as a last resort (a standalone Impeller
-///    lens has no readable backdrop).
+/// 3. [brightnessFallback], as a last resort (a standalone Impeller lens
+///    has no readable backdrop) — the app theme's brightness by default,
+///    or the platform's.
 ///
 /// **What gets tinted.** The glass fill uses the active `glassColorOn*`
 /// (overriding `appearance.color` while adaptivity is enabled). The
@@ -350,9 +399,16 @@ class LiquidGlassAdaptivity {
   /// confirms the guess nothing moves at all; when it differs, the
   /// palettes animate into the truth.
   ///
-  /// `null` (the default) assumes the platform brightness — dark-mode
-  /// users get the dark palette from the very first frame.
+  /// `null` (the default) assumes [brightnessFallback] — a dark-themed
+  /// app gets the dark palette from the very first frame.
   final Brightness? initialBrightness;
+
+  /// Where the verdict comes from once everything else in the chain has
+  /// come up empty. Defaults to
+  /// [LiquidGlassBrightnessFallback.appTheme]; switch to
+  /// [LiquidGlassBrightnessFallback.platform] to track the OS instead,
+  /// which is also what you want outside a `MaterialApp`.
+  final LiquidGlassBrightnessFallback brightnessFallback;
 
   /// Optional verdict link (see [LiquidGlassAdaptivityLink]).
   ///
@@ -376,9 +432,16 @@ class LiquidGlassAdaptivity {
   /// flips to **dark**. The signal is normalized CIE L*: `0` is black, `1`
   /// is white, and `0.5` is the neutral dark/light split.
   ///
-  /// Defaults to the neutral split, the same value as [lightAbove], so
-  /// the verdict simply follows which side of the middle the background
-  /// is on.
+  /// **Defaults to `0.60`, the same value as [lightAbove]** — equal
+  /// thresholds mean no band at all, just a split, and the verdict
+  /// follows which side of it the background is on.
+  ///
+  /// The split sits ABOVE the neutral 0.5 deliberately. Glass reads as
+  /// glass by agreeing with what is behind it, and over a genuinely
+  /// mid-grey backdrop the smoked palette carries content better than
+  /// the milky one does — so the band from 0.5 to 0.6 is handed to the
+  /// dark palette rather than split down the middle. Set both to `0.5`
+  /// for the strictly neutral behaviour.
   ///
   /// Pulling the two apart opens an anti-strobe hysteresis band: inside
   /// it the current verdict holds, so a background hovering near the
@@ -431,10 +494,11 @@ class LiquidGlassAdaptivity {
     this.duration = const Duration(milliseconds: 300),
     this.permanentBrightness,
     this.initialBrightness,
+    this.brightnessFallback = LiquidGlassBrightnessFallback.appTheme,
     this.link,
     this.controller,
-    this.darkBelow = 0.50,
-    this.lightAbove = 0.50,
+    this.darkBelow = 0.60,
+    this.lightAbove = 0.60,
     this.continuousGlassColor = false,
   })  : _disabled = false,
         assert(darkBelow <= lightAbove, 'darkBelow must not exceed lightAbove'),
@@ -449,10 +513,11 @@ class LiquidGlassAdaptivity {
         duration = const Duration(milliseconds: 300),
         permanentBrightness = null,
         initialBrightness = null,
+        brightnessFallback = LiquidGlassBrightnessFallback.appTheme,
         link = null,
         controller = null,
-        darkBelow = 0.50,
-        lightAbove = 0.50,
+        darkBelow = 0.60,
+        lightAbove = 0.60,
         continuousGlassColor = false,
         _disabled = true;
 
@@ -489,6 +554,7 @@ class LiquidGlassAdaptivity {
       duration: duration,
       permanentBrightness: permanentBrightness,
       initialBrightness: initialBrightness,
+      brightnessFallback: brightnessFallback,
       controller: controller,
       darkBelow: darkBelow,
       lightAbove: lightAbove,
@@ -505,6 +571,7 @@ class LiquidGlassAdaptivity {
     Duration? duration,
     Brightness? permanentBrightness,
     Brightness? initialBrightness,
+    LiquidGlassBrightnessFallback? brightnessFallback,
     LiquidGlassAdaptivityLink? link,
     LiquidGlassAdaptivityController? controller,
     double? darkBelow,
@@ -519,6 +586,7 @@ class LiquidGlassAdaptivity {
       duration: duration ?? this.duration,
       permanentBrightness: permanentBrightness ?? this.permanentBrightness,
       initialBrightness: initialBrightness ?? this.initialBrightness,
+      brightnessFallback: brightnessFallback ?? this.brightnessFallback,
       link: link ?? this.link,
       controller: controller ?? this.controller,
       darkBelow: darkBelow ?? this.darkBelow,

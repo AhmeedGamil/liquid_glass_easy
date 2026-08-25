@@ -14,11 +14,12 @@ import 'liquid_glass_app_bar.dart';
 ///
 /// Two jobs, deliberately kept apart:
 ///
-///  • **System chrome.** When [LiquidGlassScaffold.systemChrome] asks
-///    for a side, the scaffold pins an invisible strip along that
-///    screen edge — the status bar's at the top, the navigation bar's
-///    at the bottom — samples it, and drives that bar's icon brightness
-///    from the result. A strip judges nothing but its own system bar.
+///  • **System chrome.** For every side [systemChrome] asks for — the
+///    status bar by default — the scaffold pins an invisible strip
+///    along that screen edge, the status bar's at the top and the
+///    navigation bar's at the bottom, samples it, and drives that bar's
+///    icon brightness from the result. A strip judges nothing but its
+///    own system bar.
 ///  • **Chrome palettes.** [adaptivity] is handed down to the app bar,
 ///    the bottom bar, the action button and any `lenses`, each of which
 ///    resolves its **own** verdict from the background directly behind
@@ -38,7 +39,8 @@ import 'liquid_glass_app_bar.dart';
 /// A surface escapes the inherited palettes with
 /// `LiquidGlassAdaptivity.none`; its own `style.adaptivity` overrides
 /// them. `LiquidGlassScaffold.adaptivity` left `null` (the default) →
-/// nothing adapts unless a widget opts in itself.
+/// nothing adapts unless a widget opts in itself, and no strip is
+/// pinned: with nothing to sample there is nothing to tell the OS bars.
 @immutable
 class LiquidGlassScaffoldAdaptivity {
   /// Palettes, thresholds and controller for the scaffold's glass
@@ -46,6 +48,22 @@ class LiquidGlassScaffoldAdaptivity {
   /// surface — minus its `link`, which is never inherited (see
   /// [topLink]).
   final LiquidGlassAdaptivity adaptivity;
+
+  /// Which OS bars this scaffold's verdict also drives — icon
+  /// brightness only, never bar colours.
+  ///
+  /// Each requested side pins an invisible strip along that screen
+  /// edge, samples it, and annotates that bar from the result. The
+  /// strips judge only the system bars; the glass chrome judges its own
+  /// backdrop. Defaults to [LiquidGlassSystemChrome.statusBar] — the
+  /// bar the glass chrome sits under on every screen. Pass
+  /// [LiquidGlassSystemChrome.none] to leave the OS bars alone: nothing
+  /// goes in the tree at all.
+  ///
+  /// It lives here, and not on the scaffold, because a strip is only
+  /// worth pinning where there is something to judge from: a scaffold
+  /// with no adaptivity never touches the bars.
+  final LiquidGlassSystemChrome systemChrome;
 
   /// Makes the TOP strip **follow** this link instead of judging the
   /// status bar's own band — hand it the link a `LiquidGlassAdaptiveArea`
@@ -91,6 +109,7 @@ class LiquidGlassScaffoldAdaptivity {
 
   const LiquidGlassScaffoldAdaptivity(
     this.adaptivity, {
+    this.systemChrome = LiquidGlassSystemChrome.statusBar,
     this.topFollowLink,
     this.bottomFollowLink,
     this.sampling = const LiquidGlassAdaptiveSampling(),
@@ -252,22 +271,11 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// automatic Skia / Impeller detection.
   final bool? useImpellerBackdrop;
 
-  /// Drives the OS status / navigation bar icon brightness from the
-  /// scaffold's adaptivity verdict, so the system chrome flips with the
-  /// glass instead of staying pinned.
-  ///
-  /// Each requested side pins an invisible strip along that screen edge
-  /// which samples it and annotates the bar — on [adaptivity]'s
-  /// palettes when one is configured, else on the defaults, so this
-  /// works on its own. The strips judge only the system bars; the glass
-  /// chrome judges its own backdrop. [LiquidGlassSystemChrome.none]
-  /// (the default) puts nothing in the tree at all.
-  final LiquidGlassSystemChrome systemChrome;
-
-  /// The palettes this scaffold's glass chrome wears, plus the strips
-  /// that drive the system bars — see [LiquidGlassScaffoldAdaptivity].
-  /// `null` (the default) means nothing adapts unless a widget opts in
-  /// itself.
+  /// The palettes this scaffold's glass chrome wears, the OS bars it
+  /// drives, and the strips that judge them — see
+  /// [LiquidGlassScaffoldAdaptivity]. `null` (the default) means
+  /// nothing adapts unless a widget opts in itself, and the system bars
+  /// are left untouched.
   final LiquidGlassScaffoldAdaptivity? adaptivity;
 
   const LiquidGlassScaffold({
@@ -295,7 +303,6 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.useSync = true,
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
-    this.systemChrome = LiquidGlassSystemChrome.none,
     this.adaptivity,
   });
 
@@ -324,22 +331,33 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
   LiquidGlassAdaptivity? get _inheritedChromeAdaptivity =>
       _cfg?.adaptivity.withoutLink();
 
+  /// Which bars the config asks for. `null` config — no adaptivity —
+  /// means no strip and no annotation: there would be no pixels to
+  /// judge from, only a guess to impose on the OS bars.
+  LiquidGlassSystemChrome get _chrome =>
+      _cfg?.systemChrome ?? LiquidGlassSystemChrome.none;
+
   bool get _chromeStatusSide =>
-      widget.systemChrome == LiquidGlassSystemChrome.statusBar ||
-      widget.systemChrome == LiquidGlassSystemChrome.both;
+      _chrome == LiquidGlassSystemChrome.statusBar ||
+      _chrome == LiquidGlassSystemChrome.both;
 
   bool get _chromeNavSide =>
-      widget.systemChrome == LiquidGlassSystemChrome.navigationBar ||
-      widget.systemChrome == LiquidGlassSystemChrome.both;
+      _chrome == LiquidGlassSystemChrome.navigationBar ||
+      _chrome == LiquidGlassSystemChrome.both;
 
-  /// Whether anything at all needs the sampler running.
-  bool _needsSampling(Widget? nav) {
-    if (_cfg != null) return true;
-    if (widget.systemChrome != LiquidGlassSystemChrome.none) return true;
-    // An adaptive bar (its own style.adaptivity) samples through this
-    // view — opt in automatically so it just works.
-    return nav is LiquidGlassTabBar && nav.effectiveBarStyle.adaptivity != null;
-  }
+  /// Whether the sampler runs — **[adaptivity] alone decides**.
+  ///
+  /// A descendant cannot switch it on: a tab bar carrying its own
+  /// `style.adaptivity` used to opt the whole view in automatically,
+  /// which meant a scaffold that never asked for adaptivity could still
+  /// be running captures every frame. Surfaces that want a background
+  /// verdict now need the scaffold to say so — and so do the system
+  /// bars, whose `systemChrome` rides on this same config.
+  ///
+  /// Without it they still resolve a verdict, just not from pixels:
+  /// `permanentBrightness`, then a followed link, then the platform
+  /// brightness — none of which costs a capture.
+  bool get _needsSampling => _cfg != null;
 
   @override
   Widget build(BuildContext context) {
@@ -348,10 +366,9 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
     final EdgeInsets pad =
         widget.safeArea ? MediaQuery.of(context).padding : EdgeInsets.zero;
 
-    final LiquidGlassAdaptiveSampling? sampling =
-        _needsSampling(widget.bottomNavigationBar)
-            ? (_cfg?.sampling ?? const LiquidGlassAdaptiveSampling())
-            : null;
+    final LiquidGlassAdaptiveSampling? sampling = _needsSampling
+        ? (_cfg?.sampling ?? const LiquidGlassAdaptiveSampling())
+        : null;
 
     // Glass-pill morph path: the bar owns the whole-screen dual pipeline,
     // so the scaffold hands it the body plus the composed outer slots.
@@ -359,7 +376,15 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
     if (nav is LiquidGlassTabBar &&
         nav.resolveGlassPill(useImpellerBackdrop: widget.useImpellerBackdrop)) {
       return nav.buildGlassPillBar(
-        body: widget.body,
+        // Themed like the plain path below wraps its own background: the
+        // body sits outside any Material here, so bare Text/Icon in it
+        // would inherit MaterialApp's red/yellow `_errorTextStyle`. A
+        // Text that overrides colour and size still keeps that style's
+        // `fontFamily: 'monospace'`, which reads as "the font changed"
+        // rather than as an error. A transparent Material paints nothing
+        // but installs the theme's DefaultTextStyle/IconTheme — the same
+        // fix `_outerSlots` applies to the glass slots.
+        body: Material(type: MaterialType.transparency, child: widget.body),
         backgroundColor: widget.backgroundColor,
         bottomInset: pad.bottom,
         outerChild: _outerSlots(context, pad, includeNavBar: false),
@@ -426,7 +451,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
     required double height,
     required bool driveChrome,
     required LiquidGlassAdaptivityLink? followLink,
-    required Brightness platformBrightness,
+    required Brightness fallbackBrightness,
   }) {
     // A strip exists only to annotate: with the side switched off there
     // is nothing for it to do, following or not.
@@ -456,7 +481,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
                 // sit on the same guess the palettes use.
                 fallback: adaptivity.permanentBrightness ??
                     adaptivity.initialBrightness ??
-                    platformBrightness,
+                    fallbackBrightness,
               ),
       ),
     );
@@ -515,14 +540,13 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         (pad.top > _kMinStripExtent ? pad.top : _kMinStripExtent);
     final double bottomStripH = cfg?.bottomHeight ??
         (pad.bottom > _kMinStripExtent ? pad.bottom : _kMinStripExtent);
-    final Brightness platformBrightness =
-        MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light;
-
-    // A strip is pinned for a requested system-bar side even with no
-    // config at all — `systemChrome` alone is a complete feature, and
-    // then the strip judges on the default palettes.
+    // Strips only exist while there IS a config, so this fallback is
+    // just a non-null default for the build — `_chromeStatusSide` and
+    // `_chromeNavSide` are both false without one.
     final LiquidGlassAdaptivity stripAdaptivity =
         cfg?.adaptivity ?? const LiquidGlassAdaptivity();
+    final Brightness stripFallback =
+        liquidGlassFallbackBrightness(context, stripAdaptivity);
     final bool stripDebug = cfg?.debugBounds ?? false;
     final Widget? topStrip = _systemStrip(
       adaptivity: stripAdaptivity,
@@ -531,7 +555,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       height: topStripH,
       driveChrome: _chromeStatusSide,
       followLink: cfg?.topFollowLink,
-      platformBrightness: platformBrightness,
+      fallbackBrightness: stripFallback,
     );
     final Widget? bottomStrip = _systemStrip(
       adaptivity: stripAdaptivity,
@@ -540,7 +564,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       height: bottomStripH,
       driveChrome: _chromeNavSide,
       followLink: cfg?.bottomFollowLink,
-      platformBrightness: platformBrightness,
+      fallbackBrightness: stripFallback,
     );
 
     // The glass overlays float outside any Scaffold/Material, so bare

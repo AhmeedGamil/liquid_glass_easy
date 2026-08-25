@@ -251,6 +251,7 @@ class MetaballLensUniform {
     required this.cornerRadius,
     this.cornerStyle = 0,
     this.shapeScale = const Offset(1, 1),
+    this.color = const Color(0x00000000),
   });
 
   /// Lens centre in logical px.
@@ -269,6 +270,31 @@ class MetaballLensUniform {
   /// so members keep their own corners through the merge.
   final int cornerStyle;
 
+  /// This lens's glass tint.
+  ///
+  /// Its own adaptive verdict where it has one, the group's colour where it
+  /// does not — the caller resolves that, so the shader has a colour for
+  /// every member and one rule for all of them. The merged surface blends
+  /// them by the same influence weight that shapes the bridge, so two members
+  /// on opposite verdicts cross over exactly where their shapes fuse.
+  final Color color;
+
+  /// The same lens with its centre moved by [delta].
+  ///
+  /// The engine-blur path packs lens rects in CLIP-local space rather than
+  /// screen space, which is a change of origin and nothing else. Rebasing
+  /// through here rather than by rebuilding the object is deliberate: a
+  /// hand-written copy drops any field added later, silently — which is
+  /// exactly how the per-member tint went missing the first time.
+  MetaballLensUniform translated(Offset delta) => MetaballLensUniform(
+        center: center + delta,
+        halfSize: halfSize,
+        cornerRadius: cornerRadius,
+        cornerStyle: cornerStyle,
+        shapeScale: shapeScale,
+        color: color,
+      );
+
   /// This lens's touch deformation as deformed ÷ rest, per axis.
   ///
   /// `(1, 1)` is undeformed. The shader evaluates the lens at its REST size in
@@ -279,7 +305,16 @@ class MetaballLensUniform {
 }
 
 /// Maximum lenses the metaball shader (`metaball_glass.frag`) unions.
-const int kMetaballMaxLenses = 6;
+///
+/// Eight, carried as four `mat4` uniforms of two members each. The ceiling is
+/// declaration count, not float count — iOS 26 Impeller binds every uniform to
+/// its own Metal buffer — so raising it again means adding `u_lensPairN`
+/// declarations in the shader, two members at a time, and matching this.
+const int kMetaballMaxLenses = 8;
+
+/// Floats one member occupies: a lens column (centre.xy, halfSize.xy) then a
+/// meta column (cornerRadius, packedScale, cornerStyle, spare).
+const int _kMetaballFloatsPerLens = 8;
 
 /// Packs the `metaball_glass.frag` uniform block.
 ///
@@ -300,6 +335,12 @@ void packMetaballGlassUniforms(
   required Size resolution,
   required List<MetaballLensUniform> lenses,
   required double smoothness,
+  /// Whether the members are merged by the metaball smooth-union at all.
+  ///
+  /// `false` unions them HARD — nearest member wins each fragment outright —
+  /// and the shader skips the smin, the per-member influence weights and the
+  /// gradient blend entirely. [smoothness] is then unused.
+  required bool merge,
   required double magnification,
   required double distortion,
   required double distortionWidth,
@@ -336,7 +377,16 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, resolution.width * scale);
   shader.setFloat(i++, resolution.height * scale);
 
-  // u_lens0..5 — centre.xy + half-size.xy, in px.
+  // u_lensPair0..3 — one mat4 per TWO members, column-major, so a member's
+  // two columns are adjacent: (centre.xy, halfSize.xy) then (cornerRadius,
+  // packedScale, cornerStyle, spare). A matrix is written as consecutive
+  // floats exactly like the vec4s it replaced; only the interleaving is new.
+  //
+  // The meta's fourth slot is unused but must still be written — the column
+  // after it starts eight floats along whether or not this one was filled.
+  // An absent member is all-zero, which is also how the shader reads
+  // "disabled": its half-width lands on 0.
+  final int lensFloatStart = i;
   for (int n = 0; n < kMetaballMaxLenses; n++) {
     if (n < lenses.length) {
       final lens = lenses[n];
@@ -344,29 +394,35 @@ void packMetaballGlassUniforms(
       shader.setFloat(i++, lens.center.dy * scale);
       shader.setFloat(i++, lens.halfSize.width * scale);
       shader.setFloat(i++, lens.halfSize.height * scale);
+      shader.setFloat(i++, lens.cornerRadius * scale);
+      shader.setFloat(i++, _packMetaballScale(lens.shapeScale));
+      shader.setFloat(i++, lens.cornerStyle.toDouble());
+      shader.setFloat(i++, 0);
     } else {
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
+      for (int k = 0; k < _kMetaballFloatsPerLens; k++) {
+        shader.setFloat(i++, 0);
+      }
     }
   }
+  // A miscount here is silent — wrong geometry, never an error — so it is
+  // worth one assert rather than a debugging session on a device.
+  assert(
+      i - lensFloatStart == kMetaballMaxLenses * _kMetaballFloatsPerLens,
+      'metaball lens block wrote ${i - lensFloatStart} floats, expected '
+      '${kMetaballMaxLenses * _kMetaballFloatsPerLens} — the mat4 columns and '
+      'the shader declarations are out of step');
 
-  // u_lensMeta0..5 — (cornerRadius px, packedScale, corner style, spare).
-  // The fourth slot is unused; it must still be written so the uniform layout
-  // matches the shader's vec4.
+  // u_lensTintA/B — one straight-alpha RGBA column per member, four per mat4.
+  // A member with no colour of its own was already given the group's by the
+  // caller, so an absent member is the only all-zero case and it is masked out
+  // anyway (its half-width is zero, so it never reaches the union).
   for (int n = 0; n < kMetaballMaxLenses; n++) {
-    if (n < lenses.length) {
-      shader.setFloat(i++, lenses[n].cornerRadius * scale);
-      shader.setFloat(i++, _packMetaballScale(lenses[n].shapeScale));
-      shader.setFloat(i++, lenses[n].cornerStyle.toDouble());
-      shader.setFloat(i++, 0);
-    } else {
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
-      shader.setFloat(i++, 0);
-    }
+    final Color c =
+        n < lenses.length ? lenses[n].color : const Color(0x00000000);
+    shader.setFloat(i++, c.r);
+    shader.setFloat(i++, c.g);
+    shader.setFloat(i++, c.b);
+    shader.setFloat(i++, c.a);
   }
 
   // ── Shared glass block (every loose scalar packed into a vec4) ───────────
@@ -385,11 +441,11 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, shape.lightIntensity);
   shader.setFloat(i++, shape.lightDirection);
   shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
-  // u_warpD = (blur, shapeAaPx, lightSpread, unused).
+  // u_warpD = (blur, shapeAaPx, lightSpread, mergeEnabled).
   shader.setFloat(i++, blur * scale);
   shader.setFloat(i++, scale);
   shader.setFloat(i++, shape.lightSpread);
-  shader.setFloat(i++, 0);
+  shader.setFloat(i++, merge ? 1.0 : 0.0);
 
   // u_borderColor
   shader.setFloat(i++, shape.borderColor?.r ?? 0);

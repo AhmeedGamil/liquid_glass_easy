@@ -70,39 +70,77 @@ uniform sampler2D u_texture_input;
 
 // --- Packed uniforms (Metal [[buffer(N)]] limit fix) -----------------------
 // iOS 26 Impeller binds each runtime-effect uniform to its own Metal buffer
-// and caps at ~30; this shader had 52 declarations. The six per-lens vec4s in
-// each group are collapsed into a vec4[6] ARRAY (one declaration / one binding
-// instead of six), and the scalar block is merged into vec4s — exactly as in
-// liquid_glass.frag. The #define block below restores every original name, and
-// the float-offset order is IDENTICAL to the old per-uniform layout, so
-// packMetaballGlassUniforms is unchanged.
+// and caps at ~30, so what is scarce here is DECLARATIONS, not floats.
+//
+// The per-lens data therefore rides in mat4s: one holds TWO members, as four
+// vec4 columns — (lens, meta, lens, meta). Eight members cost four
+// declarations where twelve vec4s used to carry six.
+//
+// mat4 and nothing else. Every matrix column aligns to 16 bytes, so a mat3
+// occupies twelve floats to hold nine and a mat2 eight to hold four — and the
+// backends need not agree about it. A mat4 is sixteen floats packed or
+// padded, which is the only layout `setFloat` can address the same way
+// everywhere. Same reason there is not a single vec3 in this file.
+//
+// Arrays (vec4[6]) were tried and reverted: Impeller's setFloat index mapping
+// for uniform ARRAYS is what desynced the Dart packer (read as a too-large
+// u_smoothness -> phantom centre blob + screen frost). A matrix is a
+// different construct, addressed column-major as sixteen consecutive floats.
+//
+// Column layout of each u_lensPairN:
+//   [0] lens A = (centerX, centerY, halfWidth, halfHeight) px
+//   [1] meta A = (cornerRadius px, packedScale, cornerStyle, spare)
+//   [2] lens B, [3] meta B — the same, for the odd member of the pair.
+//
+//   packedScale is that lens's flex (deformed/rest) as two 11-bit values
+//   — see unpackScale; 0 means undeformed. It took over the old `enabled`
+//   slot: an absent lens is packed all-zero, so the lens column's .z
+//   (half-width) already IS the enabled bit and every guard reads that.
+//   The meta's fourth slot is unused. It carried per-side blend activations
+//   back when a continuous corner had to be flattened to blend cleanly.
+uniform mat4 u_lensPair0;
+uniform mat4 u_lensPair1;
+uniform mat4 u_lensPair2;
+uniform mat4 u_lensPair3;
 
-// A/B TEST (array-revert): the per-lens groups are declared as SIX individual
-// vec4 uniforms again (NOT vec4[6] arrays), to isolate whether Impeller's
-// setFloat index mapping for uniform ARRAYS — the one construct the working
-// single-lens shader never uses — is what desynced the Dart packer (read as a
-// too-large u_smoothness → phantom centre blob + screen frost on blend). The
-// scalar vec4 packs (u_warp/u_packA/B/C) are KEPT (proven good in liquid_glass.frag).
-// u_lensN = (centerX, centerY, halfWidth, halfHeight) px.
-uniform vec4 u_lens0;
-uniform vec4 u_lens1;
-uniform vec4 u_lens2;
-uniform vec4 u_lens3;
-uniform vec4 u_lens4;
-uniform vec4 u_lens5;
-// u_lensMetaN = (cornerRadius px, packedScale, cornerStyle, spare).
-//   packedScale is this lens's flex (deformed/rest) as two 11-bit values
-//   — see unpackScale; 0 means undeformed. It took over the old `enabled` slot:
-//   an absent lens is packed all-zero, so u_lensN.z (half-width) already IS the
-//   enabled bit and every guard reads that instead.
-//   The fourth slot is unused. It carried per-side blend activations back when
-//   a continuous corner had to be flattened to blend cleanly.
-uniform vec4 u_lensMeta0;
-uniform vec4 u_lensMeta1;
-uniform vec4 u_lensMeta2;
-uniform vec4 u_lensMeta3;
-uniform vec4 u_lensMeta4;
-uniform vec4 u_lensMeta5;
+// The original per-lens names, restored so the body below reads unchanged.
+#define u_lens0     u_lensPair0[0]
+#define u_lensMeta0 u_lensPair0[1]
+#define u_lens1     u_lensPair0[2]
+#define u_lensMeta1 u_lensPair0[3]
+#define u_lens2     u_lensPair1[0]
+#define u_lensMeta2 u_lensPair1[1]
+#define u_lens3     u_lensPair1[2]
+#define u_lensMeta3 u_lensPair1[3]
+#define u_lens4     u_lensPair2[0]
+#define u_lensMeta4 u_lensPair2[1]
+#define u_lens5     u_lensPair2[2]
+#define u_lensMeta5 u_lensPair2[3]
+#define u_lens6     u_lensPair3[0]
+#define u_lensMeta6 u_lensPair3[1]
+#define u_lens7     u_lensPair3[2]
+#define u_lensMeta7 u_lensPair3[3]
+
+// Per-member TINT — one straight-alpha RGBA column each, four members per
+// mat4. Two declarations for all eight, which is why this could be added
+// without going back over the Metal binding cap.
+//
+// Every member always carries a colour: its own when it has an adaptive
+// verdict, the group's otherwise. So the shader has one rule instead of two,
+// and a group where nobody adapts blends eight identical colours back into
+// exactly the group colour.
+uniform mat4 u_lensTintA;
+uniform mat4 u_lensTintB;
+
+#define u_lensTint0 u_lensTintA[0]
+#define u_lensTint1 u_lensTintA[1]
+#define u_lensTint2 u_lensTintA[2]
+#define u_lensTint3 u_lensTintA[3]
+#define u_lensTint4 u_lensTintB[0]
+#define u_lensTint5 u_lensTintB[1]
+#define u_lensTint6 u_lensTintB[2]
+#define u_lensTint7 u_lensTintB[3]
+
 // ── Shared glass block (same semantics as liquid_glass.frag) ──────────────
 // All loose scalars are merged into vec4s to cut bindings; the #define block
 // below restores their original names. The float-offset ORDER here is the exact
@@ -114,7 +152,7 @@ uniform vec4 u_warpB;
 // x=borderAlpha  y=lightIntensity  z=lightDirection  w=honorBackdropAlpha
 uniform vec4 u_warpC;
 // x=blur (in-shader blur radius, fragment px)  y=shapeAaPx (edge-AA band)
-// z=lightSpread (optical-rim angular spread)  w=unused
+// z=lightSpread (optical-rim angular spread)  w=mergeEnabled (0 = hard union)
 uniform vec4 u_warpD;
 
 uniform vec4  u_borderColor;
@@ -151,6 +189,9 @@ uniform vec4 u_imageRegion;
 #define u_blur                         u_warpD.x
 #define u_shapeAaPx                    u_warpD.y
 #define u_lightSpread                  u_warpD.z
+// 0 = the metaball is OFF: members are unioned hard, nearest wins outright,
+// and none of the smin / influence-weight machinery runs. See nearestMember.
+#define u_mergeEnabled                 u_warpD.w
 #define u_imageOffset                  u_imageRegion.xy
 #define u_imageSize                    u_imageRegion.zw
 #define u_oneSideLightIntensity        u_packA.x
@@ -343,6 +384,8 @@ float field(vec2 p) {
     if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens3, u_lensMeta3), u_smoothness);
     if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens4, u_lensMeta4), u_smoothness);
     if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens5, u_lensMeta5), u_smoothness);
+    if (u_lens6.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens6, u_lensMeta6), u_smoothness);
+    if (u_lens7.z > 0.0) d = smoothUnion(d, lensDistance(p, u_lens7, u_lensMeta7), u_smoothness);
     return d;
 }
 
@@ -357,6 +400,8 @@ float fieldEik(vec2 p) {
     if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens3, u_lensMeta3), u_smoothness);
     if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens4, u_lensMeta4), u_smoothness);
     if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens5, u_lensMeta5), u_smoothness);
+    if (u_lens6.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens6, u_lensMeta6), u_smoothness);
+    if (u_lens7.z > 0.0) d = smoothUnion(d, lensDistanceBlend(p, u_lens7, u_lensMeta7), u_smoothness);
     return d;
 }
 
@@ -371,6 +416,8 @@ float fieldContFlat(vec2 p) {
     if (u_lens3.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens3, u_lensMeta3), u_smoothness);
     if (u_lens4.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens4, u_lensMeta4), u_smoothness);
     if (u_lens5.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens5, u_lensMeta5), u_smoothness);
+    if (u_lens6.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens6, u_lensMeta6), u_smoothness);
+    if (u_lens7.z > 0.0) d = smoothUnion(d, lensDistanceContFlat(p, u_lens7, u_lensMeta7), u_smoothness);
     return d;
 }
 
@@ -387,6 +434,8 @@ float fieldHard(vec2 p) {
     if (u_lens3.z > 0.0) d = min(d, lensDistance(p, u_lens3, u_lensMeta3));
     if (u_lens4.z > 0.0) d = min(d, lensDistance(p, u_lens4, u_lensMeta4));
     if (u_lens5.z > 0.0) d = min(d, lensDistance(p, u_lens5, u_lensMeta5));
+    if (u_lens6.z > 0.0) d = min(d, lensDistance(p, u_lens6, u_lensMeta6));
+    if (u_lens7.z > 0.0) d = min(d, lensDistance(p, u_lens7, u_lensMeta7));
     return d;
 }
 
@@ -408,6 +457,10 @@ float bridgeWrap(vec2 fragPx, float smoothSdf) {
 // amount reuses the bridge indicator (`fieldHard - field`, ~0 isolated, ~1 at
 // the neck).
 float fieldShape(vec2 p) {
+    // Metaball off: the silhouette IS the hard union, so none of the bridge
+    // machinery below runs. bridgeWrap follows for free — with smooth == hard
+    // its indicator is 0, which is exactly "no neck".
+    if (u_mergeEnabled < 0.5) return fieldHard(p);
 #if METABALL_FLATTEN_CONTINUOUS_BLEND
     float styled = field(p);
     float bridge = fieldHard(p) - styled;                       // >= 0, peaks at neck
@@ -460,22 +513,97 @@ ShapeData evaluateField(vec2 fragPx) {
 
 // Influence-weighted centroid: the magnification / radial-light anchor that
 // flows with the merged shape instead of snapping between fixed centers.
-void accumulateAnchor(vec4 lens, vec4 meta, vec2 p, inout vec2 acc, inout float wsum) {
+// The influence weight `w` is the same quantity the anchor is built from, so
+// the tint rides along on it for free: no second SDF, no second falloff to
+// tune. A member owns its own interior (its w is 1 where its SDF is <= 0) and
+// hands over across the bridge at exactly the rate u_smoothness set for the
+// geometry — so the colour seam sits where the shape seam already is.
+void accumulateAnchor(vec4 lens, vec4 meta, vec4 tint, vec2 p,
+                      inout vec2 acc, inout float wsum, inout vec4 tintAcc) {
     if (lens.z <= 0.0) return;
     float w = exp(-max(lensDistance(p, lens, meta), 0.0) / max(u_smoothness, EPS));
     acc  += lens.xy * w;
     wsum += w;
+    // PREMULTIPLIED, because two members can differ in alpha as well as hue —
+    // averaging straight alpha would drag the more transparent one's colour in
+    // at full strength.
+    tintAcc += vec4(tint.rgb * tint.a, tint.a) * w;
 }
 
-vec2 anchorFor(vec2 p) {
+// Weighted premultiplied accumulation back to the straight-alpha colour
+// applyLensTint expects. No members in reach (a fragment out past every
+// blob's falloff) falls back to the group tint; it is masked out there anyway.
+vec4 resolveTint(vec4 tintAcc, float wsum) {
+    if (wsum <= EPS) return u_lensColor;
+    vec4 pm = tintAcc / wsum;
+    return (pm.a > EPS) ? vec4(pm.rgb / pm.a, pm.a) : vec4(0.0);
+}
+
+// ── Hard union (u_mergeEnabled == 0) ─────────────────────────────────────
+//
+// With the metaball off there is nothing to blend, so nothing needs blending
+// maths: whichever member is nearest owns the fragment outright and hands over
+// its distance, its centre and its colour. No smin, no per-member exp(), no
+// accumulators — one compare per member instead.
+//
+// This is NOT the same as running the smooth path with smoothness 0. That
+// degenerates correctly for the DISTANCE, but its weights collapse to a 0/1
+// indicator, so two OVERLAPPING members both weigh 1 and their colours average
+// 50/50 with a hard step at each outline. Nearest-wins has no such tie.
+struct NearestMember {
+    float dist;
+    vec4  lens;
+    vec4  meta;
+    vec4  tint;
+};
+
+void keepNearest(vec2 p, vec4 lens, vec4 meta, vec4 tint, inout NearestMember n) {
+    if (lens.z <= 0.0) return;
+    float d = lensDistance(p, lens, meta);
+    if (d >= n.dist) return;
+    n.dist = d;
+    n.lens = lens;
+    n.meta = meta;
+    n.tint = tint;
+}
+
+NearestMember nearestMember(vec2 p) {
+    NearestMember n;
+    n.dist = 1e9;
+    n.lens = vec4(0.0);
+    n.meta = vec4(0.0);
+    n.tint = u_lensColor;
+    keepNearest(p, u_lens0, u_lensMeta0, u_lensTint0, n);
+    keepNearest(p, u_lens1, u_lensMeta1, u_lensTint1, n);
+    keepNearest(p, u_lens2, u_lensMeta2, u_lensTint2, n);
+    keepNearest(p, u_lens3, u_lensMeta3, u_lensTint3, n);
+    keepNearest(p, u_lens4, u_lensMeta4, u_lensTint4, n);
+    keepNearest(p, u_lens5, u_lensMeta5, u_lensTint5, n);
+    keepNearest(p, u_lens6, u_lensMeta6, u_lensTint6, n);
+    keepNearest(p, u_lens7, u_lensMeta7, u_lensTint7, n);
+    return n;
+}
+
+vec2 anchorFor(vec2 p, out vec4 tint) {
+    // The branch is on a UNIFORM, so it costs nothing: every fragment in the
+    // draw takes the same side of it.
+    if (u_mergeEnabled < 0.5) {
+        NearestMember n = nearestMember(p);
+        tint = n.tint;
+        return (n.dist < 1e8) ? n.lens.xy : p;
+    }
     vec2 acc = vec2(0.0);
     float wsum = 0.0;
-    accumulateAnchor(u_lens0, u_lensMeta0, p, acc, wsum);
-    accumulateAnchor(u_lens1, u_lensMeta1, p, acc, wsum);
-    accumulateAnchor(u_lens2, u_lensMeta2, p, acc, wsum);
-    accumulateAnchor(u_lens3, u_lensMeta3, p, acc, wsum);
-    accumulateAnchor(u_lens4, u_lensMeta4, p, acc, wsum);
-    accumulateAnchor(u_lens5, u_lensMeta5, p, acc, wsum);
+    vec4 tintAcc = vec4(0.0);
+    accumulateAnchor(u_lens0, u_lensMeta0, u_lensTint0, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens1, u_lensMeta1, u_lensTint1, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens2, u_lensMeta2, u_lensTint2, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens3, u_lensMeta3, u_lensTint3, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens4, u_lensMeta4, u_lensTint4, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens5, u_lensMeta5, u_lensTint5, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens6, u_lensMeta6, u_lensTint6, p, acc, wsum, tintAcc);
+    accumulateAnchor(u_lens7, u_lensMeta7, u_lensTint7, p, acc, wsum, tintAcc);
+    tint = resolveTint(tintAcc, wsum);
     return (wsum > EPS) ? acc / wsum : p;
 }
 
@@ -498,13 +626,14 @@ struct MergedField {
     float smoothSdf;   // == field(p)
     float hardSdf;     // == fieldHard(p)
     vec2  anchor;      // == anchorFor(p)
+    vec4  tint;        // == anchorFor's tint out — the blended member colour
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
 };
 
-void accumulateMerged(vec2 p, vec4 lens, vec4 meta,
+void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
                       inout float smoothSdf, inout float hardSdf,
                       inout vec2 anchorAcc, inout float anchorW,
-                      inout vec2 gradAcc) {
+                      inout vec4 tintAcc, inout vec2 gradAcc) {
     if (lens.z <= 0.0) return;
 
     // The one raw SDF for this lens — shared by all three accumulators.
@@ -517,6 +646,8 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta,
     float w = exp(-max(base, 0.0) / max(u_smoothness, EPS));
     anchorAcc += lens.xy * w;
     anchorW   += w;
+    // Tint on the same weight — see accumulateAnchor.
+    tintAcc   += vec4(tint.rgb * tint.a, tint.a) * w;
 
     // Smooth union, inlined so the blend weight h is shared with the gradient.
     // h and the value are bit-identical to smoothUnion(smoothSdf, base, k).
@@ -536,18 +667,45 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta,
 
 MergedField evaluateMerged(vec2 p) {
     MergedField m;
+    // Metaball off: one pass of compares, then straight out — see nearestMember.
+    if (u_mergeEnabled < 0.5) {
+        NearestMember n = nearestMember(p);
+        m.smoothSdf = n.dist;
+        m.hardSdf   = n.dist;
+        m.anchor    = (n.dist < 1e8) ? n.lens.xy : p;
+        m.tint      = n.tint;
+#if METABALL_GRAD_ANALYTIC
+        // One gradient — the winner's own — instead of eight blended together.
+        m.grad = (n.dist < 1e8) ? lensGradDir(p, n.lens, n.meta) : vec2(0.0);
+#else
+        m.grad = vec2(0.0);
+#endif
+        return m;
+    }
     m.smoothSdf = 1e9;
     m.hardSdf   = 1e9;
     m.grad      = vec2(0.0);
     vec2 anchorAcc = vec2(0.0);
     float anchorW = 0.0;
-    accumulateMerged(p, u_lens0, u_lensMeta0, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens1, u_lensMeta1, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens2, u_lensMeta2, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens3, u_lensMeta3, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens4, u_lensMeta4, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
-    accumulateMerged(p, u_lens5, u_lensMeta5, m.smoothSdf, m.hardSdf, anchorAcc, anchorW, m.grad);
+    vec4 tintAcc = vec4(0.0);
+    accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens2, u_lensMeta2, u_lensTint2, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens3, u_lensMeta3, u_lensTint3, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens4, u_lensMeta4, u_lensTint4, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens5, u_lensMeta5, u_lensTint5, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens6, u_lensMeta6, u_lensTint6, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+    accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
     m.anchor = (anchorW > EPS) ? anchorAcc / anchorW : p;
+    m.tint   = resolveTint(tintAcc, anchorW);
     return m;
 }
 
@@ -618,7 +776,8 @@ vec3 applySaturation(vec3 color, float saturation) {
     return mix(vec3(luminance), color, saturation);
 }
 
-vec4 finalSample(vec2 refractedPx, float shapeMask, float caShift, out vec3 preTintColor) {
+vec4 finalSample(vec2 refractedPx, float shapeMask, float caShift,
+                 vec4 lensTint, out vec3 preTintColor) {
     vec3 refrColor = sampleBackground(refractedPx, caShift);
     refrColor = applySaturation(refrColor, u_saturation);
     preTintColor = refrColor;
@@ -628,7 +787,7 @@ vec4 finalSample(vec2 refractedPx, float shapeMask, float caShift, out vec3 preT
     float coverage = shapeMask * texA;
 
     vec4 base = vec4(refrColor * shapeMask, coverage);
-    base.rgb = applyLensTint(base.rgb, shapeMask, u_lensColor, u_borderAlpha);
+    base.rgb = applyLensTint(base.rgb, shapeMask, lensTint, u_borderAlpha);
     return base;
 }
 
@@ -675,6 +834,7 @@ void main() {
 
     vec2 anchorPx   = mf.anchor;
     vec2 anchorNorm = anchorPx * invResY;
+    vec4 lensTint   = mf.tint;
 #else
     ShapeData shapeData = evaluateField(fragPx);
     float shapeDistPx   = shapeData.orthoDist;
@@ -683,7 +843,8 @@ void main() {
     // Rim wrap only at the blend neck; 0 on isolated lenses.
     float rimWrap = bridgeWrap(fragPx, shapeData.sdf);
 
-    vec2 anchorPx   = anchorFor(fragPx);
+    vec4 lensTint;
+    vec2 anchorPx   = anchorFor(fragPx, lensTint);
     vec2 anchorNorm = anchorPx * invResY;
 #endif
 
@@ -698,7 +859,7 @@ void main() {
         vec3 preTintCol = vec3(0.0);
         vec4 base = (u_enableBackgroundTransparency > 0.5)
             ? vec4(0.0)
-            : finalSample(magPx, shapeMask, 0.0, preTintCol);
+            : finalSample(magPx, shapeMask, 0.0, lensTint, preTintCol);
 
         vec4 borderPremul = getSweepBorder(
             uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
@@ -747,7 +908,7 @@ void main() {
 
     vec3 preTintCol2 = vec3(0.0);
     float caShift = u_chromaticAberration * zoneT;
-    vec4 base = finalSample(refrPx, shapeMask, caShift, preTintCol2);
+    vec4 base = finalSample(refrPx, shapeMask, caShift, lensTint, preTintCol2);
 
     vec4 borderPremul = getSweepBorder(
         uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,

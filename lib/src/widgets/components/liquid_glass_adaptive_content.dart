@@ -165,13 +165,13 @@ class _LiquidGlassAdaptiveContentState extends State<LiquidGlassAdaptiveContent>
     _syncRegistration(
         register: wantSampling ? register : null, unregister: unregister);
     _driver.onResync = _adaptResync;
-    final Brightness platformBrightness =
-        MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light;
+    final Brightness fallbackBrightness =
+        liquidGlassFallbackBrightness(context, adaptivity);
     _driver.sync(
       adaptivity,
       follow: follow,
       canSample: register != null,
-      platformBrightness: platformBrightness,
+      fallbackBrightness: fallbackBrightness,
     );
     if (adaptivity == null) {
       // Inert (opted out / nothing to follow): the child is unchanged.
@@ -180,8 +180,8 @@ class _LiquidGlassAdaptiveContentState extends State<LiquidGlassAdaptiveContent>
       if (widget.child != null) return widget.child!;
       final Color ambient = IconTheme.of(context).color ??
           DefaultTextStyle.of(context).style.color ??
-          (platformBrightness == Brightness.dark ? Colors.white : Colors.black);
-      return widget.builder!(context, ambient, platformBrightness);
+          (fallbackBrightness == Brightness.dark ? Colors.white : Colors.black);
+      return widget.builder!(context, ambient, fallbackBrightness);
     }
 
     // Rebuild while the palette animates — idle between flips.
@@ -193,7 +193,7 @@ class _LiquidGlassAdaptiveContentState extends State<LiquidGlassAdaptiveContent>
         // first one lands so the builder never receives null.
         final Brightness brightness = _driver.verdict ??
             adaptivity.initialBrightness ??
-            platformBrightness;
+            fallbackBrightness;
         if (widget.builder != null) {
           return widget.builder!(context, content, brightness);
         }

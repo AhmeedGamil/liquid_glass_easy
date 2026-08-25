@@ -9,16 +9,19 @@ import 'package:flutter/rendering.dart';
 // ignore: unnecessary_import
 import 'package:meta/meta.dart';
 
+import '../components/liquid_glass_adaptive_area.dart';
 import '../liquid_glass_style.dart';
 import '../painters/liquid_glass_uniforms.dart';
+import '../utils/liquid_glass_adaptivity.dart';
+import '../utils/liquid_glass_adaptivity_driver.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_lens_scope.dart';
 
-/// Blends two to six descendant `LiquidGlassLens` widgets into one surface.
+/// Blends two to eight descendant `LiquidGlassLens` widgets into one surface.
 ///
-/// The upper limit is **six shapes for now** ([maxLensCount]) — the metaball
-/// field compares every member per fragment, so the cap keeps the shader cost
-/// bounded; it may be raised in a future release.
+/// The upper limit is **eight shapes** ([maxLensCount]) — the metaball field
+/// compares every member per fragment, so the cap keeps the shader cost
+/// bounded. It is raised two at a time, by adding a `mat4` to the shader.
 ///
 /// The descendant lenses keep their normal layout and child content, but their
 /// individual glass passes are replaced by one smooth metaball union. The
@@ -59,9 +62,9 @@ class LiquidGlassBlender extends StatefulWidget {
   static const int minLensCount = 2;
 
   /// Maximum number of `LiquidGlassLens` members that can be blended into one
-  /// surface — **six for now**; the cap keeps the per-fragment metaball cost
-  /// bounded and may be raised later.
-  static const int maxLensCount = 6;
+  /// surface — **eight**; the cap keeps the per-fragment metaball cost
+  /// bounded. Raised two at a time, by adding a `mat4` to the shader.
+  static const int maxLensCount = kMetaballMaxLenses;
 
   const LiquidGlassBlender({
     super.key,
@@ -71,7 +74,7 @@ class LiquidGlassBlender extends StatefulWidget {
     this.useImpellerBackdrop,
     this.useEngineBlur = true,
     this.debugClipBounds = false,
-  }) : assert(smoothness > 0);
+  }) : assert(smoothness == null || smoothness > 0);
 
   /// Any widget tree containing two to six `LiquidGlassLens` descendants.
   final Widget child;
@@ -80,7 +83,18 @@ class LiquidGlassBlender extends StatefulWidget {
   final LiquidGlassStyle style;
 
   /// Radius, in logical pixels, over which nearby lens outlines flow together.
-  final double smoothness;
+  ///
+  /// **`null` turns the metaball off.** The members are then unioned hard —
+  /// nearest one wins each fragment outright — and the shader runs none of
+  /// the smooth-union machinery: no smin, no per-member influence weights, no
+  /// blended gradient. They still share one surface, one backdrop read and
+  /// one material; they just stop flowing into each other.
+  ///
+  /// That is not the same as passing a very small radius. A near-zero radius
+  /// degenerates the distance correctly, but its weights collapse to a 0/1
+  /// indicator, so two OVERLAPPING members weigh equally and their colours
+  /// average with a hard step at each outline. `null` has no such tie.
+  final double? smoothness;
 
   /// Overrides renderer detection. When null, inherits `LiquidGlassView` and
   /// otherwise uses Flutter's shader-filter capability.
@@ -111,9 +125,24 @@ class LiquidGlassBlender extends StatefulWidget {
   State<LiquidGlassBlender> createState() => _LiquidGlassBlenderState();
 }
 
-class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
+class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
+    with TickerProviderStateMixin, LiquidGlassAdaptiveClient {
   final _LiquidGlassBlenderRegistry _registry = _LiquidGlassBlenderRegistry();
   ui.FragmentShader? _shader;
+
+  /// ONE verdict machine for the whole group.
+  ///
+  /// A blend is a single surface, so it gets a single opinion — sampled
+  /// over the merged bounds, not per member. Members judging themselves
+  /// could disagree, and there is no way to paint two tints into one
+  /// unbroken sheet of glass.
+  late final LiquidGlassAdaptivityDriver _driver =
+      LiquidGlassAdaptivityDriver(vsync: this);
+
+  /// Registration bookkeeping against the view's sampler. The register
+  /// tear-off doubles as the identity of "who we're registered with".
+  void Function(LiquidGlassAdaptiveClient)? _registeredWith;
+  void Function(LiquidGlassAdaptiveClient)? _unregister;
 
   /// One-time debug notice when the merge is impossible and the members have
   /// to stand on their own.
@@ -142,8 +171,77 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
 
   @override
   void dispose() {
+    _unregister?.call(this);
+    _unregister = null;
+    _registeredWith = null;
+    _driver.dispose();
     _registry.dispose();
     super.dispose();
+  }
+
+  /// The band the sampler reads for this group: the blender's own box,
+  /// which spans every member and the gaps the metaball fills between
+  /// them — the same area the merged glass covers.
+  @override
+  Rect? adaptiveRegion(RenderBox backgroundBox) {
+    if (!mounted) return null;
+    final RenderObject? ro = context.findRenderObject();
+    if (ro is! RenderBox || !ro.attached || !ro.hasSize) return null;
+    try {
+      final Offset topLeft =
+          ro.localToGlobal(Offset.zero, ancestor: backgroundBox);
+      return topLeft & ro.size;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  @override
+  void onAdaptiveSample(LiquidGlassBackdropSample sample) {
+    if (!mounted) return;
+    _driver.onBackdropSample(sample);
+  }
+
+  /// The adaptivity controller flipped: rebuild so sampling registration
+  /// and the driver's verdict source follow the switch.
+  void _adaptResync() {
+    if (mounted) setState(() {});
+  }
+
+  void _syncRegistration({
+    required void Function(LiquidGlassAdaptiveClient)? register,
+    required void Function(LiquidGlassAdaptiveClient)? unregister,
+  }) {
+    if (!identical(register, _registeredWith)) {
+      _unregister?.call(this);
+      _unregister = null;
+      _registeredWith = register;
+      if (register != null) {
+        register(this);
+        _unregister = unregister;
+      }
+    }
+  }
+
+  /// Wraps [child] so any `Icon`/`Text` inside the group follows the
+  /// group's verdict, and children with their own palette (a member
+  /// carrying its own colours) can read the flip position.
+  Widget _adaptContent(
+    BuildContext context,
+    LiquidGlassAdaptivity adaptivity,
+    Widget child,
+  ) {
+    final Color content = _driver.contentColor(adaptivity);
+    return LiquidGlassAdaptiveVerdictScope(
+      flipT: _driver.flipT,
+      child: IconTheme(
+        data: IconTheme.of(context).copyWith(color: content),
+        child: DefaultTextStyle.merge(
+          style: TextStyle(color: content),
+          child: child,
+        ),
+      ),
+    );
   }
 
   /// Loads (once per backend) the metaball entry shader for [impeller] and swaps
@@ -180,6 +278,80 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
 
     _ensureShader(useImpeller);
 
+    // Adaptivity precedence: the group style's own config, else the
+    // enclosing area's — and `LiquidGlassAdaptivity.none` opts out of
+    // both. The verdict source: manual override → explicit link →
+    // enclosing area's link → own sampling → platform brightness.
+    final LiquidGlassAdaptiveAreaScope? areaScope =
+        LiquidGlassAdaptiveArea.maybeOf(context);
+    final LiquidGlassAdaptivity? resolved =
+        widget.style.adaptivity ?? areaScope?.adaptivity;
+    final LiquidGlassAdaptivity? adaptivity =
+        (resolved?.isNone ?? false) ? null : resolved;
+    final LiquidGlassAdaptivityLink? follow =
+        adaptivity == null ? null : (adaptivity.link ?? areaScope?.link);
+    // A host's sampler redirect (e.g. the nav bar's outer view routing
+    // clients to its inner pre-glass sampler) wins over the enclosing
+    // view's own sampler.
+    final LiquidGlassAdaptiveSamplerScope? samplerScope =
+        LiquidGlassAdaptiveSamplerScope.maybeOf(context);
+    final void Function(LiquidGlassAdaptiveClient)? adaptRegister =
+        samplerScope?.register ?? lensScope?.registerAdaptiveClient;
+    final void Function(LiquidGlassAdaptiveClient)? adaptUnregister =
+        samplerScope?.unregister ?? lensScope?.unregisterAdaptiveClient;
+    final bool wantSampling = _driver.samplingWanted(adaptivity,
+        following: follow != null, canRegister: adaptRegister != null);
+
+    _syncRegistration(
+        register: wantSampling ? adaptRegister : null,
+        unregister: adaptUnregister);
+    _driver.onResync = _adaptResync;
+    _driver.sync(
+      adaptivity,
+      follow: follow,
+      canSample: adaptRegister != null,
+      fallbackBrightness: liquidGlassFallbackBrightness(context, adaptivity),
+    );
+
+    if (adaptivity == null) {
+      return _buildGroup(
+          context, canBlend, useImpeller, lensScope, widget.style,
+          widget.child);
+    }
+
+    // Rebuild the group while the palette animates — the driver's
+    // controller is idle between flips, so this costs nothing at rest.
+    return AnimatedBuilder(
+      animation: _driver.listenable!,
+      builder: (BuildContext context, _) => _buildGroup(
+        context,
+        canBlend,
+        useImpeller,
+        lensScope,
+        // The verdict lands on the GROUP's material: the merged pass
+        // paints one tint for the whole sheet, so this is the only place
+        // it can go. A member's own appearance is never read here.
+        widget.style.copyWith(
+          appearance:
+              widget.style.appearance.copyWith(
+            color: _driver.glassColor(adaptivity),
+          ),
+        ),
+        _adaptContent(context, adaptivity, widget.child),
+      ),
+    );
+  }
+
+  /// The merged surface under the members, painted with [style] — the
+  /// group's material, already carrying the verdict when adaptive.
+  Widget _buildGroup(
+    BuildContext context,
+    bool canBlend,
+    bool useImpeller,
+    LiquidGlassLensScope? lensScope,
+    LiquidGlassStyle style,
+    Widget child,
+  ) {
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
@@ -189,7 +361,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
             child: _LiquidGlassBlenderSurface(
               registry: _registry,
               shader: _shader!,
-              style: widget.style,
+              style: style,
               smoothness: widget.smoothness,
               useImpellerBackdrop: useImpeller,
               useEngineBlur: widget.useEngineBlur,
@@ -202,8 +374,10 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender> {
         LiquidGlassBlenderScope(
           registry: _registry,
           canBlend: canBlend,
-          style: widget.style,
-          child: widget.child,
+          // The solo fallback takes the same adapted material, so a
+          // group that cannot merge still flips with the background.
+          style: style,
+          child: child,
         ),
       ],
     );
@@ -292,9 +466,16 @@ class LiquidGlassBlenderScope extends InheritedWidget {
   }
 
   /// Replaces a lens's individual glass pass with a registered geometry node.
+  ///
+  /// [tint] is the member's OWN adaptive verdict, or null when it has none —
+  /// null takes the group's colour. It is a separate argument rather than
+  /// something read off [style] because a member's appearance is otherwise
+  /// never consulted, so there would be no way to tell "my verdict" from
+  /// "the appearance I was declared with and which the group overrides".
   Widget buildMember({
     required LiquidGlassStyle style,
     required bool visible,
+    Color? tint,
     Widget? child,
     Offset shapeScale = const Offset(1, 1),
   }) {
@@ -314,6 +495,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
       shape: shape,
       visible: visible,
       shapeScale: shapeScale,
+      tint: tint,
       child: visible ? clippedChild : null,
     );
   }
@@ -358,6 +540,7 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
     required this.shape,
     required this.visible,
     required this.shapeScale,
+    required this.tint,
     super.child,
   });
 
@@ -366,6 +549,9 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
   final bool visible;
   final Offset shapeScale;
 
+  /// This member's own verdict colour, or null to take the group's.
+  final Color? tint;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderLiquidGlassBlenderMember(
@@ -373,6 +559,7 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
       shape: shape,
       visible: visible,
       shapeScale: shapeScale,
+      tint: tint,
     );
   }
 
@@ -385,7 +572,8 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
       ..registry = registry
       ..shape = shape
       ..visible = visible
-      ..shapeScale = shapeScale;
+      ..shapeScale = shapeScale
+      ..tint = tint;
   }
 }
 
@@ -395,15 +583,29 @@ class _RenderLiquidGlassBlenderMember extends RenderProxyBox {
     required LiquidGlassShape shape,
     required bool visible,
     Offset shapeScale = const Offset(1, 1),
+    Color? tint,
   })  : _registry = registry,
         _shape = shape,
         _visible = visible,
-        _shapeScale = shapeScale;
+        _shapeScale = shapeScale,
+        _tint = tint;
 
   _LiquidGlassBlenderRegistry _registry;
   LiquidGlassShape _shape;
   bool _visible;
   Offset _shapeScale;
+  Color? _tint;
+
+  /// This member's own adaptive verdict, or null to take the group's colour.
+  /// It changes every frame of a flip, and the merged surface is what paints
+  /// it — hence the registry poke, not just a local repaint.
+  Color? get tint => _tint;
+  set tint(Color? value) {
+    if (_tint == value) return;
+    _tint = value;
+    _registry.memberChanged();
+    markNeedsPaint();
+  }
 
   /// This member's touch deformation as deformed ÷ rest.
   ///
@@ -480,7 +682,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
   final _LiquidGlassBlenderRegistry registry;
   final ui.FragmentShader shader;
   final LiquidGlassStyle style;
-  final double smoothness;
+  final double? smoothness;
   final bool useImpellerBackdrop;
   final bool useEngineBlur;
   final bool debugClipBounds;
@@ -528,7 +730,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     required _LiquidGlassBlenderRegistry registry,
     required ui.FragmentShader shader,
     required LiquidGlassStyle style,
-    required double smoothness,
+    required double? smoothness,
     required bool useImpellerBackdrop,
     required bool useEngineBlur,
     required bool debugClipBounds,
@@ -564,7 +766,14 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
   _LiquidGlassBlenderRegistry _registry;
   ui.FragmentShader _shader;
   LiquidGlassStyle _style;
-  double _smoothness;
+  double? _smoothness;
+
+  /// Whether the metaball runs at all — see `LiquidGlassBlender.smoothness`.
+  bool get _merge => _smoothness != null;
+
+  /// The radius the shader is handed. Zero when the metaball is off, where it
+  /// is never read: every use sits behind the merge switch.
+  double get _smoothnessOrZero => _smoothness ?? 0.0;
   bool _useImpellerBackdrop;
   bool _useEngineBlur;
   bool _debugClipBounds;
@@ -595,8 +804,8 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     markNeedsPaint();
   }
 
-  double get smoothness => _smoothness;
-  set smoothness(double value) {
+  double? get smoothness => _smoothness;
+  set smoothness(double? value) {
     if (_smoothness == value) return;
     _smoothness = value;
     markNeedsPaint();
@@ -779,13 +988,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     // GLOBAL lens rects against _screenSize. Engine-blur path: clip-local.
     final List<MetaballLensUniform> packedLenses = engineBlur
         ? _lensesIn(members, this)
-            .map((l) => MetaballLensUniform(
-                  center: l.center - glassRect.topLeft,
-                  halfSize: l.halfSize,
-                  cornerRadius: l.cornerRadius,
-                  cornerStyle: l.cornerStyle,
-                  shapeScale: l.shapeScale,
-                ))
+            .map((l) => l.translated(-glassRect.topLeft))
             .toList(growable: false)
         : _lensesIn(members, null);
 
@@ -945,6 +1148,11 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         cornerRadius: math.min(member.shape.cornerRadius, maxCorner),
         cornerStyle: member.shape.cornerStyle.index,
         shapeScale: member.shapeScale,
+        // A member that judges its own background paints its own verdict; one
+        // that does not falls back to the group's colour, so every member has
+        // a tint and a group where nobody adapts blends back to exactly the
+        // colour it would have painted before.
+        color: member.tint ?? _style.appearance.color,
       );
     }, growable: false);
   }
@@ -974,10 +1182,15 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
 
     final shape =
         _style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
+    // The 3-sigma term keeps the glass outline that far inside the blurred
+    // region, so every visible pixel is averaged from real backdrop rather
+    // than from the clip edge repeated. It does mean the costly pass grows
+    // with the frost — 120px a side at sigma 40 — so if that ever needs
+    // bounding, cap this term rather than dropping it.
     final double margin = shape.borderWidth * 2.0 + // rim
         3.0 * _blurSigma + // gaussian tail
         _style.refraction.effectiveDistortionWidth + // refraction band
-        _smoothness * 0.5 + // smin bridge bulge
+        _smoothnessOrZero * 0.5 + // smin bridge bulge
         2.0; // AA
     final Rect clip = union.inflate(margin).intersect(fullRect);
     // Degenerate (e.g. lenses fully off-surface): fall back to the full rect.
@@ -1011,7 +1224,8 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       scale: scale,
       resolution: resolution,
       lenses: lenses,
-      smoothness: _smoothness,
+      smoothness: _smoothnessOrZero,
+      merge: _merge,
       magnification: refraction.magnification,
       distortion: refraction.effectiveDistortion,
       distortionWidth: refraction.effectiveDistortionWidth,

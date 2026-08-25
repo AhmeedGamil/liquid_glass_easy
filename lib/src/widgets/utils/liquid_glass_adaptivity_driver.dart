@@ -174,11 +174,11 @@ class LiquidGlassAdaptivityDriver {
   /// broadcasts to (the `LiquidGlassAdaptiveArea` role). [canSample] is
   /// whether the widget has a working sampling source (it registered
   /// with a view's sampler); with none, and no manual or linked
-  /// verdict, [platformBrightness] is the last resort.
+  /// verdict, [fallbackBrightness] is the last resort.
   void sync(
     LiquidGlassAdaptivity? adaptivity, {
     required bool canSample,
-    required Brightness platformBrightness,
+    required Brightness fallbackBrightness,
     LiquidGlassAdaptivityLink? follow,
     LiquidGlassAdaptivityLink? publish,
   }) {
@@ -186,7 +186,7 @@ class LiquidGlassAdaptivityDriver {
     try {
       _sync(adaptivity,
           canSample: canSample,
-          platformBrightness: platformBrightness,
+          fallbackBrightness: fallbackBrightness,
           follow: follow,
           publish: publish);
     } finally {
@@ -197,7 +197,7 @@ class LiquidGlassAdaptivityDriver {
   void _sync(
     LiquidGlassAdaptivity? adaptivity, {
     required bool canSample,
-    required Brightness platformBrightness,
+    required Brightness fallbackBrightness,
     LiquidGlassAdaptivityLink? follow,
     LiquidGlassAdaptivityLink? publish,
   }) {
@@ -258,23 +258,23 @@ class LiquidGlassAdaptivityDriver {
     } else if (!enabled) {
       // Held — keep the current verdict (or the pre-verdict guess). A
       // pending one-shot resolves through the sampler or link delivery;
-      // with neither reachable the platform brightness IS the one look.
+      // with neither reachable the fallback brightness IS the one look.
       if (_oneShotPending && !follower && !canSample) {
         _oneShotPending = false;
-        _setVerdict(platformBrightness, adaptivity);
+        _setVerdict(fallbackBrightness, adaptivity);
       }
     } else if (follower) {
       final Brightness? linked = linkToFollow!.value;
       if (linked != null) _setVerdict(linked, adaptivity);
     } else if (!wantSampling) {
-      _setVerdict(platformBrightness, adaptivity);
+      _setVerdict(fallbackBrightness, adaptivity);
     }
 
-    // Pre-verdict palette: the developer's guess, else the platform
-    // brightness (dark-mode users get the dark palette from the very
-    // first frame). A confirming first verdict then causes no motion at
-    // all; a differing one animates in.
-    final Brightness guess = adaptivity.initialBrightness ?? platformBrightness;
+    // Pre-verdict palette: the developer's guess, else the fallback (a
+    // dark-themed app gets the dark palette from the very first frame).
+    // A confirming first verdict then causes no motion at all; a
+    // differing one animates in.
+    final Brightness guess = adaptivity.initialBrightness ?? fallbackBrightness;
     final double guessT = guess == Brightness.dark ? 1.0 : 0.0;
     if (_ctrl == null) {
       _ctrl = AnimationController(

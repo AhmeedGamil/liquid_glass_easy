@@ -18,6 +18,11 @@ export 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart'
 // on Skia / Web.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens.dart'
     show LiquidGlassLens;
+// Group: wrap a subtree and draw its LiquidGlassLens descendants as ONE
+// sheet of glass — one backdrop read for all of them. `smoothness: null`
+// keeps their outlines separate instead of fusing them.
+export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_group.dart'
+    show LiquidGlassGroup;
 // Blender: wrap a subtree and merge 2–6 descendant LiquidGlassLens
 // widgets into one smooth metaball glass surface.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_blender.dart'
@@ -36,6 +41,7 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_adaptivity.dart
         LiquidGlassAdaptiveSampling,
         LiquidGlassAdaptivityLink,
         LiquidGlassAdaptivityController,
+        LiquidGlassBrightnessFallback,
         LiquidGlassSystemChrome;
 // Adaptive area: an invisible region that samples once and drives the
 // verdict for every adaptive widget inside it (the group form of

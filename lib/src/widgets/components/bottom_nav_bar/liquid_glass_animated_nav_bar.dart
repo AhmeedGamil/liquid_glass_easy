@@ -446,6 +446,12 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   bool get _adaptSamples => _adaptDriver.samplingWanted(_effAdaptivity,
       following: _adaptFollow != null, canRegister: widget.sampleBackground);
 
+  /// The sampling config the HOST handed down — this bar's own slot
+  /// first, then the outer pipeline's. Null means the host did not ask
+  /// for adaptive sampling, and the bar does not start one for itself.
+  LiquidGlassAdaptiveSampling? get _hostSampling =>
+      widget.adaptiveSampling ?? widget.outerAdaptiveSampling;
+
   /// The adaptivity controller flipped: rebuild so sampling
   /// registration and the driver's verdict source follow the switch.
   void _adaptResync() {
@@ -1002,8 +1008,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       _effAdaptivity,
       follow: _adaptFollow,
       canSample: widget.sampleBackground,
-      platformBrightness:
-          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+      fallbackBrightness:
+          liquidGlassFallbackBrightness(context, _effAdaptivity),
     );
 
     final Widget bar = LayoutBuilder(builder: (context, constraints) {
@@ -1274,8 +1280,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             widget.systemChrome == LiquidGlassSystemChrome.both)) {
       final Brightness guess = chromeAdaptivity.permanentBrightness ??
           chromeAdaptivity.initialBrightness ??
-          MediaQuery.maybePlatformBrightnessOf(context) ??
-          Brightness.light;
+          liquidGlassFallbackBrightness(context, chromeAdaptivity);
       return AnimatedBuilder(
         animation: _adaptDriver.listenable!,
         builder: (context, _) => AnnotatedRegion<SystemUiOverlayStyle>(
@@ -1566,10 +1571,16 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           // The pipeline's SINGLE sampler: serves the bar's own verdict
           // and any outer-slot areas/lenses redirected here through the
           // outer view's sampler scope.
-          adaptiveSampling: _adaptSamples || widget.outerAdaptiveSampling != null
-              ? (widget.adaptiveSampling ??
-                  widget.outerAdaptiveSampling ??
-                  const LiquidGlassAdaptiveSampling())
+          // The HOST decides whether a sampler exists at all. A bar
+          // carrying its own `style.adaptivity` used to fall back on a
+          // default config and open one here — which meant a scaffold
+          // that never asked for adaptivity still got captures, through
+          // this view, because of what its nav bar happened to carry.
+          // Now: no config from above, no sampler, and the bar's verdict
+          // falls back like any other unsampled surface.
+          adaptiveSampling: _hostSampling != null &&
+                  (_adaptSamples || widget.outerAdaptiveSampling != null)
+              ? _hostSampling
               : null,
           children: const [],
           // The capsule is a layout-driven [LiquidGlassLens] in the

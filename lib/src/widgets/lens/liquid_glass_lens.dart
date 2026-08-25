@@ -360,8 +360,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       adaptivity,
       follow: follow,
       canSample: adaptRegister != null,
-      platformBrightness:
-          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+      fallbackBrightness: liquidGlassFallbackBrightness(context, adaptivity),
     );
 
     _activeAdaptivity = adaptivity;
@@ -482,11 +481,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     if (blenderScope != null) {
       final Widget? content = _adaptContent(context, widget.child);
       return blenderScope.buildMember(
-        // An adaptive member hands the blender its flipped tint, so the
-        // merged surface carries the verdict too.
+        // Only the SHAPE is read from here; the adapted appearance rides
+        // along for the solo fallback.
         style: _activeAdaptivity == null
             ? widget.style
             : widget.style.copyWith(appearance: _appearance),
+        // This member's OWN verdict, judged over its own box — the merged
+        // pass gives each member its own tint and crosses between them
+        // across the bridge. Null where this lens is not adaptive: it then
+        // takes the group's colour rather than inventing one.
+        tint: _activeAdaptivity == null ? null : _appearance.color,
         visible: widget.visibility,
         // Layout has already resized this member's box; the SCALE is the part
         // the blender cannot infer from it, and the metaball needs it to

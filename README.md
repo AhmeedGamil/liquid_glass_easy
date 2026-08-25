@@ -11,6 +11,10 @@
 These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract** the content behind them — recreating the iOS 26 Liquid Glass look with stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
 <p>
+  <img src="showcases/liquid_glass_adaptivity.gif" width="72%" alt="Liquid Glass Adaptivity — chrome that flips with the background"/>
+</p>
+
+<p>
   <img src="showcases/liquid_glass_tab_bar.gif" width="56%" alt="Liquid Glass Tab Bar"/>
   <img src="showcases/liquid_glass_slider_switch.gif" width="42%" alt="Liquid Glass Slider and Switch"/>
 </p>
@@ -38,7 +42,10 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with `LiquidGlassStyle`: shape, appearance, refraction. |
 | **Touch** | `LiquidGlassTouch` | How glass answers a finger. Carries `LiquidGlassFlex`: press and it swells, drag and it deforms, release and it springs back. |
 | **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
-| **Blend** | `LiquidGlassBlender` | Merges 2–6 lenses into one surface, joined by a smooth metaball bridge. |
+| **Blend** | `LiquidGlassBlender` | Merges **2–8** lenses into one surface, joined by a smooth metaball bridge. |
+| **Group** | `LiquidGlassGroup` | Draws every lens beneath it as ONE sheet — one backdrop read and one material for the whole set, far cheaper than the same lenses standing alone. Fuses them like the blender when given a `smoothness`. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface) |
+| **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
+| **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
 | **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassAlertDialog`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
 
@@ -104,8 +111,8 @@ ticker, no cost.
 
 ### Blend — fuse lenses into one liquid surface
 
-Wrap two to six `LiquidGlassLens` descendants in a `LiquidGlassBlender` and their
-silhouettes merge into a single liquid glass surface: as neighbouring lenses
+Wrap **two to eight** `LiquidGlassLens` descendants in a `LiquidGlassBlender` and
+their silhouettes merge into a single liquid glass surface: as neighbouring lenses
 approach they grow a smooth **metaball bridge**, and they pull apart as you
 separate them — each member keeps its own corner style through the merge.
 
@@ -130,11 +137,122 @@ LiquidGlassView(
 It works on **both backends** — Impeller samples the live backdrop, Skia refracts
 the captured background (place it inside a `LiquidGlassView`).
 
+**Eight is the ceiling** — `LiquidGlassBlender.maxLensCount`. The metaball field
+compares every member on every fragment, so the cap is what keeps the shader's
+cost bounded; it is raised two at a time, by adding a `mat4` to the shader.
+Register a ninth lens and it throws in debug; in release the extras are dropped
+and the first eight blend.
+
 > ⚠️ **A note on blur on Skia.** In-shader blur on the Skia capture path may cost
 > **performance** when the lenses are big or the blur is big. Also, **high blur
 > (above ~7)** doesn't match the look of a real backdrop blur. It isn't clamped,
 > though — the value is left unrestricted so you can push it if you want; just
 > expect it to diverge from the Impeller look at high sigmas.
+
+---
+
+### Group — many lenses, one surface
+
+A page rarely holds one lens, and lenses are not cheap: each one reads the
+backdrop behind it and runs its own glass pass. Wrap a set of them in a
+`LiquidGlassGroup` and they are drawn as **one sheet** — the members keep their
+own layout, shape and child, but give up their individual pass for a single
+surface covering all of them.
+
+**This is the cheap way to put a lot of glass on a screen.** Six lenses
+standing on their own are six backdrop reads and six materials; the same six in
+a group are **one of each**, whatever they cost to lay out. Reach for it
+wherever glass comes in sets — a toolbar of buttons, a stack of cards, a row of
+controls.
+
+```dart
+LiquidGlassGroup(
+  style: const LiquidGlassStyle(
+    shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 26),
+  ),
+  child: Column(children: const [
+    SizedBox(width: 180, height: 56, child: LiquidGlassLens()),
+    SizedBox(height: 12),
+    SizedBox(width: 180, height: 56, child: LiquidGlassLens()),
+  ]),
+)
+```
+
+**It blends like `LiquidGlassBlender`, too.** The group takes the same
+`smoothness`: give it a radius and members that come within about half of it
+flow together through a metaball bridge, growing as they approach and pulling
+apart as they separate — the blender's merge, on a shared sheet.
+
+It defaults to `null`, though, which is the difference between the two. A
+blender exists to fuse; a group exists to share one surface, and fusing is the
+extra. With `null` each member keeps its own hard outline and the shader skips
+the smooth-union entirely rather than running it and finding nothing to blend,
+so a row of buttons or a column of pills pays nothing for a bridge that never
+forms.
+
+**Adaptivity stays per member.** Each lens judges the background behind
+*itself* and paints its own verdict into the shared sheet; where two fuse,
+their colours cross over inside the bridge on the same falloff that shapes it.
+A member that isn't adaptive takes the group's colour.
+
+Two to eight members, on both backends. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface)
+
+---
+
+### Adapt — glass that agrees with what's behind it
+
+Glass reads as glass by **agreeing with its backdrop**: smoked over a dark
+photo, milky over a white page, with the icons and text on it inverting to
+match. Give a style an `adaptivity` and both do it on their own, from the actual
+pixels behind that surface.
+
+```dart
+LiquidGlassLens(
+  style: LiquidGlassStyle(
+    adaptivity: LiquidGlassAdaptivity(
+      glassColorOnDark: Color(0x33000000),
+      contentColorOnDark: Colors.white,
+      glassColorOnLight: Color(0x66FFFFFF),
+      contentColorOnLight: Color(0xFF1C1C1E),
+    ),
+  ),
+  child: const Icon(Icons.favorite_rounded),   // no colour — it adapts
+)
+```
+
+Two things flip together, both animated over `duration`: the **glass tint**
+(overriding `appearance.color`) and the **content colour**, installed over the
+child as an `IconTheme` + `DefaultTextStyle` — so any `Icon` or `Text` that
+doesn't hardcode a colour follows automatically.
+
+> **Nothing samples pixels unless a view opts in.** A config says what to do
+> with a verdict, not where it comes from: pass `adaptiveSampling` to your
+> `LiquidGlassView`, or `adaptivity` to a `LiquidGlassScaffold`, which opens the
+> sampler for you. One deliberately tiny capture (pixel ratio `0.05`, 8 per
+> second) serves every adaptive surface in the view — ten of them cost one
+> capture, not ten.
+
+#### The pieces
+
+| API | What it does |
+|---|---|
+| `LiquidGlassAdaptivity` | The config — palettes, thresholds, and where the verdict comes from. Goes on `style.adaptivity`. |
+| `LiquidGlassAdaptiveArea` | Samples **one** region and hands that verdict to everything inside it, with no wiring. The group form. |
+| `LiquidGlassAdaptivityLink` | A channel: an area **publishes** to it, and consumers carrying the same link **follow** it — for followers that can't sit inside the area. |
+| `LiquidGlassAdaptivityController` | Pause / resume a whole group, plus `adaptOnce()` to take a single look on your own cue (scroll settled, page entered). |
+| `LiquidGlassAdaptiveContent` | Makes bare `Text` / `Icon` — with no glass behind them — adapt like a lens child. |
+| `LiquidGlassAdaptiveSampling` | Tuning for the capture that feeds all of it: `pixelRatio`, `frameLimit`, `minimumRegionSamples`. |
+| `LiquidGlassScaffoldAdaptivity` | The scaffold's config: palettes for its chrome, plus the strips that drive the system bars. |
+| `LiquidGlassSystemChrome` | Which OS bars the verdict also drives — icon brightness only, never bar colours. On a scaffold's config it defaults to the status bar. |
+| `LiquidGlassBrightnessFallback` | What to guess when there is nothing to sample: `appTheme` (default) or `platform`. |
+
+`LiquidGlassScrollEdge` runs on the same machine, and so does every drop-in
+component: a `LiquidGlassScaffold` hands its `adaptivity` down to the app bar,
+the tab bar, the action button and its `lenses`, each of which then judges the
+background directly behind **itself**.
+
+**[Full guide → ADAPTIVITY.md](ADAPTIVITY.md)** — how the verdict is decided,
+the precedence chain, areas and links, the controller, recipes and gotchas.
 
 ---
 
@@ -193,7 +311,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^4.1.1
+  liquid_glass_easy: ^4.2.0
 ```
 
 ```bash
@@ -365,8 +483,13 @@ LiquidGlassView({
   bool useSync = true,
   bool? useImpellerBackdrop,
   LiquidGlassRefreshRate refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
+  LiquidGlassAdaptiveSampling? adaptiveSampling,  // null = no background sampling
 })
 ```
+
+> `adaptiveSampling` is the switch that lets adaptive surfaces read the pixels
+> behind them — nothing samples without it. `LiquidGlassScaffold` opens it for
+> you from its own `adaptivity`. See [ADAPTIVITY.md](ADAPTIVITY.md#turning-sampling-on).
 
 ---
 

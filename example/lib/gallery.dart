@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-import 'debug_flags.dart';
+import 'app_settings.dart';
+import 'settings_page.dart';
 import 'touch_page.dart';
 import 'switch_page.dart';
 import 'control_center_page.dart';
@@ -13,9 +14,9 @@ import 'basic_controls_page.dart';
 import 'slider_motion_tuner.dart';
 import 'slider_page.dart';
 import 'tab_bar_page.dart';
-import 'trip_page.dart';
-import 'trip_settle_page.dart';
-import 'white_page.dart';
+import 'adaptivity_page.dart';
+import 'adaptivity_advanced_page.dart';
+import 'adaptivity_controller_page.dart';
 import 'showcases/photos_library_page.dart';
 
 // =============================================================
@@ -28,6 +29,9 @@ import 'showcases/photos_library_page.dart';
 // Values are not persisted; they reset to the shipped defaults on
 // restart.
 //
+// The gear at the top right opens Settings: light/dark on a glass
+// switch. Not persisted.
+//
 // Run it with:  flutter run -t lib/gallery.dart
 // =============================================================
 
@@ -38,24 +42,29 @@ void main() {
 class GalleryApp extends StatelessWidget {
   const GalleryApp({super.key});
 
+  static ThemeData _theme(Brightness brightness) => ThemeData(
+        brightness: brightness,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF7C5CFF),
+          brightness: brightness,
+        ),
+        useMaterial3: true,
+      );
+
   @override
   Widget build(BuildContext context) {
-    // The perf overlay is rebuilt from a notifier rather than a const
-    // flag so a page can hide it while judging how the glass LOOKS —
-    // the graphs sit right over the chrome most demos put at the top.
+    // A notifier rather than a const flag so the Settings page's glass
+    // switch can flip the whole app from anywhere.
     return ValueListenableBuilder<bool>(
-      valueListenable: showPerfOverlay,
-      builder: (BuildContext context, bool perf, Widget? _) => MaterialApp(
+      valueListenable: darkMode,
+      builder: (BuildContext context, bool dark, Widget? _) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        showPerformanceOverlay: perf,
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          colorScheme: ColorScheme.fromSeed(
-            seedColor: const Color(0xFF7C5CFF),
-            brightness: Brightness.dark,
-          ),
-          useMaterial3: true,
-        ),
+        theme: _theme(Brightness.light),
+        darkTheme: _theme(Brightness.dark),
+        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        // Nothing else to wire for the glass: adaptivity's last resort
+        // is the app theme's brightness by default, so every surface
+        // that cannot read its backdrop follows this themeMode.
         home: const HomePage(),
       ),
     );
@@ -148,25 +157,27 @@ class HomePage extends StatelessWidget {
       builder: (_) => const FabAndDialogDemoPage(),
     ),
     _Destination(
-      title: 'Thailand Trip',
-      subtitle: 'Photo header, glass nav bar + action — adaptive end to end',
+      title: 'Adaptivity',
+      subtitle: 'Every glass surface judges the photo behind ITSELF, so '
+          'they can disagree',
       icon: Icons.travel_explore_rounded,
       gradient: const [Color(0xFF11998E), Color(0xFF38EF7D)],
-      builder: (_) => const TripPage(),
+      builder: (_) => const AdaptivityPage(),
     ),
     _Destination(
-      title: 'Thailand — Settle',
+      title: 'Adaptivity — Advanced',
+      subtitle: 'An area samples once and publishes on a link; the rest '
+          'follow it',
+      icon: Icons.link_rounded,
+      gradient: const [Color(0xFF8E7BFF), Color(0xFF4B3BB8)],
+      builder: (_) => const AdaptivityAdvancedPage(),
+    ),
+    _Destination(
+      title: 'Adaptivity — Controller',
       subtitle: 'Palettes hold while scrolling, adaptOnce() when it settles',
       icon: Icons.pause_circle_outline_rounded,
       gradient: const [Color(0xFF136A8A), Color(0xFF267871)],
-      builder: (_) => const TripSettlePage(),
-    ),
-    _Destination(
-      title: 'White Room',
-      subtitle: 'The same glass chrome over a blank white page',
-      icon: Icons.crop_din_rounded,
-      gradient: const [Color(0xFFE8E8E8), Color(0xFF9E9E9E)],
-      builder: (_) => const WhitePage(),
+      builder: (_) => const AdaptivityControllerPage(),
     ),
   ];
 
@@ -214,33 +225,46 @@ class HomePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final Brightness brightness = Theme.of(context).brightness;
+    final Color ink = brightness == Brightness.dark
+        ? Colors.white
+        : const Color(0xFF11131A);
+
     return Scaffold(
       body: DecoratedBox(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [Color(0xFF0B0A12), Color(0xFF17112E), Color(0xFF241543)],
-          ),
-        ),
+        decoration: BoxDecoration(gradient: galleryBackground(brightness)),
         child: SafeArea(
           child: ListView(
             padding: const EdgeInsets.fromLTRB(20, 28, 20, 32),
             children: [
-              const Text(
-                'Liquid Glass Easy',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.5,
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      'Liquid Glass Easy',
+                      style: TextStyle(
+                        color: ink,
+                        fontSize: 30,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.5,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsPage()),
+                    ),
+                    icon: const Icon(Icons.settings_rounded),
+                    color: ink.withValues(alpha: 0.7),
+                    tooltip: 'Settings',
+                  ),
+                ],
               ),
               const SizedBox(height: 6),
               Text(
                 'A gallery of glass demos. Each opens on its own page.',
                 style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.6),
+                  color: ink.withValues(alpha: 0.6),
                   fontSize: 14,
                 ),
               ),
@@ -279,10 +303,12 @@ class _SectionLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
     return Text(
       text.toUpperCase(),
       style: TextStyle(
-        color: Colors.white.withValues(alpha: 0.5),
+        color: (dark ? Colors.white : const Color(0xFF11131A))
+            .withValues(alpha: 0.5),
         fontSize: 12,
         fontWeight: FontWeight.w800,
         letterSpacing: 1.6,
@@ -299,8 +325,11 @@ class _DestinationCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color ink = dark ? Colors.white : const Color(0xFF11131A);
+
     return Material(
-      color: Colors.white.withValues(alpha: 0.05),
+      color: Colors.white.withValues(alpha: dark ? 0.05 : 0.55),
       borderRadius: BorderRadius.circular(22),
       child: InkWell(
         onTap: onTap,
@@ -309,7 +338,11 @@ class _DestinationCard extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(22),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+            border: Border.all(
+              color: dark
+                  ? Colors.white.withValues(alpha: 0.10)
+                  : Colors.black.withValues(alpha: 0.06),
+            ),
           ),
           child: Row(
             children: [
@@ -340,8 +373,8 @@ class _DestinationCard extends StatelessWidget {
                   children: [
                     Text(
                       d.title,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: ink,
                         fontSize: 16.5,
                         fontWeight: FontWeight.w700,
                       ),
@@ -350,7 +383,7 @@ class _DestinationCard extends StatelessWidget {
                     Text(
                       d.subtitle,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.6),
+                        color: ink.withValues(alpha: 0.6),
                         fontSize: 12.5,
                         height: 1.25,
                       ),
@@ -360,7 +393,7 @@ class _DestinationCard extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Icon(Icons.chevron_right_rounded,
-                  color: Colors.white.withValues(alpha: 0.4), size: 24),
+                  color: ink.withValues(alpha: 0.4), size: 24),
             ],
           ),
         ),

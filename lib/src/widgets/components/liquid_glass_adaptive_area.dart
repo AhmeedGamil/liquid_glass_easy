@@ -197,7 +197,8 @@ class _LiquidGlassAdaptiveAreaState extends State<LiquidGlassAdaptiveArea>
           'LiquidGlassAdaptiveArea: background sampling unavailable '
           '(${scope == null ? 'no ancestor LiquidGlassView' : 'the ancestor '
               'LiquidGlassView has no adaptiveSampling'}). The verdict '
-          'falls back to permanentBrightness / platform brightness. '
+          'falls back to permanentBrightness / the app theme\'s '
+          'brightness (see LiquidGlassAdaptivity.brightnessFallback). '
           'Pass adaptiveSampling: LiquidGlassAdaptiveSampling() to the '
           'view (LiquidGlassScaffold does this automatically).',
         );
@@ -232,8 +233,7 @@ class _LiquidGlassAdaptiveAreaState extends State<LiquidGlassAdaptiveArea>
     _driver.sync(
       adaptivity,
       canSample: canSample,
-      platformBrightness:
-          MediaQuery.maybePlatformBrightnessOf(context) ?? Brightness.light,
+      fallbackBrightness: liquidGlassFallbackBrightness(context, adaptivity),
       publish: _publishLink,
     );
 
@@ -265,8 +265,7 @@ class _LiquidGlassAdaptiveAreaState extends State<LiquidGlassAdaptiveArea>
       // chrome sits on the same entry guess the palettes use.
       final Brightness guess = adaptivity.permanentBrightness ??
           adaptivity.initialBrightness ??
-          MediaQuery.maybePlatformBrightnessOf(context) ??
-          Brightness.light;
+          liquidGlassFallbackBrightness(context, adaptivity);
       final Widget inner = child;
       child = ValueListenableBuilder<Brightness?>(
         valueListenable: _publishLink,

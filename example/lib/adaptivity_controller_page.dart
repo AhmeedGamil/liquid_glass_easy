@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 // =============================================================
-// Thailand — Settle: the trip page, adapting ONLY when scrolling
-// settles.
+// Adaptivity — CONTROLLER: adapting only when scrolling settles.
 //
-// Same photo feed and glass chrome as the Thailand Trip page, but the
+// Same photo feed and glass chrome as `adaptivity_page.dart`, but the
 // whole adaptive group hangs off one
 // LiquidGlassAdaptivityController(enabled: false): while the feed
 // moves fast, every palette stays frozen — no verdict flips mid-fling.
@@ -16,7 +15,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // content together. One look on entry, one per settled scroll, zero
 // captures in between.
 //
-//   flutter run -t lib/trip_settle_page.dart   (standalone)
+//   flutter run -t lib/adaptivity_controller_page.dart   (standalone)
 //   …or open it from the home menu.
 // =============================================================
 
@@ -30,21 +29,22 @@ class _App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const TripSettlePage(),
+      home: const AdaptivityControllerPage(),
     );
   }
 }
 
 /// Shared palettes: smoked glass + light content over dark photos,
-/// milky glass + dark content over light ones. The feed opens on dark
-/// jungle shots, so start dark for a motion-free first verdict.
+/// milky glass + dark content over light ones. No entry guess — the
+/// palettes mount on the platform brightness and the post-frame
+/// adaptOnce() in [_AdaptivityControllerPageState.initState] lands the real
+/// verdict.
 const _adapt = LiquidGlassAdaptivity(
   glassColorOnDark: Color(0x33000000),
   contentColorOnDark: Colors.white,
   glassColorOnLight: Color(0x66FFFFFF),
   contentColorOnLight: Color(0xFF1C1C1E),
   duration: Duration(milliseconds: 300),
-  initialBrightness: Brightness.dark,
   // Narrow hysteresis: photo content often averages near mid-gray
   // (~0.51), which the default 0.45–0.55 band would keep latched on
   // the previous verdict.
@@ -53,15 +53,20 @@ const _adapt = LiquidGlassAdaptivity(
 );
 
 /// The top scroll-edge band behind the header: a stronger fade tint
-/// than the glass palettes, same verdict tuning as [_adapt].
+/// than the glass palettes, on the same thresholds as [_adapt].
+///
+/// `continuousGlassColor` is **false** here on purpose. Gliding the tint
+/// with the background is the opposite of what this page demonstrates:
+/// held, the band must not move at all, and each `adaptOnce()` should
+/// land as one clean change rather than a slide. See the advanced page
+/// for the gliding version.
 const _edgeAdapt = LiquidGlassAdaptivity(
   glassColorOnDark: Color(0xB3000000),
   contentColorOnDark: Colors.white,
   glassColorOnLight: Color(0xB3FFFFFF),
   contentColorOnLight: Color(0xFF1C1C1E),
   duration: Duration(milliseconds: 250),
-  continuousGlassColor: true,
-  initialBrightness: Brightness.dark,
+  continuousGlassColor: false,
   darkBelow: 0.50,
   lightAbove: 0.50,
 );
@@ -100,14 +105,15 @@ const LiquidGlassShape _navPillShape = LiquidGlassShape(
   ),
 );
 
-class TripSettlePage extends StatefulWidget {
-  const TripSettlePage({super.key});
+class AdaptivityControllerPage extends StatefulWidget {
+  const AdaptivityControllerPage({super.key});
 
   @override
-  State<TripSettlePage> createState() => _TripSettlePageState();
+  State<AdaptivityControllerPage> createState() =>
+      _AdaptivityControllerPageState();
 }
 
-class _TripSettlePageState extends State<TripSettlePage> {
+class _AdaptivityControllerPageState extends State<AdaptivityControllerPage> {
   final ScrollController _scroll = ScrollController();
   int _index = 0;
 
@@ -144,6 +150,10 @@ class _TripSettlePageState extends State<TripSettlePage> {
 
   /// Consecutive slow updates required — one jittery frame can't fire.
   static const int _slowFramesToSettle = 2;
+
+  /// Sigma the scroll edge blurs with — one backdrop pass, feathered
+  /// from the inside so the band meets sharp content without a seam.
+  static const double _edgeBlur = 5;
 
   double _lastPixels = 0;
   int _lastMoveUs = 0;
@@ -197,8 +207,8 @@ class _TripSettlePageState extends State<TripSettlePage> {
       chromaticAberration: 0.002,
     ),
     // No adaptivity here on purpose: the bar inherits the scaffold's
-    // group (edges bottom band / whole) automatically — controller
-    // included, so it settles with everything else.
+    // palettes — controller included, so it holds and settles with
+    // everything else — and resolves its own verdict from its capsule.
   );
 
   /// Morph-pill tier on every renderer; travel/jelly stay at the
@@ -219,9 +229,9 @@ class _TripSettlePageState extends State<TripSettlePage> {
   @override
   void initState() {
     super.initState();
-    // The entry look: the page mounts frozen on the dark guess; one
-    // post-frame adaptOnce() lands the real verdict, then the page is
-    // silent until a scroll settles.
+    // The entry look: the page mounts frozen on the platform
+    // brightness; one post-frame adaptOnce() lands the real verdict,
+    // then the page is silent until a scroll settles.
     WidgetsBinding.instance
         .addPostFrameCallback((_) => _adaptCtrl.adaptOnce());
   }
@@ -268,8 +278,8 @@ class _TripSettlePageState extends State<TripSettlePage> {
       adaptivity: LiquidGlassScaffoldAdaptivity(
         adapt,
         topFollowLink: _linked ? _link : null,
+        systemChrome: LiquidGlassSystemChrome.both,
       ),
-      systemChrome: LiquidGlassSystemChrome.both,
       appBarTopMargin: _headerTopMargin,
       // Linked: the header becomes the group's one PUBLISHER — it
       // samples its own band and broadcasts on _link, which the bar
@@ -295,19 +305,22 @@ class _TripSettlePageState extends State<TripSettlePage> {
         child: _TripFeed(controller: _scroll),
       ),
       lenses: [
-        // Scroll-edge dim band BEHIND the header — its own adaptivity
-        // samples itself, so it carries the same controller to hold and
-        // settle in step with the group.
+        // Scroll-edge dim band BEHIND the header (lenses render below the
+        // appBar slot): the feed dims as it slides under the title. It
+        // carries the same settle controller as everything else, so the
+        // band holds its tint through a fling and re-judges only when the
+        // motion decays — the hold is visible on the biggest surface
+        // here, not just on the small glass.
         Positioned(
           left: 0,
           right: 0,
           top: 0,
-          height: pad.top + _headerTopMargin + 80 + 24,
+          height: pad.top + _headerTopMargin + 70 + 24,
           child: LiquidGlassScrollEdge(
             style: LiquidGlassScrollEdgeStyle.soft,
             edge: LiquidGlassEdge.top,
-            blur: 4,
-            useShaderBlur: true,
+            blur: _edgeBlur,
+            blurCurve: Curves.easeInQuart,
             adaptivity: _edgeAdapt.copyWith(controller: _adaptCtrl),
           ),
         ),
@@ -342,11 +355,11 @@ class _TripSettlePageState extends State<TripSettlePage> {
           selectedColor: Colors.white,
           unselectedColor: Colors.white,
         ),
-        // The bar renders in its own pipeline, so it cannot sit inside
-        // a scope — it takes the same link through its own style.
-        style: _linked
-            ? _barStyle.copyWith(adaptivity: adapt.copyWith(link: _link))
-            : _barStyle,
+        // The bar stays OUT of the linked group in both modes: it
+        // inherits the scaffold's palettes (controller included, so it
+        // still holds and settles with everything else) but never the
+        // link, so it always judges the band behind its own capsule.
+        style: _barStyle,
         pillStyle: _pillStyle,
       ),
     );
@@ -383,7 +396,7 @@ class _TripHeader extends StatelessWidget {
             const Center(
               child: LiquidGlassAdaptiveContent(
                 child: Text(
-                  'Thailand — Settle',
+                  'Controller',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -496,7 +509,7 @@ class _ChevronPill extends StatelessWidget {
   }
 }
 
-/// The background: the same travel journal as the Thailand Trip page —
+/// The background: the same travel journal as `adaptivity_page.dart` —
 /// alternating edge-to-edge photos and light text entries, so a settled
 /// scroll can land on either verdict.
 class _TripFeed extends StatelessWidget {
@@ -540,8 +553,7 @@ class _TripFeed extends StatelessWidget {
             : _TripJournal(text: _journal[(i ~/ 2) % _journal.length]),
     ];
     return ColoredBox(
-      // Same light gray as the White Room page (iOS systemGray5) —
-      // visible on overscroll and past the last item.
+      // iOS systemGray5 — visible on overscroll and past the last item.
       color: const Color(0xFFE5E5EA),
       child: ListView.builder(
         controller: controller,
@@ -562,7 +574,7 @@ class _TripJournal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      // Same light gray as the White Room body (iOS systemGray5).
+      // The same light gray as the feed behind it (iOS systemGray5).
       color: const Color(0xFFE5E5EA),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
@@ -605,7 +617,7 @@ class _TripPhotoState extends State<_TripPhoto>
   static const List<String> _seeds = [
     'krabi-longtail',
     'chiangmai-elephant',
-    'night-market',
+    'bangkok-alley',
     'wat-arun',
     'beach-town',
     'last-sunset',

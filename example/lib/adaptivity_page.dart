@@ -3,22 +3,26 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 
 // =============================================================
-// Thailand Trip — the one-page adaptivity showcase.
+// Adaptivity — the default: every surface judges itself.
 //
-// A full-bleed photo feed with every glass surface this package ships:
-//  • a photo-memory header — round glass back button, centered title,
-//    and a glass pill with ∨ / ∧ chevrons that page through the feed,
-//  • the glass-refracting morph-pill bottom nav bar (continuous shape),
-//  • a floating "Independent / Linked" glass button, so the coupling
-//    rule is visible live: independent leaves every surface judging
-//    the background behind ITSELF (header and bar can disagree),
-//    linked hands both the bottom strip's link so they flip together.
-//    The edge strips themselves only ever judge the system bars.
+// A full-bleed photo feed under glass chrome, with NO coupling of any
+// kind. Each surface carries the same palettes in its own
+// `style.adaptivity` and samples the background directly behind ITSELF:
 //
-// As dark and light photos scroll beneath the glass, each surface
-// flips its palette — and the OS status / navigation icons follow.
+//  • the header's round back button and its ∨ / ∧ chevron pill,
+//  • the centered title — bare text, adapting through
+//    LiquidGlassAdaptiveContent because it has no glass to inherit from,
+//  • the scroll-edge band that dims the feed under the header,
+//  • the morph-pill bottom nav bar, in its own render pipeline.
 //
-//   flutter run -t lib/trip_page.dart   (standalone)
+// So they can disagree, and that is correct: the header sitting over a
+// dark photo while the bar sits over light paper SHOULD wear different
+// palettes. Scroll slowly and watch each flip on its own.
+//
+// To make them agree instead — one sampled region, one verdict, shared —
+// see `adaptivity_advanced_page.dart`.
+//
+//   flutter run -t lib/adaptivity_page.dart   (standalone)
 //   …or open it from the home menu.
 // =============================================================
 
@@ -32,26 +36,32 @@ class _App extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true),
-      home: const TripPage(),
+      home: const AdaptivityPage(),
     );
   }
 }
 
 /// Shared palettes: smoked glass + light content over dark photos,
-/// milky glass + dark content over light ones. The feed opens on dark
-/// jungle shots, so start dark for a motion-free first verdict.
+/// milky glass + dark content over light ones.
+///
+/// Every glass surface on this page carries this in its own
+/// `style.adaptivity` — the scaffold declares none, so nothing is
+/// inherited and each component states what it wants.
+///
+/// No `initialBrightness`: an entry guess is resolved BEFORE the
+/// fallback and would pin the page to one palette. Left off, the
+/// verdict falls through to the app theme's brightness.
 const _adapt = LiquidGlassAdaptivity(
   glassColorOnDark: Color(0x33000000),
   contentColorOnDark: Colors.white,
   glassColorOnLight: Color(0x66FFFFFF),
   contentColorOnLight: Color(0xFF1C1C1E),
   duration: Duration(milliseconds: 300),
-  initialBrightness: Brightness.dark,
   // Narrow hysteresis: photo content often averages near mid-gray
   // (~0.51), which the default 0.45–0.55 band would keep latched on
   // the previous verdict.
-  darkBelow: 0.50,
-  lightAbove: 0.50,
+  darkBelow: 0.6,
+  lightAbove: 0.6,
 );
 
 /// The top scroll-edge band behind the header: a stronger fade tint
@@ -61,11 +71,25 @@ const _edgeAdapt = LiquidGlassAdaptivity(
   contentColorOnDark: Colors.white,
   glassColorOnLight: Color(0xB3FFFFFF),
   contentColorOnLight: Color(0xFF1C1C1E),
-  duration: Duration(milliseconds: 250),continuousGlassColor: true,
-  initialBrightness: Brightness.dark,
-  darkBelow: 0.50,
-  lightAbove: 0.50,
+  duration: Duration(milliseconds: 250),
+  continuousGlassColor: true,
+  darkBelow: 0.6,
+  lightAbove: 0.6,
 );
+
+/// The page's flat background — what shows on overscroll, past the last
+/// item and behind the journal entries. It follows the app's brightness:
+/// iOS systemGray5 in the light, systemGray6-dark in the dark.
+Color _pageBackground(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF1C1C1E)
+        : const Color(0xFFE5E5EA);
+
+/// Journal text, sitting on [_pageBackground] — the inverse of it.
+Color _pageInk(BuildContext context) =>
+    Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFFE5E5EA)
+        : const Color(0xFF1C1C1E);
 
 /// Header geometry — compact, matching the iOS photo-memory chrome.
 const double _headerHeight = 48;
@@ -105,26 +129,16 @@ const LiquidGlassShape _navPillShape = LiquidGlassShape(
   ),
 );
 
-class TripPage extends StatefulWidget {
-  const TripPage({super.key});
+class AdaptivityPage extends StatefulWidget {
+  const AdaptivityPage({super.key});
 
   @override
-  State<TripPage> createState() => _TripPageState();
+  State<AdaptivityPage> createState() => _AdaptivityPageState();
 }
 
-class _TripPageState extends State<TripPage> {
+class _AdaptivityPageState extends State<AdaptivityPage> {
   final ScrollController _scroll = ScrollController();
   int _index = 0;
-
-  /// `false` → every glass surface judges the background behind
-  /// ITSELF: the header and the bar can legitimately disagree.
-  /// `true` → both follow the bottom strip's link, so they flip
-  /// together in lockstep. The floating glass button flips this
-  /// live; the link is the only thing that couples them.
-  bool _linked = false;
-
-  /// The channel the bottom strip publishes on while [_linked].
-  final LiquidGlassAdaptivityLink _link = LiquidGlassAdaptivityLink();
 
   /// Sigma the scroll edge blurs with — the shipped look.
   ///
@@ -132,7 +146,7 @@ class _TripPageState extends State<TripPage> {
   /// land at 1.0/1.4/2.4 and the shader's 20 taps cover a disc a few
   /// pixels wide. Their differences (shader grain, ladder stepping)
   /// only separate once sigma is large, so raise this to compare them.
-  static const double _edgeBlur = 3;
+  static const double _edgeBlur = 5;
 
   static const LiquidGlassStyle _barStyle = LiquidGlassStyle(
     shape: _navBarShape,
@@ -145,8 +159,8 @@ class _TripPageState extends State<TripPage> {
       distortionWidth: 28,
       chromaticAberration: 0.002,
     ),
-    // No adaptivity here on purpose: the bar inherits the scaffold's
-    // group (edges bottom band / whole) automatically.
+    // Adaptivity is added at the call site from [_adapt] — nothing on
+    // this page inherits, so it cannot be baked in here.
   );
 
   /// Morph-pill tier on every renderer; travel/jelly stay at the
@@ -167,7 +181,6 @@ class _TripPageState extends State<TripPage> {
   @override
   void dispose() {
     _scroll.dispose();
-    _link.dispose();
     super.dispose();
   }
 
@@ -190,34 +203,24 @@ class _TripPageState extends State<TripPage> {
     final EdgeInsets pad = MediaQuery.paddingOf(context);
 
     return LiquidGlassScaffold(
-      // The strips only ever judge the SYSTEM bars. The toggle
-      // decides whether the glass chrome rides the bottom strip's
-      // verdict (linked) or judges its own backdrop (independent).
-      // Linked: the top strip FOLLOWS the header's area, so the OS
-      // status bar mirrors the same verdict — no height to configure.
-      adaptivity: LiquidGlassScaffoldAdaptivity(
-        _adapt,
-        topFollowLink: _linked ? _link : null,
-      ),
-      systemChrome: LiquidGlassSystemChrome.both,
+      // A bare config, carrying no palettes of its own: it is here to
+      // open the adaptive sampler (the scaffold's `adaptivity` is the
+      // only thing that does) and to drive both system bars. Nothing
+      // inherits a palette from it — every glass surface below states
+      // its own in `style.adaptivity`.
       appBarTopMargin: _headerTopMargin,
-      // Linked: the header becomes the group's one PUBLISHER — it
-      // samples its own band and broadcasts on _link, which the bar
-      // and the status-bar strip both follow.
-      appBar: _linked
-          ? LiquidGlassAdaptiveArea(
-              adaptivity: _adapt.copyWith(link: _link),
-              child: _TripHeader(
-                onBack: () => Navigator.maybePop(context),
-                onDown: () => _page(1),
-                onUp: () => _page(-1),
-              ),
-            )
-          : _TripHeader(
-              onBack: () => Navigator.maybePop(context),
-              onDown: () => _page(1),
-              onUp: () => _page(-1),
-            ),
+      adaptivity: const LiquidGlassScaffoldAdaptivity(
+        LiquidGlassAdaptivity(),
+        systemChrome: LiquidGlassSystemChrome.both,
+      ),
+      // No area, no link: the header's pieces each carry [_adapt] and
+      // judge the band behind themselves.
+      appBar: _TripHeader(
+        adaptivity: _adapt,
+        onBack: () => Navigator.maybePop(context),
+        onDown: () => _page(1),
+        onUp: () => _page(-1),
+      ),
       body: _TripFeed(controller: _scroll),
       lenses: [
         // Scroll-edge dim band BEHIND the header (lenses render below
@@ -227,39 +230,15 @@ class _TripPageState extends State<TripPage> {
           left: 0,
           right: 0,
           top: 0,
-          height: pad.top + _headerTopMargin + 80 + 24,
-          // The feathered LADDER, not the progressive-blur shader: the
-          // shader's 20 taps spread over a 2.54·sigma disc and grain
-          // visibly once sigma is large, while the ladder's three real
-          // `ImageFilter.blur` passes stay clean — and render the same
-          // on every backend. `useShaderBlur` left at its `false`
-          // default is what picks it.
+          height: pad.top + _headerTopMargin + 70 + 24,
+          // One `ImageFilter.blur` pass, feathered from the inside by a
+          // `dstIn` ramp — same band on every backend.
           child: LiquidGlassScrollEdge(
             style: LiquidGlassScrollEdgeStyle.soft,
             edge: LiquidGlassEdge.top,
             blur: _edgeBlur,
-            blurCurve: Curves.easeInQuad,
+            blurCurve: Curves.easeInQuart,
             adaptivity: _edgeAdapt,
-          ),
-        ),
-        // The demo switches, floating just under the header.
-        Positioned(
-          top: pad.top + _headerTopMargin + _headerHeight + 10,
-          right: 16,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              LiquidGlassButton(
-                label: _linked ? 'Linked' : 'Independent',
-                icon: _linked
-                    ? Icons.select_all_rounded
-                    : Icons.vertical_align_center_rounded,
-                height: 34,
-                fontSize: 12.5,
-                iconSize: 15,
-                onPressed: () => setState(() => _linked = !_linked),
-              ),
-            ],
           ),
         ),
       ],
@@ -278,10 +257,9 @@ class _TripPageState extends State<TripPage> {
           unselectedColor: Colors.white,
         ),
         // The bar renders in its own pipeline, so it cannot sit inside
-        // a scope — it takes the same link through its own style.
-        style: _linked
-            ? _barStyle.copyWith(adaptivity: _adapt.copyWith(link: _link))
-            : _barStyle,
+        // a scope — it takes the palettes (and, while linked, the link)
+        // through its own style like every other surface here.
+        style: _barStyle.copyWith(adaptivity: _adapt),
         pillStyle: _pillStyle,
       ),
     );
@@ -292,11 +270,19 @@ class _TripPageState extends State<TripPage> {
 /// trip title dead-center, and a glass chevron pill on the right — all
 /// [_headerHeight] tall.
 class _TripHeader extends StatelessWidget {
+  /// Handed to each piece's own style rather than inherited from a
+  /// scaffold. While the page is linked this header sits inside a
+  /// publishing [LiquidGlassAdaptiveArea], and a consumer inside an area
+  /// picks the area's link up on its own — so this stays link-free and
+  /// works either way.
+  final LiquidGlassAdaptivity adaptivity;
+
   final VoidCallback onBack;
   final VoidCallback onDown;
   final VoidCallback onUp;
 
   const _TripHeader({
+    required this.adaptivity,
     required this.onBack,
     required this.onDown,
     required this.onUp,
@@ -314,12 +300,13 @@ class _TripHeader extends StatelessWidget {
           alignment: Alignment.center,
           children: [
             // Bare text over the photo — no glass behind it, so it
-            // adapts through LiquidGlassAdaptiveContent (inherits the
-            // top band / whole area) instead of a lens.
-            const Center(
+            // adapts through LiquidGlassAdaptiveContent, carrying the
+            // palettes itself.
+            Center(
               child: LiquidGlassAdaptiveContent(
-                child: Text(
-                  'Thailand Trip',
+                adaptivity: adaptivity,
+                child: const Text(
+                  'Adaptivity',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
@@ -335,35 +322,37 @@ class _TripHeader extends StatelessWidget {
                 size: _headerHeight,
                 onTap: onBack,
                 style: LiquidGlassStyle(
-                      refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 24,
-      chromaticAberration: 0.002,
-    ),
-                  appearance: LiquidGlassAppearance(
-                          saturation: 1.2,
-
-                    //color: const Color(0x14FFFFFF),
-        blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+                  adaptivity: adaptivity,
+                  refraction: const LiquidGlassRefraction(
+                    distortion: 0.07,
+                    distortionWidth: 24,
+                    chromaticAberration: 0.002,
                   ),
-                  
-                  shape: LiquidGlassShape(lightColor: Colors.grey,borderWidth: 0.5,
-                lightDirection: 100,
-                
-                      lightIntensity: 1.5,
-      borderType: OpticalBorder(
-        //borderSaturation: 1.2,
-
-        ambientIntensity: 1.0,
-        lightSpread: 0.4,
-        borderSolidity: 0.5,
-      ),
-)),
+                  appearance: const LiquidGlassAppearance(
+                    saturation: 1.2,
+                    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+                  ),
+                  shape: const LiquidGlassShape(
+                    lightColor: Colors.grey,
+                    borderWidth: 0.5,
+                    lightDirection: 100,
+                    lightIntensity: 1.5,
+                    borderType: OpticalBorder(
+                      ambientIntensity: 1.0,
+                      lightSpread: 0.4,
+                      borderSolidity: 0.5,
+                    ),
+                  ),
+                ),
               ),
             ),
             Align(
               alignment: Alignment.centerRight,
-              child: _ChevronPill(onDown: onDown, onUp: onUp),
+              child: _ChevronPill(
+                adaptivity: adaptivity,
+                onDown: onDown,
+                onUp: onUp,
+              ),
             ),
           ],
         ),
@@ -375,10 +364,15 @@ class _TripHeader extends StatelessWidget {
 /// The ∨ / ∧ capsule from the header — one glass pill, two tap targets.
 /// Icon colors are left unset so they follow the header band's verdict.
 class _ChevronPill extends StatelessWidget {
+  final LiquidGlassAdaptivity adaptivity;
   final VoidCallback onDown;
   final VoidCallback onUp;
 
-  const _ChevronPill({required this.onDown, required this.onUp});
+  const _ChevronPill({
+    required this.adaptivity,
+    required this.onDown,
+    required this.onUp,
+  });
 
   static const LiquidGlassStyle _style = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
@@ -399,7 +393,7 @@ class _ChevronPill extends StatelessWidget {
     appearance: LiquidGlassAppearance(
       //color: Color(0x14FFFFFF),
       saturation: 1.2,
-        blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
     ),
     refraction: LiquidGlassRefraction(
       distortion: 0.07,
@@ -428,7 +422,7 @@ class _ChevronPill extends StatelessWidget {
       width: _headerHeight * 1.7,
       height: _headerHeight,
       child: LiquidGlassLens(
-        style: _style,
+        style: _style.copyWith(adaptivity: adaptivity),
         child: Row(
           children: [
             _tap(Icons.keyboard_arrow_down_rounded, onDown),
@@ -486,9 +480,9 @@ class _TripFeed extends StatelessWidget {
             : _TripJournal(text: _journal[(i ~/ 2) % _journal.length]),
     ];
     return ColoredBox(
-      // Same light gray as the White Room page (iOS systemGray5) —
-      // visible on overscroll and past the last item.
-      color: const Color(0xFFE5E5EA),
+      // Visible on overscroll and past the last item, so it follows the
+      // app's brightness rather than staying light under a dark theme.
+      color: _pageBackground(context),
       child: ListView.builder(
         controller: controller,
         padding: EdgeInsets.zero,
@@ -499,8 +493,9 @@ class _TripFeed extends StatelessWidget {
   }
 }
 
-/// One journal entry — dark text on light paper, like the reference
-/// design (and the "light" half of the adaptivity demo).
+/// One journal entry — dark text on light paper under a light theme,
+/// inverted under a dark one. The photos are what the adaptive bands
+/// mostly feed on either way: picsum hands back light and dark frames.
 class _TripJournal extends StatelessWidget {
   final String text;
 
@@ -509,14 +504,15 @@ class _TripJournal extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      // Same light gray as the White Room body (iOS systemGray5).
-      color: const Color(0xFFE5E5EA),
+      // The paper between photos, on the same brightness-driven pair as
+      // the page behind it.
+      color: _pageBackground(context),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 30, 24, 30),
         child: Text(
           text,
-          style: const TextStyle(
-            color: Color(0xFF1C1C1E),
+          style: TextStyle(
+            color: _pageInk(context),
             fontSize: 17,
             height: 1.45,
             letterSpacing: -0.2,
@@ -554,7 +550,7 @@ class _TripPhotoState extends State<_TripPhoto>
   static const List<String> _seeds = [
     'krabi-longtail',
     'chiangmai-elephant',
-    'night-market',
+    'bangkok-alley',
     'wat-arun',
     'beach-town',
     'last-sunset',

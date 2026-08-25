@@ -7,11 +7,21 @@ void main() {
   runApp(
     MaterialApp(
       debugShowCheckedModeBanner: false,
+      // Both brightnesses, because the page paints from the theme: what
+      // shows past the grid is `scaffoldBackgroundColor`, so the two
+      // entries below are the only place the page's backdrop is chosen.
+      // From the gallery it is that app's theme instead.
       theme: ThemeData(
+        brightness: Brightness.light,
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFD7D5D5),
+      ),
+      darkTheme: ThemeData(
         brightness: Brightness.dark,
         useMaterial3: true,
-        scaffoldBackgroundColor: Colors.black,
+        scaffoldBackgroundColor: const Color(0xFF101012),
       ),
+      themeMode: ThemeMode.system,
       home: const PhotosLibraryPage(),
     ),
   );
@@ -39,6 +49,8 @@ void main() {
 // every lens refracts, the header goes in `appBar`, the tab capsule in
 // `bottomNavigationBar` and search in `bottomNavigationBarAction` —
 // which pins the circle to the capsule's baseline, safe area included.
+// The page's own surface — all that shows past the grid — comes from
+// the app theme, so the whole thing follows light and dark.
 // =============================================================
 
 /// The one saturated colour on the page: the selected tab, and the tick
@@ -100,8 +112,18 @@ const LiquidGlassAdaptivity _adapt = LiquidGlassAdaptivity(
   glassColorOnLight: Color(0x99FFFFFF),
   contentColorOnLight: _kInk,
   duration: Duration(milliseconds: 300),
-  initialBrightness: Brightness.dark,
   continuousGlassColor: true,
+);
+
+/// The title has no frost to hide in, so the ink is what adapts here —
+/// the exact opposite of [_adapt]. Bare text over a photograph only
+/// survives by inverting, white over a dark frame and near-black over a
+/// bright one, which is why the glass palettes above cannot be reused
+/// for it.
+const LiquidGlassAdaptivity _titleAdapt = LiquidGlassAdaptivity(
+  contentColorOnDark: Color(0xFFFFFFFF),
+  contentColorOnLight: _kInk,
+  duration: Duration(milliseconds: 300),
 );
 
 /// A press response light enough for controls this small — they swell
@@ -198,22 +220,38 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    // A plain Scaffold underneath, purely so the snack bar has somewhere
-    // to land. It paints nothing — the glass scaffold fills it.
+    final EdgeInsets pad = MediaQuery.paddingOf(context);
+
+    // A plain Scaffold underneath, purely so the search snack bar has
+    // somewhere to land — `ScaffoldMessenger` presents into a registered
+    // Scaffold, and the glass one is not a Material Scaffold. It paints
+    // the theme's surface and nothing else; the glass scaffold covers it.
     return Scaffold(
-      backgroundColor: Colors.black,
       extendBody: true,
       resizeToAvoidBottomInset: false,
       body: LiquidGlassScaffold(
         pixelRatio: 1,
         useSync: true,
-        backgroundColor: Colors.black,
+        // The page's own surface, which shows on overscroll and past the
+        // last row — so it comes from the app theme rather than a colour
+        // pinned here, and the grid sits on paper in the light and on
+        // near-black in the dark.
+        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
         actionMargin: _edge,
         // Every glass slot below — header controls, the tab capsule,
         // the search circle — inherits these palettes and judges the
         // photographs behind ITSELF, so nothing here has to be told
         // about the grid.
-        adaptivity: const LiquidGlassScaffoldAdaptivity(_adapt,sampling: LiquidGlassAdaptiveSampling()),
+        //
+        // The grid runs edge to edge under BOTH system bars, so each one
+        // gets a strip: the scaffold samples that band and drives the
+        // OS icon brightness from it. The strips judge only the bars —
+        // the glass chrome above still judges its own backdrop, so the
+        // two can legitimately disagree.
+        adaptivity: const LiquidGlassScaffoldAdaptivity(
+          _adapt,
+          systemChrome: LiquidGlassSystemChrome.both,
+        ),
 
         // ── the photographs, edge to edge and under everything ─────
         body: _PhotoGrid(
@@ -221,7 +259,7 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           selecting: _selecting,
           picked: _picked,
           onTap: _tapCell,
-          bottomInset: MediaQuery.of(context).padding.bottom,
+          bottomInset: pad.bottom,
         ),
 
         // ── title + the two top controls ───────────────────────────
@@ -265,16 +303,17 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
             animated: true,
             growHeight: 7,
             distortionWidth: 10,
-            //shape: _frostShape(40),
             // Travelling, the pill carries almost no tint — over a
             // capsule this pale, a fill would only mud it. It is the
             // refraction of the bar's own frost that reads as movement.
-
+            //
             // Where it lands: the lighter capsule of the reference, a
             // lift of white on white.
             rest: LiquidGlassStyle(
               shape: _frostShape(50),
-              appearance: const LiquidGlassAppearance(color: Color.fromARGB(40, 0, 0, 0)),
+              appearance: const LiquidGlassAppearance(
+                color: Color.fromARGB(40, 0, 0, 0),
+              ),
             ),
           ),
         ),
@@ -285,7 +324,6 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           size: _barHeight,
           onTap: _search,
           touch: _press,
-          //foregroundColor: _kInk,
           style: _frost(_barHeight / 2),
         ),
       ),
@@ -325,36 +363,53 @@ class _LibraryHeader extends StatelessWidget {
           // and this layer sits above the photos.
           Expanded(
             child: IgnorePointer(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Library',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 34,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.8,
-                      height: 1.15,
-                      shadows: [
-                        Shadow(color: Color(0x73000000), blurRadius: 12),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 1),
-                  Text(
-                    subtitle,
-                    style: const TextStyle(
-                      color: Color(0xF2FFFFFF),
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: -0.1,
-                      shadows: [
-                        Shadow(color: Color(0x66000000), blurRadius: 10),
-                      ],
-                    ),
-                  ),
-                ],
+              // Both lines in ONE adaptive block: the title and the count
+              // under it are a single region of bare text, so they sample
+              // together and flip together — the glass beside them keeps
+              // judging its own backdrop. The builder form is what lets
+              // the halo flip with the ink; a plain child only gets the
+              // colour.
+              child: LiquidGlassAdaptiveContent(
+                adaptivity: _titleAdapt,
+                builder: (context, color, brightness) {
+                  // The lift the text sits on. It has to invert with the
+                  // ink — a dark halo under light letters, a light one
+                  // under dark — or the type loses its edge exactly where
+                  // a photograph disagrees with the verdict in patches.
+                  final Color halo = brightness == Brightness.dark
+                      ? const Color(0x73000000)
+                      : const Color(0x8CFFFFFF);
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Library',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.8,
+                          height: 1.15,
+                          shadows: [Shadow(color: halo, blurRadius: 12)],
+                        ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        subtitle,
+                        // The count is the quiet line: the same adapted
+                        // ink, held back rather than given a colour of
+                        // its own.
+                        style: TextStyle(
+                          color: color.withValues(alpha: color.a * 0.82),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.1,
+                          shadows: [Shadow(color: halo, blurRadius: 10)],
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
