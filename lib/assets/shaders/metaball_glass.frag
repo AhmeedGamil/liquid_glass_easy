@@ -218,7 +218,7 @@ out vec4 frag_color;
 // (front/back of the light axis, zero at 90°); 1 = half-Lambert wrap (0.5
 // at 90°) so the concave neck — whose normals are perpendicular to the
 // light — keeps a rim and the merged border stays connected. Tune 0..1.
-#define METABALL_RIM_WRAP 1.0
+#define METABALL_RIM_WRAP 0.0
 
 // EXPERIMENT (lens-anywhere-v4): two approaches to the bad CONTINUOUS blend.
 //

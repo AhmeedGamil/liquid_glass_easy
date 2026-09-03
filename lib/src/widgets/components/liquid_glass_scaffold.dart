@@ -271,6 +271,14 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// automatic Skia / Impeller detection.
   final bool? useImpellerBackdrop;
 
+  /// See [LiquidGlassView.batch]. `true` (the default) puts the glass in
+  /// [body] on one shared read of the backdrop and the chrome — app bar,
+  /// tab bar, action, FAB, dialog, [lenses] — on another. With a glass
+  /// pill tab bar the moving pill and its magnifier keep reads of their
+  /// own: the pill exists to refract the capsule under it, which no batch
+  /// member can see.
+  final bool batch;
+
   /// The palettes this scaffold's glass chrome wears, the OS bars it
   /// drives, and the strips that judge them — see
   /// [LiquidGlassScaffoldAdaptivity]. `null` (the default) means
@@ -303,6 +311,7 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.useSync = true,
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
+    this.batch = true,
     this.adaptivity,
   });
 
@@ -391,6 +400,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         pixelRatio: widget.pixelRatio,
         useSync: widget.useSync,
         useImpellerBackdrop: widget.useImpellerBackdrop,
+        batch: widget.batch,
         realTimeCapture: widget.realTimeCapture,
         // The bar's outer pipeline also carries OUR overlay slots. If any of
         // them is a lens it needs a live capture even while the pill is
@@ -429,6 +439,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       useSync: widget.useSync,
       refreshRate: widget.refreshRate,
       useImpellerBackdrop: widget.useImpellerBackdrop,
+      batch: widget.batch,
       adaptiveSampling: sampling,
       backgroundWidget: background,
       child: _outerSlots(context, pad, includeNavBar: true),

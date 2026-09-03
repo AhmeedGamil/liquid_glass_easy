@@ -68,6 +68,12 @@ class _RenderLensXformProbe extends RenderProxyBox
 /// resolution. When the view is full-screen at the window origin the
 /// offset is zero and the view size equals the parent size, so this is
 /// a no-op for that (common) case.
+///
+/// That surface is not always the window. An ancestor `ImageFiltered`
+/// renders this lens into its own texture, and the fragments then arrive
+/// measured from THAT texture's corner — Android's stretch overscroll
+/// wraps every scrollable in one for the length of a pull. Both the
+/// origin and the sampling window follow it; see `_subpassOrigin`.
 class ImpellerLiquidGlassLens extends StatefulWidget {
   final LiquidGlass config;
   final Size parentSize;
@@ -126,6 +132,20 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
   /// instead of drawing the untransformed rect and getting clipped.
   double _xformA = 1, _xformB = 0, _xformC = 0, _xformD = 1;
 
+  /// The corner the shader's fragments are measured from, in window
+  /// logical px, and the size of the surface they cover. Zero and null in
+  /// the ordinary case, where that surface IS the window.
+  ///
+  /// An ancestor `ImageFiltered` renders this lens into its own texture —
+  /// Android's stretch overscroll does, for exactly as long as the pull
+  /// lasts — and `FlutterFragCoord()` then starts at that texture's corner
+  /// instead. Sampled after the frame, because the layer that gives it away
+  /// only exists once compositing is settled; it therefore lands one frame
+  /// after the subpass appears, on the same beat this path already runs for
+  /// every ancestor move.
+  Offset _subpassOrigin = Offset.zero;
+  Size? _subpassSize;
+
   /// Whether an ancestor carries scale/rotation. Translation-only lenses
   /// keep the exact legacy screen-space uniforms, bit-identical.
   bool get _hasLinearXform =>
@@ -166,6 +186,17 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d, [12..13]=t.
     final s = box.getTransformTo(null).storage;
     final next = Offset(s[12], s[13]);
+    // The filtered subpass this lens renders into, if any. Read here rather
+    // than in build: the walk looks at composited layers, which are only
+    // settled once the frame has been painted.
+    final RenderObject? subpass = liquidGlassFilterSubpassAncestor(box);
+    final Offset subOrigin = subpass == null
+        ? Offset.zero
+        : MatrixUtils.transformPoint(subpass.getTransformTo(null), Offset.zero);
+    final Size? subSize = subpass is RenderBox ? subpass.size : null;
+    final bool subpassChanged =
+        (subOrigin - _subpassOrigin).distanceSquared > 0.01 ||
+            subSize != _subpassSize;
     bool differs(double a, double b, double c, double d, Offset o) =>
         (next - o).distanceSquared > 0.01 ||
         (s[0] - a).abs() > 1e-4 ||
@@ -180,13 +211,15 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     _lastC = s[1];
     _lastD = s[5];
     _lastOffset = next;
-    if (staleBuild || moving) {
+    if (staleBuild || moving || subpassChanged) {
       setState(() {
         _layerGlobalOffset = next;
         _xformA = s[0];
         _xformB = s[4];
         _xformC = s[1];
         _xformD = s[5];
+        _subpassOrigin = subOrigin;
+        _subpassSize = subSize;
       });
     }
   }
@@ -274,7 +307,8 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       xformB: linearXform ? _xformB : 0,
       xformC: linearXform ? _xformC : 0,
       xformD: linearXform ? _xformD : 1,
-      xformOffset: linearXform ? _layerGlobalOffset : Offset.zero,
+      xformOffset:
+          linearXform ? _layerGlobalOffset - _subpassOrigin : Offset.zero,
     );
   }
 
@@ -324,9 +358,13 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // layout below still uses the parent-relative `lensPosition`; only
     // the shader uniforms are shifted into screen space.
     final viewSize = MediaQuery.sizeOf(context);
-    final Size resolution = (viewSize.width > 0 && viewSize.height > 0)
+    final Size window = (viewSize.width > 0 && viewSize.height > 0)
         ? viewSize
         : widget.parentSize;
+    // The surface the pass renders into is also the one it SAMPLES, so the
+    // sampling window is that surface's size. Inside a subpass the window's
+    // is too big, and dividing by it squeezes the whole page into the glass.
+    final Size resolution = _subpassSize ?? window;
     // Fresh matrix for THIS frame; the post-frame sync only schedules the
     // rebuilds that get us here while the transform keeps moving.
     _sampleTransformInBuild();
@@ -334,8 +372,9 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     // whole placement — translation included — rides the xform map, so
     // the shader's geometry lands exactly where the widget clip does.
     final bool linearXform = _hasLinearXform;
-    final Offset screenLensPosition =
-        linearXform ? lensPosition : lensPosition + _layerGlobalOffset;
+    final Offset screenLensPosition = linearXform
+        ? lensPosition
+        : lensPosition + _layerGlobalOffset - _subpassOrigin;
 
     _setMainShaderUniformsForBackdrop(
       shader: shader,

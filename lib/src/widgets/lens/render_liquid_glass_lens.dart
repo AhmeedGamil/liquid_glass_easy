@@ -22,6 +22,31 @@ enum LiquidGlassLensRenderMode {
   skiaCapture,
 }
 
+/// How the Impeller shader pass is clipped. Library-internal.
+///
+/// The shader draws the outline itself, with an anti-aliasing ramp centred
+/// on it. What clips the pass decides whether the outer half of that ramp
+/// survives, and what the pass's coverage is — which the engine rounds out
+/// to whole pixels every frame.
+enum LiquidGlassShaderClip {
+  /// The exact outline, as in 4.0.0: the ramp's outer half is trimmed, so
+  /// the edge is exactly the shape. The coverage is the lens box,
+  /// fractional; the frame is packed against the engine's rounded copy of it
+  /// ([RenderLiquidGlassLens._passRounding]) so the content does not
+  /// re-frame while the lens moves or squashes.
+  outlineTracked,
+
+  /// The exact outline with the frame packed naively — 4.0.0 as shipped,
+  /// in-flight wobble included. Kept only to A/B [outlineTracked] against.
+  outline,
+
+  /// A rect two logical px past the box, snapped out to whole physical
+  /// pixels, as in 4.1.0: the rounding is a no-op, so nothing re-frames,
+  /// and the ramp's outer half stays — the edge reads ~0.5 lp softer. The
+  /// package's moving pills (tab bar, slider, switch) use this.
+  snapped,
+}
+
 /// The Impeller lens's shader pass, resolved at **compositing time**.
 ///
 /// The one job of this layer is timing. A scroll moves the lens by
@@ -48,8 +73,11 @@ class _ImpellerShaderBackdropLayer extends ContainerLayer {
     if (lens == null || !lens.attached) return;
     lens._packImpellerMainUniforms();
     engineLayer = builder.pushBackdropFilter(
-      ui.ImageFilter.shader(lens._mainShader),
+      lens._impellerFilter,
       oldLayer: engineLayer as ui.BackdropFilterEngineLayer?,
+      // Set inside a LiquidGlassBatch: every member pushes the same key, so
+      // the engine reads the backdrop once and they all sample that copy.
+      backdropId: lens._backdropId,
     );
     addChildrenToScene(builder);
     builder.pop();
@@ -91,11 +119,15 @@ class RenderLiquidGlassLens extends RenderProxyBox
     bool honorBackdropAlpha = false,
     required Size screenSize,
     required double devicePixelRatio,
+    int? backdropId,
+    required LiquidGlassShaderClip shaderClip,
     ValueListenable<int>? captureRevision,
     ui.Image? Function()? currentImage,
     ui.Image? Function()? captureFallback,
     RenderBox? Function()? backgroundRenderBox,
   })  : _mode = mode,
+        _backdropId = backdropId,
+        _shaderClip = shaderClip,
         _honorBackdropAlpha = honorBackdropAlpha,
         _mainShader = mainShader,
         _borderShader = borderShader,
@@ -117,6 +149,34 @@ class RenderLiquidGlassLens extends RenderProxyBox
   set mode(LiquidGlassLensRenderMode value) {
     if (_mode == value) return;
     _mode = value;
+    markNeedsPaint();
+  }
+
+  /// The `LiquidGlassBatch` this lens belongs to, as the shared backdrop key
+  /// every member hands to `pushBackdropFilter`. Impeller reads the backdrop
+  /// once per key, so a batch of any size costs one read instead of one each.
+  ///
+  /// It also changes what this lens pushes: a batched lens with blur folds
+  /// the Gaussian into its single backdrop pass (see [_paintImpellerBatched])
+  /// instead of stacking a second one under it. `null` — no batch — keeps the
+  /// two-pass path.
+  /// See [LiquidGlassShaderClip]. Impeller, unbatched path only — the
+  /// batched pass keeps its padded rect, which the composed blur needs.
+  LiquidGlassShaderClip _shaderClip;
+  set shaderClip(LiquidGlassShaderClip value) {
+    if (_shaderClip == value) return;
+    _shaderClip = value;
+    markNeedsPaint();
+  }
+
+  int? _backdropId;
+  set backdropId(int? value) {
+    if (_backdropId == value) return;
+    _backdropId = value;
+    // The key is baked into the pushed engine layer, so start a fresh one
+    // rather than handing the old layer to a push with a different id.
+    _shaderLayerHandle.layer?.renderObject = null;
+    _shaderLayerHandle.layer = null;
     markNeedsPaint();
   }
 
@@ -253,7 +313,6 @@ class RenderLiquidGlassLens extends RenderProxyBox
     markNeedsPaint();
   }
 
-
   /// The lens outline as an RRect, stretched by [_shapeScale].
   ///
   /// The shader evaluates the shape at REST size and scales the domain, so the
@@ -320,6 +379,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
       LayerHandle<_ImpellerShaderBackdropLayer>();
   final LayerHandle<ClipRectLayer> _shaderClipRectLayerHandle =
       LayerHandle<ClipRectLayer>();
+  final LayerHandle<ClipRRectLayer> _shaderClipRRectLayerHandle =
+      LayerHandle<ClipRRectLayer>();
+  final LayerHandle<ClipPathLayer> _shaderClipPathLayerHandle =
+      LayerHandle<ClipPathLayer>();
   final LayerHandle<ClipRRectLayer> _skiaBlurClipLayerHandle =
       LayerHandle<ClipRRectLayer>();
 
@@ -343,6 +406,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _blurLayerHandle.layer = null;
     _shaderLayerHandle.layer = null;
     _shaderClipRectLayerHandle.layer = null;
+    _shaderClipRRectLayerHandle.layer = null;
+    _shaderClipPathLayerHandle.layer = null;
     _skiaBlurClipLayerHandle.layer = null;
     _skiaBlurClipPathLayerHandle.layer = null;
     super.dispose();
@@ -350,6 +415,14 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   bool get _useBlur =>
       _appearance.blur.sigmaX > 0 || _appearance.blur.sigmaY > 0;
+
+  /// The batched pass's clip, in lens-local logical px, while the blur is
+  /// composed into the shader — and `null` on every other path.
+  ///
+  /// Set at paint time, read back at compositing time: it is both the flag
+  /// that says "compose the blur in" and the frame the uniforms are packed
+  /// against, since composing bounds the shader's input to this rect.
+  Rect? _batchClip;
 
   /// Packs the shared uniform block straight from the current values —
   /// no interpolation here; the widget layer already resolved any
@@ -433,7 +506,14 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
     switch (_mode) {
       case LiquidGlassLensRenderMode.impellerBackdrop:
-        _paintImpeller(context, offset);
+        // A batch shares one backdrop read across all its lenses, which only
+        // works if each is a single pass — a different paint path, not just a
+        // key on the same one.
+        if (_backdropId != null) {
+          _paintImpellerBatched(context, offset);
+        } else {
+          _paintImpeller(context, offset);
+        }
       case LiquidGlassLensRenderMode.skiaCapture:
         _paintSkiaCapture(context, offset);
     }
@@ -443,13 +523,23 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   /// Packs the main-shader uniforms for the Impeller backdrop pass.
   ///
-  /// Under ImageFilter.shader, FlutterFragCoord() is screen-space
-  /// physical pixels, so position/resolution are global. Called from
-  /// [_ImpellerShaderBackdropLayer.addToScene] during scene building —
-  /// after all layout and paint — so the transform is final for the
-  /// frame, scroll offsets included.
+  /// Under ImageFilter.shader, FlutterFragCoord() is physical pixels
+  /// measured from the corner of whatever surface the pass renders into
+  /// — normally the window, so position and resolution are global.
+  /// Called from [_ImpellerShaderBackdropLayer.addToScene] during scene
+  /// building — after all layout and paint — so the transform is final
+  /// for the frame, scroll offsets included.
   void _packImpellerMainUniforms() {
-    final Matrix4 transform = getTransformTo(null);
+    // That surface is not always the window. An ancestor can render this
+    // lens into a filtered subpass — Android's stretch overscroll does,
+    // for exactly as long as the pull lasts — and the fragments then
+    // arrive in THAT texture's space, while the clip rides the layer tree
+    // and lands correctly regardless. Measuring the geometry from the same
+    // corner the fragments do is what keeps the two together; a null
+    // ancestor is the ordinary case and means the window.
+    final RenderObject? subpassAncestor =
+        liquidGlassFilterSubpassAncestor(this);
+    final Matrix4 transform = getTransformTo(subpassAncestor);
     // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d, [12..13]=t.
     final s = transform.storage;
     // Ancestor scale/rotation? The clip rides the layer tree and gets it
@@ -462,12 +552,44 @@ class RenderLiquidGlassLens extends RenderProxyBox
         s[4].abs() > 1e-4 ||
         s[1].abs() > 1e-4 ||
         (s[5] - 1).abs() > 1e-4;
+    // The surface the pass renders into is also the one it SAMPLES: the
+    // backdrop arrives as that texture, so the sampling window is its size.
+    // A subpass is smaller than the window by whatever sits outside the
+    // filtered subtree, and dividing by the window instead squeezes the
+    // whole page into the glass — the rows above and below the lens end up
+    // refracted inside it.
+    final Size? subpassSize =
+        subpassAncestor is RenderBox ? subpassAncestor.size : null;
+    // Batched with a composed blur, the shader reads an intermediate bounded
+    // by the pass's clip, so FlutterFragCoord starts at that rect's top-left:
+    // pack the whole frame there — origin, resolution and sampling window —
+    // or the pieces desync and the glass slides inside its own outline. The
+    // rect that counts is the one the ENGINE ends up with, not the one we
+    // asked for; see [_composedPassRect].
+    final Rect? clip = _batchClip;
+    final Rect? clipInScreen = clip == null
+        ? null
+        : _composedPassRect(MatrixUtils.transformRect(transform, clip),
+            subpassAncestor, subpassSize);
+    final Offset origin = clipInScreen?.topLeft ?? Offset.zero;
+    // Outline-clipped plain pass: the coverage is the fractional lens box,
+    // and the engine rounds it out. The shader's frame is shifted by the
+    // fraction the rounding eats, so the content lands where it would have
+    // on a whole-pixel box. Zero on the pixel grid, where the snapped clip
+    // and this agree by construction.
+    final Offset track = (clip == null &&
+            !linearXform &&
+            _shaderClip == LiquidGlassShaderClip.outlineTracked)
+        ? _passRounding(transform, subpassAncestor, subpassSize)
+        : Offset.zero;
     _packUniforms(
       _mainShader,
-      resolution: _screenSize,
+      resolution: clipInScreen?.size ?? subpassSize ?? _screenSize,
       lensPosition: linearXform
           ? Offset.zero
-          : MatrixUtils.transformPoint(transform, Offset.zero),
+          : MatrixUtils.transformPoint(transform, Offset.zero) -
+              origin +
+              track,
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.
@@ -476,12 +598,73 @@ class RenderLiquidGlassLens extends RenderProxyBox
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
       honorBackdropAlpha: false,
+      // Clip-local snapshot → sample it from its own origin, window = the
+      // rect. Tracked: the full-surface texture, seen from the shifted frame.
+      imageOffset: track,
+      imageSize: clipInScreen?.size,
       xformA: linearXform ? s[0] : 1,
       xformB: linearXform ? s[4] : 0,
       xformC: linearXform ? s[1] : 0,
       xformD: linearXform ? s[5] : 1,
-      xformOffset: linearXform ? Offset(s[12], s[13]) : Offset.zero,
+      xformOffset: linearXform ? Offset(s[12], s[13]) - origin : Offset.zero,
     );
+  }
+
+  /// Where the composed pass's intermediate actually lands, in surface
+  /// coordinates.
+  ///
+  /// [_pushShaderPass] asks for a clip; the engine gives it that rect
+  /// INTERSECTED with every clip already on the stack, and bounds the
+  /// composed intermediate by the result. So the origin `FlutterFragCoord()`
+  /// counts from is the intersection's top-left, not the one we asked for —
+  /// and the two part company the moment an ancestor cuts our rect.
+  ///
+  /// Losing the right or bottom edge is harmless: a rect cut there keeps its
+  /// origin. Losing the LEFT or TOP moves it, and the glass is then drawn
+  /// that far from the outline it belongs to — the lens slides bodily out of
+  /// its own box while its child stays put. It is not an edge case either:
+  /// this clip is padded by three sigma of blur plus the whole refraction
+  /// band, so it hangs tens of logical pixels outside the lens and anything
+  /// near a screen or viewport edge is cut. A two-column grid of batched
+  /// lenses shows it as a left column pushed right and a right column that
+  /// looks perfectly fine.
+  Rect _composedPassRect(
+      Rect rawInSurface, RenderObject? surface, Size? surfaceSize) {
+    Rect cut =
+        rawInSurface.intersect(Offset.zero & (surfaceSize ?? _screenSize));
+    final Rect? ancestors = liquidGlassAncestorPaintClip(this, surface);
+    if (ancestors != null) cut = cut.intersect(ancestors);
+    // Clipped away entirely: none of this lens is on screen this frame, and
+    // an empty rect would hand the shader a zero resolution to divide by.
+    return cut.isEmpty ? rawInSurface : cut;
+  }
+
+  /// Which way the frame is shifted against the engine's rounding. `1`
+  /// assumes the engine reports fragments from the fractional corner while
+  /// placing the pass at the rounded one; `-1` the reverse. Settled on the
+  /// device, not on paper: if the tracked mode DOUBLES the wobble, flip it.
+  static const double _trackDirection = 1;
+
+  /// How far the engine's rounded coverage of the outline-clipped pass sits
+  /// from the fractional one, in logical px, signed by [_trackDirection].
+  ///
+  /// The pass's coverage is the lens box in surface space, cut by whatever
+  /// clips sit above it (as [_composedPassRect] cuts the batched rect), and
+  /// the engine rounds that out to whole physical pixels. Only the corner
+  /// matters: the size rounds too, but the shader never divides by it here —
+  /// the sampling window stays the full surface.
+  Offset _passRounding(
+      Matrix4 transform, RenderObject? surface, Size? surfaceSize) {
+    final Rect raw = _composedPassRect(
+        MatrixUtils.transformRect(transform, Offset.zero & size),
+        surface,
+        surfaceSize);
+    final double dpr = _devicePixelRatio;
+    final Offset rounded = Offset(
+      (raw.left * dpr).floorToDouble() / dpr,
+      (raw.top * dpr).floorToDouble() / dpr,
+    );
+    return (raw.topLeft - rounded) * _trackDirection;
   }
 
   /// How far the shader pass's rectangular clip extends past the lens box,
@@ -533,21 +716,115 @@ class RenderLiquidGlassLens extends RenderProxyBox
       _clipPathLayerHandle.layer = null;
     }
 
-    // The shader draws the outline itself (centered edge AA in
-    // computeShapeMask), so its clip is only a BOUND, not the silhouette:
-    // a padded rect, snapped outward to whole physical pixels. Fractional
-    // clip bounds are what re-frame the engine's backdrop intermediates
-    // every frame while the lens moves or squashes — the in-flight content
-    // wobble. On the pixel grid the bounds only ever step by exact texels,
-    // which the sharp pass survives, while the shader's fractional
-    // geometry keeps the visible outline sub-pixel smooth. Outside the
-    // outline the shader emits zero coverage, so the padding shows the
-    // untouched backdrop and stays invisible.
-    Rect shaderClip = Rect.fromLTWH(
-      -_shaderClipPad,
-      -_shaderClipPad,
-      size.width + 2 * _shaderClipPad,
-      size.height + 2 * _shaderClipPad,
+    // What clips the shader pass — see [LiquidGlassShaderClip]. The shader
+    // draws the outline itself (centered edge AA in computeShapeMask), so
+    // the clip is either the outline, which trims the ramp's outer half, or
+    // a snapped bound around it, which keeps it. Fractional coverage is what
+    // re-frames the engine's intermediate in flight; the outline modes take
+    // that fraction into the frame instead ([_passRounding]), the snapped
+    // one never has it.
+    _batchClip = null;
+    switch (_shaderClip) {
+      case LiquidGlassShaderClip.snapped:
+        _shaderClipRRectLayerHandle.layer = null;
+        _shaderClipPathLayerHandle.layer = null;
+        _pushShaderPass(context, offset,
+            _snappedShaderClip(_shaderClipPad, _shaderClipPad));
+      case LiquidGlassShaderClip.outline:
+      case LiquidGlassShaderClip.outlineTracked:
+        _shaderClipRectLayerHandle.layer = null;
+        if (_exactClip) {
+          _shaderClipRRectLayerHandle.layer = null;
+          _shaderClipPathLayerHandle.layer = context.pushClipPath(
+            needsCompositing,
+            offset,
+            Offset.zero & size,
+            _outlinePath(Offset.zero & size),
+            _pushShaderLayer,
+            oldLayer: _shaderClipPathLayerHandle.layer,
+          );
+        } else {
+          _shaderClipPathLayerHandle.layer = null;
+          _shaderClipRRectLayerHandle.layer = context.pushClipRRect(
+            needsCompositing,
+            offset,
+            Offset.zero & size,
+            _outlineRRect(Offset.zero & size),
+            _pushShaderLayer,
+            oldLayer: _shaderClipRRectLayerHandle.layer,
+          );
+        }
+    }
+
+    // Child on top of the glass.
+    super.paint(context, offset);
+  }
+
+  /// Batched Impeller pass: **one** backdrop for this lens, tagged with the
+  /// batch's shared key, so the engine reads the backdrop once for the whole
+  /// batch instead of once (twice, with blur) per member.
+  ///
+  /// The blur cannot stay a pass of its own here. Stacked backdrops chain —
+  /// the shader reads what the blur below it wrote — but members of a batch
+  /// all read the SAME copy, taken before any of them painted, so a shader
+  /// sharing the batch's key would never see its own blur. It goes inside the
+  /// single pass instead, as `compose(outer: shader, inner: blur)`: the engine
+  /// blurs the shared copy and hands the result to the shader, which is the
+  /// same chain in one read.
+  ///
+  /// That costs a coordinate frame. Composing bounds the shader's input to
+  /// this pass's clip, so `FlutterFragCoord()` starts at the clip's top-left
+  /// rather than the screen's, and [_packImpellerMainUniforms] packs the
+  /// geometry clip-local whenever [_batchClip] is set. The clip is widened to
+  /// match: a Gaussian reads `3 * sigma` past every pixel it writes, and past
+  /// the clip there is nothing to read but the edge, repeated.
+  void _paintImpellerBatched(PaintingContext context, Offset offset) {
+    _blurLayerHandle.layer = null;
+    _clipLayerHandle.layer = null;
+    _clipPathLayerHandle.layer = null;
+    _shaderClipRRectLayerHandle.layer = null;
+    _shaderClipPathLayerHandle.layer = null;
+
+    if (!_useBlur) {
+      // No blur, no compose: the plain shader filter samples the full-screen
+      // backdrop, so the frame stays screen-space and the clip stays tight.
+      _batchClip = null;
+      _pushShaderPass(
+          context, offset, _snappedShaderClip(_shaderClipPad, _shaderClipPad));
+      super.paint(context, offset);
+      return;
+    }
+
+    // Room for everything that reaches past the lens box: the Gaussian tail,
+    // the refraction band the shader samples across, and the rim.
+    final double reach = _refraction.effectiveDistortionWidth +
+        _fullBorderWidth +
+        _shaderClipPad;
+    final Rect clip = _snappedShaderClip(
+      3.0 * _appearance.blur.sigmaX + reach,
+      3.0 * _appearance.blur.sigmaY + reach,
+    );
+    _batchClip = clip;
+    _pushShaderPass(context, offset, clip);
+
+    // Child on top of the glass.
+    super.paint(context, offset);
+  }
+
+  /// The shader pass's clip: the lens box padded by [padX] / [padY], snapped
+  /// outward to whole physical pixels.
+  ///
+  /// Fractional clip bounds are what re-frame the engine's backdrop
+  /// intermediates every frame while the lens moves or squashes — the
+  /// in-flight content wobble. On the pixel grid the bounds only ever step by
+  /// exact texels, which the sharp pass survives, while the shader's
+  /// fractional geometry keeps the visible outline sub-pixel smooth.
+  Rect _snappedShaderClip(double padX, double padY) {
+    final Rect clip = Rect.fromLTRB(
+      -padX,
+      -padY,
+      size.width + padX,
+      size.height + padY,
     );
     final s = getTransformTo(null).storage;
     // Snapping is only meaningful when screen space is a pure translation
@@ -557,34 +834,61 @@ class RenderLiquidGlassLens extends RenderProxyBox
         s[4].abs() < 1e-4 &&
         s[1].abs() < 1e-4 &&
         (s[5] - 1).abs() < 1e-4;
-    if (translationOnly) {
-      final double dpr = _devicePixelRatio;
-      final double ox = s[12], oy = s[13];
-      shaderClip = Rect.fromLTRB(
-        ((ox + shaderClip.left) * dpr).floorToDouble() / dpr - ox,
-        ((oy + shaderClip.top) * dpr).floorToDouble() / dpr - oy,
-        ((ox + shaderClip.right) * dpr).ceilToDouble() / dpr - ox,
-        ((oy + shaderClip.bottom) * dpr).ceilToDouble() / dpr - oy,
-      );
-    }
+    if (!translationOnly) return clip;
+    final double dpr = _devicePixelRatio;
+    final double ox = s[12], oy = s[13];
+    return Rect.fromLTRB(
+      ((ox + clip.left) * dpr).floorToDouble() / dpr - ox,
+      ((oy + clip.top) * dpr).floorToDouble() / dpr - oy,
+      ((ox + clip.right) * dpr).ceilToDouble() / dpr - ox,
+      ((oy + clip.bottom) * dpr).ceilToDouble() / dpr - oy,
+    );
+  }
+
+  /// Pushes the backdrop pass inside [clip].
+  ///
+  /// The shader draws the outline itself (centered edge AA in
+  /// computeShapeMask), so the clip is only a BOUND, not the silhouette.
+  /// Outside the outline the shader emits zero coverage, so the padding shows
+  /// the untouched backdrop and stays invisible.
+  void _pushShaderPass(PaintingContext context, Offset offset, Rect clip) {
     _shaderClipRectLayerHandle.layer = context.pushClipRect(
       needsCompositing,
       offset,
-      shaderClip,
-      (PaintingContext context, Offset offset) {
-        // No uniforms packed here: the layer does that itself at
-        // compositing time, when the frame's transform is final.
-        final shaderLayer =
-            _shaderLayerHandle.layer ??= _ImpellerShaderBackdropLayer();
-        shaderLayer.renderObject = this;
-        context.pushLayer(
-            shaderLayer, (PaintingContext context, Offset offset) {}, offset);
-      },
+      clip,
+      _pushShaderLayer,
       oldLayer: _shaderClipRectLayerHandle.layer,
     );
+  }
 
-    // Child on top of the glass.
-    super.paint(context, offset);
+  /// The backdrop pass itself, inside whichever clip the caller pushed.
+  /// No uniforms packed here: the layer does that itself at compositing
+  /// time, when the frame's transform is final.
+  void _pushShaderLayer(PaintingContext context, Offset offset) {
+    final shaderLayer =
+        _shaderLayerHandle.layer ??= _ImpellerShaderBackdropLayer();
+    shaderLayer.renderObject = this;
+    context.pushLayer(
+        shaderLayer, (PaintingContext context, Offset offset) {}, offset);
+  }
+
+  /// What the backdrop pass filters through.
+  ///
+  /// Plain shader outside a batch (the blur is its own pass below); inside
+  /// one, the blur rides along as the composed inner filter so the whole lens
+  /// is a single read.
+  ui.ImageFilter get _impellerFilter {
+    final ui.ImageFilter shaderFilter = ui.ImageFilter.shader(_mainShader);
+    if (_batchClip == null) return shaderFilter;
+    return ui.ImageFilter.compose(
+      outer: shaderFilter,
+      // Sigma is LOGICAL px here, like every other blur the package hands the
+      // engine — scaling it by dpr would over-blur by that factor.
+      inner: ui.ImageFilter.blur(
+        sigmaX: _appearance.blur.sigmaX,
+        sigmaY: _appearance.blur.sigmaY,
+      ),
+    );
   }
 
   // ── Skia / Web: sample the view's captured background ─────────────
@@ -609,7 +913,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
     final Matrix4 toView = getTransformTo(viewBox);
     // Column-major storage: [0]=a, [4]=b, [1]=c, [5]=d.
     final s = toView.storage;
-    final Offset lensPosInView = MatrixUtils.transformPoint(toView, Offset.zero);
+    final Offset lensPosInView =
+        MatrixUtils.transformPoint(toView, Offset.zero);
     final Size viewSize = viewBox.size;
     final bool useBlur = _useBlur;
 

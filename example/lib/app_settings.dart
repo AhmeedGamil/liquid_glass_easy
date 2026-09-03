@@ -25,3 +25,18 @@ LinearGradient galleryBackground(Brightness brightness) {
         : const [Color(0xFFF7F6FB), Color(0xFFEFE9FB), Color(0xFFE6DDF7)],
   );
 }
+
+/// The theme every demo page is opened under.
+///
+/// Lives here rather than in the gallery because the pages are opened
+/// from more than one place — the gallery, a standalone `-t` entry
+/// point, the docs-site build — and a page that looks different
+/// depending on who pushed it is a page nobody can check.
+ThemeData galleryTheme(Brightness brightness) => ThemeData(
+      brightness: brightness,
+      colorScheme: ColorScheme.fromSeed(
+        seedColor: const Color(0xFF7C5CFF),
+        brightness: brightness,
+      ),
+      useMaterial3: true,
+    );

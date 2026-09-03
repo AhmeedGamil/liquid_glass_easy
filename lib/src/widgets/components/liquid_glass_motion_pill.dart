@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 
 import '../lens/liquid_glass_lens.dart';
 import '../lens/liquid_glass_lens_scope.dart';
+import '../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
 import '../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../liquid_glass_style.dart';
@@ -287,6 +288,12 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     Widget pill = LiquidGlassLens(
       style: style,
       honorBackdropAlpha: widget.honorBackdropAlpha,
+      // Off at rest: the cover is opaque there and the glass under it
+      // would only cost its backdrop pass. Same edge the host is told.
+      visibility: _morph != 0,
+      // The 4.1.0 clip, like the tab bar's pills: a padded rect on the
+      // pixel grid, whose rounding never re-frames the content in flight.
+      shaderClip: LiquidGlassShaderClip.snapped,
       restSize: Size(morphW, morphH),
       deform: LiquidGlassFlexDeform(
         left: (pillW - morphW) / 2,
@@ -302,14 +309,13 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     );
 
     // The cover is the pill's own face at rest, so it has to hide the
-    // glass completely. On the Impeller backdrop path the shader draws
-    // its edge-AA ramp half a logical px PAST the outline (the lens's
-    // layer clip no longer trims it), so the cover reaches the same
-    // distance and the two silhouettes coincide; the Skia path still
-    // trims the glass at the outline with a canvas clip, so there the
-    // cover stays on it. That reach is why the cover is a layer of its
-    // own above the lens rather than its child: the lens clips a child
-    // to its box.
+    // glass completely. On the Impeller backdrop path the snapped clip
+    // leaves the shader's edge-AA ramp half a logical px PAST the outline,
+    // so the cover reaches the same distance and the two silhouettes
+    // coincide; the Skia path still trims the glass at the outline with a
+    // canvas clip, so there the cover stays on it. It is a layer of its
+    // own above the lens rather than its child: the lens clips a child to
+    // its box, and the lens can be switched off under it at rest.
     Widget? coverLayer;
     if (cover != null) {
       final LiquidGlassLensScope? scope =

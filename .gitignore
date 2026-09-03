@@ -32,9 +32,12 @@ migrate_working_dir/
 .flutter-plugins
 .flutter-plugins-dependencies
 build/
-
+private/
 # Local-only test folder (not part of the published package)
 test/
+lab/
+# Local-only web demo app (not part of the published package)
+web_demos/
 
 # Local agent / toolchain folders
 .agents/

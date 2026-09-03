@@ -44,6 +44,7 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
 | **Blend** | `LiquidGlassBlender` | Merges **2–8** lenses into one surface, joined by a smooth metaball bridge. |
 | **Group** | `LiquidGlassGroup` | Draws every lens beneath it as ONE sheet — one backdrop read and one material for the whole set, far cheaper than the same lenses standing alone. Fuses them like the blender when given a `smoothness`. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface) |
+| **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). |
 | **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
 | **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
@@ -272,6 +273,7 @@ their own background and work anywhere on both engines.
 | `LiquidGlassAppBar` | Needs an ancestor `LiquidGlassView`. |
 | `LiquidGlassFab` | Needs an ancestor `LiquidGlassView`. |
 | `LiquidGlassAlertDialog` | Open it from a context inside a `LiquidGlassView`. |
+| `LiquidGlassSheet` | Placed by hand: needs an ancestor `LiquidGlassView`. Presented with `showLiquidGlassSheet`: open it from a context inside one. |
 | `LiquidGlassTabBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassTabBar.withImpeller(...)`. |
 | `LiquidGlassDraggable` | Inherits whatever the lens it wraps requires. |
 
@@ -584,17 +586,24 @@ LiquidGlassLens(visibility: _visible, style: myStyle, child: content)
 > — a fixed lens (a bottom bar, a floating panel, a control overlay) that
 > refracts the scrolling content passing *behind* it. Putting the lens *inside*
 > the scrollable, so it scrolls with the list, fights that concept and runs into
-> the overscroll issue below. Prefer a floating lens layered over the list (e.g.
+> the overscroll limit below. Prefer a floating lens layered over the list (e.g.
 > in a `Stack`) instead of a lens placed as a list item.
->
-> If you do need a lens inside a scrollable in Impeller, you **must** disable the
-> overscroll indicator — see below.
 
-### Using Lenses inside scrollables (Impeller)
+### Lenses inside scrollables, during overscroll (Impeller)
 
-Android's stretch overscroll isolates the scrollable into its own layer, which
-can make backdrop lenses render **black** at the scroll edges. Disable the
-overscroll indicator for scrollables that contain lenses:
+While you pull past the end of a list, Android's stretch overscroll wraps the
+whole scrollable in an `ImageFiltered` — it renders into its own texture and
+distorts that. A lens inside it keeps its **place**: the glass and its sampling
+are measured from that texture rather than from the window, so the shape stays
+under its own outline and refracts what is actually behind it.
+
+What the texture does **not** contain is the page behind the scrollable, only
+what the scrollable itself painted. So for the length of the pull, a lens
+refracts its list and nothing else — one with empty list behind it reads
+**black** until the pull springs back.
+
+If that matters, drop the indicator for scrollables that contain lenses; the
+list then simply stops at its end, with no stretch and no isolated layer:
 
 ```dart
 ScrollConfiguration(
@@ -642,7 +651,66 @@ hand over an appearance carrying no shadow to drop the shadow.
 Each component is self-contained and styled through the same
 `LiquidGlassStyle` vocabulary. Other components: `LiquidGlassButton`,
 `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`,
-`LiquidGlassAlertDialog`, `LiquidGlassScaffold`.
+`LiquidGlassAlertDialog`, `LiquidGlassSheet`, `LiquidGlassScaffold`.
+
+### Sheets — Flutter's bottom sheet, in glass
+
+`showLiquidGlassSheet` **is** `showModalBottomSheet`: same route, same
+slide-up, same drag-to-dismiss, same barrier — with the glass put where
+its filled `Material` used to be. Every parameter of Flutter's is
+forwarded (`isScrollControlled`, `constraints`, `isDismissible`,
+`enableDrag`, `useSafeArea`, `transitionAnimationController`, …), and the
+look is the usual `LiquidGlassStyle`.
+
+```dart
+showLiquidGlassSheet<String>(
+  context: context,
+  header: const Padding(
+    padding: EdgeInsets.fromLTRB(20, 2, 20, 12),
+    child: Text('Share', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
+  ),
+  style: LiquidGlassSheet.defaultStyle.copyWith(
+    appearance: const LiquidGlassAppearance(color: Color(0x30FFFFFF)),
+  ),
+  builder: (context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [ ... ],
+  ),
+);
+```
+
+`LiquidGlassSheet` on its own is just the surface — the glass, a
+`grabber`, a full-width `header` and the padded child. It takes the
+height it is given and hugs its content when given none, so it drops
+into anything that owns the motion. That is how you get an **expandable**
+sheet: put the panel inside `DraggableScrollableSheet`'s builder, where
+it resizes along with it.
+
+```dart
+showModalBottomSheet(
+  context: context,
+  backgroundColor: Colors.transparent,
+  isScrollControlled: true,
+  builder: (context) => DraggableScrollableSheet(
+    expand: false,
+    initialChildSize: 0.5,
+    snap: true,
+    snapSizes: const [0.5, 0.94],
+    builder: (context, scrollController) => LiquidGlassSheet(
+      child: ListView(controller: scrollController, children: [ ... ]),
+    ),
+  ),
+);
+```
+
+`anchor` picks the shape: `floating` (the default) insets the sheet on
+all sides and rounds all four corners, while `attached` runs it full
+width along the bottom edge — built taller than it is, with the extra
+hanging off the screen, so the bottom corners are never in frame and no
+sliver of page shows underneath. `avoidKeyboard` (on by default) adds
+the bottom `viewInsets` padding you would otherwise write in every
+builder, so a sheet with a text field in it rides the
+keyboard up — give it `isScrollControlled: true` for the room to do so.
 
 ### Tab bar — the moving glass pill
 

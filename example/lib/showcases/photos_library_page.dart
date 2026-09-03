@@ -1,5 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+
+import '../experimental/liquid_glass_morph/liquid_glass_morph.dart';
+import '../experimental/liquid_glass_morph/liquid_glass_morph_motion.dart';
 
 /// Standalone entry point so this showcase can be launched directly with:
 ///   flutter run -t lib/showcases/photos_library_page.dart
@@ -43,7 +48,11 @@ void main() {
 //     the same sheet;
 //   • the frost carries the content — a light material with ink
 //     foreground, iOS-blue only for the selected tab, so the controls
-//     stay legible as bright and dark photos scroll under them.
+//     stay legible as bright and dark photos scroll under them;
+//   • the filter circle is not a button that opens a menu, it BECOMES
+//     one — `LiquidGlassMorph` on the `fluid` preset, so the same piece
+//     of glass leaps down-left into the list and drains back into the
+//     circle. Nothing fades in over anything.
 //
 // The whole page is one `LiquidGlassScaffold`: the grid is the `body`
 // every lens refracts, the header goes in `appBar`, the tab capsule in
@@ -148,16 +157,17 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
   int _tab = 0;
   int _filter = 0;
   bool _selecting = false;
+  bool _menuOpen = false;
   final Set<int> _picked = <int>{};
 
-  /// What the filter circle cycles through. The count is the library's
-  /// headline number; the `keep` predicate is what the grid actually
-  /// shows, so the two agree as you cycle.
-  static const List<(String, String, int)> _filters = [
-    ('Items', '4,627', 1),
-    ('Favorites', '318', 3),
-    ('Videos', '96', 4),
-    ('Screenshots', '211', 5),
+  /// What the filter menu offers. The count is the library's headline
+  /// number; the step is what the grid actually shows, so the two agree
+  /// as you pick.
+  static const List<(String, String, int, IconData)> _filters = [
+    ('Items', '4,627', 1, Icons.photo_library_outlined),
+    ('Favorites', '318', 3, Icons.favorite_border_rounded),
+    ('Videos', '96', 4, Icons.videocam_outlined),
+    ('Screenshots', '211', 5, Icons.crop_free_rounded),
   ];
 
   static final List<LiquidGlassTabBarItem> _tabs = [
@@ -186,16 +196,20 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           ? 'Select Items'
           : '${_picked.length} Selected';
     }
-    final (String name, String count, _) = _filters[_filter];
+    final (String name, String count, _, _) = _filters[_filter];
     return '$count $name';
   }
 
-  void _cycleFilter() => setState(() {
-        _filter = (_filter + 1) % _filters.length;
+  void _pickFilter(int index) => setState(() {
+        _filter = index;
+        _menuOpen = false;
         _picked.clear();
       });
 
   void _toggleSelecting() => setState(() {
+        // A menu is modal: choosing the other control puts it away, the
+        // way tapping past it does.
+        _menuOpen = false;
         _selecting = !_selecting;
         _picked.clear();
       });
@@ -262,11 +276,34 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           bottomInset: pad.bottom,
         ),
 
+        // ── tap anywhere else to put the menu away ─────────────────
+        //
+        // In `lenses`, so it sits ABOVE the grid but BELOW the app bar:
+        // the menu and the Select pill still get their taps, everything
+        // else — photographs, the title, the bars — closes it. It also
+        // stops a scroll from starting under an open menu, which is what
+        // makes it read as modal.
+        //
+        // Here rather than in `body` because this layer is outside the
+        // capture the lenses refract, so an open menu costs no repaint of
+        // the page behind it.
+        lenses: [
+          if (_menuOpen)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => setState(() => _menuOpen = false),
+            ),
+        ],
+
         // ── title + the two top controls ───────────────────────────
         appBar: _LibraryHeader(
           subtitle: _subtitle,
           selecting: _selecting,
-          onFilter: _cycleFilter,
+          filters: _filters,
+          filter: _filter,
+          menuOpen: _menuOpen,
+          onMenu: () => setState(() => _menuOpen = !_menuOpen),
+          onPickFilter: _pickFilter,
           onSelect: _toggleSelecting,
         ),
 
@@ -333,114 +370,427 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
 
 // ════════════════════════════════════════════════════════════════
 //  The header — a plain title over the photographs, and two glass
-//  controls beside it.
+//  controls beside it. One of them is a menu that has not opened yet.
+//
+//  A Stack rather than a Row, because the filter control has to be
+//  able to grow to the size of its open menu WITHOUT moving the Select
+//  pill or squeezing the title. Each piece is placed against an edge
+//  that never moves, and the morph's box is pinned by its RIGHT edge —
+//  the circle's own right edge — so widening it opens the menu
+//  leftward instead of pushing its neighbour.
 // ════════════════════════════════════════════════════════════════
 
-class _LibraryHeader extends StatelessWidget {
+class _LibraryHeader extends StatefulWidget {
   const _LibraryHeader({
     required this.subtitle,
     required this.selecting,
-    required this.onFilter,
+    required this.filters,
+    required this.filter,
+    required this.menuOpen,
+    required this.onMenu,
+    required this.onPickFilter,
     required this.onSelect,
   });
 
   final String subtitle;
   final bool selecting;
-  final VoidCallback onFilter;
+  final List<(String, String, int, IconData)> filters;
+  final int filter;
+  final bool menuOpen;
+  final VoidCallback onMenu;
+  final ValueChanged<int> onPickFilter;
   final VoidCallback onSelect;
 
   static const double _controlHeight = 44;
+  static const double _left = 20;
+  static const double _right = 16;
+  static const double _top = 2;
+
+  /// The gap between the two top controls, and the Select pill's width.
+  /// Select is pinned rather than measured so the morph's box can be
+  /// placed against the circle's right edge with arithmetic instead of
+  /// a layout pass — and so 'Select' and 'Done' do not resize the row.
+  static const double _gap = 10;
+  static const double _selectWidth = 88;
+
+  /// As wide as the menu gets. Narrower on a small screen, so it never
+  /// runs off the left edge.
+  static const double _menuMaxWidth = 240;
+
+  @override
+  State<_LibraryHeader> createState() => _LibraryHeaderState();
+}
+
+class _LibraryHeaderState extends State<_LibraryHeader> {
+  /// Whether the morph's BOX is menu-sized. Not the same question as
+  /// "is the menu open": the box has to already be big on the frame the
+  /// glass starts growing, and has to stay big until the glass has
+  /// finished draining back into the circle — so it goes up with
+  /// [_LibraryHeader.menuOpen] and comes down on the morph's `onEnd`.
+  ///
+  /// Shrinking it back matters: the box is what the glass judges its
+  /// backdrop over, so a permanently menu-sized box would have the
+  /// closed circle reading a slab of photographs it does not cover.
+  bool _wide = false;
+
+  @override
+  void didUpdateWidget(covariant _LibraryHeader old) {
+    super.didUpdateWidget(old);
+    // No setState: this runs inside the rebuild that opened the menu.
+    if (widget.menuOpen) _wide = true;
+  }
+
+  double get _menuHeight => _FilterMenu.heightFor(widget.filters.length);
+
+  /// Distance from the header's right edge to the filter circle's right
+  /// edge — which is the edge the morph's box is pinned by, and the
+  /// corner the glass grows out of.
+  static const double _fieldRight = _LibraryHeader._right +
+      _LibraryHeader._selectWidth +
+      _LibraryHeader._gap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 2, 16, 0),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Ignoring the pointer is what lets a drag that starts on the
-          // title scroll the grid underneath it — text hit-tests itself,
-          // and this layer sits above the photos.
-          Expanded(
-            child: IgnorePointer(
-              // Both lines in ONE adaptive block: the title and the count
-              // under it are a single region of bare text, so they sample
-              // together and flip together — the glass beside them keeps
-              // judging its own backdrop. The builder form is what lets
-              // the halo flip with the ink; a plain child only gets the
-              // colour.
-              child: LiquidGlassAdaptiveContent(
-                adaptivity: _titleAdapt,
-                builder: (context, color, brightness) {
-                  // The lift the text sits on. It has to invert with the
-                  // ink — a dark halo under light letters, a light one
-                  // under dark — or the type loses its edge exactly where
-                  // a photograph disagrees with the verdict in patches.
-                  final Color halo = brightness == Brightness.dark
-                      ? const Color(0x73000000)
-                      : const Color(0x8CFFFFFF);
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Library',
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 34,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
-                          height: 1.15,
-                          shadows: [Shadow(color: halo, blurRadius: 12)],
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        subtitle,
-                        // The count is the quiet line: the same adapted
-                        // ink, held back rather than given a colour of
-                        // its own.
-                        style: TextStyle(
-                          color: color.withValues(alpha: color.a * 0.82),
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.1,
-                          shadows: [Shadow(color: halo, blurRadius: 10)],
-                        ),
-                      ),
-                    ],
-                  );
-                },
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const double ctrl = _LibraryHeader._controlHeight;
+        final double menuWidth = math.min(
+          _LibraryHeader._menuMaxWidth,
+          constraints.maxWidth - _fieldRight - 12,
+        );
+
+        return SizedBox(
+          // Tight width so the two pinned controls resolve against the
+          // screen and not against the title's own width. The height is
+          // the menu's while it is open, and otherwise whatever the title
+          // — the tallest thing here — comes to.
+          width: constraints.maxWidth,
+          height: _wide ? _LibraryHeader._top + _menuHeight : null,
+          // The blender pads its own bounds to fit the neck and the
+          // spring's overshoot, and that padding is allowed to leave
+          // the header.
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              // ── the title, held clear of both controls ──────────
+              //
+              // Not positioned, on purpose: it is what gives the header
+              // its height while the menu is shut.
+              Padding(
+                padding: EdgeInsets.only(
+                  left: _LibraryHeader._left,
+                  top: _LibraryHeader._top,
+                  right: _fieldRight + ctrl + 14,
+                ),
+                child: _Title(subtitle: widget.subtitle),
               ),
+
+              // ── Select, pinned to the right edge ────────────────
+              Positioned(
+                right: _LibraryHeader._right,
+                top: _LibraryHeader._top,
+                child: LiquidGlassButton(
+                  width: _LibraryHeader._selectWidth,
+                  height: ctrl,
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  onPressed: widget.onSelect,
+                  touch: _press,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  style: _frost(ctrl / 2),
+                  // The label as a `child` rather than `label:`, because a
+                  // pinned width has to be able to clip: the built-in row
+                  // sizes to the text and overflows a large text scale.
+                  // Size, weight and the adapted ink still come from the
+                  // button — they arrive as ambient style.
+                  child: Text(
+                    widget.selecting ? 'Done' : 'Select',
+                    maxLines: 1,
+                    softWrap: false,
+                    overflow: TextOverflow.clip,
+                  ),
+                ),
+              ),
+
+              // ── the filter control, and the menu it becomes ─────
+              //
+              // The box is pinned by its right edge and its top, so both
+              // sizes share one top-right corner: resizing it moves
+              // nothing, and the glass anchored to that corner simply has
+              // more room to open into. `fluid` is the preset where the
+              // new shape's centre leaves first and its size follows, so
+              // the menu pulls a neck out of the circle on the way down
+              // and the circle drains after it.
+              Positioned(
+                top: _LibraryHeader._top,
+                right: _fieldRight,
+                width: _wide ? menuWidth : ctrl,
+                height: _wide ? _menuHeight : ctrl,
+                child: LiquidGlassMorph(
+                  alignment: Alignment.topRight,
+                  motion: LiquidGlassMorphMotion.fluid,
+                  smoothness: 28,
+                  // The shape of the DESTINATION: a circle while it is a
+                  // button, a card once it is a menu. The same frost as
+                  // every other surface on the page.
+                  style: _frost(widget.menuOpen ? 28 : ctrl / 2),
+                  onEnd: () {
+                    if (_wide != widget.menuOpen) {
+                      setState(() => _wide = widget.menuOpen);
+                    }
+                  },
+                  // Keys: without them a swap is not seen as one, and the
+                  // glass would resize instead of morph.
+                  child: widget.menuOpen
+                      ? _FilterMenu(
+                          key: const ValueKey<String>('menu'),
+                          width: menuWidth,
+                          filters: widget.filters,
+                          active: widget.filter,
+                          onPick: widget.onPickFilter,
+                        )
+                      : _FilterGlyph(
+                          key: const ValueKey<String>('glyph'),
+                          size: ctrl,
+                          onTap: widget.onMenu,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The two lines of bare text over the photographs.
+class _Title extends StatelessWidget {
+  const _Title({required this.subtitle});
+
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    // Ignoring the pointer is what lets a drag that starts on the title
+    // scroll the grid underneath it — text hit-tests itself, and this
+    // layer sits above the photos.
+    return IgnorePointer(
+      // Both lines in ONE adaptive block: the title and the count under
+      // it are a single region of bare text, so they sample together and
+      // flip together — the glass beside them keeps judging its own
+      // backdrop. The builder form is what lets the halo flip with the
+      // ink; a plain child only gets the colour.
+      child: LiquidGlassAdaptiveContent(
+        adaptivity: _titleAdapt,
+        builder: (context, color, brightness) {
+          // The lift the text sits on. It has to invert with the ink — a
+          // dark halo under light letters, a light one under dark — or
+          // the type loses its edge exactly where a photograph disagrees
+          // with the verdict in patches.
+          final Color halo = brightness == Brightness.dark
+              ? const Color(0x73000000)
+              : const Color(0x8CFFFFFF);
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Library',
+                style: TextStyle(
+                  color: color,
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.8,
+                  height: 1.15,
+                  shadows: [Shadow(color: halo, blurRadius: 12)],
+                ),
+              ),
+              const SizedBox(height: 1),
+              Text(
+                subtitle,
+                // The count is the quiet line: the same adapted ink, held
+                // back rather than given a colour of its own.
+                style: TextStyle(
+                  color: color.withValues(alpha: color.a * 0.82),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.1,
+                  shadows: [Shadow(color: halo, blurRadius: 10)],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  What the one piece of glass holds: a glyph, or a list.
+//
+//  Both state their OWN size and the morph reads it — that is the
+//  contract. Add a filter to the page's list and the menu grows; there
+//  is no dimension anywhere to keep in sync.
+//
+//  Neither carries a colour: the blender publishes the group's verdict
+//  as an `IconTheme` and a `DefaultTextStyle`, so the glyph and the
+//  rows adapt with the frost they sit in, exactly as the page's other
+//  controls do.
+// ════════════════════════════════════════════════════════════════
+
+/// The closed state: the filter glyph, and the tap that opens the menu.
+///
+/// The gesture is INSIDE the glass rather than wrapped around the
+/// morph, because the morph fills a box the size of the OPEN menu.
+/// Wrapped outside, the closed circle would be swallowing taps across
+/// a slab of photographs it does not cover.
+class _FilterGlyph extends StatelessWidget {
+  const _FilterGlyph({super.key, required this.size, required this.onTap});
+
+  final double size;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        width: size,
+        height: size,
+        child: const Icon(Icons.filter_list_rounded, size: 24),
+      ),
+    );
+  }
+}
+
+/// The open state: one row per filter, the active one checked.
+class _FilterMenu extends StatelessWidget {
+  const _FilterMenu({
+    super.key,
+    required this.width,
+    required this.filters,
+    required this.active,
+    required this.onPick,
+  });
+
+  final double width;
+  final List<(String, String, int, IconData)> filters;
+  final int active;
+  final ValueChanged<int> onPick;
+
+  static const double _rowHeight = 46;
+  static const double _vPad = 7;
+
+  /// The height [rows] rows come to — the same arithmetic the build
+  /// below performs, so the header can size the morph's box to the menu
+  /// before the menu has been laid out even once.
+  static double heightFor(int rows) => rows * _rowHeight + _vPad * 2;
+
+  @override
+  Widget build(BuildContext context) {
+    // The group's adapted ink, so the count can be a held-back version
+    // of the SAME colour the labels inherit rather than a second one.
+    final Color ink = DefaultTextStyle.of(context).style.color ?? _kInk;
+
+    return SizedBox(
+      width: width,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: _vPad),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (int i = 0; i < filters.length; i++)
+              _FilterRow(
+                filter: filters[i],
+                on: i == active,
+                last: i == filters.length - 1,
+                ink: ink,
+                onTap: () => onPick(i),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
+    required this.filter,
+    required this.on,
+    required this.last,
+    required this.ink,
+    required this.onTap,
+  });
+
+  final (String, String, int, IconData) filter;
+  final bool on;
+  final bool last;
+  final Color ink;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (String name, String count, _, IconData icon) = filter;
+
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: SizedBox(
+        height: _FilterMenu._rowHeight,
+        // A `DecoratedBox` paints the hairline without insetting the
+        // row, so the height stays exactly what `heightFor` promised.
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: last
+                ? null
+                : Border(
+                    bottom: BorderSide(
+                      color: ink.withValues(alpha: ink.a * 0.10),
+                      width: 0.6,
+                    ),
+                  ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    name,
+                    maxLines: 1,
+                    overflow: TextOverflow.clip,
+                    style: TextStyle(
+                      fontSize: 15.5,
+                      fontWeight: on ? FontWeight.w600 : FontWeight.w500,
+                      letterSpacing: -0.2,
+                    ),
+                  ),
+                ),
+                Text(
+                  count,
+                  style: TextStyle(
+                    color: ink.withValues(alpha: ink.a * 0.5),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                // The tick takes the icon's place rather than joining
+                // it: one trailing mark per row, the way a menu that
+                // picks exactly one thing should read.
+                Icon(
+                  on ? Icons.check_rounded : icon,
+                  size: 19,
+                  color: on ? _kTint : null,
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 12),
-          // Square width and height on the pill radius: the button is a
-          // circle, and being the same widget as Select next to it means
-          // both controls share one rim and one press response.
-          LiquidGlassButton(
-            width: _controlHeight,
-            height: _controlHeight,
-            padding: EdgeInsets.zero,
-            onPressed: onFilter,
-            touch: _press,
-            foregroundColor: _kInk,
-            iconSize: 24,
-            style: _frost(_controlHeight / 2),
-            child: const Icon(Icons.filter_list_rounded),
-          ),
-          const SizedBox(width: 10),
-          LiquidGlassButton(
-            label: selecting ? 'Done' : 'Select',
-            height: _controlHeight,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            onPressed: onSelect,
-            touch: _press,
-            //foregroundColor: selecting ? _kTint : _kInk,
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            style: _frost(_controlHeight / 2),
-          ),
-        ],
+        ),
       ),
     );
   }

@@ -11,6 +11,7 @@ import '../../../controllers/liquid_glass_view_controller.dart';
 import 'liquid_glass_tab_bar.dart';
 import '../liquid_glass_adaptive_area.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
+import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
 import '../../lens/liquid_glass_lens_scope.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
@@ -332,6 +333,12 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final bool useSync;
   final bool? useImpellerBackdrop;
 
+  /// See `LiquidGlassView.batch`, forwarded to both views. The moving
+  /// glass pill and the magnifier pill are kept out regardless: each sits
+  /// on the capsule to refract it, and a batch member cannot see another
+  /// member's glass.
+  final bool batch;
+
   /// Whether the **inner** view (body + bar capsule) captures every frame.
   final bool realTimeCapture;
 
@@ -391,6 +398,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.pixelRatio = 1.0,
     this.useSync = true,
     this.useImpellerBackdrop,
+    this.batch = true,
     this.realTimeCapture = true,
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
     this.adaptivity,
@@ -1117,26 +1125,33 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
               ? Positioned.fill(
                   key: const ValueKey('lg-motion-nav-pill-magnifier'),
                   child: IgnorePointer(
-                    child: LiquidGlassNavBarMotionPill(
-                      center: Offset(pillCX, pillCY),
-                      active: _lifted,
-                      morphProgress: morphProgress,
-                      envelopeSize: envelopeSize,
-                      restSize: pillRest,
-                      activeSize: pillLifted,
-                      style: _magnifierStyle(
-                        baseShape: widget.pillShape,
-                        fallbackRadius: pillLifted.height / 2,
-                        magnification: widget.magnifierPill.magnification,
+                    // Its own read, never a batch's: it sits on the capsule
+                    // to push it back, and a shared copy has no capsule in
+                    // it. It also paints INSIDE the outer view's background,
+                    // where joining a batch would take that batch's copy
+                    // before the icon shell above it had painted.
+                    child: LiquidGlassBatch.exclude(
+                      child: LiquidGlassNavBarMotionPill(
+                        center: Offset(pillCX, pillCY),
+                        active: _lifted,
+                        morphProgress: morphProgress,
+                        envelopeSize: envelopeSize,
+                        restSize: pillRest,
+                        activeSize: pillLifted,
+                        style: _magnifierStyle(
+                          baseShape: widget.pillShape,
+                          fallbackRadius: pillLifted.height / 2,
+                          magnification: widget.magnifierPill.magnification,
+                        ),
+                        restStyle: _magnifierStyle(
+                          baseShape: widget.restStyle.shape,
+                          fallbackRadius: pillRest.height / 2,
+                          magnification: 1,
+                        ),
+                        deviation: dev,
+                        glassPresence: glassPresence,
+                        honorBackdropAlpha: false,
                       ),
-                      restStyle: _magnifierStyle(
-                        baseShape: widget.restStyle.shape,
-                        fallbackRadius: pillRest.height / 2,
-                        magnification: 1,
-                      ),
-                      deviation: dev,
-                      glassPresence: glassPresence,
-                      honorBackdropAlpha: false,
                     ),
                   ),
                 )
@@ -1156,6 +1171,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             realTimeCapture: glassMounted || widget.outerNeedsRealtime,
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
+            batch: widget.batch,
             backgroundWidget: _buildInner(
               layout: layout,
               pillFrac: hlFrac,
@@ -1186,27 +1202,32 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 if (glassMounted)
                   Positioned.fill(
                     child: IgnorePointer(
-                      // Same resolved fill the flat pill paints — the
-                      // glass pill lerps INTO it, so a mismatch here
-                      // shows up as a colour pop at the hand-over.
-                      child: _withRestStyle(
-                        (LiquidGlassStyle rest) =>
-                            LiquidGlassNavBarMotionPill(
-                          center: Offset(pillCX, pillCY),
-                          active: _lifted,
-                          // The bar owns the size as well as the squash;
-                          // the pill's own morph spring stays out of it.
-                          morphProgress: morphProgress,
-                          envelopeSize: envelopeSize,
-                          restSize: pillRest,
-                          activeSize: pillLifted,
-                          style: _pillStyle(),
-                          restStyle: rest,
-                          // The bar owns the model; the pill just draws it.
-                          deviation: dev,
-                          glassPresence: glassPresence,
-                          shadow: widget.pillShadow,
-                          honorBackdropAlpha: false,
+                      // Its own read, never a batch's: the pill exists to
+                      // refract the capsule and whatever the outer slots
+                      // paint around it, none of which a shared copy holds.
+                      child: LiquidGlassBatch.exclude(
+                        // Same resolved fill the flat pill paints — the
+                        // glass pill lerps INTO it, so a mismatch here
+                        // shows up as a colour pop at the hand-over.
+                        child: _withRestStyle(
+                          (LiquidGlassStyle rest) =>
+                              LiquidGlassNavBarMotionPill(
+                            center: Offset(pillCX, pillCY),
+                            active: _lifted,
+                            // The bar owns the size as well as the squash;
+                            // the pill's own morph spring stays out of it.
+                            morphProgress: morphProgress,
+                            envelopeSize: envelopeSize,
+                            restSize: pillRest,
+                            activeSize: pillLifted,
+                            style: _pillStyle(),
+                            restStyle: rest,
+                            // The bar owns the model; the pill just draws it.
+                            deviation: dev,
+                            glassPresence: glassPresence,
+                            shadow: widget.pillShadow,
+                            honorBackdropAlpha: false,
+                          ),
                         ),
                       ),
                     ),
@@ -1564,6 +1585,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           realTimeCapture: widget.realTimeCapture,
           refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
           useImpellerBackdrop: widget.useImpellerBackdrop,
+          batch: widget.batch,
           backgroundWidget: background,
           // Body-luminance sampling for adaptivity: the inner view owns
           // the captured body, so it hosts the sampler; the registrar in

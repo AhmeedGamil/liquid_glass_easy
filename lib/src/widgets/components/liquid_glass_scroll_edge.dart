@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../lens/liquid_glass_batch.dart';
 import '../lens/liquid_glass_lens_scope.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_adaptivity_driver.dart';
@@ -65,7 +66,11 @@ enum LiquidGlassScrollEdgeStyle {
 /// **Blur.** [blur] blurs the backdrop under the band as exactly **one
 /// `BackdropFilter`** — one backdrop read, one blur pass, at any sigma
 /// and on every backend. It defaults to `5`; pass `0` to switch it off,
-/// and then no filter exists in the tree at all.
+/// and then no filter exists in the tree at all. Inside a `LiquidGlassBatch`
+/// that pass joins the batch: it reads the batch's one copy of the backdrop
+/// instead of taking its own, like every lens in there. The band is pinned
+/// over what scrolls under it, so it is an overlap in the batch's sense — see
+/// `LiquidGlassBatch` for what that costs and when to keep it out.
 ///
 /// [style] decides only whether that pass is feathered:
 /// [LiquidGlassScrollEdgeStyle.soft] — the default — fades the blur out
@@ -349,9 +354,13 @@ class _LiquidGlassScrollEdgeState extends State<LiquidGlassScrollEdge>
   ///
   /// The `ClipRect` is mandatory — a `BackdropFilter` is unbounded, so
   /// without one the blur runs over the entire window.
+  ///
+  /// The filter is the batch-aware one: inside a `LiquidGlassBatch` the
+  /// pass carries the batch's key and reads its shared copy. Outside one
+  /// it is a plain `BackdropFilter`.
   Widget _blurPass(bool top) {
     return ClipRect(
-      child: BackdropFilter(
+      child: LiquidGlassBatchBackdropFilter(
         filter: ui.ImageFilter.blur(sigmaX: widget.blur, sigmaY: widget.blur),
         child: widget.style == LiquidGlassScrollEdgeStyle.soft
             ? _featherMask(top)

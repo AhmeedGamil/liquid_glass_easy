@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
+import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_batch.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens_scope.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
@@ -116,6 +117,23 @@ class LiquidGlassView extends StatefulWidget {
   /// `false` explicitly.
   final bool? useImpellerBackdrop;
 
+  /// Whether the view batches its lenses — see `LiquidGlassBatch`.
+  ///
+  /// `true` (the default) puts every lens in [child] on one shared read of
+  /// the backdrop, and every lens in [backgroundWidget] on another. Two
+  /// batches, not one: what floats in [child] is meant to refract what
+  /// scrolls under it in the background, and a member of a batch cannot
+  /// see another member's glass. Only the Impeller path has a read to share;
+  /// on the capture path this changes nothing.
+  ///
+  /// The batch's one rule applies inside each: members must not overlap.
+  /// Two lenses in [child] that do overlap belong in a
+  /// `LiquidGlassBatch.exclude`, which gives them reads of their own.
+  ///
+  /// `false` inserts no batch at all, so a `LiquidGlassBatch` the app put
+  /// around the view still reaches the lenses inside it.
+  final bool batch;
+
   /// Per-lens region capture (Skia **sync** path only).
   ///
   /// When `true`, each per-frame capture grabs one small sub-image per
@@ -176,6 +194,7 @@ class LiquidGlassView extends StatefulWidget {
       this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
       this.useImpellerBackdrop,
       this.regionCapture = false,
+      this.batch = true,
       this.adaptiveSampling})
       : children = const [],
         honorBackdropAlpha = false;
@@ -198,6 +217,7 @@ class LiquidGlassView extends StatefulWidget {
       this.useImpellerBackdrop,
       this.regionCapture = false,
       this.honorBackdropAlpha = false,
+      this.batch = true,
       this.adaptiveSampling});
 
   @override
@@ -928,35 +948,28 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   RenderBox? _backgroundBoxForLens() =>
       _repaintKey.currentContext?.findRenderObject() as RenderBox?;
 
+  /// One of the view's two batches around [child], or [child] untouched
+  /// when batching is off — so an enclosing batch still flows through.
+  Widget _batched(Widget child) =>
+      widget.batch ? LiquidGlassBatch(child: child) : child;
+
   @override
   Widget build(BuildContext context) {
     _devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
-    // Wraps the whole view, background included, so anything below can
-    // hand this view's capture to a route it pushes (see the portal's
-    // doc). Lenses still bind to the inner scope around `child` only.
-    return LiquidGlassLensScopePortal(
-      useImpellerBackdrop: _useImpeller,
-      captureRevision: _captureRevision,
-      currentImage: _currentImageForLens,
-      captureFallback: _capturePaintTimeSync,
-      backgroundRenderBox: _backgroundBoxForLens,
-      registerAdaptiveClient:
-          widget.adaptiveSampling == null ? null : _registerAdaptiveClient,
-      unregisterAdaptiveClient:
-          widget.adaptiveSampling == null ? null : _unregisterAdaptiveClient,
-      child: Stack(
-      // Tight constraints for both the captured background and the
-      // lens-rendering layer. Without this, in a loose Stack, the
-      // RepaintBoundary and the LayoutBuilder can end up at
-      // different sizes (or with stale captureSize), which makes
-      // alignment-based lens positions resolve against the wrong
-      // parent size on first build and on page changes.
+    // The background's batch: any glass inside it shares one read. The
+    // boundary stays the direct child of the stack — the batch has no
+    // render object of its own, so the key still finds the boundary.
+    final Widget background = _batched(RepaintBoundary(
+      key: _repaintKey,
+      child: widget.backgroundWidget,
+    ));
+    // The foreground's batch, over both lens slots: the lens-anywhere
+    // subtree and the positioned lens layout. A second key, on purpose —
+    // these float over the background and refract what it painted, which
+    // they could not see from the background's copy.
+    final Widget foreground = _batched(Stack(
       fit: StackFit.expand,
       children: [
-        RepaintBoundary(
-          key: _repaintKey,
-          child: widget.backgroundWidget,
-        ),
         // Lens-anywhere subtree: any widget tree with `LiquidGlassLens`
         // widgets inside it, connected to this view through the scope.
         // Painted above the background and below the classic lenses.
@@ -994,7 +1007,31 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
             animation: _controller!,
             builder: (context, _) => _buildLensLayout(),
           ),
-        ],
+      ],
+    ));
+    // Wraps the whole view, background included, so anything below can
+    // hand this view's capture to a route it pushes (see the portal's
+    // doc). Lenses still bind to the inner scope around `child` only.
+    return LiquidGlassLensScopePortal(
+      useImpellerBackdrop: _useImpeller,
+      captureRevision: _captureRevision,
+      currentImage: _currentImageForLens,
+      captureFallback: _capturePaintTimeSync,
+      backgroundRenderBox: _backgroundBoxForLens,
+      registerAdaptiveClient:
+          widget.adaptiveSampling == null ? null : _registerAdaptiveClient,
+      unregisterAdaptiveClient:
+          widget.adaptiveSampling == null ? null : _unregisterAdaptiveClient,
+      child: Stack(
+        // Tight constraints for both the captured background and the
+        // lens-rendering layer. Without this, in a loose Stack, the
+        // RepaintBoundary and the LayoutBuilder can end up at
+        // different sizes (or with stale captureSize), which makes
+        // alignment-based lens positions resolve against the wrong
+        // parent size on first build and on page changes. The nested
+        // foreground stack expands too, so its slots stay tight.
+        fit: StackFit.expand,
+        children: [background, foreground],
       ),
     );
   }

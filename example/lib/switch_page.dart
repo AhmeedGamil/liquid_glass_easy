@@ -33,7 +33,10 @@ class _SwitchApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light(useMaterial3: true),
-      home: const SwitchPage(),
+      // Compiles the glass programs during launch instead of under the
+      // first finger. Skia only, once per install — delete this wrapper
+      // (and clear the app's storage) to feel the stall again.
+      home: const LiquidGlassWarmUp(child: SwitchPage()),
     );
   }
 }
@@ -63,8 +66,8 @@ class _SwitchPageState extends State<SwitchPage> {
             decoration: BoxDecoration(color: Color(0xFFE9E9EC)),
           ),
           SafeArea(
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(22, 28, 22, 40),
+            child: Column(
+              //padding: const EdgeInsets.fromLTRB(22, 28, 22, 40),
               children: [
                 const Text(
                   'Sliding switch',

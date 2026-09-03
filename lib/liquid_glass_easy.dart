@@ -23,6 +23,11 @@ export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens.dart'
 // keeps their outlines separate instead of fusing them.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_group.dart'
     show LiquidGlassGroup;
+// Batch: wrap a subtree and let every LiquidGlassLens inside it share ONE
+// read of the backdrop — the same glass, any number of them, at the cost of
+// a single lens. Members must not overlap each other.
+export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_batch.dart'
+    show LiquidGlassBatch;
 // Blender: wrap a subtree and merge 2–6 descendant LiquidGlassLens
 // widgets into one smooth metaball glass surface.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_blender.dart'
@@ -79,6 +84,11 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_spring.dart';
+// Startup warm-up: compiles the glass GPU programs during launch, so the
+// first touch of a control does not stall the raster thread waiting for
+// the driver. Skia only, once per install, no-op on Impeller.
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_warm_up.dart'
+    show LiquidGlassWarmUp;
 // How a surface answers a finger. LiquidGlassTouch is the group; today it
 // carries the flex — press a lens and it compresses, drag it and it
 // elongates along the pull while pinching in the cross axis, four edges
@@ -101,6 +111,23 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_button.dar
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_fab.dart';
 // Dialogs & dialog presenter helper.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_dialog.dart';
+// Sheets. `showLiquidGlassSheet` is Flutter's own `showModalBottomSheet`
+// with the glass where its filled Material used to be — every parameter
+// of theirs forwarded, plus the style. The panel itself is a plain
+// widget: place one bottom-aligned, or inside anything else that owns
+// the motion.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_sheet.dart'
+    show showLiquidGlassSheet, LiquidGlassSheet, LiquidGlassSheetAnchor;
+// Glass without the shader: a frosted surface with the lens' own rim
+// light, drawn from plain canvas geometry. It gives up refraction — the
+// half that needs a `FragmentProgram` — and keeps the frost, the rim, and
+// the colour the rim takes off the background. For surfaces that are not
+// lenses, and for the many-of-them cases a real lens is too expensive for.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_lite.dart'
+    show
+        LiquidGlassLite,
+        LiquidGlassLitePainter,
+        LiquidGlassPickup;
 // Drop-in glass form controls. Only the high-level widgets + their
 // layout descriptors are public; the low-level track/thumb builders stay
 // internal.
@@ -160,8 +187,3 @@ export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_g
 // The example app still drives all of these in its showcase and
 // imports them directly from 'src' (with an implementation_imports
 // ignore) instead of relying on the public barrel.
-
-// LiquidGlassShowcase + LiquidGlassPlayground are UNDER MAINTENANCE and
-// temporarily not exported. Re-enable these once their rework lands.
-// export 'package:liquid_glass_easy/src/demos/liquid_glass_showcase.dart';
-// export 'package:liquid_glass_easy/src/demos/liquid_glass_playground.dart';

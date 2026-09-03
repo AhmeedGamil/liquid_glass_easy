@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../lens/liquid_glass_lens.dart';
+import '../../lens/render_liquid_glass_lens.dart'
+    show LiquidGlassShaderClip;
 import '../../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';
@@ -428,6 +430,9 @@ class _LiquidGlassNavBarMotionPillState
     Widget glassPill = LiquidGlassLens(
       style: _resolveStyle(styleProgress, scaleX, presence: presence, rim: rim),
       honorBackdropAlpha: widget.honorBackdropAlpha,
+      // The 4.1.0 clip, kept for the two tab bar pills only: a padded rect
+      // on the pixel grid, whose rounding never re-frames the content.
+      shaderClip: LiquidGlassShaderClip.snapped,
       restSize: Size(morphW, morphH),
       deform: LiquidGlassFlexDeform(
         left: (pillW - morphW) / 2,

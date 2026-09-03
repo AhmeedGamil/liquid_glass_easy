@@ -152,7 +152,7 @@ class _AdaptivityPageState extends State<AdaptivityPage> {
     shape: _navBarShape,
     appearance: LiquidGlassAppearance(
       color: Color(0x16FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+      blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
     ),
     refraction: LiquidGlassRefraction(
       distortion: 0.07,

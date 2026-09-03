@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 
 import '../components/liquid_glass_adaptive_area.dart';
 import '../components/liquid_glass_shadow.dart';
@@ -11,6 +12,7 @@ import '../utils/liquid_glass_adaptivity_driver.dart';
 import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_batch.dart';
 import 'liquid_glass_blender.dart';
 import 'liquid_glass_lens_scope.dart';
 import 'liquid_glass_shaders.dart';
@@ -137,6 +139,13 @@ class LiquidGlassLens extends StatefulWidget {
   /// lens's overhang as a dark body.
   final bool honorBackdropAlpha;
 
+  /// **Internal.** How the Impeller shader pass is clipped — see
+  /// [LiquidGlassShaderClip]. The default trims the edge at the exact
+  /// outline; the package's moving pills — tab bar, slider, switch — pass
+  /// `snapped`.
+  @internal
+  final LiquidGlassShaderClip shaderClip;
+
   const LiquidGlassLens({
     super.key,
     this.style = const LiquidGlassStyle(),
@@ -146,6 +155,7 @@ class LiquidGlassLens extends StatefulWidget {
     this.deform,
     this.restSize,
     this.honorBackdropAlpha = false,
+    this.shaderClip = LiquidGlassShaderClip.outlineTracked,
     this.child,
   });
 
@@ -406,8 +416,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         final Size rest = constraints.biggest;
         if (!rest.width.isFinite || !rest.height.isFinite || rest.isEmpty) {
           // Unbounded or degenerate: nothing to deform against.
-          return _buildInner(context, blenderScope,
-              LiquidGlassFlexDeform.none, Size.zero);
+          return _buildInner(
+              context, blenderScope, LiquidGlassFlexDeform.none, Size.zero);
         }
 
         final driver = _ensureFlexDriver(flex)..restSize = rest;
@@ -495,9 +505,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         // Layout has already resized this member's box; the SCALE is the part
         // the blender cannot infer from it, and the metaball needs it to
         // evaluate the lens at its rest size.
-        shapeScale: restSize.isEmpty
-            ? const Offset(1, 1)
-            : deform.scaleFrom(restSize),
+        shapeScale:
+            restSize.isEmpty ? const Offset(1, 1) : deform.scaleFrom(restSize),
         child: content == null
             ? null
             : liquidGlassFlexChild(
@@ -535,8 +544,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // -- a circle becomes an ellipse rather than a stadium with flat runs.
     final LiquidGlassShape shape = style == null
         ? _shape
-        : (style.shape ??
-            const LiquidGlassShape.continuousRoundedRectangle());
+        : (style.shape ?? const LiquidGlassShape.continuousRoundedRectangle());
     final Offset shapeScale =
         deformed ? deform.scaleFrom(restSize) : const Offset(1, 1);
     // Clips can be pinned circular independently, to reproduce the state where
@@ -606,6 +614,12 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
 
     final Size screenSize = MediaQuery.sizeOf(context);
     final double dpr = MediaQuery.devicePixelRatioOf(context);
+    // Inside a LiquidGlassBatch: this lens joins the batch's shared backdrop
+    // read. The Skia capture path already shares one capture per view, so it
+    // has nothing to join.
+    final int? backdropId = mode == LiquidGlassLensRenderMode.impellerBackdrop
+        ? LiquidGlassBatch.backdropIdOf(context)
+        : null;
 
     // Clip at the deformed lens bounds, scale the content inside it: the
     // child stretches as pixels but can never spill past the glass edge.
@@ -645,6 +659,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         honorBackdropAlpha: widget.honorBackdropAlpha,
         screenSize: screenSize,
         devicePixelRatio: dpr,
+        backdropId: backdropId,
+        shaderClip: widget.shaderClip,
         scope: scope,
         child: visible ? clippedChild : null,
       ),
@@ -695,6 +711,8 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final bool honorBackdropAlpha;
   final Size screenSize;
   final double devicePixelRatio;
+  final int? backdropId;
+  final LiquidGlassShaderClip shaderClip;
   final LiquidGlassLensScope? scope;
 
   const _RawLiquidGlassLens({
@@ -711,6 +729,8 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
     required this.honorBackdropAlpha,
     required this.screenSize,
     required this.devicePixelRatio,
+    required this.backdropId,
+    required this.shaderClip,
     required this.scope,
     super.child,
   });
@@ -731,6 +751,8 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       honorBackdropAlpha: honorBackdropAlpha,
       screenSize: screenSize,
       devicePixelRatio: devicePixelRatio,
+      backdropId: backdropId,
+      shaderClip: shaderClip,
       captureRevision: scope?.captureRevision,
       currentImage: scope?.currentImage,
       captureFallback: scope?.captureFallback,
@@ -755,6 +777,8 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       ..honorBackdropAlpha = honorBackdropAlpha
       ..screenSize = screenSize
       ..devicePixelRatio = devicePixelRatio
+      ..backdropId = backdropId
+      ..shaderClip = shaderClip
       ..captureRevision = scope?.captureRevision
       ..currentImage = scope?.currentImage
       ..captureFallback = scope?.captureFallback
@@ -791,22 +815,20 @@ class _FrostedGlassFallback extends StatelessWidget {
     final double radius = liquidGlassClipCornerRadius(shape);
     // Elliptical while deformed, so the frosted lens stretches its OUTLINE
     // the same way the refracting one does.
-    final BorderRadius borderRadius =
-        (shapeScale.dx == 1.0 && shapeScale.dy == 1.0)
-            ? BorderRadius.circular(radius)
-            : BorderRadius.all(Radius.elliptical(
-                radius * shapeScale.dx, radius * shapeScale.dy));
+    final BorderRadius borderRadius = (shapeScale.dx == 1.0 &&
+            shapeScale.dy == 1.0)
+        ? BorderRadius.circular(radius)
+        : BorderRadius.all(
+            Radius.elliptical(radius * shapeScale.dx, radius * shapeScale.dy));
     // Without refraction, blur is what sells "glass" — give it a floor
     // so a lens configured with zero blur still reads as frosted.
     final double sigmaX =
         appearance.blur.sigmaX > 0 ? appearance.blur.sigmaX : 10.0;
     final double sigmaY =
         appearance.blur.sigmaY > 0 ? appearance.blur.sigmaY : 10.0;
-    final Color tint = appearance.color.a > 0
-        ? appearance.color
-        : const Color(0x14FFFFFF);
-    final Color borderColor =
-        shape.borderColor ?? const Color(0x40FFFFFF);
+    final Color tint =
+        appearance.color.a > 0 ? appearance.color : const Color(0x14FFFFFF);
+    final Color borderColor = shape.borderColor ?? const Color(0x40FFFFFF);
 
     return ClipRRect(
       borderRadius: borderRadius,

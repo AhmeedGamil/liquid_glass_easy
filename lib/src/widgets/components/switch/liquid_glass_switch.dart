@@ -6,7 +6,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../controllers/liquid_glass_view_controller.dart';
+import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
+import '../../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
 import '../../liquid_glass.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';
@@ -249,7 +251,8 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
   // control's.
   static const double _expandStiffness = 826, _expandDamping = 34.5; // .4 ζ.6
   static const double _contractStiffness = 270, _contractDamping = 23; // .6 ζ.7
-  static const double _positionStiffness = 339, _positionDamping = 36.8; // .5 ζ1
+  static const double _positionStiffness = 339,
+      _positionDamping = 36.8; // .5 ζ1
 
   /// The one shape every **non-glass** surface wears: the track capsule, the
   /// shrunken copy of it behind the lens, and the solid rest pill. They are
@@ -634,6 +637,8 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
       child: LiquidGlassView.withPositionedLenses(
         controller: _viewController,
         honorBackdropAlpha: true,
+        // One lens: a batch would only force the padded rect clip on it.
+        batch: false,
         pixelRatio: widget.pixelRatio,
         // The capture lives exactly as long as the glass does: off at
         // rest, started the frame the pill lifts off it, stopped once the
@@ -695,61 +700,81 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
               bottom: (viewHeight - pillH) / 2,
               width: pillW,
               height: pillH,
-              child: LiquidGlassLens(
-                honorBackdropAlpha: true,
-                style: () {
-                  final LiquidGlassStyle resolved =
-                      resolveLiquidGlassMorphPillStyle(
-                    height: pillH,
-                    style: pillStyle,
-                    // Keep the refraction band proportional while the pill
-                    // is below its full (expanded) size.
-                    refractionWidthScale:
-                        (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
-                    defaultCornerStyle: LiquidGlassCornerStyle.roundedRectangle,
-                    defaultBorderWidth: 0.6,
-                  );
-                  // Re-stated at every morph step rather than carried
-                  // through: the shadow arrives WITH the glass, so at rest
-                  // the one the style carries is taken back off and above
-                  // rest it is re-made at morph strength.
-                  final LiquidGlassShadow? atMorph =
-                      (shadow == null || _morph <= 0.001)
-                          ? null
-                          : LiquidGlassShadow(
-                              blur: shadow.blur,
-                              opacity: shadow.opacity * _morph,
-                              color: shadow.color,
-                              offset: shadow.offset,
-                              cornerRadius: shadow.cornerRadius ?? pillH / 2,
-                              inset: shadow.inset,
-                              visible: shadow.visible,
-                            );
-                  return LiquidGlassStyle(
-                    shape: resolved.shape,
-                    appearance: _withShadow(resolved.appearance, atMorph),
-                    refraction: resolved.refraction,
-                  );
-                }(),
-                // The contracted rest pill rides on top of the glass
-                // and fades with the morph; the whole control is one
-                // gesture surface, so it takes no pointers.
-                child: IgnorePointer(
-                  child: Opacity(
-                    opacity: restOpacity,
-                    // Cut to the shared surface corner, not a capsule of its
-                    // own: the families have to agree or the fill shows a gap
-                    // at the caps against the glass beneath it. The radius is
-                    // still the pill's, since this fills the pill's rect —
-                    // only the family is shared.
-                    child: liquidGlassClip(
-                      shape: LiquidGlassShape(
-                        cornerStyle: _surfaceCorner,
-                        cornerRadius: pillRadius,
-                        clipQuality: LiquidGlassClipQuality.exact,
-                      ),
-                      child: ColoredBox(color: widget.thumbColor),
+              // Its own read, never a batch's: the thumb sits on the track
+              // to refract it, and a batch's shared copy is taken before
+              // this control's track has painted — a batched thumb would
+              // read the page and lose the track under it.
+              child: LiquidGlassBatch.exclude(
+                child: LiquidGlassLens(
+                  honorBackdropAlpha: true,
+                  // Off at rest: the opaque rest pill beside it covers the
+                  // box, and the glass would only cost its backdrop pass.
+                  visibility: _morph > 0,
+                  // The 4.1.0 clip, like the tab bar's pills: a padded rect
+                  // on the pixel grid, so nothing re-frames in flight.
+                  shaderClip: LiquidGlassShaderClip.snapped,
+                  style: () {
+                    final LiquidGlassStyle resolved =
+                        resolveLiquidGlassMorphPillStyle(
+                      height: pillH,
+                      style: pillStyle,
+                      // Keep the refraction band proportional while the pill
+                      // is below its full (expanded) size.
+                      refractionWidthScale:
+                          (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
+                      defaultCornerStyle:
+                          LiquidGlassCornerStyle.roundedRectangle,
+                      defaultBorderWidth: 0.6,
+                    );
+                    // Re-stated at every morph step rather than carried
+                    // through: the shadow arrives WITH the glass, so at rest
+                    // the one the style carries is taken back off and above
+                    // rest it is re-made at morph strength.
+                    final LiquidGlassShadow? atMorph =
+                        (shadow == null || _morph <= 0.001)
+                            ? null
+                            : LiquidGlassShadow(
+                                blur: shadow.blur,
+                                opacity: shadow.opacity * _morph,
+                                color: shadow.color,
+                                offset: shadow.offset,
+                                cornerRadius: shadow.cornerRadius ?? pillH / 2,
+                                inset: shadow.inset,
+                                visible: shadow.visible,
+                              );
+                    return LiquidGlassStyle(
+                      shape: resolved.shape,
+                      appearance: _withShadow(resolved.appearance, atMorph),
+                      refraction: resolved.refraction,
+                    );
+                  }(),
+                ),
+              ),
+            ),
+            // The contracted rest pill rides on top of the glass and fades
+            // with the morph; the whole control is one gesture surface, so
+            // it takes no pointers. A sibling of the lens rather than its
+            // child, so the lens can be switched off under it at rest.
+            Positioned(
+              left: padX + _thumbCX - pillW / 2,
+              bottom: (viewHeight - pillH) / 2,
+              width: pillW,
+              height: pillH,
+              child: IgnorePointer(
+                child: Opacity(
+                  opacity: restOpacity,
+                  // Cut to the shared surface corner, not a capsule of its
+                  // own: the families have to agree or the fill shows a gap
+                  // at the caps against the glass beneath it. The radius is
+                  // still the pill's, since this fills the pill's rect —
+                  // only the family is shared.
+                  child: liquidGlassClip(
+                    shape: LiquidGlassShape(
+                      cornerStyle: _surfaceCorner,
+                      cornerRadius: pillRadius,
+                      clipQuality: LiquidGlassClipQuality.exact,
                     ),
+                    child: ColoredBox(color: widget.thumbColor),
                   ),
                 ),
               ),
