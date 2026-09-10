@@ -462,6 +462,74 @@ class RenderLiquidGlassLens extends RenderProxyBox
         s[4].abs() > 1e-4 ||
         s[1].abs() > 1e-4 ||
         (s[5] - 1).abs() > 1e-4;
+
+    // The REAL root view transform. device_preview's scale-to-fit (and
+    // the real DPR) lives in the root RenderView's `configuration.toMatrix`,
+    // which `getTransformTo(null)` deliberately excludes — it stops one
+    // below the root. When the app is rendered under such a root scale,
+    // the simulated MediaQuery DPR/size the lens otherwise uses no longer
+    // match the real physical pixels `FlutterFragCoord()` reads, so the
+    // uniforms must be packed in real physical space.
+    RenderObject? node = this;
+    while (node != null && node.parent != null) {
+      node = node.parent;
+    }
+    final RenderObject? root = node;
+    RenderView? rootView;
+    if (root is RenderView) {
+      rootView = root;
+    }
+    final Matrix4? rootM = rootView?.configuration.toMatrix();
+    final bool rootScaled = rootM != null &&
+        ((rootM.storage[0] - 1).abs() > 1e-4 ||
+            rootM.storage[12].abs() > 1e-4 ||
+            rootM.storage[13].abs() > 1e-4);
+
+    if (rootScaled && rootView != null) {
+      // device_preview (or any root scale): pack in REAL physical space.
+      // `scale` is the root's real logical→physical factor; resolution is
+      // the real surface size; the lens position is the simulated-logical
+      // global position mapped through the root matrix (real scale +
+      // letterbox offset). This makes u_resolution/u_touch line up with
+      // FlutterFragCoord() and the real backdrop.
+      final double realScale = rootM.storage[0];
+      final Offset realLensPosition = MatrixUtils.transformPoint(
+        rootM,
+        MatrixUtils.transformPoint(transform, Offset.zero),
+      );
+      // Real surface size in physical px. The root's `physicalConstraints`
+      // describe the actual output surface (device_preview's custom
+      // ViewConfiguration sets these to the real window), so this matches
+      // the space `FlutterFragCoord()` reads — not the simulated logical
+      // size, which would push the shader's backdrop sample out of bounds
+      // (rendering the glass black) near the bottom of the surface.
+      final Size realResolution =
+          rootView.configuration.physicalConstraints.biggest;
+      // `packLiquidGlassUniforms` multiplies EVERY spatial uniform by
+      // `scale`. `realScale` is the logical→physical factor, so geometry
+      // (lensWidth etc., authored in logical px) becomes physical when
+      // multiplied by it — but `realResolution`/`realLensPosition` are
+      // ALREADY in real physical px. Pass them pre-divided by `realScale`
+      // so the scale multiplier lands them back on the real physical
+      // values `FlutterFragCoord()` reads.
+      _packUniforms(
+        _mainShader,
+        resolution: Size(
+          realResolution.width / realScale,
+          realResolution.height / realScale,
+        ),
+        lensPosition: Offset(
+          realLensPosition.dx / realScale,
+          realLensPosition.dy / realScale,
+        ),
+        scale: realScale,
+        borderWidth: _fullBorderWidth,
+        includeLensColor: true,
+        honorBackdropAlpha: false,
+      );
+      return;
+    }
+    
     _packUniforms(
       _mainShader,
       resolution: _screenSize,
