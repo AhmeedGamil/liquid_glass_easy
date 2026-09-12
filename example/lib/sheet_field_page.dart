@@ -4,22 +4,21 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // =============================================================
 // Sheets — the glass surface you pull up.
 //
-// The page itself holds plain Material TextFields on glass lenses over a
-// photo — a plain one, a password, and a multi-line one — so there is
-// something to scroll and something to type into. The glass is just the
-// decoration; the field is Flutter's own.
-//
-// Three buttons present LiquidGlassSheets, each a different shape of
-// the same surface. The presenter is Flutter's own showModalBottomSheet
-// with the glass where its Material used to be, so:
+// Three buttons over a photo present LiquidGlassSheets, each a different
+// shape of the same surface. The presenter is Flutter's own
+// showModalBottomSheet with the glass where its Material used to be, so:
 //   • the plain one hugs what is in it, the shape of an action sheet.
 //   • the expandable one is a DraggableScrollableSheet with a bare
 //     LiquidGlassSheet inside its builder — the glass has to be within
 //     what resizes.
-//   • the attached one is full width on the bottom edge, with a field
-//     inside, so the sheet rides the keyboard up.
+//   • the attached one is full width on the bottom edge, only its top
+//     corners in frame.
 //
-// Wrapped in LiquidGlassView so it works on BOTH backends.
+// Inside a LiquidGlassScaffold, so the sheets join its capture on BOTH
+// backends. Every glass on the page — the sheets, the buttons in them,
+// the openers — is LITE glass with the `surface` rim: `liteGlass:
+// LiquidGlassLitePickup.surface` on the style, no shader and no refraction, the rim blended over the
+// tint and the content.
 //
 //   flutter run -t lib/sheet_field_page.dart   (standalone)
 //   …or open it from the gallery.
@@ -28,6 +27,22 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 void main() {
   runApp(const _SheetFieldApp());
 }
+
+/// Every surface on the page is lite glass with the `surface` rim.
+const LiquidGlassLitePickup _rim = LiquidGlassLitePickup.surface;
+
+/// The sheets: the stock sheet glass, drawn lite.
+final LiquidGlassStyle _sheetStyle =
+    LiquidGlassSheet.defaultStyle.copyWith(liteGlass: _rim);
+
+/// The buttons, on the page and in the sheets: the stock button glass,
+/// drawn lite and with no frost — a surface-rim button reads best as a
+/// flat tinted plate.
+final LiquidGlassStyle _buttonStyle = LiquidGlassButton.defaultStyle.copyWith(
+  liteGlass: _rim,
+  appearance: LiquidGlassButton.defaultStyle.appearance
+      .copyWith(blur: const LiquidGlassBlur()),
+);
 
 class _SheetFieldApp extends StatelessWidget {
   const _SheetFieldApp();
@@ -42,7 +57,7 @@ class _SheetFieldApp extends StatelessWidget {
   }
 }
 
-/// Text fields on glass, and glass sheets over them.
+/// Glass sheets over a photo.
 class SheetFieldPage extends StatefulWidget {
   const SheetFieldPage({super.key});
 
@@ -55,92 +70,71 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
       'https://raw.githubusercontent.com/AhmeedGamil/liquid_glass_easy_assets'
       '/main/blending.jpg';
 
-  /// How many times the field trio repeats down the page.
-  static const int _fieldGroups = 5;
-
-  final TextEditingController _name = TextEditingController();
   String _lastResult = '';
 
   @override
-  void dispose() {
-    _name.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text('Sheets & fields'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: Colors.white,
-        elevation: 0,
+    // A LiquidGlassScaffold rather than a bare view: a sheet presented
+    // from a context inside one joins the scaffold's capture, so the
+    // glass refracts the photo on every backend instead of falling back
+    // to a frosted fill.
+    return LiquidGlassScaffold(
+      appBar: LiquidGlassAppBar(
+        title: const Text('Sheets'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_rounded, color: Colors.white),
+          onPressed: () => Navigator.of(context).maybePop(),
+        ),
       ),
-      body: LiquidGlassView(
-        backgroundWidget: const _Background(url: _imageUrl),
-        child: SafeArea(
-          child: LiquidGlassBatch(
-            enabled: true,
-            child: ListView.builder(
-              padding: const EdgeInsets.fromLTRB(20, 84, 20, 40),
-              itemCount: _fieldGroups + 2,
-              itemBuilder: _buildRow,
+      body: Stack(
+        fit: StackFit.expand,
+        children: <Widget>[
+          const _Background(url: _imageUrl),
+          // A plain column, not a list: three buttons never need to scroll,
+          // and glass that stays put refracts instead of riding the feed.
+          Builder(
+            builder: (BuildContext context) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 100, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const _Label('Sheets'),
+                  _SheetButton(
+                    icon: Icons.tune_rounded,
+                    label: 'Content sheet',
+                    detail: 'As tall as what is in it',
+                    onPressed: () => _showActionSheet(context),
+                  ),
+                  const SizedBox(height: 10),
+                  _SheetButton(
+                    icon: Icons.view_agenda_outlined,
+                    label: 'Expandable sheet',
+                    detail:
+                        'Drag it between a half screen and nearly all of it',
+                    onPressed: () => _showExpandableSheet(context),
+                  ),
+                  const SizedBox(height: 10),
+                  _SheetButton(
+                    icon: Icons.vertical_align_bottom_rounded,
+                    label: 'Attached sheet',
+                    detail: 'Full width on the bottom edge',
+                    onPressed: () => _showAttachedSheet(context),
+                  ),
+                  if (_lastResult.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 22),
+                    Text(
+                      _lastResult,
+                      textAlign: TextAlign.center,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13),
+                    ),
+                  ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  /// The list is three stretches laid end to end: the label, one row per
-  /// group of fields, then the sheet buttons — so a row is built when it
-  /// scrolls in rather than all of them up front.
-  Widget _buildRow(BuildContext context, int index) {
-    if (index == 0) return const _Label('Fields');
-    // Only the first name field is driven from the page's controller.
-    if (index <= _fieldGroups) {
-      return _FieldGroup(controller: index == 1 ? _name : null);
-    }
-    return _sheetsSection();
-  }
-
-  /// The last row: the three buttons, and whatever the last sheet gave back.
-  Widget _sheetsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        const SizedBox(height: 16),
-        const _Label('Sheets'),
-        _SheetButton(
-          icon: Icons.tune_rounded,
-          label: 'Content sheet',
-          detail: 'As tall as what is in it',
-          onPressed: _showActionSheet,
-        ),
-        const SizedBox(height: 10),
-        _SheetButton(
-          icon: Icons.view_agenda_outlined,
-          label: 'Expandable sheet',
-          detail: 'Drag it between a half screen and nearly all of it',
-          onPressed: _showExpandableSheet,
-        ),
-        const SizedBox(height: 10),
-        _SheetButton(
-          icon: Icons.edit_note_rounded,
-          label: 'Attached sheet',
-          detail: 'On the bottom edge, riding the keyboard',
-          onPressed: _showComposeSheet,
-        ),
-        if (_lastResult.isNotEmpty) ...<Widget>[
-          const SizedBox(height: 22),
-          Text(
-            _lastResult,
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white70, fontSize: 13),
-          ),
         ],
-      ],
+      ),
     );
   }
 
@@ -148,9 +142,10 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
 
   /// The plainest one: no detents named, so the sheet is exactly as tall
   /// as the column inside it.
-  Future<void> _showActionSheet() async {
+  Future<void> _showActionSheet(BuildContext context) async {
     final String? choice = await showLiquidGlassSheet<String>(
       context: context,
+      style: _sheetStyle,
       header: const _SheetTitle('Share'),
       builder: (BuildContext context) {
         return Column(
@@ -173,6 +168,7 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
             LiquidGlassButton(
               label: 'Cancel',
               width: double.infinity,
+              style: _buttonStyle,
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],
@@ -186,7 +182,7 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
   /// The expandable case, which is Flutter's `DraggableScrollableSheet`
   /// with a bare [LiquidGlassSheet] inside its builder — the glass sits
   /// within what resizes, so it grows and shrinks with the drag.
-  Future<void> _showExpandableSheet() {
+  Future<void> _showExpandableSheet(BuildContext context) {
     return showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -202,6 +198,7 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
           snapSizes: const <double>[0.5, 0.94],
           builder: (BuildContext context, ScrollController scrollController) {
             return LiquidGlassSheet(
+              style: _sheetStyle,
               padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
               header: const _SheetTitle('Nearby'),
               // Android's stretch overscroll isolates the list into its
@@ -239,50 +236,43 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
     );
   }
 
-  /// Full width on the bottom edge, with a field in it: the sheet lifts
-  /// as the keyboard comes up.
-  Future<void> _showComposeSheet() async {
-    final TextEditingController message = TextEditingController();
-    final String? sent = await showLiquidGlassSheet<String>(
+  /// Full width on the bottom edge: only the top corners are in frame,
+  /// and the content clears the safe area on its own.
+  Future<void> _showAttachedSheet(BuildContext context) async {
+    final bool? removed = await showLiquidGlassSheet<bool>(
       context: context,
+      style: _sheetStyle,
       anchor: LiquidGlassSheetAnchor.attached,
-      header: const _SheetTitle('New message'),
-      // A sheet that has to grow past nine sixteenths of the screen —
-      // which is what the keyboard lift needs room for.
-      isScrollControlled: true,
+      header: const _SheetTitle('Remove download?'),
       builder: (BuildContext context) {
         return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            _GlassField(
-              controller: message,
-              hintText: 'Message',
-              autofocus: true,
-              maxLines: 3,
-              minLines: 1,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (String value) =>
-                  Navigator.of(context).pop(value.trim()),
+            const Text(
+              'It stays in your library and can be downloaded again '
+              'whenever you like.',
+              style: TextStyle(color: Colors.white70, fontSize: 14),
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 18),
             Row(
               children: <Widget>[
                 Expanded(
                   child: LiquidGlassButton(
-                    label: 'Discard',
-                    onPressed: () => Navigator.of(context).pop(),
+                    label: 'Keep',
+                    style: _buttonStyle,
+                    onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: LiquidGlassButton(
-                    label: 'Send',
-                    style: LiquidGlassButton.defaultStyle.copyWith(
+                    label: 'Remove',
+                    style: _buttonStyle.copyWith(
                       appearance:
-                          const LiquidGlassAppearance(color: Color(0x660A84FF)),
+                          const LiquidGlassAppearance(color: Color(0x60FF3B30)),
                     ),
-                    onPressed: () =>
-                        Navigator.of(context).pop(message.text.trim()),
+                    onPressed: () => Navigator.of(context).pop(true),
                   ),
                 ),
               ],
@@ -291,133 +281,10 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
         );
       },
     );
-    message.dispose();
-    if (!mounted || sent == null || sent.isEmpty) return;
-    setState(() => _lastResult = 'Sent "$sent" from the attached sheet.');
-  }
-}
-
-/// One repeat of the field trio the page stacks up: a plain field, a
-/// password, and one that grows as you type.
-class _FieldGroup extends StatelessWidget {
-  const _FieldGroup({this.controller});
-
-  final TextEditingController? controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: <Widget>[
-          _GlassField(
-            controller: controller,
-            hintText: 'Your name',
-            prefix: const Icon(Icons.person_outline_rounded),
-            textInputAction: TextInputAction.next,
-          ),
-          const SizedBox(height: 12),
-          const _GlassField(
-            hintText: 'Password',
-            prefix: Icon(Icons.lock_outline_rounded),
-            obscureText: true,
-          ),
-          const SizedBox(height: 12),
-          const _GlassField(
-            hintText: 'Say something…',
-            maxLines: 4,
-            minLines: 3,
-            keyboardType: TextInputType.multiline,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// A plain Material [TextField] on a [LiquidGlassLens]: the glass is the
-/// decoration, the field itself is Flutter's.
-class _GlassField extends StatelessWidget {
-  const _GlassField({
-    this.controller,
-    this.hintText,
-    this.prefix,
-    this.textInputAction,
-    this.keyboardType,
-    this.obscureText = false,
-    this.autofocus = false,
-    this.maxLines = 1,
-    this.minLines,
-    this.onSubmitted,
-  });
-
-  final TextEditingController? controller;
-  final String? hintText;
-  final Widget? prefix;
-  final TextInputAction? textInputAction;
-  final TextInputType? keyboardType;
-  final bool obscureText;
-  final bool autofocus;
-  final int? maxLines;
-  final int? minLines;
-  final ValueChanged<String>? onSubmitted;
-
-  static LiquidGlassStyle get _defaultStyle => LiquidGlassStyle(
-        shape: LiquidGlassShape.roundedRectangle(
-          cornerRadius: 26,
-          borderWidth: 1.2,
-        ),
-        appearance: const LiquidGlassAppearance(
-          color: Color(0x22FFFFFF),
-          blur: LiquidGlassBlur(sigmaX: 6, sigmaY: 6),
-        ),
-      );
-
-  @override
-  Widget build(BuildContext context) {
-    const Color fg = Colors.white;
-    return LiquidGlassLens(
-      style: _defaultStyle,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(minHeight: 52),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          child: Row(
-            children: <Widget>[
-              if (prefix != null) ...<Widget>[
-                IconTheme(
-                  data: IconThemeData(
-                      color: fg.withValues(alpha: 0.8), size: 20),
-                  child: prefix!,
-                ),
-                const SizedBox(width: 10),
-              ],
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  autofocus: autofocus,
-                  obscureText: obscureText,
-                  maxLines: maxLines,
-                  minLines: minLines,
-                  keyboardType: keyboardType,
-                  textInputAction: textInputAction,
-                  cursorColor: fg,
-                  style: const TextStyle(color: fg, fontSize: 15),
-                  decoration: InputDecoration.collapsed(
-                    hintText: hintText,
-                    hintStyle: TextStyle(
-                      color: fg.withValues(alpha: 0.5),
-                      fontSize: 15,
-                    ),
-                  ),
-                  onSubmitted: onSubmitted,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    if (!mounted || removed == null) return;
+    setState(() => _lastResult = removed
+        ? 'Removed from the attached sheet.'
+        : 'Kept from the attached sheet.');
   }
 }
 
@@ -485,9 +352,10 @@ class _SheetButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return LiquidGlassButton(
-      height: 62,
+      height: 72,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18),
+      style: _buttonStyle,
       onPressed: onPressed,
       child: Row(
         children: <Widget>[
@@ -527,7 +395,11 @@ class _Background extends StatelessWidget {
       gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: <Color>[Color(0xFF2E1065), Color(0xFF0EA5E9), Color(0xFFF59E0B)],
+        colors: <Color>[
+          Color(0xFF2E1065),
+          Color(0xFF0EA5E9),
+          Color(0xFFF59E0B)
+        ],
       ),
     ),
   );
@@ -541,8 +413,8 @@ class _Background extends StatelessWidget {
           url,
           fit: BoxFit.cover,
           errorBuilder: (_, __, ___) => _fallback,
-          loadingBuilder: (BuildContext context, Widget child,
-              ImageChunkEvent? progress) {
+          loadingBuilder:
+              (BuildContext context, Widget child, ImageChunkEvent? progress) {
             if (progress == null) return child;
             return _fallback;
           },

@@ -218,12 +218,17 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// glass-refracting morphing pill. Hosts like `LiquidGlassScaffold`
   /// check [resolveGlassPill] and call this, passing their slots through.
   ///
-  /// [body] is the page content captured behind the glass. [outerChild]
-  /// is the widget subtree composited above the bar (app bar, side
-  /// action, extra lenses) — a full-screen `Stack` of lens-anywhere
-  /// widgets. [bottomInset] is the safe-area bottom inset.
+  /// [body] is the page content captured behind the glass. [chromeChild]
+  /// is the host's chrome (app bar, side action, extra lenses, dialog) — a
+  /// full-screen `Stack` of lens-anywhere widgets — which the bar places
+  /// by renderer: in the outer view over the bar and the pill on Impeller,
+  /// in the inner view under the bar's cells on Skia, where the outer
+  /// capture then sleeps whenever the pill is at rest. [outerChild] is the
+  /// explicit outer slot on both renderers; pass [outerNeedsRealtime]
+  /// while it is showing. [bottomInset] is the safe-area bottom inset.
   Widget buildGlassPillBar({
     required Widget body,
+    Widget? chromeChild,
     Widget? outerChild,
     Color? backgroundColor,
     double bottomInset = 0,
@@ -231,6 +236,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     bool useSync = true,
     bool? useImpellerBackdrop,
     bool batch = true,
+    int? foregroundBatchId,
     bool realTimeCapture = true,
     bool outerNeedsRealtime = false,
     LiquidGlassAdaptiveSampling? adaptiveSampling,
@@ -263,6 +269,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       itemStyle: itemStyle,
       showSelectionPill: pillStyle.show,
       outerNeedsRealtime: outerNeedsRealtime,
+      chromeChild: chromeChild,
       outerChild: outerChild,
       backgroundColor: backgroundColor,
       barShape: barStyle.shape,
@@ -288,6 +295,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
       batch: batch,
+      foregroundBatchId: foregroundBatchId,
       realTimeCapture: realTimeCapture,
       adaptivity: barStyle.adaptivity,
       adaptiveSampling: adaptiveSampling,

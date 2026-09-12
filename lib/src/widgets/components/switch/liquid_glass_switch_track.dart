@@ -291,9 +291,8 @@ class LiquidGlassSwitchTrack extends StatelessWidget {
 
     // Center of the hole at this travel fraction. Mirrors the math the
     // host places the glass thumb by, so the hole tracks it.
-    final holeCenterX = layout.padding +
-        travelFraction * layout.travel +
-        layout.thumbWidth / 2;
+    final holeCenterX =
+        layout.padding + travelFraction * layout.travel + layout.thumbWidth / 2;
 
     // Uniform scale of the body behind the glass. [pinchedHeight] still
     // states it as a height, but it drives BOTH axes: the same ratio
@@ -309,8 +308,7 @@ class LiquidGlassSwitchTrack extends StatelessWidget {
     // Rest thumb position (white pill at on/off endpoints). Always
     // computed against the rest layout so its on/off positions
     // don't shift while the track changes.
-    final thumbLeft =
-        layout.padding + (value ? layout.travel : 0.0);
+    final thumbLeft = layout.padding + (value ? layout.travel : 0.0);
     final thumbTop = (layout.height - layout.thumbHeight) / 2;
 
     // Recolor with the handle, not with `value`: the body mixes toward

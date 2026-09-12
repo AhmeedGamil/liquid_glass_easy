@@ -46,8 +46,7 @@ class LiquidGlassTouch {
 
   @override
   bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LiquidGlassTouch && other.flex == flex;
+      identical(this, other) || other is LiquidGlassTouch && other.flex == flex;
 
   @override
   int get hashCode => flex.hashCode;

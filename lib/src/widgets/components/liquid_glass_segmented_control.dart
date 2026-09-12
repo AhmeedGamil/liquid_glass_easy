@@ -99,14 +99,12 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
   /// Font size of segment labels.
   final double fontSize;
 
-  static const LiquidGlassAppearance _defaultAppearance =
-      LiquidGlassAppearance(
+  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x14FFFFFF), // white, alpha 20
     blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
   );
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.06,
     distortionWidth: 22,
     chromaticAberration: 0.002,

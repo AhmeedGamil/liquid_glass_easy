@@ -35,7 +35,6 @@ build/
 private/
 # Local-only test folder (not part of the published package)
 test/
-lab/
 # Local-only web demo app (not part of the published package)
 web_demos/
 

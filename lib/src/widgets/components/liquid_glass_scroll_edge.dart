@@ -382,7 +382,9 @@ class _LiquidGlassScrollEdgeState extends State<LiquidGlassScrollEdge>
   Widget _featherMask(bool top) {
     final Curve curve = _blurCurve;
     final Widget? cached = _featherCache;
-    if (cached != null && _featherCacheTop == top && _featherCacheCurve == curve) {
+    if (cached != null &&
+        _featherCacheTop == top &&
+        _featherCacheCurve == curve) {
       return cached;
     }
     _featherCacheTop = top;

@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
@@ -266,6 +267,11 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
 
   final LiquidGlassViewController _viewController = LiquidGlassViewController();
 
+  /// Which glass path the view runs; it is handed no override, so this is
+  /// the engine's answer. On Skia the rest pill reaches half a px past the
+  /// glass and the contract-back stops dead at rest — see [build].
+  bool get _impellerGlass => ui.ImageFilter.isShaderFilterSupported;
+
   /// The track's own box, which finger positions are read against. Held
   /// by key because [reserveSwellRoom] puts a larger box at the root.
   final GlobalKey _trackKey = GlobalKey();
@@ -408,7 +414,14 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
     );
     _morph = m;
     _morphVel = mv;
-    if ((_morph - _morphTarget).abs() < 0.001 && _morphVel.abs() < 0.01) {
+    if (!_impellerGlass && _morphTarget == 0 && _morph <= 0) {
+      // Skia: covered is covered. The spring's dip under rest only kept
+      // the glass on — and re-lit it, with a fresh capture, on the way
+      // back up — under a rest pill that was already opaque.
+      _morph = 0;
+      _morphVel = 0;
+    } else if ((_morph - _morphTarget).abs() < 0.001 &&
+        _morphVel.abs() < 0.01) {
       _morph = _morphTarget;
       _morphVel = 0;
     } else {
@@ -631,6 +644,13 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
     final travelFraction =
         l.travel > 0 ? (_thumbCX - _minThumbCX) / l.travel : 0.0;
 
+    // How far the rest pill reaches past the glass. On Skia the lens is
+    // trimmed at the outline with a canvas clip, but two anti-aliased edges
+    // on one outline never add up to full coverage, so the refracted rim
+    // showed through the seam while the pill faded in. Impeller's ramp is
+    // faint enough past the outline that the pill sits on it.
+    final double restOutset = _impellerGlass ? 0.0 : 0.5;
+
     final Widget view = SizedBox(
       width: viewWidth,
       height: viewHeight,
@@ -756,10 +776,10 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
             // it takes no pointers. A sibling of the lens rather than its
             // child, so the lens can be switched off under it at rest.
             Positioned(
-              left: padX + _thumbCX - pillW / 2,
-              bottom: (viewHeight - pillH) / 2,
-              width: pillW,
-              height: pillH,
+              left: padX + _thumbCX - pillW / 2 - restOutset,
+              bottom: (viewHeight - pillH) / 2 - restOutset,
+              width: pillW + 2 * restOutset,
+              height: pillH + 2 * restOutset,
               child: IgnorePointer(
                 child: Opacity(
                   opacity: restOpacity,
@@ -771,7 +791,7 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                   child: liquidGlassClip(
                     shape: LiquidGlassShape(
                       cornerStyle: _surfaceCorner,
-                      cornerRadius: pillRadius,
+                      cornerRadius: pillRadius + restOutset,
                       clipQuality: LiquidGlassClipQuality.exact,
                     ),
                     child: ColoredBox(color: widget.thumbColor),

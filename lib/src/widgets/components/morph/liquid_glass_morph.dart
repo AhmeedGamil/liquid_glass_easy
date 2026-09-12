@@ -4,14 +4,20 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
+import '../../lens/liquid_glass_blender.dart';
+import '../../lens/liquid_glass_lens.dart';
+import '../../liquid_glass_engine.dart';
+import '../../liquid_glass_config.dart';
+import '../../liquid_glass_style.dart';
+import '../../utils/liquid_glass_adaptivity.dart';
+import '../../utils/liquid_glass_blur.dart';
+import '../../utils/liquid_glass_refraction_type.dart';
+import '../../utils/liquid_glass_shape.dart';
+import '../../utils/liquid_glass_spring.dart';
 import 'liquid_glass_morph_motion.dart';
 
 /// One scalar chasing a target through the package's spring integrator.
-///
-/// Private and deliberately not imported from elsewhere in the example, so
-/// this folder lifts into a package as one unit.
 class _Spring {
   _Spring(double v)
       : value = v,
@@ -208,7 +214,11 @@ class _Blob {
 /// liquid. At rest the blobs coincide and the union is switched off, so the
 /// resting shape is exact.
 ///
-/// Which of those you get is the [motion]: pick one of its presets.
+/// Which of those you get is the [motion]: pick one of its presets. One of
+/// them, [LiquidGlassMorphMotion.plain], is not two blobs at all but a
+/// **single lens** whose outline springs from the old shape to the new: no
+/// neck, no drain, one backdrop pass. Any preset becomes that kind with
+/// `copyWith(blended: false)`.
 ///
 /// Each blob keeps its own corner curve and radius. Nothing is interpolated
 /// or swapped: the old shape is drawn as the old shape until it is gone, and
@@ -216,9 +226,14 @@ class _Blob {
 ///
 /// Content is not stretched with the glass. The old child blurs, fades and
 /// scales out; the new one blurs, fades and scales in around the anchor as
-/// the glass arrives, pinned where it will finally sit. And the material
-/// thickens as the glass grows — more blur, deeper refraction — the way
-/// Apple's does when a menu opens from a button.
+/// the glass arrives, pinned where it will finally sit. Both run on the
+/// morph's own clock — its duration is the spring's period — at the
+/// fractions [LiquidGlassMorphAdvanced] names: the old child is gone by
+/// `contentOutEnd`, the new one starts at `contentInStart` and has landed
+/// by `contentInEnd`. A swap that reverses mid-flight carries each child on
+/// from wherever it had got to, so a child that had not yet appeared never
+/// does. And the material thickens as the glass grows — more blur, deeper
+/// refraction — the way Apple's does when a menu opens from a button.
 ///
 /// ## Layout, and why [alignment] matters
 ///
@@ -252,7 +267,6 @@ class LiquidGlassMorph extends StatefulWidget {
     this.motion = LiquidGlassMorphMotion.fluid,
     this.style = const LiquidGlassStyle(),
     this.smoothness = 40,
-    this.contentTransition = const Duration(milliseconds: 420),
     this.onEnd,
     this.debugClipBounds = false,
     this.child,
@@ -297,14 +311,6 @@ class LiquidGlassMorph extends StatefulWidget {
   /// is never inflated by it.
   final double smoothness;
 
-  /// How long the content swap takes when [child] changes.
-  ///
-  /// The old child is gone by 40% of this; the new one fades in over the
-  /// second half, so it lands as the glass does. **Give your children keys**:
-  /// a child that keeps its type is not seen as new — it will neither
-  /// cross-fade nor be re-measured as a swap.
-  final Duration contentTransition;
-
   /// Called once the springs settle, the way `AnimatedContainer.onEnd` is.
   final VoidCallback? onEnd;
 
@@ -322,6 +328,9 @@ class LiquidGlassMorph extends StatefulWidget {
 
   /// The content, and — unless [width] and [height] say otherwise — the thing
   /// that decides how big the glass is.
+  ///
+  /// **Give your children keys**: a child that keeps its type is not seen as
+  /// new — it will neither cross-fade nor be re-measured as a swap.
   ///
   /// It must be able to size itself: whatever it reports under a loose
   /// constraint is what the glass becomes. A `Column` of rows works; a bare
@@ -367,12 +376,18 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   /// The blob that carries the NEW content and the destination shape.
   final _Blob _dst = _Blob();
 
-  /// The content swap: 0 = old child fully shown, 1 = new child fully shown.
-  late final AnimationController _content = AnimationController(
-    vsync: this,
-    duration: widget.contentTransition,
-    value: 1,
-  );
+  /// Seconds since the current swap began — the content's clock, read as a
+  /// fraction of the motion's duration by [_t]. Starts past the end so a
+  /// mounted widget's content is simply there.
+  double _elapsed = 1e9;
+
+  /// Where each child's visibility WAS when the current swap began, 0–1.
+  /// The old child fades out from [_srcFrom] to nothing; the new one fades
+  /// in from [_dstFrom] to full. A swap that reverses mid-flight hands the
+  /// levels across, so a child that never got to appear leaves at zero —
+  /// unseen — and one that was on its way out comes back from where it is.
+  double _srcFrom = 0;
+  double _dstFrom = 1;
 
   /// The old child, kept only while the swap is playing.
   Widget? _srcChild;
@@ -411,31 +426,50 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   /// field's edge. Set per morph off the larger of its two rects.
   double _overflow = 24;
 
-  LiquidGlassMorphMotion get _m => widget.motion;
-  LiquidGlassMorphAdvanced get _a => widget.motion.advanced;
+  /// The motion this morph runs. Under lite glass — the engine switch or
+  /// this style's own flag — it is always [LiquidGlassMorphMotion.plain]:
+  /// the blender cannot merge two lite blobs into one surface, so a blended
+  /// preset would show two separate frosted outlines pulling apart. One lens
+  /// on one spring is the only kind that reads.
+  LiquidGlassMorphMotion get _m =>
+      LiquidGlassEngine.liteGlass || widget.style.liteGlass != null
+          ? LiquidGlassMorphMotion.plain
+          : widget.motion;
+  LiquidGlassMorphAdvanced get _a => _m.advanced;
 
   /// The point the new shape grows around: the motion's, or the corner that
   /// holds.
   Alignment get _anchor => _m.anchor ?? widget.alignment;
 
+  /// The content's progress through the swap, 0–1: [_elapsed] as a fraction
+  /// of the motion's duration, which is the spring's period.
+  double get _t => (_elapsed / _m.duration).clamp(0.0, 1.0);
+
+  /// The old child's visibility at [t]: from [_srcFrom] down to nothing by
+  /// `contentOutEnd`.
+  double _srcLevel(double t) {
+    final double u = (t / math.max(_a.contentOutEnd, 0.01)).clamp(0.0, 1.0);
+    return _srcFrom * (1 - Curves.easeIn.transform(u));
+  }
+
+  /// The new child's visibility at [t]: from [_dstFrom] up to full between
+  /// `contentInStart` and `contentInEnd`.
+  double _dstLevel(double t) {
+    final double span = math.max(_a.contentInEnd - _a.contentInStart, 0.01);
+    final double u = ((t - _a.contentInStart) / span).clamp(0.0, 1.0);
+    return _dstFrom + (1 - _dstFrom) * Curves.easeOut.transform(u);
+  }
+
   @override
   void initState() {
     super.initState();
     _ticker = createTicker(_onTick);
-    // The swap can outlast the springs on a calm motion, so it asks for its
-    // own frames rather than riding the ticker's.
-    _content.addListener(_onContentTick);
   }
 
   @override
   void dispose() {
     _ticker.dispose();
-    _content.dispose();
     super.dispose();
-  }
-
-  void _onContentTick() {
-    if (mounted) setState(() {});
   }
 
   Key _keyOf(Widget? c) => c?.key ?? ValueKey<Type>(c.runtimeType);
@@ -524,7 +558,9 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       _dst.snapTo(to);
       _src.copyFrom(_dst);
       _srcChild = null;
-      _content.value = 1;
+      _srcFrom = 0;
+      _dstFrom = 1;
+      _elapsed = 1e9;
       return;
     }
 
@@ -552,6 +588,33 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     _src.plain();
     _dst.plain();
     _dst.shape = shape;
+    // A source that follows the destination lands exactly on it, so the two
+    // must agree on the shape: a union of two corner curves on one rect
+    // traces whichever sticks out, and snaps when the source is dropped.
+    if (a.sourceFollows) _src.shape = shape;
+
+    if (!_m.blended) {
+      // One lens: the outline itself travels, from where it is to where it
+      // is going. Growing, its anchor leads and its size follows, so it
+      // stretches toward the destination before it fills in; shrinking, the
+      // size collapses first and the anchor slides after it. The source
+      // blob is kept coincident and never drawn.
+      _dst.rebase(anchor);
+      _dst.aim(to);
+      if (growing) {
+        _dst.anchorMul = leadMul;
+        _dst.anchorZeta = leadZeta;
+        _dst.sizeDelay = a.followDelay;
+      } else {
+        _dst.sizeMul = leadMul;
+        _dst.sizeZeta = leadZeta;
+        _dst.anchorDelay = a.followDelay;
+      }
+      _src.copyFrom(_dst);
+      if (swap) _elapsed = 0;
+      _wake();
+      return;
+    }
 
     if (growing) {
       // The new blob is born inside the old one — at the seed size, at the
@@ -605,10 +668,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       _dst.anchorZeta = _dst.sizeZeta = 1;
     }
 
-    if (swap) {
-      _content.duration = widget.contentTransition;
-      _content.forward(from: 0);
-    }
+    if (swap) _elapsed = 0;
     _wake();
   }
 
@@ -629,6 +689,22 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   void didUpdateWidget(covariant LiquidGlassMorph old) {
     super.didUpdateWidget(old);
     if (_keyOf(widget.child) != _keyOf(old.child)) {
+      // Where each child is RIGHT NOW is where its next fade starts. The
+      // child that was arriving is now the one leaving, from whatever it
+      // had reached — nothing at all if it had not started, so it is never
+      // seen. And if what comes in is the child that was on its way out, it
+      // returns from where it got to instead of from zero.
+      final double t = _t;
+      final bool returning =
+          _srcChild != null && _keyOf(widget.child) == _keyOf(_srcChild);
+      final double leavingAt = _dstLevel(t);
+      final double returningAt = _srcLevel(t);
+      _srcFrom = leavingAt;
+      _dstFrom = returning ? returningAt : 0;
+      // The clock restarts NOW, not when the measurement lands a frame
+      // later — read at rest (t = 1) it would paint the incoming child
+      // fully opaque inside the OLD outline for that gap frame.
+      _elapsed = 0;
       // The old child keeps showing — in the source blob — until the new
       // one has been measured and the morph is under way.
       _srcChild = old.child;
@@ -666,8 +742,11 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
 
     _src.step(dt, _m.stiffness, _m.damping);
     _dst.step(dt, _m.stiffness, _m.damping);
+    _elapsed += dt;
 
-    if (_src.moving || _dst.moving) {
+    // The content swap can outlast the springs on a calm motion, so the
+    // ticker runs until both are done.
+    if (_src.moving || _dst.moving || _elapsed < _m.duration) {
       setState(() {});
       return;
     }
@@ -738,8 +817,8 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     }
     return s.copyWith(
       appearance: s.appearance.copyWith(
-        blur: LiquidGlassBlur(
-            sigmaX: blur.sigmaX * bm, sigmaY: blur.sigmaY * bm),
+        blur:
+            LiquidGlassBlur(sigmaX: blur.sigmaX * bm, sigmaY: blur.sigmaY * bm),
       ),
       refraction: refraction,
     );
@@ -775,12 +854,47 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
 
         final Rect srcRect = _src.rect;
         final Rect dstRect = _dst.rect;
-        final double t = _content.value;
+        final double t = _t;
         // The blender paints only inside its own bounds, and a blob passes
         // the field's edge whenever it overshoots its anchor or the neck
         // bulges past it. So the blender is bigger than the field by a
         // margin, and the blobs are shifted into it.
         final Offset shift = Offset(_overflow, _overflow);
+
+        if (!_m.blended) {
+          // One lens at the travelling outline, both children inside it:
+          // the new one pinned to where the glass is going, the old one to
+          // where it came from, each clipped by the outline as it passes.
+          final Widget? incoming = _dstContent(c, dstRect, t);
+          final Widget? outgoing = _srcContent(c, dstRect, t);
+          return SizedBox.fromSize(
+            size: field,
+            child: Opacity(
+              opacity: _seeded ? 1 : 0,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: <Widget>[
+                  Positioned.fromRect(
+                    rect: dstRect,
+                    child: LiquidGlassLens(
+                      style: _material().copyWith(
+                        shape: _shapeFor(_dst, dstRect),
+                      ),
+                      child: Stack(
+                        fit: StackFit.expand,
+                        clipBehavior: Clip.none,
+                        children: <Widget>[
+                          if (incoming != null) incoming,
+                          if (outgoing != null) outgoing,
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
 
         return SizedBox.fromSize(
           size: field,
@@ -880,14 +994,12 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
 
   /// The new child: measured at its natural size, pinned to the destination
   /// rect (or riding the blob), and materialised — blur, fade, scale around
-  /// the anchor — over the second part of the swap.
+  /// the anchor — between `contentInStart` and `contentInEnd` of the swap.
   Widget? _dstContent(BoxConstraints c, Rect blob, double t) {
     final Widget? child = widget.child;
     if (child == null) return null;
     final LiquidGlassMorphAdvanced a = _a;
-    final double span = math.max(1 - a.contentInStart, 0.01);
-    final double k =
-        Curves.easeOut.transform(((t - a.contentInStart) / span).clamp(0, 1));
+    final double k = _dstLevel(t);
     final Offset pinned = _target.topLeft - blob.topLeft;
     final Offset riding = Offset(
       (blob.width - _target.width) / 2,
@@ -912,13 +1024,15 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   }
 
   /// The old child, gone by [LiquidGlassMorphAdvanced.contentOutEnd] of the
-  /// swap: blurred, faded and scaled, in the blob that carries it.
+  /// swap: blurred, faded and scaled, in the blob that carries it. Not built
+  /// at all once it is out — or if it never got in.
   Widget? _srcContent(BoxConstraints c, Rect blob, double t) {
     final Widget? child = _srcChild;
     final LiquidGlassMorphAdvanced a = _a;
-    if (child == null || t >= a.contentOutEnd) return null;
-    final double k = Curves.easeIn
-        .transform((t / math.max(a.contentOutEnd, 0.01)).clamp(0, 1));
+    if (child == null) return null;
+    final double level = _srcLevel(t);
+    if (level <= 0.001) return null;
+    final double k = 1 - level;
     final Offset pinned = _origin.topLeft - blob.topLeft;
     final Offset riding = Offset(
       (blob.width - _origin.width) / 2,

@@ -587,9 +587,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       resolution: clipInScreen?.size ?? subpassSize ?? _screenSize,
       lensPosition: linearXform
           ? Offset.zero
-          : MatrixUtils.transformPoint(transform, Offset.zero) -
-              origin +
-              track,
+          : MatrixUtils.transformPoint(transform, Offset.zero) - origin + track,
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.

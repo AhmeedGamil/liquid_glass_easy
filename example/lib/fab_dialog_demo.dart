@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 /// Interactive showcase page for [LiquidGlassFab] and [LiquidGlassAlertDialog].
+///
+/// Every glass on it — the FAB, the dialogs, every button — is LITE glass
+/// with the `surface` rim: `liteGlass: LiquidGlassLitePickup.surface` on the style, no shader and no
+/// refraction, the rim blended over the tint and the content.
 class FabAndDialogDemoPage extends StatefulWidget {
   const FabAndDialogDemoPage({super.key});
 
@@ -16,24 +20,44 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   /// route behind it to remember whether it is open.
   bool _inPageDialogOpen = false;
 
+  /// Every surface on the page is lite glass with the `surface` rim.
+  static const LiquidGlassLitePickup _rim = LiquidGlassLitePickup.surface;
+  static final LiquidGlassStyle _panel = LiquidGlassDialog.defaultStyle
+      .copyWith(liteGlass: _rim);
+  // The buttons carry no frost: a surface-rim button reads best as a flat
+  // tinted plate.
+  static final LiquidGlassStyle _button =
+      LiquidGlassButton.defaultStyle.copyWith(
+    liteGlass: _rim,
+    appearance: LiquidGlassButton.defaultStyle.appearance
+        .copyWith(blur: const LiquidGlassBlur()),
+  );
+  static final LiquidGlassStyle _fab =
+      LiquidGlassFab.defaultStyle.copyWith(liteGlass: _rim);
+
   void _openAlertDialog(BuildContext context) {
     showLiquidGlassDialog(
       context: context,
       builder: (context) => LiquidGlassAlertDialog(
-        icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF7C5CFF), size: 36),
+        style: _panel,
+        icon: const Icon(Icons.auto_awesome_rounded,
+            color: Color(0xFF7C5CFF), size: 36),
         title: const Text('Liquid Glass Dialog'),
         content: const Text(
-          'This alert dialog is rendered using a refractive LiquidGlassLens floating over the vibrant background.',
+          'This alert dialog is lite glass floating over the vibrant background: no shader, its rim blended over the surface.',
         ),
         actions: [
           LiquidGlassButton(
             label: 'Cancel',
+            style: _button.copyWith(
+              appearance: const LiquidGlassAppearance(color: Color(0xFF7C5CFF)),
+            ),
             onPressed: () => Navigator.of(context).pop(),
           ),
           LiquidGlassButton(
             label: 'Confirm',
-            style: LiquidGlassButton.defaultStyle.copyWith(
-              appearance: const LiquidGlassAppearance(color: Color(0x607C5CFF)),
+            style: _button.copyWith(
+              appearance: const LiquidGlassAppearance(color: Color(0xFF7C5CFF)),
             ),
             onPressed: () {
               Navigator.of(context).pop();
@@ -51,11 +75,13 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
     showLiquidGlassDialog(
       context: context,
       builder: (context) => LiquidGlassDialog(
+        style: _panel,
         width: 320,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.shield_moon_rounded, size: 48, color: Color(0xFF5BC0FF)),
+            const Icon(Icons.shield_moon_rounded,
+                size: 48, color: Color(0xFF5BC0FF)),
             const SizedBox(height: 12),
             const Text(
               'Custom Glass Modal',
@@ -65,12 +91,14 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
             Text(
               'Compose any arbitrary Flutter widgets inside LiquidGlassDialog for custom glass popups.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white.withAlpha(200), fontSize: 13.5),
+              style:
+                  TextStyle(color: Colors.white.withAlpha(200), fontSize: 13.5),
             ),
             const SizedBox(height: 20),
             LiquidGlassButton(
               label: 'Close Modal',
               width: double.infinity,
+              style: _button,
               onPressed: () => Navigator.of(context).pop(),
             ),
           ],
@@ -83,8 +111,9 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   /// layer rather than a route, so it refracts the live feed on Skia too.
   Widget _buildInPageDialog() {
     return LiquidGlassAlertDialog(
-      icon: const Icon(Icons.layers_rounded,
-          color: Color(0xFF2DD4BF), size: 36),
+      style: _panel,
+      icon:
+          const Icon(Icons.layers_rounded, color: Color(0xFF2DD4BF), size: 36),
       title: const Text('In-Page Panel'),
       content: const Text(
         'This one is a slot on the scaffold, not a pushed route. It lives '
@@ -94,6 +123,7 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
       actions: [
         LiquidGlassButton(
           label: 'Close',
+          style: _button,
           onPressed: () => setState(() => _inPageDialogOpen = false),
         ),
       ],
@@ -158,7 +188,11 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
-                colors: [Color(0xFF0B0A12), Color(0xFF16112C), Color(0xFF2B1446)],
+                colors: [
+                  Color(0xFF0B0A12),
+                  Color(0xFF16112C),
+                  Color(0xFF2B1446)
+                ],
               ),
             ),
           ),
@@ -186,84 +220,105 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
               ),
             ),
           ),
-          // Scrollable content feed
-          ScrollConfiguration(
-            behavior: const MaterialScrollBehavior().copyWith(overscroll: false),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(20, 160, 20, 140),
-              children: [
-                const Text(
-                  'Scrollable Glass Feed',
-                  style: TextStyle(
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'Scroll the content up and down. The floating FAB and dialog refract the colorful cards moving underneath in real time.',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.white.withAlpha(180),
-                    height: 1.35,
-                  ),
-                ),
-                const SizedBox(height: 24),
-
-                // Control action bar
-                Builder(
-                  builder: (context) => Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
-                    alignment: WrapAlignment.center,
-                    children: [
-                      LiquidGlassButton(
-                        label: _useExtendedFab ? 'Icon FAB' : 'Extended FAB',
-                        icon: Icons.swap_horiz_rounded,
-                        onPressed: () =>
-                            setState(() => _useExtendedFab = !_useExtendedFab),
+          // The header and its glass buttons sit in a plain column, out of
+          // the scroll: only the cards move, so no glass rides the feed.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 160, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Scrollable Glass Feed',
+                      style: TextStyle(
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: -0.5,
                       ),
-                    LiquidGlassButton(
-                      label: 'Alert Dialog',
-                      icon: Icons.add_alert_rounded,
-                      style: LiquidGlassButton.defaultStyle.copyWith(
-                        appearance: const LiquidGlassAppearance(color: Color(0x407C5CFF)),
-                      ),
-                      onPressed: () => _openAlertDialog(context),
                     ),
-                    LiquidGlassButton(
-                      label: 'Custom Dialog',
-                      icon: Icons.widgets_rounded,
-                      style: LiquidGlassButton.defaultStyle.copyWith(
-                        appearance: const LiquidGlassAppearance(color: Color(0x405BC0FF)),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Scroll the content up and down. The floating FAB and dialog are lite glass over the colorful cards moving underneath — no shader behind them.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withAlpha(180),
+                        height: 1.35,
                       ),
-                      onPressed: () => _openCustomDialog(context),
-                      ),
-                      LiquidGlassButton(
-                        label: 'In-Page Panel',
-                        icon: Icons.layers_rounded,
-                        style: LiquidGlassButton.defaultStyle.copyWith(
-                          appearance: const LiquidGlassAppearance(
-                            color: Color(0x402DD4BF),
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Control action bar
+                    Builder(
+                      builder: (context) => Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        alignment: WrapAlignment.center,
+                        children: [
+                          LiquidGlassButton(
+                            label:
+                                _useExtendedFab ? 'Icon FAB' : 'Extended FAB',
+                            icon: Icons.swap_horiz_rounded,
+                            style: _button,
+                            onPressed: () => setState(
+                                () => _useExtendedFab = !_useExtendedFab),
                           ),
-                        ),
-                        onPressed: () =>
-                            setState(() => _inPageDialogOpen = true),
+                          LiquidGlassButton(
+                            label: 'Alert Dialog',
+                            icon: Icons.add_alert_rounded,
+                            style: _button.copyWith(
+                              appearance: const LiquidGlassAppearance(
+                                  color: Color(0xFF7C5CFF)),
+                            ),
+                            onPressed: () => _openAlertDialog(context),
+                          ),
+                          LiquidGlassButton(
+                            label: 'Custom Dialog',
+                            icon: Icons.widgets_rounded,
+                            style: _button.copyWith(
+                              appearance: const LiquidGlassAppearance(
+                                  color: Color(0xFF5BC0FF)),
+                            ),
+                            onPressed: () => _openCustomDialog(context),
+                          ),
+                          LiquidGlassButton(
+                            label: 'In-Page Panel',
+                            icon: Icons.layers_rounded,
+                            style: _button.copyWith(
+                              appearance: const LiquidGlassAppearance(
+                                color: Color(0xFF2DD4BF),
+                              ),
+                            ),
+                            onPressed: () =>
+                                setState(() => _inPageDialogOpen = true),
+                          ),
+                        ],
                       ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+
+              // Vibrant scrollable cards
+              Expanded(
+                child: ScrollConfiguration(
+                  behavior: const MaterialScrollBehavior()
+                      .copyWith(overscroll: false),
+                  child: ListView(
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 140),
+                    children: [
+                      for (final card in _cards) ...[
+                        _VibrantCard(data: card),
+                        const SizedBox(height: 16),
+                      ],
                     ],
                   ),
                 ),
-                const SizedBox(height: 32),
-
-                // Vibrant scrollable cards
-                for (final card in _cards) ...[
-                  _VibrantCard(data: card),
-                  const SizedBox(height: 16),
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
@@ -274,10 +329,12 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
             ? LiquidGlassFab.extended(
                 icon: Icons.add_rounded,
                 label: const Text('New Action'),
+                style: _fab,
                 onPressed: () => _openAlertDialog(context),
               )
             : LiquidGlassFab(
                 icon: Icons.add_rounded,
+                style: _fab,
                 onPressed: () => _openAlertDialog(context),
               ),
       ),
@@ -362,7 +419,8 @@ class _VibrantCard extends StatelessWidget {
               ],
             ),
           ),
-          const Icon(Icons.arrow_forward_ios_rounded, color: Colors.white70, size: 18),
+          const Icon(Icons.arrow_forward_ios_rounded,
+              color: Colors.white70, size: 18),
         ],
       ),
     );

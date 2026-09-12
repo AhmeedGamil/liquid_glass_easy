@@ -35,8 +35,8 @@ class LiquidGlassViewController {
 
   /// Captures a single static frame of the background widget of the LiquidGlassView.
   ///
-  /// This performs a one-time capture and updates all attached LiquidGlass
-  /// lenses using that snapshot. No continuous updates are performed.
+  /// This performs a one-time capture and updates every lens attached to
+  /// the view using that snapshot. No continuous updates are performed.
   ///
   /// Use this when:
   /// - you want a snapshot-based lens (static blur/distortion),
@@ -52,7 +52,7 @@ class LiquidGlassViewController {
   ///
   /// This continuously updates the background at a rate determined
   /// by the internal refresh pipeline. It enables fully dynamic
-  /// LiquidGlass effects (blurring, distortion, magnification, etc.) that
+  /// liquid-glass effects (blurring, distortion, magnification, etc.) that
   /// react to movement or animations behind the lens.
   ///
   /// Use this when:

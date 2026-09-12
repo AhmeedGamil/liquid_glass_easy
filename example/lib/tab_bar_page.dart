@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -32,11 +33,9 @@ void main() {
 // its values — `both`, `impellerOnly`, `none` — on the same bar, so the
 // only thing that changes between them is that one line.
 //
-// Tapping a tab does two things here: it moves the pill, and it pushes
-// that tab's own page over the bar. `onChanged` is an ordinary callback,
-// so the bar drives a `Navigator` just as happily as it drives a body
-// swap — the pill starts travelling, the route slides in on top of it,
-// and the selection is still there when the page is popped.
+// Tapping a tab moves the pill and swaps the feed's title. `onChanged` is
+// an ordinary callback, so the bar drives a body swap — or a `Navigator`,
+// if a host wants one — with the same one line.
 //
 // The pill's deformation comes from acceleration: its drawn position is
 // sampled every frame in pixels, differentiated twice, and the averaged
@@ -86,7 +85,10 @@ class _Tab {
 }
 
 const List<_Tab> _kTabs = [
-  _Tab(Icons.home_rounded, 'Home', 'For you',
+  _Tab(
+      Icons.home_rounded,
+      'Home',
+      'For you',
       'Cut from what you played this week, and the shows either side of it.',
       'ta'),
   _Tab(Icons.grid_view_rounded, 'Browse', 'Browse',
@@ -153,18 +155,9 @@ class _TabBarPageState extends State<TabBarPage> {
     for (final _Tab t in _kTabs) _tab(t.icon, t.label),
   ];
 
-  /// A tap selects the tab and opens its page.
-  ///
-  /// The `setState` goes first so the pill is already under way when the
-  /// route begins its own transition. Popping lands back on the bar with
-  /// the tab still selected, so the two never disagree about where you
-  /// are.
-  void _openTab(int i) {
-    setState(() => _index = i);
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(builder: (_) => _TabDetailPage(tab: _kTabs[i])),
-    );
-  }
+  /// A tap selects the tab. Nothing else moves: the bar stays put and the
+  /// feed re-titles under it, so the pill's travel is the whole event.
+  void _openTab(int i) => setState(() => _index = i);
 
   @override
   Widget build(BuildContext context) {
@@ -563,7 +556,9 @@ class _PillModePicker extends StatelessWidget {
     (
       LiquidGlassPillMode.both,
       'both',
-      'A second refracting surface, on every renderer.',
+      'A second refracting surface, on every renderer. Excellent on '
+          'Impeller. On Skia and the web it is an experiment and heavy — '
+          'a second full-page capture; do not ship it there.',
     ),
     (
       LiquidGlassPillMode.impellerOnly,
@@ -579,8 +574,7 @@ class _PillModePicker extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String note =
-        _tiers.firstWhere((t) => t.$1 == mode).$3;
+    final String note = _tiers.firstWhere((t) => t.$1 == mode).$3;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -611,7 +605,11 @@ class _PillModePicker extends StatelessWidget {
         Text(
           note,
           style: TextStyle(
-            color: _kInk.withValues(alpha: 0.55),
+            // `both` is the one tier that costs something on Skia, and the
+            // web is always Skia: flag it there.
+            color: kIsWeb && mode == LiquidGlassPillMode.both
+                ? const Color(0xFFB45309)
+                : _kInk.withValues(alpha: 0.55),
             fontSize: 12.5,
             height: 1.35,
           ),
@@ -645,9 +643,8 @@ class _Chip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(30),
             border: Border.all(
-              color: selected
-                  ? Colors.transparent
-                  : _kInk.withValues(alpha: 0.10),
+              color:
+                  selected ? Colors.transparent : _kInk.withValues(alpha: 0.10),
             ),
           ),
           child: Text(
@@ -762,183 +759,4 @@ Widget _trackRow(_Item item) {
       ],
     ),
   );
-}
-
-// ════════════════════════════════════════════════════════════════
-//  The page a tab tap pushes.
-//
-//  It gets its own `LiquidGlassScaffold`, so its glass app bar has a
-//  live page of its own to refract while the list scrolls under it —
-//  the pushed route is a page in its own right, not a panel borrowing
-//  the one below.
-// ════════════════════════════════════════════════════════════════
-
-class _TabDetailPage extends StatelessWidget {
-  const _TabDetailPage({required this.tab});
-
-  final _Tab tab;
-
-  static const double _barHeight = 52;
-
-  @override
-  Widget build(BuildContext context) {
-    final double screen = MediaQuery.sizeOf(context).width;
-
-    return LiquidGlassScaffold(
-      pixelRatio: 1,
-      useSync: true,
-      appBar: LiquidGlassAppBar(
-        height: _barHeight,
-        width: (screen - 32).clamp(280.0, 560.0),
-        // The page under it is light, so the bar wears the same frosted
-        // white as the tab capsule instead of the tuned dark default.
-        style: LiquidGlassAppBar.defaultStyle.copyWith(
-          shape: _glassShape(_barHeight / 2),
-          appearance: const LiquidGlassAppearance(
-            color: Color(0x8FFFFFFF),
-            blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-            shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
-          ),
-        ),
-        foregroundColor: _kInk,
-        leading: GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: () => Navigator.of(context).maybePop(),
-          child: const SizedBox(
-            width: 34,
-            height: 34,
-            child: Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-          ),
-        ),
-        title: Text(tab.title),
-        actions: const [Icon(Icons.more_horiz_rounded, size: 22)],
-      ),
-      body: Material(
-        type: MaterialType.transparency,
-        child: Stack(
-          children: [
-            const Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Color(0xFFE7E5EB),
-                      Color(0xFFDBD9E2),
-                      Color(0xFFCFCDD8)
-                    ],
-                    stops: [0, 0.45, 1],
-                  ),
-                ),
-              ),
-            ),
-            const Positioned(top: -120, left: -90, child: _Glow(size: 330)),
-            const Positioned(bottom: -60, right: -110, child: _Glow(size: 300)),
-            ListView(
-              padding: const EdgeInsets.fromLTRB(20, 96, 20, 48),
-              children: [
-                _hero(),
-                const SizedBox(height: 26),
-                _sectionTitle('In this tab'),
-                const SizedBox(height: 14),
-                for (int i = 0; i < _tracks.length; i++) ...[
-                  _trackRow(_tracks[i]),
-                  if (i != _tracks.length - 1) const SizedBox(height: 10),
-                ],
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The card the page lands on: the tab's own glyph and line over its
-  /// own artwork, so the four of them arrive looking different.
-  Widget _hero() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(26),
-      child: Stack(
-        children: [
-          Image.network(
-            'https://picsum.photos/seed/${tab.seed}/900/620',
-            height: 220,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topRight,
-                  end: Alignment.bottomLeft,
-                  colors: [
-                    _kBrand.withValues(alpha: 0.38),
-                    Colors.transparent,
-                    Colors.black.withValues(alpha: 0.82),
-                  ],
-                  stops: const [0, 0.5, 1],
-                ),
-              ),
-            ),
-          ),
-          Positioned(
-            left: 20,
-            right: 20,
-            bottom: 18,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white.withValues(alpha: 0.16),
-                    border: Border.all(
-                      color: Colors.white.withValues(alpha: 0.35),
-                    ),
-                  ),
-                  child: Icon(tab.icon, color: Colors.white, size: 22),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  tab.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.5,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  tab.blurb,
-                  style: const TextStyle(
-                    color: Color(0xBFFFFFFF),
-                    fontSize: 13.5,
-                    height: 1.35,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Four rows per tab, seeded off the tab so no two pages repeat art.
-  List<_Item> get _tracks => [
-        for (int i = 1; i <= 4; i++)
-          _Item('${tab.title} · pick $i', _kArtists[i - 1], '${tab.seed}$i'),
-      ];
-
-  static const List<String> _kArtists = [
-    'Kova · 4:12',
-    'June Wilder · 3:38',
-    'The Hours · 5:02',
-    'Marisa Oak · 4:47',
-  ];
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 /// Whether the gallery paints itself dark.
 ///
@@ -10,6 +11,18 @@ import 'package:flutter/material.dart';
 /// Lives in its own file so a page can read or flip it without importing
 /// the gallery that imports the page.
 final ValueNotifier<bool> darkMode = ValueNotifier<bool>(true);
+
+/// Whether every lens in the gallery draws lite glass — frost, tint and rim,
+/// no shader and no capture — on whichever engine the app is on.
+///
+/// Flipping it sets both `LiquidGlassEngine` switches; the gallery's
+/// [MaterialApp] rebuilds from it too, so a page already on screen redraws
+/// its lenses instead of waiting to be reopened.
+final ValueNotifier<bool> liteGlass = ValueNotifier<bool>(false)
+  ..addListener(() {
+    LiquidGlassEngine.liteGlassOnSkia = liteGlass.value;
+    LiquidGlassEngine.liteGlassOnImpeller = liteGlass.value;
+  });
 
 /// The gallery's page backdrop for [brightness]: a deep violet wash in the
 /// dark, the same hue bleached to near-paper in the light.

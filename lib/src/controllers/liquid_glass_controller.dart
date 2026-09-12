@@ -26,7 +26,7 @@ class LiquidGlassController {
     _resetLiquidGlassPosition = null;
   }
 
-  /// Shows the LiquidGlass lens with an animation.
+  /// Shows the liquid-glass lens with an animation.
   ///
   /// This method animates the distortion from its starting value
   /// (`distortionBegin`) up to `1.0`, making the lens fully visible.
@@ -46,7 +46,7 @@ class LiquidGlassController {
     );
   }
 
-  /// Hides the LiquidGlass lens with an animation.
+  /// Hides the liquid-glass lens with an animation.
   ///
   /// This method animates the distortion from `1.0` back down to
   /// `distortionBegin`, making the lens appear to fade out or soften.
@@ -66,7 +66,7 @@ class LiquidGlassController {
     );
   }
 
-  /// Instantly resets the LiquidGlass lens position.
+  /// Instantly resets the liquid-glass lens position.
   ///
   /// This method does **not** animate. It immediately snaps the lens back to
   /// its default/original position.

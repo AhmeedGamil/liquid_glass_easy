@@ -2,21 +2,12 @@ import 'package:flutter/material.dart';
 
 /// Defines the rendering style for the liquid glass border.
 ///
-/// Use [ClassicBorder] for a sweep gradient approach with direct
-/// light/shadow color control, or [OpticalBorder] for Apple-style
-/// SDF-based rim lighting with ambient tinting and saturation boost.
+/// [OpticalBorder] is the default and the one to use: Apple-style SDF rim
+/// lighting, derived from the glass shape, tinted by what is behind it.
+/// [ClassicBorder] is the older sweep-gradient rim and is **deprecated**.
 ///
 /// Example:
 /// ```dart
-/// // Classic border with custom shadow color
-/// LiquidGlassShape.roundedRectangle(
-///   lightColor: Color(0xB2FFFFFF),
-///   borderType: ClassicBorder(
-///     borderSoftness: 2.5,
-///     shadowColor: Color(0x1A000000),
-///   ),
-/// )
-///
 /// // Optical border with saturation boost
 /// LiquidGlassShape.roundedRectangle(
 ///   borderType: OpticalBorder(
@@ -45,6 +36,28 @@ sealed class LiquidGlassBorderType {
 /// - [shadowColor] — The shadow color on the opposite side.
 /// - [oneSideLightIntensity] — One-sided specular highlight strength.
 /// - [doubleSideLightIntensity] — Double-sided specular highlight strength.
+///
+/// ## Deprecated
+///
+/// The rim is drawn rather than derived: a sweep painted from a light angle,
+/// with its own colours and its own specular terms, sitting on glass whose
+/// every other facet comes out of the shape. [OpticalBorder] — the default —
+/// takes the rim from the shape's own field, picks its colour up from the
+/// background, and is what the material means by an edge.
+///
+/// It is not a parameter-for-parameter swap, and it is not meant to be:
+/// [shadowColor], [oneSideLightIntensity] and [doubleSideLightIntensity] have
+/// no optical counterpart because the optical rim has no separate light to
+/// aim. Reach for [OpticalBorder.borderSaturation],
+/// [OpticalBorder.ambientIntensity], [OpticalBorder.borderSolidity] and
+/// [OpticalBorder.lightSpread] instead, and `borderWidth`, `lightIntensity`,
+/// `lightColor` and `lightDirection` carry over unchanged — they live on the
+/// shape, not on the border type.
+@Deprecated(
+  'Use OpticalBorder instead — the rim it derives from the glass shape is '
+  'what the material means by an edge. This feature was deprecated after '
+  'v4.2.0.',
+)
 class ClassicBorder extends LiquidGlassBorderType {
   /// The smoothness or falloff softness of the border edge.
   ///

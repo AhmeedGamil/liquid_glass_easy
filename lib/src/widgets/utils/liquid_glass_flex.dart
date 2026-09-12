@@ -320,8 +320,8 @@ class LiquidGlassFlex {
           other.advanced == advanced;
 
   @override
-  int get hashCode => Object.hash(stretch, squeeze, lean, grip,
-      compressInward, holdScale, tapScale, maxPull, lockAxis, advanced);
+  int get hashCode => Object.hash(stretch, squeeze, lean, grip, compressInward,
+      holdScale, tapScale, maxPull, lockAxis, advanced);
 }
 
 /// The knobs of [LiquidGlassFlex] that are set once and then left
@@ -530,8 +530,7 @@ class LiquidGlassFlexDeform {
   /// a domain divided by this, so the deformation stretches the whole outline
   /// -- a circle becomes an ellipse instead of a stadium with flat runs.
   Offset scaleFrom(Size rest) {
-    if (debugLiquidGlassFlexOutline ==
-        LiquidGlassFlexOutline.legacy) {
+    if (debugLiquidGlassFlexOutline == LiquidGlassFlexOutline.legacy) {
       return const Offset(1, 1);
     }
     if (rest.isEmpty) return const Offset(1, 1);
@@ -575,7 +574,6 @@ class LiquidGlassFlexDeform {
   int get hashCode => Object.hash(left, right, top, bottom, childScaleX,
       childScaleY, childTranslateX, childTranslateY, pressAmount);
 }
-
 
 /// How much of the stretched-outline behaviour is active. **Debug only.**
 ///
@@ -823,10 +821,8 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     // The denominators are floored because a gain can now be negative: on a
     // lens narrower than `stretch`, `w + gainX` would reach zero and the
     // give-back would explode through the edge floors.
-    final double lossH =
-        s.squeeze * h * gainX / math.max(w + gainX, w * 0.25);
-    final double lossW =
-        s.squeeze * w * gainY / math.max(h + gainY, h * 0.25);
+    final double lossH = s.squeeze * h * gainX / math.max(w + gainX, w * 0.25);
+    final double lossW = s.squeeze * w * gainY / math.max(h + gainY, h * 0.25);
     dt -= lossH * wT;
     db -= lossH * wB;
     dl -= lossW * wL;
@@ -852,8 +848,7 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     // Proportional to the lens's own size, split by the same grab-point
     // weights, which sum to 1: the total gain is exactly `scale * extent`
     // however it is distributed. Both axes always, lock or no lock.
-    final double scale =
-        (_down ? s.holdScale : 0.0) + s.tapScale * _tap;
+    final double scale = (_down ? s.holdScale : 0.0) + s.tapScale * _tap;
     if (scale != 0) {
       final double growX = scale * w;
       final double growY = scale * h;
@@ -1111,8 +1106,7 @@ LiquidGlassRefraction liquidGlassFlexRefraction(
   return refraction.copyWith(
     // Legacy controls only when no type is configured; a type overrides them
     // and carries its own strength, so scale that instead.
-    distortion:
-        k > 0 && type == null ? refraction.distortion * (1 + k) : null,
+    distortion: k > 0 && type == null ? refraction.distortion * (1 + k) : null,
     refractionType: k > 0 ? type?.withEffectFactor(1 + k) : null,
     // Null leaves it untouched, which is the default: magnificationBoost is 0
     // unless a caller asks for the zoom.

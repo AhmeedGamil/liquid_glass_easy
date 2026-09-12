@@ -90,12 +90,25 @@ import '../liquid_glass_shadow.dart';
 /// each new size. The outer view's capture is the inner stack, so the
 /// pill still bends the bar's own glass.
 ///
-/// One consequence to know about: the view paints its `child:` slot BELOW
-/// its positioned `children:`, so the pill sits under [outerLenses]
-/// rather than over them. Nothing overlaps a bottom-anchored pill in
-/// practice — an app bar is at the top, a side action sits beside the bar
-/// — but a host that deliberately put glass over the pill's own cells
-/// would see the difference.
+/// A host's chrome — everything else it floats over the page — goes in
+/// [chromeChild], and the bar decides which view draws it by renderer.
+/// On **Impeller** it sits in the outer view's `child:` slot, after the
+/// pill, exactly as it always has: no capture exists there, so the outer
+/// view costs nothing at rest, and the chrome paints over the bar's cells
+/// and the pill. On **Skia** the outer view captures the whole screen
+/// again, and a settled bar unmounts the glass and puts that capture to
+/// sleep — so there the chrome rides the inner view's own slot instead,
+/// where it refracts the captured body directly and never wakes the
+/// outer view. [outerChild] is the explicit outer slot for a host that
+/// needs one on both renderers; it pairs with [outerNeedsRealtime].
+///
+/// Two layering notes. On Skia, [chromeChild] paints above the bar
+/// capsule but below the icon shell and the pill, so glass placed over
+/// the bar's own cells sits under them there (and over them on Impeller).
+/// And the outer view paints its `child:` slot BELOW its positioned
+/// `children:`, so the pill sits under [outerLenses] rather than over
+/// them. Nothing overlaps a bottom-anchored pill in practice — an app bar
+/// is at the top, a side action sits beside the bar.
 ///
 /// ## How the pill grows
 ///
@@ -138,9 +151,10 @@ import '../liquid_glass_shadow.dart';
 /// tab mid-hand-off turns the glass straight back around
 /// ([glassReturnTau]) instead of finishing and starting over.
 ///
-/// [body] is the page content, captured behind the glass. [outerLenses]
-/// are composited in the outer view on top of the bar (e.g. the app bar
-/// and the side action button).
+/// [body] is the page content, captured behind the glass. [chromeChild]
+/// is the host's chrome (e.g. the app bar and the side action button),
+/// placed by renderer as described above; [outerLenses] and [outerChild]
+/// are always in the outer view, over the bar and the pill.
 class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final Widget body;
   final List<LiquidGlassTabBarItem> items;
@@ -154,19 +168,32 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final bool showSelectionPill;
 
   /// Whether the OUTER pipeline must keep capturing independently of the
-  /// selection pill. Hosts that put lenses in [outerChild] must pass `true`.
+  /// selection pill. Hosts that put lenses in [outerChild] must pass
+  /// `true` while those lenses are showing; [chromeChild] never needs it.
   final bool outerNeedsRealtime;
 
   /// Bar geometry (size, position, padding). The bottom margin should
   /// already include any safe-area inset.
   final LiquidGlassTabBarLayout layout;
 
+  /// The host's chrome: a full-screen `Stack` of lens-anywhere widgets —
+  /// app bar, side action, floating button, extra lenses, dialog. The bar
+  /// places it by renderer. On Impeller it goes in the **outer** view's
+  /// `child:` slot after the pill, over the bar's cells, as the outer slot
+  /// always did. On Skia it goes in the **inner** view's `child:` slot,
+  /// above the bar capsule and below the icon shell and the pill, so it
+  /// refracts the body on the capture the bar already takes and the outer
+  /// capture can sleep while the pill is at rest. Adaptive areas and
+  /// lenses in it reach the inner view's sampler either way.
+  final Widget? chromeChild;
+
   /// Lenses composited in the **outer** view, above the bar.
   final List<LiquidGlass> outerLenses;
 
   /// Widget subtree composited in the **outer** view's `child:` slot,
-  /// above the captured bar/body — and, here, above the moving pill,
-  /// which now lives in that same slot.
+  /// above the captured bar/body and above the moving pill, which lives
+  /// in that same slot. Reserved for what must paint over the bar's cells
+  /// and the pill (a modal barrier); pair it with [outerNeedsRealtime].
   final Widget? outerChild;
 
   /// Optional solid color behind [body].
@@ -200,11 +227,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final LiquidGlassAdaptiveSampling? adaptiveSampling;
 
   /// Sampling opt-in for adaptive areas/lenses a host places in
-  /// [outerChild] (e.g. `LiquidGlassScaffold`'s top / shared adaptivity
-  /// groups). Their registrations are redirected to the **inner** view's
-  /// sampler — the pre-glass body image — so the whole pipeline runs
-  /// ONE sampler and no widget ever reads its own glass back. `null`
-  /// (the default) leaves outer-slot clients without sampling.
+  /// [chromeChild] or [outerChild] (e.g. `LiquidGlassScaffold`'s system
+  /// strips and shared adaptivity groups). All register with the
+  /// **inner** view's sampler — the pre-glass body image — through that
+  /// view's own scope when drawn inside it, through a redirect when drawn
+  /// in the outer view — so the whole pipeline runs ONE sampler and no
+  /// widget ever reads its own glass back. `null` (the default) leaves
+  /// slot clients without sampling.
   final LiquidGlassAdaptiveSampling? outerAdaptiveSampling;
 
   /// The host's area context for the bar — the adaptivity group (e.g. a
@@ -339,6 +368,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// member's glass.
   final bool batch;
 
+  /// See `LiquidGlassView.foregroundBatchId`, handed to both views: with it
+  /// the capsule (the inner view's child) and the outer slots (the outer
+  /// view's) are one batch — how the scaffold puts its tab bar and its
+  /// `dialog` slot on a single read, and the sheets and dialogs it
+  /// presents when they ask for it. Library-internal.
+  final int? foregroundBatchId;
+
   /// Whether the **inner** view (body + bar capsule) captures every frame.
   final bool realTimeCapture;
 
@@ -356,6 +392,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.itemStyle = const LiquidGlassTabItemStyle(),
     this.showSelectionPill = true,
     this.outerNeedsRealtime = false,
+    this.chromeChild,
     this.outerLenses = const [],
     this.outerChild,
     this.backgroundColor,
@@ -399,6 +436,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.useSync = true,
     this.useImpellerBackdrop,
     this.batch = true,
+    this.foregroundBatchId,
     this.realTimeCapture = true,
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
     this.adaptivity,
@@ -439,6 +477,16 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       _innerViewController.registerAdaptiveClient;
   late final void Function(LiquidGlassAdaptiveClient) _outerAdaptiveUnregister =
       _innerViewController.unregisterAdaptiveClient;
+
+  /// An outer-view slot with its adaptive clients redirected to the inner
+  /// sampler — or the slot as given when the host asked for no sampling.
+  Widget _outerRedirected(Widget slot) => widget.outerAdaptiveSampling == null
+      ? slot
+      : LiquidGlassAdaptiveSamplerScope(
+          register: _outerAdaptiveRegister,
+          unregister: _outerAdaptiveUnregister,
+          child: slot,
+        );
 
   /// Effective adaptivity for this build: the widget's own, else the
   /// enclosing [LiquidGlassAdaptiveArea]'s. Resolved in [build].
@@ -1172,6 +1220,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
             batch: widget.batch,
+            foregroundBatchId: widget.foregroundBatchId,
             backgroundWidget: _buildInner(
               layout: layout,
               pillFrac: hlFrac,
@@ -1243,17 +1292,17 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                     top: pillCY - pillRest.height / 2,
                     child: _restPill(pillRest),
                   ),
+                // The host's chrome, on Impeller only: no capture up here
+                // to keep awake, so it paints over the cells and the pill
+                // exactly as the outer slot always has. (On Skia it is in
+                // the inner view instead — see `_buildInnerStack`.)
+                if (_useImpeller && widget.chromeChild != null)
+                  _outerRedirected(widget.chromeChild!),
                 // Adaptive areas/lenses in the outer slots sample through
                 // the INNER view (the pre-glass body image) via this
                 // redirect — one sampler for the whole pipeline.
                 if (widget.outerChild != null)
-                  widget.outerAdaptiveSampling == null
-                      ? widget.outerChild!
-                      : LiquidGlassAdaptiveSamplerScope(
-                          register: _outerAdaptiveRegister,
-                          unregister: _outerAdaptiveUnregister,
-                          child: widget.outerChild!,
-                        ),
+                  _outerRedirected(widget.outerChild!),
               ],
             ),
           ),
@@ -1337,9 +1386,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       ),
       // On Impeller the under-pill magnifier lens owns the magnification;
       // the glass pill on top must not compound it (m² in the middle).
-      refraction: _useImpeller
-          ? refraction.copyWith(magnification: 1)
-          : refraction,
+      refraction:
+          _useImpeller ? refraction.copyWith(magnification: 1) : refraction,
     );
   }
 
@@ -1347,7 +1395,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// this end of the morph, stripped of everything visible — no rim, no
   /// glint. [base] mirrors the pill's own shape resolution ([fallbackRadius]
   /// is the capsule radius used when the host authored no shape).
-  LiquidGlassShape _magnifierShape(LiquidGlassShape? base, double fallbackRadius) {
+  LiquidGlassShape _magnifierShape(
+      LiquidGlassShape? base, double fallbackRadius) {
     final s = base;
     if (s == null) {
       return LiquidGlassShape(
@@ -1586,13 +1635,15 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
           useImpellerBackdrop: widget.useImpellerBackdrop,
           batch: widget.batch,
+          foregroundBatchId: widget.foregroundBatchId,
           backgroundWidget: background,
           // Body-luminance sampling for adaptivity: the inner view owns
           // the captured body, so it hosts the sampler; the registrar in
           // its child slot enrolls this state as the sampling client.
-          // The pipeline's SINGLE sampler: serves the bar's own verdict
-          // and any outer-slot areas/lenses redirected here through the
-          // outer view's sampler scope.
+          // The pipeline's SINGLE sampler: serves the bar's own verdict,
+          // the inner-slot areas/lenses through this view's own scope, and
+          // any outer-slot ones redirected here through the outer view's
+          // sampler scope.
           // The HOST decides whether a sampler exists at all. A bar
           // carrying its own `style.adaptivity` used to fall back on a
           // default config and open one here — which meant a scaffold
@@ -1622,6 +1673,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                   child: LiquidGlassLens(style: capsuleStyle),
                 ),
               ),
+              // The host's chrome, on Skia only, on THIS view's capture: it
+              // refracts the body the way the capsule does, joins the same
+              // foreground batch, and never asks the outer view to stay
+              // awake. Above the capsule, below the shell and the pill. (On
+              // Impeller it is in the outer view instead — see the build.)
+              if (!_useImpeller && widget.chromeChild != null)
+                Positioned.fill(child: widget.chromeChild!),
               // The bar's state lives OUTSIDE this view, so it cannot
               // reach the scope itself — this registrar does it from in
               // here and forwards every sample to the driver.

@@ -12,13 +12,23 @@ import 'package:meta/meta.dart';
 import '../components/liquid_glass_adaptive_area.dart';
 import '../liquid_glass_style.dart';
 import '../painters/liquid_glass_uniforms.dart';
+import 'liquid_glass_shaders.dart';
+import '../liquid_glass_engine.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_adaptivity_driver.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_batch.dart';
 import 'liquid_glass_lens_scope.dart';
 
-/// Blends two to eight descendant `LiquidGlassLens` widgets into one surface.
+/// Draws two to eight descendant `LiquidGlassLens` widgets with **one shader**
+/// — one backdrop read and one material for all of them — and, above
+/// `smoothness: 0`, blends their silhouettes into one liquid surface.
+///
+/// The sharing is the base and the bridge is the option. At `smoothness: 0`
+/// the members keep their own hard outlines on that single pass, which is
+/// exactly what the deprecated `LiquidGlassGroup` did: `LiquidGlassGroup(...)`
+/// is `LiquidGlassBlender(smoothness: 0, ...)`, every other parameter by the
+/// same name.
 ///
 /// The upper limit is **eight shapes** ([maxLensCount]) — the metaball field
 /// compares every member per fragment, so the cap keeps the shader cost
@@ -75,7 +85,7 @@ class LiquidGlassBlender extends StatefulWidget {
     this.useImpellerBackdrop,
     this.useEngineBlur = true,
     this.debugClipBounds = false,
-  }) : assert(smoothness == null || smoothness > 0);
+  }) : assert(smoothness == null || smoothness >= 0);
 
   /// Any widget tree containing two to six `LiquidGlassLens` descendants.
   final Widget child;
@@ -85,16 +95,21 @@ class LiquidGlassBlender extends StatefulWidget {
 
   /// Radius, in logical pixels, over which nearby lens outlines flow together.
   ///
-  /// **`null` turns the metaball off.** The members are then unioned hard —
+  /// **`0` turns the metaball off.** The members are then unioned hard —
   /// nearest one wins each fragment outright — and the shader runs none of
   /// the smooth-union machinery: no smin, no per-member influence weights, no
   /// blended gradient. They still share one surface, one backdrop read and
-  /// one material; they just stop flowing into each other.
+  /// one material; they just stop flowing into each other. That is the whole
+  /// of what `LiquidGlassGroup` does.
   ///
-  /// That is not the same as passing a very small radius. A near-zero radius
-  /// degenerates the distance correctly, but its weights collapse to a 0/1
-  /// indicator, so two OVERLAPPING members weigh equally and their colours
-  /// average with a hard step at each outline. `null` has no such tie.
+  /// Zero is a switch, not a limit of the radius. A *near*-zero radius —
+  /// `0.001` — is a different thing and a worse one: it degenerates the
+  /// distance correctly, but its weights collapse to a 0/1 indicator, so two
+  /// OVERLAPPING members weigh equally and their colours average with a hard
+  /// step at each outline. Zero takes the branch instead, and has no such tie.
+  ///
+  /// `null` is accepted and means exactly what `0` means. It was the only way
+  /// to say it before, so passing it still works; new code should say `0`.
   final double? smoothness;
 
   /// Overrides renderer detection. When null, inherits `LiquidGlassView` and
@@ -166,8 +181,9 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
 
   /// Which backend [_shader] was compiled for. The two entries differ only in
   /// the merged-field gradient: Impeller uses the derivative 1-tap
-  /// (metaball_glass.frag), Skia uses the 5-tap (metaball_glass_skia.frag, which
-  /// contains no dFdx so it can load on Skia/web). A backend flip reloads.
+  /// (metaball_glass.frag), Skia the analytic merged gradient
+  /// (metaball_glass_skia.frag, which contains no dFdx so it can load on
+  /// Skia/web). A backend flip reloads.
   bool? _shaderImpeller;
 
   @override
@@ -302,7 +318,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
   void _ensureShader(bool impeller) {
     if (_shaderImpeller == impeller && _shader != null) return;
     _shaderImpeller = impeller;
-    _LiquidGlassBlenderProgram.ensureLoaded(impeller).then((program) {
+    LiquidGlassShaders.ensureBlenderLoaded(impeller).then((program) {
       // Ignore a stale load if the backend flipped while we were loading.
       if (mounted && _shaderImpeller == impeller) {
         setState(() => _shader = program.fragmentShader());
@@ -325,8 +341,12 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
     // samples a captured image, which only a LiquidGlassView produces — with
     // no view there is nothing to refract and the merged pass would paint
     // nothing at all. Decided at BUILD time so members can see it.
-    final bool canBlend = useImpeller || lensScope != null;
-    if (!canBlend) _warnSoloOnce();
+    // Lite glass — by the engine switch or this style's pickup: no merged
+    // pass at all, so members paint solo, each its own lite surface.
+    final bool lite =
+        LiquidGlassEngine.liteGlass || widget.style.liteGlass != null;
+    final bool canBlend = (useImpeller || lensScope != null) && !lite;
+    if (!canBlend && !lite) _warnSoloOnce();
 
     _ensureShader(useImpeller);
 
@@ -435,43 +455,6 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
         ),
       ],
     );
-  }
-}
-
-class _LiquidGlassBlenderProgram {
-  // One entry shader per backend: Impeller uses the derivative 1-tap field
-  // gradient; Skia/web uses the 5-tap (dFdx is invalid SkSL). Cached per backend
-  // so a flip never recompiles.
-  static const Map<bool, String> _assets = <bool, String>{
-    true: 'metaball_glass.frag',
-    false: 'metaball_glass_skia.frag',
-  };
-  static final Map<bool, ui.FragmentProgram> _programs =
-      <bool, ui.FragmentProgram>{};
-  static final Map<bool, Future<ui.FragmentProgram>> _loading =
-      <bool, Future<ui.FragmentProgram>>{};
-
-  static Future<ui.FragmentProgram> ensureLoaded(bool impeller) {
-    final cached = _programs[impeller];
-    if (cached != null) return Future.value(cached);
-    return _loading[impeller] ??= _load(impeller);
-  }
-
-  static Future<ui.FragmentProgram> _load(bool impeller) async {
-    final String name = _assets[impeller]!;
-    try {
-      try {
-        return _programs[impeller] = await ui.FragmentProgram.fromAsset(
-          'packages/liquid_glass_easy/lib/assets/shaders/$name',
-        );
-      } catch (_) {
-        return _programs[impeller] = await ui.FragmentProgram.fromAsset(
-          'lib/assets/shaders/$name',
-        );
-      }
-    } finally {
-      _loading.remove(impeller);
-    }
   }
 }
 
@@ -828,12 +811,13 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
   LiquidGlassStyle _style;
   double? _smoothness;
 
-  /// Whether the metaball runs at all — see `LiquidGlassBlender.smoothness`.
-  bool get _merge => _smoothness != null;
-
-  /// The radius the shader is handed. Zero when the metaball is off, where it
-  /// is never read: every use sits behind the merge switch.
+  /// The radius the shader is handed. Null — the legacy spelling of zero —
+  /// reads as zero, so the two are one case from here down.
   double get _smoothnessOrZero => _smoothness ?? 0.0;
+
+  /// Whether the metaball runs at all — see `LiquidGlassBlender.smoothness`.
+  /// Zero is the off switch; every use of the radius sits behind this.
+  bool get _merge => _smoothnessOrZero > 0;
   bool _useImpellerBackdrop;
   int? _backdropId;
   bool _useEngineBlur;

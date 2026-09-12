@@ -19,7 +19,12 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 //     flutter run -t lib/gallery.dart
 // -------------------------------------------------------------------------
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // Compile every glass program before the first frame: the lens's two and
+  // the blender's merged-surface entry. Without this the blender below paints
+  // nothing until its shader arrives — not even a lone lens's frosted fallback.
+  await LiquidGlassShaders.ensureLoaded();
   runApp(const MyApp());
 }
 

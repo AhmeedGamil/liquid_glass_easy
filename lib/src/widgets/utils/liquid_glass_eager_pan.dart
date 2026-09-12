@@ -38,9 +38,8 @@ Map<Type, GestureRecognizerFactory> liquidGlassEagerPanGestures({
   VoidCallback? onCancel,
 }) {
   return <Type, GestureRecognizerFactory>{
-    LiquidGlassEagerPanGestureRecognizer:
-        GestureRecognizerFactoryWithHandlers<
-            LiquidGlassEagerPanGestureRecognizer>(
+    LiquidGlassEagerPanGestureRecognizer: GestureRecognizerFactoryWithHandlers<
+        LiquidGlassEagerPanGestureRecognizer>(
       () => LiquidGlassEagerPanGestureRecognizer(debugOwner: debugOwner),
       (instance) {
         instance

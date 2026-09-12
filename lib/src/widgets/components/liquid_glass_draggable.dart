@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 /// Wraps [child] so a pan gesture drags it, with the same smoothness as the
-/// built-in `LiquidGlass` drag — and without baking drag into the lens itself.
+/// built-in drag — and without baking drag into the lens itself.
 ///
 /// The drag offset lives in an internal [ValueNotifier], and only a
 /// [Transform.translate] rebuilds on each pan; [child] stays a stable subtree,

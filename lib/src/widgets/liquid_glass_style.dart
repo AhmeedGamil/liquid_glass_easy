@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'components/liquid_glass_lite.dart';
 import 'liquid_glass_config.dart';
 import 'utils/liquid_glass_adaptivity.dart';
 import 'utils/liquid_glass_shape.dart';
@@ -10,7 +11,7 @@ import 'utils/liquid_glass_shape.dart';
 /// (how it bends the content behind it).
 ///
 /// This is the single styling vocabulary shared across the library —
-/// `LiquidGlassLens`, the `LiquidGlass` lens config, and the components
+/// `LiquidGlassLens`, the internal lens config, and the components
 /// (buttons, bars, the nav pill, …) all describe their glass with the
 /// same object. A surface is fully `geometry` (where + how big) +
 /// **style** (how it looks) + behavior (how it acts).
@@ -47,11 +48,24 @@ class LiquidGlassStyle {
   /// active, its glass color overrides [appearance]'s `color`.
   final LiquidGlassAdaptivity? adaptivity;
 
+  /// Draw this surface as `LiquidGlassLite` — frost, tint and a lit rim, no
+  /// shader and no refraction — whatever engine the app is on, with the
+  /// rim's colour taken from here: `LiquidGlassLitePickup.backdrop` reads
+  /// the background so the colour varies along the rim as the shader's
+  /// does; `blend` keeps the tint out of the rim without the read; `surface`
+  /// lets the tint and the content colour it; `none` is white light.
+  ///
+  /// `null` (the default) leaves the choice to the engine switches on
+  /// `LiquidGlassEngine`; a lens drawn lite by those, or while the shaders
+  /// load, takes its rim from `LiquidGlassEngine.litePickup` instead.
+  final LiquidGlassLitePickup? liteGlass;
+
   const LiquidGlassStyle({
     this.shape,
     this.appearance = const LiquidGlassAppearance(),
     this.refraction = const LiquidGlassRefraction(),
     this.adaptivity,
+    this.liteGlass,
   });
 
   /// Returns a copy with the given fields replaced.
@@ -60,18 +74,20 @@ class LiquidGlassStyle {
     LiquidGlassAppearance? appearance,
     LiquidGlassRefraction? refraction,
     LiquidGlassAdaptivity? adaptivity,
+    LiquidGlassLitePickup? liteGlass,
   }) {
     return LiquidGlassStyle(
       shape: shape ?? this.shape,
       appearance: appearance ?? this.appearance,
       refraction: refraction ?? this.refraction,
       adaptivity: adaptivity ?? this.adaptivity,
+      liteGlass: liteGlass ?? this.liteGlass,
     );
   }
 
   /// Overlays [other] on top of this style: [other]'s [appearance] and
-  /// [refraction] replace this one's, and its [shape] and [adaptivity]
-  /// win when set (falling back to this style's when `null`).
+  /// [refraction] replace this one's, and its [shape], [adaptivity] and
+  /// [liteGlass] win when set (falling back to this style's when `null`).
   /// Returns this style unchanged when [other] is `null`. Useful for a
   /// base/theme style with per-surface overrides.
   LiquidGlassStyle merge(LiquidGlassStyle? other) {
@@ -81,6 +97,7 @@ class LiquidGlassStyle {
       appearance: other.appearance,
       refraction: other.refraction,
       adaptivity: other.adaptivity ?? adaptivity,
+      liteGlass: other.liteGlass ?? liteGlass,
     );
   }
 }

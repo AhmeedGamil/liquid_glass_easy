@@ -131,8 +131,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                   ? LiquidGlassPainter(
                       // Shape evaluated at REST size; the deformation stretches
                       // the whole outline, not just the box around it.
-                      shapeScale:
-                          flexDeform.scaleFrom(flexRestSize),
+                      shapeScale: flexDeform.scaleFrom(flexRestSize),
                       dragOffset: lensPosition,
                       position: config.geometry.position,
                       lensWidth: config.geometry.width,
@@ -268,8 +267,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       : null,
                   child: liquidGlassClip(
                     shape: config.effectiveShape,
-                    shapeScale:
-                        flexDeform.clipScaleFrom(flexRestSize),
+                    shapeScale: flexDeform.clipScaleFrom(flexRestSize),
                     // Clip at the deformed bounds, scale the content inside:
                     // the child stretches as pixels (never re-flows) and
                     // still cannot spill past the glass edge.

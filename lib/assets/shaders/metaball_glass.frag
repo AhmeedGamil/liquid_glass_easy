@@ -485,9 +485,8 @@ float fieldShape(vec2 p) {
 #endif
 }
 
-// Merged ShapeData. The gradient method is fixed at COMPILE time by the entry
-// file (SHAPE_GRAD_1TAP): Impeller → hardware-derivative 1-tap (dFdx, cheap);
-// Skia → 5-tap central difference (no dFdx).
+// Merged ShapeData for the NON-fused path only (an experiment macro on): a
+// 1-tap derivative if SHAPE_GRAD_1TAP, else a 5-tap central difference.
 ShapeData evaluateField(vec2 fragPx) {
 #if SHAPE_GRAD_1TAP
     return shapeFrom1Tap(fieldShape(fragPx));

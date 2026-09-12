@@ -28,19 +28,21 @@ import 'package:flutter/widgets.dart';
 /// style, its own child, its own adaptivity, its own touch response. They are
 /// still separate sheets of glass — the batch only makes them share the read.
 ///
-/// ## Batch or group?
+/// ## Batch or blender?
 ///
-/// `LiquidGlassGroup` fuses two to eight lenses into a **single surface**: one
-/// silhouette, one material, optionally flowing into each other through a
-/// metaball bridge. Everything it can draw has to fit in one shader, which is
-/// where its eight-member ceiling comes from.
+/// `LiquidGlassBlender` draws two to eight lenses with **one shader**: one
+/// silhouette, one material, one read — optionally flowing into each other
+/// through a metaball bridge, and with `smoothness: 0` not even that, just the
+/// one pass for the set (what the deprecated `LiquidGlassGroup` was).
+/// Everything it can draw has to fit in that shader, which is where its
+/// eight-member ceiling comes from.
 ///
-/// `LiquidGlassBatch` fuses nothing. Members stay separate, keep their own
-/// looks, and there is **no limit on how many** there can be. Reach for the
-/// group when the lenses should read as one piece of glass, and for the batch
-/// when there are simply a lot of them.
+/// `LiquidGlassBatch` shares nothing but the read. Members stay separate
+/// passes, keep their own looks, and there is **no limit on how many** there
+/// can be. Reach for the blender when the lenses should read as one piece of
+/// glass, and for the batch when there are simply a lot of them.
 ///
-/// The two nest. A group (or a bare `LiquidGlassBlender`) inside a batch is a
+/// The two nest. A blender inside a batch is a
 /// member like any other: it is already one pass, and in a batch that pass
 /// shares the batch's read instead of taking its own. So a page of glass
 /// cards with one fused pair among them is still a single read.
@@ -115,7 +117,12 @@ import 'package:flutter/widgets.dart';
 /// scaffold's body — and another over what floats above it. Two, because
 /// the chrome refracts the body and could not see it from the body's copy.
 /// A glass pill tab bar keeps its moving pill and its magnifier out of
-/// both. Pass `batch: false` to get every lens back on a read of its own.
+/// both. The scaffold's chrome batch can reach further than its own tree:
+/// a `showLiquidGlassSheet` or `showLiquidGlassDialog` opened from inside
+/// the scaffold with `batch: true` joins it, so the sheet or the dialog
+/// shares the tab bar's read — by default each takes a read of its own.
+/// Pass `batch: false` to the scaffold to get every lens back on a read of
+/// its own.
 ///
 /// ## Where it applies
 ///
@@ -163,13 +170,24 @@ class LiquidGlassBatch extends StatefulWidget {
   State<LiquidGlassBatch> createState() => _LiquidGlassBatchState();
 }
 
-class _LiquidGlassBatchState extends State<LiquidGlassBatch> {
-  /// Keys are handed to the engine as plain ints and share one namespace with
-  /// Flutter's own `BackdropKey`, which counts up from zero. Starting high
-  /// keeps a batch from ever colliding with an app's `BackdropGroup`.
-  static int _nextBackdropId = 1 << 20;
+/// Keys are handed to the engine as plain ints and share one namespace with
+/// Flutter's own `BackdropKey`, which counts up from zero. Starting high
+/// keeps a batch from ever colliding with an app's `BackdropGroup`.
+int _nextBackdropId = 1 << 20;
 
-  late final int _backdropId = _nextBackdropId++;
+/// A fresh backdrop key, never handed out before.
+///
+/// [LiquidGlassBatch] takes one per batch. A host that spreads **one** batch
+/// over subtrees no single widget can wrap takes one here and publishes it
+/// over each through a [LiquidGlassBatchScope] — that is how the scaffold's
+/// chrome batch covers its tab bar and its `dialog` slot, and the sheets
+/// and dialogs presented over it that ask to join.
+///
+/// Library-internal.
+int liquidGlassAllocateBackdropId() => _nextBackdropId++;
+
+class _LiquidGlassBatchState extends State<LiquidGlassBatch> {
+  late final int _backdropId = liquidGlassAllocateBackdropId();
 
   @override
   Widget build(BuildContext context) {

@@ -18,9 +18,8 @@ export 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart'
 // on Skia / Web.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens.dart'
     show LiquidGlassLens;
-// Group: wrap a subtree and draw its LiquidGlassLens descendants as ONE
-// sheet of glass — one backdrop read for all of them. `smoothness: null`
-// keeps their outlines separate instead of fusing them.
+// Group: DEPRECATED — `LiquidGlassBlender(smoothness: 0)` is the same
+// widget with a different default, and says the same thing.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_group.dart'
     show LiquidGlassGroup;
 // Batch: wrap a subtree and let every LiquidGlassLens inside it share ONE
@@ -34,6 +33,15 @@ export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_blender.dart'
     show LiquidGlassBlender;
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart'
     show LiquidGlassShaders;
+// Renderer switches: `LiquidGlassEngine.liteGlassOnSkia` and
+// `liteGlassOnImpeller` put every lens on the shader-free lite glass.
+export 'package:liquid_glass_easy/src/widgets/liquid_glass_engine.dart'
+    show LiquidGlassEngine;
+// Lite: the shader-free glass — frost, tint and a rim lit from the backdrop
+// — for surfaces that are not lenses, and what every lens wears under the
+// engine switches above and `LiquidGlassStyle.liteGlass`.
+export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_lite.dart'
+    show LiquidGlassLite, LiquidGlassLitePickup;
 
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
@@ -84,11 +92,6 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_spring.dart';
-// Startup warm-up: compiles the glass GPU programs during launch, so the
-// first touch of a control does not stall the raster thread waiting for
-// the driver. Skia only, once per install, no-op on Impeller.
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_warm_up.dart'
-    show LiquidGlassWarmUp;
 // How a surface answers a finger. LiquidGlassTouch is the group; today it
 // carries the flex — press a lens and it compresses, drag it and it
 // elongates along the pull while pinching in the cross axis, four edges
@@ -118,16 +121,6 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_dialog.dar
 // the motion.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_sheet.dart'
     show showLiquidGlassSheet, LiquidGlassSheet, LiquidGlassSheetAnchor;
-// Glass without the shader: a frosted surface with the lens' own rim
-// light, drawn from plain canvas geometry. It gives up refraction — the
-// half that needs a `FragmentProgram` — and keeps the frost, the rim, and
-// the colour the rim takes off the background. For surfaces that are not
-// lenses, and for the many-of-them cases a real lens is too expensive for.
-export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_lite.dart'
-    show
-        LiquidGlassLite,
-        LiquidGlassLitePainter,
-        LiquidGlassPickup;
 // Drop-in glass form controls. Only the high-level widgets + their
 // layout descriptors are public; the low-level track/thumb builders stay
 // internal.
@@ -164,6 +157,10 @@ export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_g
         LiquidGlassTabItemStyle,
         LiquidGlassTabPillStyle,
         LiquidGlassTabMagnifierPillStyle;
+// Morph: glass that measures its child and flows to the new size —
+// two blender blobs drawn as one surface, so mid-morph it has a waist.
+export 'package:liquid_glass_easy/src/widgets/components/morph/liquid_glass_morph.dart';
+export 'package:liquid_glass_easy/src/widgets/components/morph/liquid_glass_morph_motion.dart';
 
 // ── Internal / showcase-only / animation-in-progress ───────
 // The following are intentionally NOT exported:

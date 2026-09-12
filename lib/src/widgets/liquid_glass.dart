@@ -175,7 +175,8 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
     super.didUpdateWidget(oldWidget);
     // If config changes and no animation is running → update instantly
     if (!_animController.isAnimating &&
-        widget.config.behavior.visibility != oldWidget.config.behavior.visibility) {
+        widget.config.behavior.visibility !=
+            oldWidget.config.behavior.visibility) {
       if (widget.config.behavior.visibility) {
         if (_animController.isAnimating) _animController.stop();
         _animController.value = 0;
@@ -241,10 +242,10 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
       // the top/bottom); clamping here would pin it to the edge and break
       // the spacing between lenses.
       if (!widget.config.geometry.outOfBoundaries) {
-        final double maxX =
-            parentSize.width - config.geometry.width.clamp(0.0, parentSize.width);
-        final double maxY =
-            parentSize.height - config.geometry.height.clamp(0.0, parentSize.height);
+        final double maxX = parentSize.width -
+            config.geometry.width.clamp(0.0, parentSize.width);
+        final double maxY = parentSize.height -
+            config.geometry.height.clamp(0.0, parentSize.height);
 
         newTouch = Offset(
           newTouch.dx.clamp(0.0, maxX),
@@ -260,8 +261,8 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
       // --- clamp comes here, completely outside the condition ---
       final double maxX =
           parentSize.width - config.geometry.width.clamp(0.0, parentSize.width);
-      final double maxY =
-          parentSize.height - config.geometry.height.clamp(0.0, parentSize.height);
+      final double maxY = parentSize.height -
+          config.geometry.height.clamp(0.0, parentSize.height);
 
       _touchNotifier.value = Offset(
         _touchNotifier.value.dx.clamp(0.0, maxX),
@@ -282,8 +283,7 @@ class _LiquidGlassWidgetState extends State<LiquidGlassWidget>
   }
 
   LiquidGlassFlexDriver _ensureFlexDriver(LiquidGlassFlex spec) =>
-      (_ownedFlexDriver ??=
-          LiquidGlassFlexDriver(vsync: this, spec: spec))
+      (_ownedFlexDriver ??= LiquidGlassFlexDriver(vsync: this, spec: spec))
         ..spec = spec
         ..restSize = Size(
           widget.config.geometry.width,

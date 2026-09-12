@@ -249,12 +249,15 @@ Note the direction: a strip never captures the chrome. The app bar is judged by 
 
 ## `LiquidGlassGroup` — many lenses, one surface
 
-Not adaptivity, but it belongs next to it: the group is how you keep many adaptive lenses affordable.
+> **Deprecated in 4.3.0.** `LiquidGlassGroup` is `LiquidGlassBlender` with `smoothness: 0`; every other parameter carries over by name. The section keeps its title so links still land, but the code below is the blender.
 
-Every lens is its own glass pass and its own backdrop read. A group draws every `LiquidGlassLens` beneath it as **one** sheet — one read and one material for the whole set, however many members.
+Not adaptivity, but it belongs next to it: one shared pass is how you keep many adaptive lenses affordable.
+
+Every lens is its own glass pass and its own backdrop read. A `LiquidGlassBlender` draws every `LiquidGlassLens` beneath it with **one** shader — one read and one material for the whole set, up to eight members. With `smoothness: 0` there is no metaball bridge, just the sharing — which is exactly what the group was.
 
 ```dart
-LiquidGlassGroup(
+LiquidGlassBlender(
+  smoothness: 0,
   style: const LiquidGlassStyle(),
   child: Column(children: [ ...lenses... ]),
 )
@@ -294,7 +297,7 @@ Each lens judges the background behind **itself** and paints its own verdict int
 
 **Bare text over a photo** — `LiquidGlassAdaptiveContent`.
 
-**Many small adaptive lenses** — put them in a `LiquidGlassGroup`.
+**Many small adaptive lenses** — put them in a `LiquidGlassBlender(smoothness: 0)`, one shader for all of them (the former `LiquidGlassGroup`).
 
 ---
 

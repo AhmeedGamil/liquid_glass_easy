@@ -7,6 +7,7 @@ import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.d
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_batch.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens_scope.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart';
+import 'package:liquid_glass_easy/src/widgets/liquid_glass_engine.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_adaptivity.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
@@ -23,7 +24,8 @@ class _AdaptiveSampleRegion {
 
 // Main container that renders LiquidGlass lenses on top of a background
 class LiquidGlassView extends StatefulWidget {
-  /// Controls the LiquidGlass rendering performance and synchronization pipeline.
+  /// Controls the liquid-glass rendering performance and synchronization
+  /// pipeline.
   /// Manages how often background captures and shader updates occur to balance
   /// visual quality and frame rate performance.
   final LiquidGlassViewController? controller;
@@ -80,7 +82,7 @@ class LiquidGlassView extends StatefulWidget {
   /// when the pixel ratio is low (e.g., around 0.5).
   final bool useSync;
 
-  /// The widget tree drawn behind all LiquidGlass lenses.
+  /// The widget tree drawn behind every lens in this view.
   /// Typically a static or animated background (such as an `Image`, `Stack`, or
   /// complex layout) over which the lenses apply refraction and effects.
   ///
@@ -133,6 +135,16 @@ class LiquidGlassView extends StatefulWidget {
   /// `false` inserts no batch at all, so a `LiquidGlassBatch` the app put
   /// around the view still reaches the lenses inside it.
   final bool batch;
+
+  /// The key the batch over [child] carries, when a host owns it.
+  ///
+  /// `null` (the default) gives that batch a key of its own. A host that
+  /// runs several views but wants one read across everything that floats
+  /// in them hands the same key to each — `LiquidGlassScaffold` does, so
+  /// its tab bar, its dialog and the sheets presented over it share one.
+  /// The background's batch is never shared this way: what floats refracts
+  /// it. Ignored with [batch] off. Library-internal.
+  final int? foregroundBatchId;
 
   /// Per-lens region capture (Skia **sync** path only).
   ///
@@ -195,6 +207,7 @@ class LiquidGlassView extends StatefulWidget {
       this.useImpellerBackdrop,
       this.regionCapture = false,
       this.batch = true,
+      this.foregroundBatchId,
       this.adaptiveSampling})
       : children = const [],
         honorBackdropAlpha = false;
@@ -218,6 +231,7 @@ class LiquidGlassView extends StatefulWidget {
       this.regionCapture = false,
       this.honorBackdropAlpha = false,
       this.batch = true,
+      this.foregroundBatchId,
       this.adaptiveSampling});
 
   @override
@@ -268,9 +282,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// `false` forces the Skia capture path. Forcing the shader path on a
   /// backend that does not support it asserts, so we never do — `true`
   /// is a preference, not an override.
-  late final bool _useImpeller =
-      (widget.useImpellerBackdrop ?? true) &&
-          ui.ImageFilter.isShaderFilterSupported;
+  late final bool _useImpeller = (widget.useImpellerBackdrop ?? true) &&
+      ui.ImageFilter.isShaderFilterSupported;
 
   /// Whether per-lens shader instances are required. Both Impeller
   /// (BackdropFilter compositing is deferred, so uniforms can't be
@@ -311,7 +324,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     // samples the backdrop live via `ImageFilter.shader`. We
     // therefore avoid creating the perpetual ticker on Impeller so
     // that an idle screen does no per-vsync Dart work at all.
-    if (!_useImpeller) {
+    // Lite glass (`LiquidGlassEngine.liteGlassOnSkia`) has no lens to feed
+    // either: no ticker, no glass capture.
+    if (!_useImpeller && !LiquidGlassEngine.liteGlass) {
       DateTime lastCaptureTime = DateTime.now();
 
       _controller = AnimationController(
@@ -401,6 +416,16 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       // releases it.
       _syncFramePump();
     }
+    // The sampler's cadence is baked into its periodic timer at
+    // registration, so a changed `frameLimit` only lands once the timer
+    // is rebuilt. Every other sampling field is read per tick.
+    if (_adaptiveTimer != null &&
+        widget.adaptiveSampling?.frameLimit !=
+            oldWidget.adaptiveSampling?.frameLimit) {
+      _adaptiveTimer!.cancel();
+      _adaptiveTimer =
+          Timer.periodic(_adaptiveInterval, (_) => _adaptiveSampleTick());
+    }
   }
 
   Size get captureSize {
@@ -418,7 +443,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
 
   Future<void> _loadShaders() async {
     try {
-      await LiquidGlassShaders.ensureLoaded(_useImpeller);
+      await LiquidGlassShaders.ensureLensLoaded(_useImpeller);
     } catch (_) {
       // Shaders unavailable (broken build / unsupported test env):
       // `_shaders` stays empty, so lenses simply don't render instead
@@ -487,6 +512,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   ///   the app; the frame is simply skipped and the UI keeps using the
   ///   previous `_image`.
   Future<void> _captureWidgetSafe({bool waitForEndOfFrame = true}) async {
+    // Lite glass: nothing samples the capture, so take none.
+    if (LiquidGlassEngine.liteGlass) return;
     try {
       final context = _repaintKey.currentContext;
       if (context == null) return;
@@ -544,10 +571,10 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
                   final Offset tl = child.geometry.position.resolve(
                       boundary.size,
                       Size(child.geometry.width, child.geometry.height));
-                  final Rect r = (tl &
-                          Size(child.geometry.width, child.geometry.height))
-                      .inflate(_kRegionCaptureMargin)
-                      .intersect(Offset.zero & boundary.size);
+                  final Rect r =
+                      (tl & Size(child.geometry.width, child.geometry.height))
+                          .inflate(_kRegionCaptureMargin)
+                          .intersect(Offset.zero & boundary.size);
                   if (r.isEmpty) {
                     images.add(null);
                     regions.add(null);
@@ -832,7 +859,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
                 bytes.getUint8(o + 1),
                 bytes.getUint8(o + 2),
               );
-              final double lightness = liquidGlassPerceptualLightness(luminance);
+              final double lightness =
+                  liquidGlassPerceptualLightness(luminance);
               luminanceSum += luminance;
               lightnessSum += lightness;
               if (lightness >= 0.5) lightCount++;
@@ -857,6 +885,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   }
 
   Future<void> _captureOnce() async {
+    if (LiquidGlassEngine.liteGlass) return;
     await _captureWidgetSafe();
     if (mounted) setState(() {});
   }
@@ -882,6 +911,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// sampling it, so one of them re-rasterizes the background during
   /// paint. Cheap: nothing is captured until a lens actually asks.
   void _markCaptureStale() {
+    if (LiquidGlassEngine.liteGlass) return;
     _imageStale = true;
     // Lens-anywhere lenses read the capture at paint time; without this
     // a frame where nothing else touched them would reuse the retired
@@ -950,8 +980,13 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
 
   /// One of the view's two batches around [child], or [child] untouched
   /// when batching is off — so an enclosing batch still flows through.
-  Widget _batched(Widget child) =>
-      widget.batch ? LiquidGlassBatch(child: child) : child;
+  /// Given a [backdropId] the batch carries the host's key instead of
+  /// taking one of its own.
+  Widget _batched(Widget child, {int? backdropId}) {
+    if (!widget.batch) return child;
+    if (backdropId == null) return LiquidGlassBatch(child: child);
+    return LiquidGlassBatchScope(backdropId: backdropId, child: child);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -966,8 +1001,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     // The foreground's batch, over both lens slots: the lens-anywhere
     // subtree and the positioned lens layout. A second key, on purpose —
     // these float over the background and refract what it painted, which
-    // they could not see from the background's copy.
-    final Widget foreground = _batched(Stack(
+    // they could not see from the background's copy. The host's key, when
+    // it gave one, so several views can float on a single read.
+    final Widget lensSlots = Stack(
       fit: StackFit.expand,
       children: [
         // Lens-anywhere subtree: any widget tree with `LiquidGlassLens`
@@ -1000,7 +1036,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
         //    controller + touch notifier, so the parent does no
         //    per-frame work when nothing is animating or being
         //    dragged.
-        if (_useImpeller)
+        // Lite glass has no capture to follow either: no pump was made.
+        if (_useImpeller || _controller == null)
           _buildLensLayout()
         else
           AnimatedBuilder(
@@ -1008,7 +1045,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
             builder: (context, _) => _buildLensLayout(),
           ),
       ],
-    ));
+    );
+    final Widget foreground =
+        _batched(lensSlots, backdropId: widget.foregroundBatchId);
     // Wraps the whole view, background included, so anything below can
     // hand this view's capture to a route it pushes (see the portal's
     // doc). Lenses still bind to the inner scope around `child` only.
@@ -1099,9 +1138,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
               // falls through to the paint-time capture. Region images
               // are untouched: they carry their own rect, which the
               // full-frame fallback would not match.
-              sharedImage: hasOwn
-                  ? perImgs[index]
-                  : (_imageStale ? null : _image),
+              sharedImage:
+                  hasOwn ? perImgs[index] : (_imageStale ? null : _image),
               sharedImageRegion:
                   hasOwn ? _regionsPerLens![index] : _imageRegion,
               captureFallback: _useImpeller ? null : _capturePaintTimeSync,

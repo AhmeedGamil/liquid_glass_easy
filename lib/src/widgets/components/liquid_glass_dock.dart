@@ -87,7 +87,8 @@ class LiquidGlassDock extends StatelessWidget {
   /// Whether the dock is shown; toggling animates the glass in/out.
   final bool visibility;
 
-  static const LiquidGlassShape _defaultShape = LiquidGlassShape.roundedRectangle(
+  static const LiquidGlassShape _defaultShape =
+      LiquidGlassShape.roundedRectangle(
     cornerRadius: 30,
     borderWidth: 1.2,
     lightIntensity: 1.2,
@@ -99,14 +100,12 @@ class LiquidGlassDock extends StatelessWidget {
     ),
   );
 
-  static const LiquidGlassAppearance _defaultAppearance =
-      LiquidGlassAppearance(
+  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
     blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
   );
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.08,
     distortionWidth: 36,
     chromaticAberration: 0.002,

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
+import 'demo_kit.dart';
+
 
 // =============================================================
 // Adaptivity — the default: every surface judges itself.
@@ -12,12 +14,19 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 //  • the header's round back button and its ∨ / ∧ chevron pill,
 //  • the centered title — bare text, adapting through
 //    LiquidGlassAdaptiveContent because it has no glass to inherit from,
-//  • the scroll-edge band that dims the feed under the header,
-//  • the morph-pill bottom nav bar, in its own render pipeline.
+//  • the scroll-edge band that dims the feed under the header.
 //
-// So they can disagree, and that is correct: the header sitting over a
-// dark photo while the bar sits over light paper SHOULD wear different
-// palettes. Scroll slowly and watch each flip on its own.
+// So they can disagree, and that is correct: the title sitting over a
+// dark photo while the chevron pill sits over light paper SHOULD wear
+// different palettes. Scroll slowly and watch each flip on its own.
+//
+// The panel at the bottom drives the numbers live. The top group is the
+// verdict itself — where the dark/light split sits, how wide a
+// hysteresis band the two thresholds open, and how long the crossfade
+// takes. The bottom group is the ONE tiny capture that feeds every
+// adaptive surface in the view: how small it is scaled, how often it
+// runs, and the floor it is raised to so a small lens still gets enough
+// texels to judge from.
 //
 // To make them agree instead — one sampled region, one verdict, shared —
 // see `adaptivity_advanced_page.dart`.
@@ -95,40 +104,6 @@ Color _pageInk(BuildContext context) =>
 const double _headerHeight = 48;
 const double _headerTopMargin = 4;
 
-/// The nav bar capsule's continuous (Apple capsule-style) glass shape —
-/// the same tuned rim as the Nav Jelly Tuner ships.
-const LiquidGlassShape _navBarShape = LiquidGlassShape(
-  cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
-  cornerRadius: 50,
-  //clipQuality: LiquidGlassClipQuality.exact,
-  borderWidth: 0.8,
-  lightIntensity: 1.1,
-  lightDirection: 39,
-    lightColor: Colors.grey,
-
-  borderType: OpticalBorder(
-    borderSaturation: 1.2,
-    ambientIntensity: 1.0,
-    borderSolidity: 1,
-  ),
-);
-
-/// The moving glass pill's shape — continuous like the bar.
-const LiquidGlassShape _navPillShape = LiquidGlassShape(
-  cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
-  cornerRadius: 59,
-  //clipQuality: LiquidGlassClipQuality.exact,
-  borderWidth: 0.8,
-  lightIntensity: 1.1,
-  lightDirection: 39,
-  lightColor: Colors.grey,
-  borderType: OpticalBorder(
-    borderSaturation: 1.2,
-    ambientIntensity: 1.0,
-    borderSolidity: 1,
-  ),
-);
-
 class AdaptivityPage extends StatefulWidget {
   const AdaptivityPage({super.key});
 
@@ -138,7 +113,19 @@ class AdaptivityPage extends StatefulWidget {
 
 class _AdaptivityPageState extends State<AdaptivityPage> {
   final ScrollController _scroll = ScrollController();
-  int _index = 0;
+
+  /// Live verdict tuning, written by the bottom panel into every
+  /// palette on the page (and into the system-bar strips).
+  double _darkBelow = _adapt.darkBelow;
+  double _lightAbove = _adapt.lightAbove;
+  double _fadeMs = 300;
+
+  /// Live sampler tuning — the numbers behind the single capture.
+  double _pixelRatio = 0.05;
+  double _frameLimit = 8;
+  double _minSamples = 8;
+
+  bool _panelOpen = true;
 
   /// Sigma the scroll edge blurs with — the shipped look.
   ///
@@ -147,36 +134,6 @@ class _AdaptivityPageState extends State<AdaptivityPage> {
   /// pixels wide. Their differences (shader grain, ladder stepping)
   /// only separate once sigma is large, so raise this to compare them.
   static const double _edgeBlur = 5;
-
-  static const LiquidGlassStyle _barStyle = LiquidGlassStyle(
-    shape: _navBarShape,
-    appearance: LiquidGlassAppearance(
-      color: Color(0x16FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 28,
-      chromaticAberration: 0.002,
-    ),
-    // Adaptivity is added at the call site from [_adapt] — nothing on
-    // this page inherits, so it cannot be baked in here.
-  );
-
-  /// Morph-pill tier on every renderer; travel/jelly stay at the
-  /// on-device-tuned defaults.
-  static const LiquidGlassTabPillStyle _pillStyle = LiquidGlassTabPillStyle(
-    mode: LiquidGlassPillMode.both,
-    animated: true,
-    shape: _navPillShape,
-    glassStyle: LiquidGlassStyle(
-      appearance: LiquidGlassAppearance(color: Colors.transparent),
-      refraction: LiquidGlassRefraction(
-        distortion: 0.05,
-        distortionWidth: 10,
-      ),
-    ),
-  );
 
   @override
   void dispose() {
@@ -202,21 +159,48 @@ class _AdaptivityPageState extends State<AdaptivityPage> {
   Widget build(BuildContext context) {
     final EdgeInsets pad = MediaQuery.paddingOf(context);
 
+    // The panel's numbers, folded into the two shipped palettes. The
+    // colours stay exactly as declared above; only the verdict rule and
+    // the crossfade move.
+    final Duration fade = Duration(milliseconds: _fadeMs.round());
+    final LiquidGlassAdaptivity adapt = _adapt.copyWith(
+      darkBelow: _darkBelow,
+      lightAbove: _lightAbove,
+      duration: fade,
+    );
+    final LiquidGlassAdaptivity edgeAdapt = _edgeAdapt.copyWith(
+      darkBelow: _darkBelow,
+      lightAbove: _lightAbove,
+      duration: fade,
+    );
+
     return LiquidGlassScaffold(
-      // A bare config, carrying no palettes of its own: it is here to
-      // open the adaptive sampler (the scaffold's `adaptivity` is the
-      // only thing that does) and to drive both system bars. Nothing
+      // A config carrying no palettes of its own: it is here to open the
+      // adaptive sampler (the scaffold's `adaptivity` is the only thing
+      // that does), to tune it, and to drive both system bars. Nothing
       // inherits a palette from it — every glass surface below states
-      // its own in `style.adaptivity`.
+      // its own in `style.adaptivity`. The thresholds ARE passed on, so
+      // the OS icons flip on the same rule as the glass.
       appBarTopMargin: _headerTopMargin,
-      adaptivity: const LiquidGlassScaffoldAdaptivity(
-        LiquidGlassAdaptivity(),
+      adaptivity: LiquidGlassScaffoldAdaptivity(
+        LiquidGlassAdaptivity(
+          darkBelow: _darkBelow,
+          lightAbove: _lightAbove,
+          duration: fade,
+        ),
         systemChrome: LiquidGlassSystemChrome.both,
+        // One capture, every adaptive surface in the view: the sampler
+        // sliders write straight in here.
+        sampling: LiquidGlassAdaptiveSampling(
+          pixelRatio: _pixelRatio,
+          frameLimit: _frameLimit,
+          minimumRegionSamples: _minSamples.round(),
+        ),
       ),
-      // No area, no link: the header's pieces each carry [_adapt] and
+      // No area, no link: the header's pieces each carry [adapt] and
       // judge the band behind themselves.
       appBar: _TripHeader(
-        adaptivity: _adapt,
+        adaptivity: adapt,
         onBack: () => Navigator.maybePop(context),
         onDown: () => _page(1),
         onUp: () => _page(-1),
@@ -238,29 +222,215 @@ class _AdaptivityPageState extends State<AdaptivityPage> {
             edge: LiquidGlassEdge.top,
             blur: _edgeBlur,
             blurCurve: Curves.easeInQuart,
-            adaptivity: _edgeAdapt,
+            adaptivity: edgeAdapt,
+          ),
+        ),
+        // The tuning panel, over the feed where the nav bar used to be.
+        // It sits in the chrome layer, so the sampler — which reads the
+        // background boundary — never sees it.
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: _TuningPanel(
+            open: _panelOpen,
+            onToggle: () => setState(() => _panelOpen = !_panelOpen),
+            darkBelow: _darkBelow,
+            lightAbove: _lightAbove,
+            fadeMs: _fadeMs,
+            pixelRatio: _pixelRatio,
+            frameLimit: _frameLimit,
+            minSamples: _minSamples,
+            // `darkBelow <= lightAbove` is asserted by the config, so
+            // each end pushes the other rather than crossing it.
+            onDarkBelow: (v) => setState(() {
+              _darkBelow = v;
+              if (_lightAbove < v) _lightAbove = v;
+            }),
+            onLightAbove: (v) => setState(() {
+              _lightAbove = v;
+              if (_darkBelow > v) _darkBelow = v;
+            }),
+            onFadeMs: (v) => setState(() => _fadeMs = v),
+            onPixelRatio: (v) => setState(() => _pixelRatio = v),
+            onFrameLimit: (v) => setState(() => _frameLimit = v),
+            onMinSamples: (v) => setState(() => _minSamples = v),
           ),
         ),
       ],
-      bottomNavigationBar: LiquidGlassTabBar(
-        items: const [
-          LiquidGlassTabBarItem(icon: Icons.photo_library_rounded, label: 'Photos'),
-          LiquidGlassTabBarItem(icon: Icons.map_rounded, label: 'Map'),
-          LiquidGlassTabBarItem(icon: Icons.person_rounded, label: 'You'),
-        ],
-        selectedIndex: _index,
-        onChanged: (i) => setState(() => _index = i),
-        // No distinct accent (selected == unselected) → the selected
-        // item counts as plain content and adapts with the rest.
-        itemStyle: const LiquidGlassTabItemStyle(
-          selectedColor: Colors.white,
-          unselectedColor: Colors.white,
+    );
+  }
+}
+
+/// The bottom tuning panel: the verdict rule on top, the sampler that
+/// feeds it underneath. Every row writes straight into the page's
+/// palettes, so the header, the title and the scroll-edge band react
+/// while the thumb is still down.
+///
+/// It is deliberately plain — no glass anywhere on it. The page has
+/// four adaptive surfaces to look at already, and a fifth one that
+/// moved when you dragged a slider would be impossible to read.
+class _TuningPanel extends StatelessWidget {
+  final bool open;
+  final VoidCallback onToggle;
+
+  final double darkBelow;
+  final double lightAbove;
+  final double fadeMs;
+  final double pixelRatio;
+  final double frameLimit;
+  final double minSamples;
+
+  final ValueChanged<double> onDarkBelow;
+  final ValueChanged<double> onLightAbove;
+  final ValueChanged<double> onFadeMs;
+  final ValueChanged<double> onPixelRatio;
+  final ValueChanged<double> onFrameLimit;
+  final ValueChanged<double> onMinSamples;
+
+  const _TuningPanel({
+    required this.open,
+    required this.onToggle,
+    required this.darkBelow,
+    required this.lightAbove,
+    required this.fadeMs,
+    required this.pixelRatio,
+    required this.frameLimit,
+    required this.minSamples,
+    required this.onDarkBelow,
+    required this.onLightAbove,
+    required this.onFadeMs,
+    required this.onPixelRatio,
+    required this.onFrameLimit,
+    required this.onMinSamples,
+  });
+
+  static Widget _group(String text) => Padding(
+        padding: const EdgeInsets.fromLTRB(0, 6, 0, 2),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0x99FFFFFF),
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.8,
+            decoration: TextDecoration.none,
+          ),
         ),
-        // The bar renders in its own pipeline, so it cannot sit inside
-        // a scope — it takes the palettes (and, while linked, the link)
-        // through its own style like every other surface here.
-        style: _barStyle.copyWith(adaptivity: _adapt),
-        pillStyle: _pillStyle,
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    // The hysteresis band the two thresholds open, spelled out — with
+    // them equal there is none, and the verdict is a plain split.
+    final double band = lightAbove - darkBelow;
+
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+        decoration: BoxDecoration(
+          color: const Color(0xE615161C),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0x22FFFFFF)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onToggle,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                child: Row(
+                  children: <Widget>[
+                    const Text(
+                      'Tuning',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        band <= 0.0005
+                            ? 'split ${darkBelow.toStringAsFixed(2)}'
+                            : 'band ${darkBelow.toStringAsFixed(2)}'
+                                '–${lightAbove.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Color(0x8AFFFFFF),
+                          fontSize: 12,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ),
+                    Icon(
+                      open
+                          ? Icons.keyboard_arrow_down_rounded
+                          : Icons.keyboard_arrow_up_rounded,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            if (open) ...<Widget>[
+              _group('VERDICT'),
+              DemoSlider(
+                label: 'Dark below',
+                value: darkBelow,
+                min: 0,
+                max: 1,
+                decimals: 2,
+                onChanged: onDarkBelow,
+              ),
+              DemoSlider(
+                label: 'Light above',
+                value: lightAbove,
+                min: 0,
+                max: 1,
+                decimals: 2,
+                onChanged: onLightAbove,
+              ),
+              DemoSlider(
+                label: 'Fade ms',
+                value: fadeMs,
+                min: 0,
+                max: 1200,
+                onChanged: onFadeMs,
+              ),
+              _group('SAMPLING'),
+              DemoSlider(
+                label: 'Pixel ratio',
+                value: pixelRatio,
+                min: 0.01,
+                max: 0.5,
+                decimals: 3,
+                onChanged: onPixelRatio,
+              ),
+              DemoSlider(
+                label: 'Samples / s',
+                value: frameLimit,
+                min: 1,
+                max: 60,
+                onChanged: onFrameLimit,
+              ),
+              DemoSlider(
+                label: 'Min region px',
+                value: minSamples,
+                min: 1,
+                max: 64,
+                onChanged: onMinSamples,
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }

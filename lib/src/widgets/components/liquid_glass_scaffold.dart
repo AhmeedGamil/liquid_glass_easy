@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../controllers/liquid_glass_view_controller.dart';
+import '../lens/liquid_glass_batch.dart';
 import '../liquid_glass_view.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_refresh_rate.dart';
@@ -160,6 +161,17 @@ class LiquidGlassScaffoldAdaptivity {
 /// Slots are composited bottom-to-top:
 /// `lenses` → `appBar` → `bottomNavigationBar` →
 /// `bottomNavigationBarAction` → `floatingActionButton` → `dialog`.
+///
+/// With a glass-pill [LiquidGlassTabBar] the bar runs two views and places
+/// the slots by renderer. On Impeller they sit in its outer view, over the
+/// bar's cells and the moving pill, so the order above holds. On Skia they
+/// ride its **inner** view — over the captured body, above the bar's
+/// capsule but below its cells and the pill — and the outer view holds the
+/// pill and nothing else: that view captures the whole screen a second
+/// time, and keeping the chrome out of it is what lets the capture sleep
+/// whenever the pill is at rest. So on Skia the bar's cells and pill paint
+/// over a `lenses` entry that overlaps them, and the [dialog] barrier dims
+/// the body and the capsule but not the cells or the pill.
 class LiquidGlassScaffold extends StatefulWidget {
   /// Clearance assumed under the FAB for a bottom bar the scaffold cannot
   /// measure. Override it with [floatingActionButtonClearance].
@@ -273,10 +285,18 @@ class LiquidGlassScaffold extends StatefulWidget {
 
   /// See [LiquidGlassView.batch]. `true` (the default) puts the glass in
   /// [body] on one shared read of the backdrop and the chrome — app bar,
-  /// tab bar, action, FAB, dialog, [lenses] — on another. With a glass
-  /// pill tab bar the moving pill and its magnifier keep reads of their
-  /// own: the pill exists to refract the capsule under it, which no batch
-  /// member can see.
+  /// tab bar, action, FAB, [dialog], [lenses] — on another. It is the one
+  /// chrome batch on both tab bar paths: with a glass pill the bar's
+  /// capsule sits in its inner view and the slots in the outer one on
+  /// Impeller, and the scaffold hands both views the same key. A
+  /// `showLiquidGlassSheet` or a `showLiquidGlassDialog` opened from a
+  /// context inside this scaffold can join that batch too, with
+  /// `batch: true` on the call, so the sheet or the dialog costs no read
+  /// of its own — the same read the tab bar takes. Off by default: each
+  /// takes a read of its own. With a glass pill tab bar the
+  /// moving pill and its magnifier keep reads of their own: the pill
+  /// exists to refract the capsule under it, which no batch member can
+  /// see.
   final bool batch;
 
   /// The palettes this scaffold's glass chrome wears, the OS bars it
@@ -315,8 +335,29 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.adaptivity,
   });
 
+  /// The key of the chrome batch of the nearest enclosing scaffold, or
+  /// `null` outside one or with its [batch] off.
+  ///
+  /// What `showLiquidGlassSheet` and `showLiquidGlassDialog` read from the
+  /// context they are called with when asked to batch, to put what they
+  /// present on the scaffold's chrome read — see [batch]. Library-internal.
+  static int? chromeBatchIdOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_ChromeBatchScope>()?.backdropId;
+
   @override
   State<LiquidGlassScaffold> createState() => _LiquidGlassScaffoldState();
+}
+
+/// Publishes the scaffold's chrome batch key over the whole scaffold — the
+/// body included, which is where a sheet or a dialog is presented from.
+class _ChromeBatchScope extends InheritedWidget {
+  const _ChromeBatchScope({required this.backdropId, required super.child});
+
+  final int? backdropId;
+
+  @override
+  bool updateShouldNotify(_ChromeBatchScope oldWidget) =>
+      backdropId != oldWidget.backdropId;
 }
 
 class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
@@ -368,8 +409,23 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
   /// brightness — none of which costs a capture.
   bool get _needsSampling => _cfg != null;
 
+  /// The chrome batch's key: one read for every glass slot over the body.
+  /// Owned here rather than by a view because the tab bar's glass-pill
+  /// path draws the chrome in one of the bar's own two views, and the
+  /// sheets and dialogs presented over this scaffold are outside any view.
+  late final int _chromeBatchId = liquidGlassAllocateBackdropId();
+
+  int? get _chromeBatch => widget.batch ? _chromeBatchId : null;
+
   @override
   Widget build(BuildContext context) {
+    return _ChromeBatchScope(
+      backdropId: _chromeBatch,
+      child: _buildPipeline(context),
+    );
+  }
+
+  Widget _buildPipeline(BuildContext context) {
     // Safe-area insets. The bars are shifted off the system UI, while the
     // body keeps filling the whole window behind the glass.
     final EdgeInsets pad =
@@ -380,7 +436,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         : null;
 
     // Glass-pill morph path: the bar owns the whole-screen dual pipeline,
-    // so the scaffold hands it the body plus the composed outer slots.
+    // so the scaffold hands it the body plus the composed slots.
     final nav = widget.bottomNavigationBar;
     if (nav is LiquidGlassTabBar &&
         nav.resolveGlassPill(useImpellerBackdrop: widget.useImpellerBackdrop)) {
@@ -392,33 +448,36 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         // `fontFamily: 'monospace'`, which reads as "the font changed"
         // rather than as an error. A transparent Material paints nothing
         // but installs the theme's DefaultTextStyle/IconTheme — the same
-        // fix `_outerSlots` applies to the glass slots.
+        // fix `_chromeSlots` applies to the glass slots.
         body: Material(type: MaterialType.transparency, child: widget.body),
         backgroundColor: widget.backgroundColor,
         bottomInset: pad.bottom,
-        outerChild: _outerSlots(context, pad, includeNavBar: false),
+        // Every slot, the dialog included, is handed over as the bar's
+        // chrome; the bar places it by renderer. On Impeller it paints
+        // over the bar in the outer view, as it always has. On Skia it
+        // rides the INNER view, refracting the body on the capture the bar
+        // already takes, so the outer view — which captures the whole
+        // screen again — carries the pill alone; nothing of ours is up
+        // there, `outerNeedsRealtime` stays off, and that capture sleeps
+        // whenever the pill is at rest.
+        chromeChild: _chromeSlots(context, pad, includeNavBar: false),
         pixelRatio: widget.pixelRatio,
         useSync: widget.useSync,
         useImpellerBackdrop: widget.useImpellerBackdrop,
         batch: widget.batch,
+        foregroundBatchId: _chromeBatch,
         realTimeCapture: widget.realTimeCapture,
-        // The bar's outer pipeline also carries OUR overlay slots. If any of
-        // them is a lens it needs a live capture even while the pill is
-        // hidden; with none, the capture can sleep at rest.
-        outerNeedsRealtime: widget.appBar != null ||
-            widget.bottomNavigationBarAction != null ||
-            widget.floatingActionButton != null ||
-            widget.dialog != null ||
-            widget.lenses.isNotEmpty,
         adaptiveSampling: sampling,
-        // The chrome strips (and any adaptive slot) live in `outerChild`
-        // — this redirects them to the bar's single INNER sampler (the
-        // pre-glass body image), so the whole pipeline runs exactly one
-        // sampler and nothing ever reads its own glass back.
+        // The chrome strips (and any adaptive slot) sample the bar's single
+        // INNER sampler (the pre-glass body image) — through that view's
+        // own scope on Skia, through the bar's redirect on Impeller — so
+        // the whole pipeline runs exactly one sampler and nothing ever
+        // reads its own glass back. This is also what opens the inner
+        // sampler for the slots when the bar itself has no reason to sample.
         outerAdaptiveSampling: sampling,
         // The bar judges its OWN capsule rect like every other surface;
         // the system navigation bar is driven by the bottom strip in
-        // `outerChild`, not by the bar's verdict.
+        // `chromeChild`, not by the bar's verdict.
         areaAdaptivity: _inheritedChromeAdaptivity,
         systemChrome: LiquidGlassSystemChrome.none,
       );
@@ -440,10 +499,29 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       refreshRate: widget.refreshRate,
       useImpellerBackdrop: widget.useImpellerBackdrop,
       batch: widget.batch,
+      foregroundBatchId: _chromeBatch,
       adaptiveSampling: sampling,
       backgroundWidget: background,
-      child: _outerSlots(context, pad, includeNavBar: true),
+      child: _chromeSlots(context, pad, includeNavBar: true),
     );
+  }
+
+  /// The glass overlays float outside any Scaffold/Material, so bare
+  /// Text/Icon in the app bar, nav, side action, or `lenses` would inherit
+  /// Flutter's yellow error text style. A transparent Material paints
+  /// nothing but installs the theme's DefaultTextStyle/IconTheme, so every
+  /// overlay slot is themed normally. Cheap and side-effect-free.
+  ///
+  /// Then the config WITHOUT the link: every chrome surface inherits the
+  /// palettes and samples its own backdrop. A surface follows a strip
+  /// only by carrying that strip's link itself.
+  Widget _themedSlots(Widget stack) {
+    Widget slots = Material(type: MaterialType.transparency, child: stack);
+    final LiquidGlassAdaptivity? inherited = _inheritedChromeAdaptivity;
+    if (inherited != null) {
+      slots = LiquidGlassAdaptiveAreaScope(adaptivity: inherited, child: slots);
+    }
+    return slots;
   }
 
   /// One system-bar strip: an invisible band pinned to a screen edge,
@@ -511,7 +589,11 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
   /// Coupling a surface to a strip is opt-in: publish the strip on
   /// `topLink`/`bottomLink` and put the same link on that surface's own
   /// adaptivity.
-  Widget _outerSlots(
+  ///
+  /// [includeNavBar] adds the bottom bar itself (the plain path; on the
+  /// glass-pill path the bar draws its own, and this whole stack is handed
+  /// to it as its chrome).
+  Widget _chromeSlots(
     BuildContext context,
     EdgeInsets pad, {
     required bool includeNavBar,
@@ -578,14 +660,8 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       fallbackBrightness: stripFallback,
     );
 
-    // The glass overlays float outside any Scaffold/Material, so bare
-    // Text/Icon in the app bar, nav, side action, or `lenses` would inherit
-    // Flutter's yellow error text style. A transparent Material paints
-    // nothing but installs the theme's DefaultTextStyle/IconTheme, so every
-    // overlay slot is themed normally. Cheap and side-effect-free.
-    Widget slots = Material(
-      type: MaterialType.transparency,
-      child: Stack(
+    return _themedSlots(
+      Stack(
         fit: StackFit.expand,
         children: [
           // Strips sit behind everything — invisible, hit-transparent,
@@ -634,7 +710,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
                 child: widget.floatingActionButton!,
               ),
             ),
-          // Last, so the barrier covers the bars as a route's would.
+          // Last, so the barrier covers the other slots as a route's would.
           _LiquidGlassScaffoldDialog(
             dialog: widget.dialog,
             barrierColor: widget.dialogBarrierColor,
@@ -646,18 +722,8 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         ],
       ),
     );
-
-    // Config WITHOUT the link: every chrome surface inherits the
-    // palettes and samples its own backdrop. A surface follows a strip
-    // only by carrying that strip's link itself.
-    final LiquidGlassAdaptivity? inherited = _inheritedChromeAdaptivity;
-    if (inherited != null) {
-      slots = LiquidGlassAdaptiveAreaScope(adaptivity: inherited, child: slots);
-    }
-    return slots;
   }
 }
-
 
 /// A system-bar strip that FOLLOWS a link instead of judging pixels.
 ///

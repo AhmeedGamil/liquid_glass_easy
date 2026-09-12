@@ -335,6 +335,7 @@ void packMetaballGlassUniforms(
   required Size resolution,
   required List<MetaballLensUniform> lenses,
   required double smoothness,
+
   /// Whether the members are merged by the metaball smooth-union at all.
   ///
   /// `false` unions them HARD — nearest member wins each fragment outright —
@@ -508,7 +509,6 @@ void packMetaballGlassUniforms(
 /// "no flex" no longer bit-identical to the previous output.
 double _packMetaballScale(Offset s) {
   if (s.dx == 1.0 && s.dy == 1.0) return 0;
-  int q(double v) =>
-      1 + ((v.clamp(0.5, 2.0) - 0.5) / 1.5 * 2046).round();
+  int q(double v) => 1 + ((v.clamp(0.5, 2.0) - 0.5) / 1.5 * 2046).round();
   return (q(s.dx) + q(s.dy) * 2048).toDouble();
 }

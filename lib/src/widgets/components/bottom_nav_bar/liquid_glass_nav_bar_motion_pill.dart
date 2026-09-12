@@ -4,8 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
 import '../../lens/liquid_glass_lens.dart';
-import '../../lens/render_liquid_glass_lens.dart'
-    show LiquidGlassShaderClip;
+import '../../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
 import '../../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';

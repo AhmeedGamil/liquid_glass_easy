@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+// LiquidGlassWarmUp is not part of the public API.
+// ignore: implementation_imports
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_warm_up.dart';
 
 // =============================================================
 // Switch showcase — LiquidGlassSwitch, the sliding-thumb switch,

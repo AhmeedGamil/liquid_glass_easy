@@ -114,7 +114,7 @@ class LiquidGlassMotionPill extends StatefulWidget {
   /// away; the pill also hands it the current outline stretch so the ring
   /// tracks an elliptical cap while the glass is squashed. That wrap is
   /// why the style's shadow is lifted out of the appearance before the
-  /// lens sees it — see [_resolveStyle]. See [LiquidGlassShadow].
+  /// lens sees it. See [LiquidGlassShadow].
   ///
   /// It paints behind the glass, so an opaque [cover] at rest covers the
   /// shadow along with the glass beneath it.
@@ -166,6 +166,12 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
   /// Last reported glass visibility, so the callback fires on the edges
   /// only. The cover is fully opaque at morph 0 and nowhere above it.
   bool _glassVisible = false;
+
+  /// Which glass path the host's view runs, read in build. On Skia the
+  /// contract-back stops dead at rest: the cover is opaque there, and the
+  /// spring's dip under it only kept the glass on, breathing, for most of
+  /// a second.
+  bool _impellerGlass = true;
 
   late final LiquidGlassLensMotion _motion =
       LiquidGlassLensMotion(spec: widget.motion);
@@ -227,12 +233,17 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
       vel: _morphVel,
       target: target,
       dt: dt,
-      stiffness: widget.active ? widget.expandStiffness : widget.contractStiffness,
+      stiffness:
+          widget.active ? widget.expandStiffness : widget.contractStiffness,
       damping: widget.active ? widget.expandDamping : widget.contractDamping,
     );
     _morph = m;
     _morphVel = mv;
-    if ((_morph - target).abs() < 0.001 && _morphVel.abs() < 0.01) {
+    if (!_impellerGlass && !widget.active && _morph <= 0) {
+      // Skia: covered is covered. The undershoot below rest is dropped.
+      _morph = 0;
+      _morphVel = 0;
+    } else if ((_morph - target).abs() < 0.001 && _morphVel.abs() < 0.01) {
       _morph = target;
       _morphVel = 0;
     } else {
@@ -251,8 +262,7 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     // the model (drags AND glides), so a glide's launch stretches and
     // its arrival squashes.
     if (_motion.isTracking) {
-      _motion.track(widget.center,
-          now: elapsed.inMicroseconds / 1e6, dt: dt);
+      _motion.track(widget.center, now: elapsed.inMicroseconds / 1e6, dt: dt);
       busy = true;
     }
 
@@ -283,6 +293,10 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
 
     final Widget? cover = widget.cover;
 
+    final LiquidGlassLensScope? scope = LiquidGlassLensScope.maybeOf(context);
+    _impellerGlass = (scope?.useImpellerBackdrop ?? true) &&
+        ui.ImageFilter.isShaderFilterSupported;
+
     final LiquidGlassStyle style = _resolveStyle(morphH, scaleX);
 
     Widget pill = LiquidGlassLens(
@@ -312,18 +326,15 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     // glass completely. On the Impeller backdrop path the snapped clip
     // leaves the shader's edge-AA ramp half a logical px PAST the outline,
     // so the cover reaches the same distance and the two silhouettes
-    // coincide; the Skia path still trims the glass at the outline with a
-    // canvas clip, so there the cover stays on it. It is a layer of its
-    // own above the lens rather than its child: the lens clips a child to
-    // its box, and the lens can be switched off under it at rest.
+    // coincide. The Skia path trims the glass at the outline with a canvas
+    // clip, but two anti-aliased edges on one outline never add up to full
+    // coverage, and the refracted rim showed through the seam while the
+    // cover faded in — so it reaches the same half px there. It is a layer
+    // of its own above the lens rather than its child: the lens clips a
+    // child to its box, and the lens can be switched off under it at rest.
     Widget? coverLayer;
     if (cover != null) {
-      final LiquidGlassLensScope? scope =
-          LiquidGlassLensScope.maybeOf(context);
-      final bool impellerGlass =
-          (scope?.useImpellerBackdrop ?? true) &&
-              ui.ImageFilter.isShaderFilterSupported;
-      final double outset = impellerGlass ? 0.5 : 0.0;
+      const double outset = 0.5;
       final LiquidGlassShape shape = style.shape!;
       coverLayer = Positioned(
         left: deformedTopLeft.dx - outset,

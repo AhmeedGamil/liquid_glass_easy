@@ -120,7 +120,8 @@ class LiquidGlassShape {
   /// ([LiquidGlassCornerStyle.roundedRectangle]). The cheapest style.
   const LiquidGlassShape.roundedRectangle({
     double cornerRadius = 50.0,
-    LiquidGlassClipQuality clipQuality = LiquidGlassClipQuality.roundedRectangle,
+    LiquidGlassClipQuality clipQuality =
+        LiquidGlassClipQuality.roundedRectangle,
     double borderWidth = 1.0,
     Color? borderColor,
     double lightIntensity = 1.0,
@@ -145,7 +146,8 @@ class LiquidGlassShape {
   /// iOS-style continuous-curvature corners.
   const LiquidGlassShape.squircle({
     double cornerRadius = 50.0,
-    LiquidGlassClipQuality clipQuality = LiquidGlassClipQuality.roundedRectangle,
+    LiquidGlassClipQuality clipQuality =
+        LiquidGlassClipQuality.roundedRectangle,
     double borderWidth = 1.0,
     Color? borderColor,
     double lightIntensity = 1.0,
@@ -170,7 +172,8 @@ class LiquidGlassShape {
   /// ([LiquidGlassCornerStyle.continuousRoundedRectangle]).
   const LiquidGlassShape.continuousRoundedRectangle({
     double cornerRadius = 50.0,
-    LiquidGlassClipQuality clipQuality = LiquidGlassClipQuality.roundedRectangle,
+    LiquidGlassClipQuality clipQuality =
+        LiquidGlassClipQuality.roundedRectangle,
     double borderWidth = 1.0,
     Color? borderColor,
     double lightIntensity = 1.0,
@@ -298,7 +301,8 @@ double liquidGlassCornerStyle(LiquidGlassShape shape) =>
     };
 
 /// The corner radius used to **clip** a lens to its outline.
-double liquidGlassClipCornerRadius(LiquidGlassShape shape) => shape.cornerRadius;
+double liquidGlassClipCornerRadius(LiquidGlassShape shape) =>
+    shape.cornerRadius;
 
 /// Whether the shape uses a rounded clip for its blur-backdrop and child clips.
 /// Every [LiquidGlassShape] is a rounded-rectangle family shape, so this is
@@ -467,9 +471,7 @@ class _LiquidGlassContinuousClipper extends CustomClipper<Path> {
 
   @override
   bool shouldReclip(_LiquidGlassContinuousClipper old) =>
-      old.radius != radius ||
-      old.scaleX != scaleX ||
-      old.scaleY != scaleY;
+      old.radius != radius || old.scaleX != scaleX || old.scaleY != scaleY;
 }
 
 /// The continuous-curvature (squircle) outline — the SAME L^n superellipse the
@@ -545,10 +547,9 @@ const double _kSagitta = 0.103;
 /// keying this on `r` alone lets an extreme aspect ratio slip past the budget
 /// (measured: 600×24 at r 12 strayed 0.052 px).
 ///
-/// Inverts the sagitta law for [_kContinuousClipErrorPx], so a small pill is
-/// not tessellated to the same density as a full-screen card. Floored at 3 so
-/// even a hairline radius keeps a curve, capped at 40 — then the whole band is
-/// scaled by [_kSegmentDensity].
+/// Inverts the sagitta law for the clip's error budget (0.05 logical px), so
+/// a small pill is not tessellated to the same density as a full-screen card.
+/// Floored at 3 so even a hairline radius keeps a curve, and capped at 40.
 int liquidGlassCornerSegments(double reach) {
   if (!reach.isFinite || reach <= 0) return 3 * _kSegmentDensity;
   final int seg = math.sqrt(_kSagitta * reach / _kContinuousClipErrorPx).ceil();

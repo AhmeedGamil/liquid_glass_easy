@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 
+import '../lens/liquid_glass_batch.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
@@ -8,6 +9,7 @@ import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
 import '../utils/liquid_glass_touch.dart';
+import 'liquid_glass_scaffold.dart';
 
 /// How a [LiquidGlassSheet] meets the bottom of the screen.
 enum LiquidGlassSheetAnchor {
@@ -60,6 +62,20 @@ enum LiquidGlassSheetAnchor {
 /// its own reasons, and the view's lens scope rides along with them, so
 /// a sheet opened from a context **inside** a view refracts the page
 /// behind it. Impeller never needed it.
+///
+/// **On Impeller** the sheet takes a backdrop read of its own, even inside
+/// a `LiquidGlassScaffold`: the route sits outside the scaffold's tree,
+/// where no batch reaches it. Pass [batch] to have it join the scaffold's
+/// chrome batch instead — the read its tab bar's capsule already takes —
+/// so the sheet costs no read beyond that one. The batch then covers the
+/// whole sheet, its own glass and every lens in [builder]'s subtree alike,
+/// and the copy they all sample was taken before the tab bar and the route
+/// painted: the sheet refracts the page as it lay under the bar, with no
+/// tab bar glass in it and no barrier scrim, and glass **inside** the sheet
+/// reads that page rather than the sheet's surface; wrap it in
+/// `LiquidGlassBatch.exclude` to get that back. Outside a scaffold, or
+/// with the scaffold's `batch` off, the flag does nothing. On the Skia /
+/// Web capture path there is no shared key and it does nothing either.
 Future<T?> showLiquidGlassSheet<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -73,6 +89,7 @@ Future<T?> showLiquidGlassSheet<T>({
   Color? foregroundColor,
   bool avoidKeyboard = true,
   LiquidGlassTouch? touch,
+  bool batch = false,
   Color? barrierColor,
   String? barrierLabel,
   bool isScrollControlled = false,
@@ -86,6 +103,11 @@ Future<T?> showLiquidGlassSheet<T>({
   AnimationController? transitionAnimationController,
   Offset? anchorPoint,
 }) {
+  // Asked to, and presented from inside a LiquidGlassScaffold, the sheet
+  // joins the scaffold's chrome batch — the read its tab bar takes — so it
+  // costs no read of its own. See `LiquidGlassScaffold.batch`.
+  final int? batchId =
+      batch ? LiquidGlassScaffold.chromeBatchIdOf(context) : null;
   return showModalBottomSheet<T>(
     context: context,
     // The glass is the surface, so Material's is given nothing to draw:
@@ -108,7 +130,7 @@ Future<T?> showLiquidGlassSheet<T>({
     transitionAnimationController: transitionAnimationController,
     anchorPoint: anchorPoint,
     builder: (BuildContext context) {
-      final Widget sheet = LiquidGlassSheet(
+      Widget sheet = LiquidGlassSheet(
         header: header,
         anchor: anchor,
         grabber: grabber,
@@ -120,12 +142,16 @@ Future<T?> showLiquidGlassSheet<T>({
         touch: touch,
         child: builder(context),
       );
+      if (batchId != null) {
+        sheet = LiquidGlassBatchScope(backdropId: batchId, child: sheet);
+      }
       if (!avoidKeyboard) return sheet;
       // The route does not lift for the keyboard on its own. This is the
       // padding you would otherwise write in every builder, and it only
       // has room to work with `isScrollControlled: true`.
       return Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
         child: sheet,
       );
     },
@@ -358,8 +384,7 @@ class LiquidGlassSheet extends StatelessWidget {
                     width: grabberSize.width,
                     height: grabberSize.height,
                     decoration: BoxDecoration(
-                      color: grabberColor ??
-                          foreground.withValues(alpha: 0.35),
+                      color: grabberColor ?? foreground.withValues(alpha: 0.35),
                       borderRadius:
                           BorderRadius.circular(grabberSize.height / 2),
                     ),

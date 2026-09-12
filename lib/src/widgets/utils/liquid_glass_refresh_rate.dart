@@ -1,4 +1,4 @@
-/// Defines the refresh rate options for the [LiquidGlass] widget.
+/// Defines the refresh rate options for [LiquidGlassView].
 ///
 /// This enum allows you to control how often the liquid glass effect
 /// updates per second, which can help balance visual smoothness and

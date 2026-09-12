@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 
+import '../lens/liquid_glass_batch.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_scaffold.dart';
 
 /// Displays a liquid glass dialog over the current route.
 ///
@@ -34,6 +36,20 @@ import '../utils/liquid_glass_shape.dart';
 ///   ),
 /// );
 /// ```
+///
+/// **On Impeller** the dialog takes a backdrop read of its own, even
+/// inside a `LiquidGlassScaffold`: the route sits outside the scaffold's
+/// tree, where no batch reaches it. Pass [batch] to have it join the
+/// scaffold's chrome batch instead — the read its tab bar's capsule
+/// already takes — so the dialog costs no read beyond that one. The batch
+/// then covers the whole dialog, its own glass and its buttons alike, and
+/// the copy they all sample was taken before the tab bar and the route
+/// painted: the dialog refracts the page as it lay under the bar, with no
+/// tab bar glass in it and no barrier scrim, and glass **inside** it — its
+/// buttons — reads that page rather than the dialog's surface; wrap it in
+/// `LiquidGlassBatch.exclude` to get that back. Outside a scaffold, or
+/// with the scaffold's `batch` off, the flag does nothing. On the Skia /
+/// Web capture path there is no shared key and it does nothing either.
 Future<T?> showLiquidGlassDialog<T>({
   required BuildContext context,
   required WidgetBuilder builder,
@@ -47,6 +63,7 @@ Future<T?> showLiquidGlassDialog<T>({
   Duration transitionDuration = const Duration(milliseconds: 350),
   Curve transitionCurve = const Cubic(0.16, 1.0, 0.3, 1.0),
   Curve reverseTransitionCurve = const Cubic(0.7, 0.0, 0.84, 0.0),
+  bool batch = false,
 }) {
   assert(debugCheckHasMaterialLocalizations(context));
 
@@ -58,11 +75,18 @@ Future<T?> showLiquidGlassDialog<T>({
     ).context,
   );
 
+  // Asked to, and presented from inside a LiquidGlassScaffold, the dialog
+  // joins the scaffold's chrome batch — the read its tab bar takes — so it
+  // costs no read of its own. See `LiquidGlassScaffold.batch`.
+  final int? batchId =
+      batch ? LiquidGlassScaffold.chromeBatchIdOf(context) : null;
+
   return showGeneralDialog<T>(
     context: context,
     barrierDismissible: barrierDismissible,
     barrierColor: barrierColor,
-    barrierLabel: barrierLabel ?? MaterialLocalizations.of(context).modalBarrierDismissLabel,
+    barrierLabel: barrierLabel ??
+        MaterialLocalizations.of(context).modalBarrierDismissLabel,
     useRootNavigator: useRootNavigator,
     routeSettings: routeSettings,
     anchorPoint: anchorPoint,
@@ -70,6 +94,9 @@ Future<T?> showLiquidGlassDialog<T>({
     pageBuilder: (buildContext, animation, secondaryAnimation) {
       final Widget page = builder(buildContext);
       Widget dialog = themes.wrap(page);
+      if (batchId != null) {
+        dialog = LiquidGlassBatchScope(backdropId: batchId, child: dialog);
+      }
       if (useSafeArea) {
         dialog = SafeArea(child: dialog);
       }

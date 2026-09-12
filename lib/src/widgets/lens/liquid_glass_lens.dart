@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
 import '../components/liquid_glass_adaptive_area.dart';
+import '../components/liquid_glass_lite.dart';
 import '../components/liquid_glass_shadow.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
@@ -16,6 +17,7 @@ import 'liquid_glass_batch.dart';
 import 'liquid_glass_blender.dart';
 import 'liquid_glass_lens_scope.dart';
 import 'liquid_glass_shaders.dart';
+import '../liquid_glass_engine.dart';
 import 'render_liquid_glass_lens.dart';
 
 /// A liquid-glass lens you can place **anywhere in the widget tree**.
@@ -101,8 +103,8 @@ class LiquidGlassLens extends StatefulWidget {
   ///
   /// Honored inside a `LiquidGlassBlender`: the merged metaball silhouette
   /// picks a member's deformation up from its resized box. Only
-  /// [LiquidGlassFlexAdvanced.refractionBoost] does not survive the merge —
-  /// see `_buildInner`.
+  /// [LiquidGlassFlexAdvanced.refractionBoost] does not survive the merge:
+  /// a merged member has no refraction band of its own to deepen.
   final LiquidGlassTouch? touch;
 
   /// Content rendered on top of the glass, clipped to the lens shape.
@@ -112,10 +114,10 @@ class LiquidGlassLens extends StatefulWidget {
   /// glass's shape itself instead of letting a finger do it.
   ///
   /// With [touch] the lens owns the whole gesture: it listens for pointers
-  /// and runs its own [LiquidGlassFlexDriver]. Some hosts cannot work that
-  /// way — a slider thumb or a nav pill is deformed by where it is being
-  /// carried, which only the host knows. Passing a deform here skips the
-  /// listener and the driver entirely and renders exactly what is given.
+  /// and runs its own spring driver. Some hosts cannot work that way — a
+  /// slider thumb or a nav pill is deformed by where it is being carried,
+  /// which only the host knows. Passing a deform here skips the listener
+  /// and the driver entirely and renders exactly what is given.
   ///
   /// The lens's own box must ALREADY be the deformed size; [restSize] is
   /// what the deformation is measured against, and the shape is evaluated
@@ -234,7 +236,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
   void initState() {
     super.initState();
     if (!LiquidGlassShaders.isLoaded) {
-      LiquidGlassShaders.ensureLoaded().then((_) {
+      LiquidGlassShaders.ensureLensLoaded().then((_) {
         if (mounted) setState(() {});
       }).catchError((Object _) {
         // Shaders unavailable (broken build / unsupported test env):
@@ -249,7 +251,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         _warnedFrostedFallback = true;
         debugPrint(
           'LiquidGlassLens: refraction unavailable ($reason). '
-          'Falling back to a frosted (blur + tint) look. Refraction '
+          'Drawing lite glass (frost + tint + rim) instead. Refraction '
           'needs Impeller, or an ancestor LiquidGlassView with a '
           'backgroundWidget on Skia/Web.',
         );
@@ -570,8 +572,15 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         (widget.useImpellerBackdrop ?? scope?.useImpellerBackdrop ?? true) &&
             ui.ImageFilter.isShaderFilterSupported;
 
+    // Lite glass — by the engine switch or this style's own pickup: no
+    // shader, no capture, the lens draws `LiquidGlassLite`. That is by
+    // choice, so no warning.
+    final bool lite =
+        LiquidGlassEngine.liteGlass || widget.style.liteGlass != null;
     LiquidGlassLensRenderMode? mode;
-    if (impeller) {
+    if (lite) {
+      // Falls through to the lite fallback below.
+    } else if (impeller) {
       mode = LiquidGlassLensRenderMode.impellerBackdrop;
     } else if (scope != null) {
       mode = LiquidGlassLensRenderMode.skiaCapture;
@@ -580,19 +589,22 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     }
 
     if (mode == null || !LiquidGlassShaders.isLoadedFor(impeller)) {
-      // Frosted fallback — also shown for the brief async shader load on the
-      // very first lens of the app's lifetime. If this lens's backend differs
-      // from the one preloaded in initState, kick its load and rebuild.
+      // Lite glass — the chosen look under the switches, the stand-in with
+      // no view on Skia, and the brief async shader load on the very first
+      // lens of the app's lifetime. If this lens's backend differs from the
+      // one preloaded in initState, kick its load and rebuild.
       if (mode != null) {
-        LiquidGlassShaders.ensureLoaded(impeller).then((_) {
+        LiquidGlassShaders.ensureLensLoaded(impeller).then((_) {
           if (mounted) setState(() {});
         }).catchError((Object _) {});
       }
       return _withAppearanceShadow(
-        _FrostedGlassFallback(
+        _LiteGlassFallback(
           shape: shape,
           shapeScale: shapeScale,
           appearance: appearance,
+          refraction: refraction,
+          pickup: widget.style.liteGlass ?? LiquidGlassEngine.litePickup,
           visible: widget.visibility,
           child: content == null
               ? null
@@ -786,65 +798,55 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   }
 }
 
-/// Non-refracting stand-in: backdrop blur + tint + hairline border.
-/// Used where real refraction is impossible (Skia without a captured
-/// background) and during the one-time async shader load.
-class _FrostedGlassFallback extends StatelessWidget {
+/// The shader-free glass: [LiquidGlassLite] reading the backdrop for its
+/// frost and its rim colour, with the lens's tint laid under the content.
+/// Clipped to the outline like the shader path clips its child. Worn under
+/// the `LiquidGlassEngine` switches and `LiquidGlassStyle.liteGlass`, with
+/// no view on Skia, and while the shaders load.
+class _LiteGlassFallback extends StatelessWidget {
   final LiquidGlassShape shape;
   final LiquidGlassAppearance appearance;
+  final LiquidGlassRefraction refraction;
   final bool visible;
+
+  /// Where the rim takes its colour from: `LiquidGlassStyle.liteGlass`, or
+  /// `LiquidGlassEngine.litePickup` when the style leaves it to the engine.
+  final LiquidGlassLitePickup pickup;
 
   /// Deformed size / rest size; `(1,1)` when undeformed.
   final Offset shapeScale;
   final Widget? child;
 
-  const _FrostedGlassFallback({
+  const _LiteGlassFallback({
     required this.shape,
     required this.appearance,
+    required this.refraction,
     required this.visible,
+    this.pickup = LiquidGlassLitePickup.backdrop,
     this.shapeScale = const Offset(1, 1),
     this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    // Hidden: leave nothing behind (instant), matching the refracting
-    // path where the child is removed and the glass paint is skipped.
     if (!visible) return const SizedBox.shrink();
 
-    final double radius = liquidGlassClipCornerRadius(shape);
-    // Elliptical while deformed, so the frosted lens stretches its OUTLINE
-    // the same way the refracting one does.
-    final BorderRadius borderRadius = (shapeScale.dx == 1.0 &&
-            shapeScale.dy == 1.0)
-        ? BorderRadius.circular(radius)
-        : BorderRadius.all(
-            Radius.elliptical(radius * shapeScale.dx, radius * shapeScale.dy));
-    // Without refraction, blur is what sells "glass" — give it a floor
-    // so a lens configured with zero blur still reads as frosted.
-    final double sigmaX =
-        appearance.blur.sigmaX > 0 ? appearance.blur.sigmaX : 10.0;
-    final double sigmaY =
-        appearance.blur.sigmaY > 0 ? appearance.blur.sigmaY : 10.0;
-    final Color tint =
-        appearance.color.a > 0 ? appearance.color : const Color(0x14FFFFFF);
-    final Color borderColor = shape.borderColor ?? const Color(0x40FFFFFF);
-
-    return ClipRRect(
-      borderRadius: borderRadius,
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: sigmaX, sigmaY: sigmaY),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: tint,
-            borderRadius: borderRadius,
-            border: Border.all(
-              color: borderColor,
-              width: shape.borderWidth > 0 ? shape.borderWidth : 1.0,
-            ),
-          ),
-          child: child ?? const SizedBox.expand(),
-        ),
+    // The tint is the lite's own, a fill of the shape. The rim follows the
+    // style's `liteGlass` pickup, or the engine's — `backdrop` by default:
+    // cut from the background, so its colour runs along the rim as the
+    // shader's does. That read comes on top of the frost's, so a lite lens
+    // costs two.
+    return liquidGlassClip(
+      shape: shape,
+      shapeScale: shapeScale,
+      child: LiquidGlassLite(
+        shape: shape,
+        shapeScale: shapeScale,
+        blur: appearance.blur,
+        magnification: refraction.magnification,
+        pickup: pickup,
+        color: appearance.color,
+        child: child,
       ),
     );
   }

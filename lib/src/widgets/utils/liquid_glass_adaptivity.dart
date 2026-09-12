@@ -591,8 +591,7 @@ class LiquidGlassAdaptivity {
       controller: controller ?? this.controller,
       darkBelow: darkBelow ?? this.darkBelow,
       lightAbove: lightAbove ?? this.lightAbove,
-      continuousGlassColor:
-          continuousGlassColor ?? this.continuousGlassColor,
+      continuousGlassColor: continuousGlassColor ?? this.continuousGlassColor,
     );
   }
 }

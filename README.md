@@ -11,6 +11,10 @@
 These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract** the content behind them — recreating the iOS 26 Liquid Glass look with stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
 <p>
+  <img src="showcases/liquid_glass_morph.gif" width="72%" alt="Liquid Glass Morph — a button that flows into a menu"/>
+</p>
+
+<p>
   <img src="showcases/liquid_glass_adaptivity.gif" width="72%" alt="Liquid Glass Adaptivity — chrome that flips with the background"/>
 </p>
 
@@ -42,13 +46,17 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with `LiquidGlassStyle`: shape, appearance, refraction. |
 | **Touch** | `LiquidGlassTouch` | How glass answers a finger. Carries `LiquidGlassFlex`: press and it swells, drag and it deforms, release and it springs back. |
 | **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
-| **Blend** | `LiquidGlassBlender` | Merges **2–8** lenses into one surface, joined by a smooth metaball bridge. |
-| **Group** | `LiquidGlassGroup` | Draws every lens beneath it as ONE sheet — one backdrop read and one material for the whole set, far cheaper than the same lenses standing alone. Fuses them like the blender when given a `smoothness`. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface) |
+| **Blend** | `LiquidGlassBlender` | Merges **2–8** lenses into one surface, joined by a smooth metaball bridge. `smoothness: 0` turns the bridge off and keeps the one shared surface — one backdrop read and one material for the whole set, far cheaper than the same lenses standing alone. |
+| **Group** | `LiquidGlassGroup` | *Deprecated in 4.3.0* — it is `LiquidGlassBlender(smoothness: 0)` under another name, and it still works. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface) |
+| **Morph** | `LiquidGlassMorph` | Glass that fits whatever you put in it: swap the child and the surface flows to the new size, as two blobs of one liquid with a neck between them. Motion is a preset. |
+| **Lite** | `LiquidGlassLite`, `LiquidGlassEngine`, `LiquidGlassStyle.liteGlass` | The material without the shader: frost, tint and a lit rim, no refraction. Flip one lens, or the whole app per engine — nothing to compile, no capture on Skia, no slot in the lens budget. |
+| **Shadow** | `LiquidGlassShadow` | The contact shadow that sets glass *into* the page: a soft ring hugging the rim and pooling beneath, multiplied over whatever is under it. Authored on `appearance.shadow`, where the lens wraps itself in it; usable on its own around anything. |
 | **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). |
 | **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
 | **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
-| **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassAlertDialog`, `LiquidGlassScaffold`, `LiquidGlassDraggable` | Ready-made controls, each a lens with the blocks above already wired. |
+| **Components** | `LiquidGlassSlider`, `LiquidGlassSwitch`, `LiquidGlassButton`, `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`, `LiquidGlassAlertDialog`, `LiquidGlassSheet`, `LiquidGlassScaffold`, `LiquidGlassDraggable`, `LiquidGlassMotionPill` | Ready-made controls, each a lens with the blocks above already wired. |
+| **Shaders** | `LiquidGlassShaders` | `await LiquidGlassShaders.ensureLoaded()` in `main()` compiles every program — the lens's and the blender's — so the first glass on screen is glass on its first frame. |
 
 ---
 
@@ -62,9 +70,60 @@ The widget tree you write is **identical** in every case:
 | **Impeller** (Flutter's default on modern iOS/Android) | The lens refracts the **live backdrop** — whatever your app painted behind it. **No `LiquidGlassView` and no background widget needed at all.** Just drop the lens over any UI. |
 | **Skia** with an ancestor `LiquidGlassView` (+ `backgroundWidget`) | The lens refracts the view's **captured background**, wherever it sits inside the view's `child`. |
 | **Skia** without a view | Refraction isn't possible, so the lens gracefully degrades to a **frosted** look (backdrop blur + tint + border) and logs a one-time debug notice. |
+| **Any engine**, lite glass | `LiquidGlassEngine.liteGlassOnSkia` / `liteGlassOnImpeller`, or a `LiquidGlassLitePickup` in `liteGlass` on one style: the lens draws `LiquidGlassLite` — frost, tint and a lit rim — with no shader, no capture and no view needed. |
 
 > In short: **on Impeller it just works anywhere**; on Skia you wrap your
-> content in a `LiquidGlassView` to give the lens a background to refract.
+> content in a `LiquidGlassView` to give the lens a background to refract —
+> or switch that engine to lite glass and skip the view.
+
+---
+
+### Lite glass — the material without the shader
+
+A lens gets its look from a fragment shader that bends the background under
+it. **Lite glass** gives up the bending and keeps everything else: the frost,
+the tint, the contact shadow, and a rim lit by the same model the shader
+runs, evaluated on the Dart side. Nothing to compile, nothing to warm up, no
+capture on Skia, no slot in the lens budget on Impeller.
+
+```dart
+// The whole app, per engine — set once, before the first lens builds.
+LiquidGlassEngine.liteGlassOnSkia = true;      // Skia and the web
+LiquidGlassEngine.liteGlassOnImpeller = true;  // Impeller
+
+// One lens, on either engine — the value is where its rim takes its colour.
+LiquidGlassLens(
+  style: const LiquidGlassStyle(liteGlass: LiquidGlassLitePickup.backdrop),
+  child: child,
+)
+
+// The widget itself, on a surface that was never a lens.
+LiquidGlassLite(
+  shape: const LiquidGlassShape(cornerRadius: 22, borderWidth: 1.5),
+  blur: const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+  color: const Color(0x33FFFFFF),
+  child: child,
+)
+```
+
+The value of `liteGlass` is where the rim takes its colour from, a
+`LiquidGlassLitePickup`. `backdrop` is the default: it samples the
+background along the rim the way the shader does, for one extra read.
+`blend` and `surface` cost no read of their own; `none` is white light. A
+lens the engine switches put on lite glass takes its rim from
+`LiquidGlassEngine.litePickup` instead, which is `backdrop` by default too.
+
+**What still works, and what does not.** Lite glass changes how a lens is
+drawn, not what the tree around it does:
+
+| | Under lite glass |
+|---|---|
+| Every component | Works the same, with no refraction. The tab bar's `pillStyle.mode: both` is fine on Skia here — there is no capture to double. |
+| `touch`, `adaptivity`, `appearance.shadow`, `LiquidGlassScrollEdge` | Work. The adaptive sampler is not a glass capture and keeps running. |
+| `LiquidGlassMorph` | Runs as `plain`: one lens, one spring, no second blob. |
+| `LiquidGlassBlender` | Does not blend — every member paints solo as its own lite surface. |
+| `LiquidGlassBatch` | Inert — there is no shader pass to share. |
+| `refraction` | Gone, except `magnification`, which survives as a flat zoom in the frost. |
 
 ---
 
@@ -144,6 +203,16 @@ cost bounded; it is raised two at a time, by adding a `mat4` to the shader.
 Register a ninth lens and it throws in debug; in release the extras are dropped
 and the first eight blend.
 
+**One shader for all of them.** Whatever `smoothness` says, the blender draws
+every lens under it with a single shader pass — one backdrop read and one
+material for the whole set, in place of a pass and a read per lens. That is
+what makes it the cheap way to put a set of glass on a screen. At
+`smoothness: 0` the bridge is off and the shader skips the smooth-union work
+entirely; the members keep their own hard outlines and still share that one
+pass. That is exactly what `LiquidGlassGroup` did, and the group is deprecated
+in favour of it — `LiquidGlassGroup(...)` is `LiquidGlassBlender(smoothness: 0,
+...)`, every other parameter by the same name.
+
 > ⚠️ **A note on blur on Skia.** In-shader blur on the Skia capture path may cost
 > **performance** when the lenses are big or the blur is big. Also, **high blur
 > (above ~7)** doesn't match the look of a real backdrop blur. It isn't clamped,
@@ -154,20 +223,28 @@ and the first eight blend.
 
 ### Group — many lenses, one surface
 
+> **Deprecated in 4.3.0.** `LiquidGlassGroup` is `LiquidGlassBlender` with
+> `smoothness: 0` as its default and nothing else different; every parameter
+> carries over by name. It keeps working and will be removed in a future
+> release. Everything below still applies — read `LiquidGlassGroup(...)` as
+> `LiquidGlassBlender(smoothness: 0, ...)`.
+
 A page rarely holds one lens, and lenses are not cheap: each one reads the
 backdrop behind it and runs its own glass pass. Wrap a set of them in a
-`LiquidGlassGroup` and they are drawn as **one sheet** — the members keep their
-own layout, shape and child, but give up their individual pass for a single
-surface covering all of them.
+`LiquidGlassBlender` with `smoothness: 0` — what the group was — and they are
+drawn as **one sheet** with one shader: the members keep their own layout,
+shape and child, but give up their individual pass for a single surface
+covering all of them.
 
 **This is the cheap way to put a lot of glass on a screen.** Six lenses
 standing on their own are six backdrop reads and six materials; the same six in
-a group are **one of each**, whatever they cost to lay out. Reach for it
+a blender are **one of each**, whatever they cost to lay out. Reach for it
 wherever glass comes in sets — a toolbar of buttons, a stack of cards, a row of
 controls.
 
 ```dart
-LiquidGlassGroup(
+LiquidGlassBlender(
+  smoothness: 0,   // one shader, one read, no bridge — the group
   style: const LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 26),
   ),
@@ -179,22 +256,20 @@ LiquidGlassGroup(
 )
 ```
 
-**It blends like `LiquidGlassBlender`, too.** The group takes the same
-`smoothness`: give it a radius and members that come within about half of it
-flow together through a metaball bridge, growing as they approach and pulling
-apart as they separate — the blender's merge, on a shared sheet.
+**Fusing is the same knob.** Give `smoothness` a radius instead and members
+that come within about half of it flow together through a metaball bridge,
+growing as they approach and pulling apart as they separate — the merge in the
+Blend section above, on the same shared sheet.
 
-It defaults to `null`, though, which is the difference between the two. A
-blender exists to fuse; a group exists to share one surface, and fusing is the
-extra. With `null` each member keeps its own hard outline and the shader skips
-the smooth-union entirely rather than running it and finding nothing to blend,
-so a row of buttons or a column of pills pays nothing for a bridge that never
-forms.
+Zero was the only thing the group changed: with it each member keeps its own
+hard outline and the shader skips the smooth-union entirely rather than running
+it and finding nothing to blend, so a row of buttons or a column of pills pays
+nothing for a bridge that never forms.
 
 **Adaptivity stays per member.** Each lens judges the background behind
 *itself* and paints its own verdict into the shared sheet; where two fuse,
 their colours cross over inside the bridge on the same falloff that shapes it.
-A member that isn't adaptive takes the group's colour.
+A member that isn't adaptive takes the blender's colour.
 
 Two to eight members, on both backends. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface)
 
@@ -276,6 +351,11 @@ their own background and work anywhere on both engines.
 | `LiquidGlassSheet` | Placed by hand: needs an ancestor `LiquidGlassView`. Presented with `showLiquidGlassSheet`: open it from a context inside one. |
 | `LiquidGlassTabBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassTabBar.withImpeller(...)`. |
 | `LiquidGlassDraggable` | Inherits whatever the lens it wraps requires. |
+| `LiquidGlassMorph` | It is a blender: needs an ancestor `LiquidGlassView` with a `backgroundWidget`, or the two blobs fall back to two separate lenses and double-refract where they overlap. |
+| `LiquidGlassMotionPill` | Inherits whatever its host provides — inside a slider or a tab bar it is already covered; on its own, an ancestor `LiquidGlassView`. |
+| `LiquidGlassShadow` | **None** — plain canvas paint, no shader and no capture. Works anywhere on both engines, around anything. |
+
+Under **lite glass** none of them needs a view: there is no capture to feed.
 
 > **Migration note:** the old position-driven lens API (`LiquidGlass`) is
 > **no longer used** — it has been replaced by `LiquidGlassLens`. Write new code
@@ -303,7 +383,8 @@ share:
 - **True liquid glass visuals** — real-glass look and physics with fluid transparency, soft highlights, and light-bending refraction.
 - **Real-time rendering** — distortion, blur, tint, and refraction react instantly as content moves behind the glass.
 - **Custom shapes** — circular rounded rectangles, iOS-style squircles, or Apple-style continuous-corner capsules.
-- **Two border modes** — stylized `ClassicBorder` or background-tinted `OpticalBorder`.
+- **Two border modes** — background-tinted `OpticalBorder` (default) or the stylized `ClassicBorder` (deprecated in 4.3.0).
+- **Lite glass** — the same material with no shader at all, per lens or per engine, for pages with more glass than the shader budget allows.
 - **Shader-driven, GPU-accelerated** — smooth, high-FPS performance.
 - **Cross-platform** — Android, iOS, Web, macOS, and Windows.
 
@@ -313,11 +394,23 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^4.2.0
+  liquid_glass_easy: ^4.3.0
 ```
 
 ```bash
 flutter pub get
+```
+
+Optionally, compile the shaders before the first frame so the very first
+lens — or blender — on screen is glass immediately rather than frosted for a
+moment:
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await LiquidGlassShaders.ensureLoaded();
+  runApp(const MyApp());
+}
 ```
 
 ---
@@ -501,7 +594,7 @@ Every shape renders its border in one of two styles through `borderType`.
 
 | Mode | Description |
 |------|-------------|
-| `ClassicBorder` | Light/shadow colors sweep around the shape based on the angle between the surface normal and the light direction. Clean, stylized, direct color control. |
+| `ClassicBorder` | *Deprecated in 4.3.0.* Light/shadow colors sweep around the shape based on the angle between the surface normal and the light direction. Clean, stylized, direct color control. Still works; shape the optical rim with `borderSaturation`, `ambientIntensity`, `borderSolidity` and `lightSpread` instead. |
 | `OpticalBorder` | **(default)** An Apple-style, SDF-based rim light that emerges as an optical consequence of the glass shape — background-tinted highlights, dual-sided specular reflections, and a lens height profile. The rim color adapts to whatever sits behind the lens. |
 
 ### Optical Border
@@ -651,7 +744,48 @@ hand over an appearance carrying no shadow to drop the shadow.
 Each component is self-contained and styled through the same
 `LiquidGlassStyle` vocabulary. Other components: `LiquidGlassButton`,
 `LiquidGlassFab`, `LiquidGlassAppBar`, `LiquidGlassTabBar`,
-`LiquidGlassAlertDialog`, `LiquidGlassSheet`, `LiquidGlassScaffold`.
+`LiquidGlassAlertDialog`, `LiquidGlassSheet`, `LiquidGlassScaffold`,
+`LiquidGlassMorph`, `LiquidGlassShadow`, and `LiquidGlassMotionPill` — the
+slider's living thumb on its own, for anything that moves a glass capsule
+along a path.
+
+### Shadow — the contact shadow
+
+`LiquidGlassShadow` is what makes a glass pill read as sitting *in* the
+surface rather than floating flat on it: a soft dark band that hugs the rim
+and pools underneath. It is cast by a **ring** straddling the outline —
+not by the pill itself — displaced downward and blurred, so one shape gives
+both the inner rim contact and the drop below while the middle of the glass
+stays clear. It composites with `multiply`, darkening the glass inside and
+the page outside instead of laying grey over both.
+
+The place to author it is the style — `appearance.shadow` — and every lens
+and component takes it from there, never as a separate parameter:
+
+```dart
+LiquidGlassLens(
+  style: const LiquidGlassStyle(
+    appearance: LiquidGlassAppearance(
+      shadow: LiquidGlassShadow(blur: 3.5, opacity: 0.2),
+    ),
+  ),
+  child: child,
+)
+
+// The slider's and the switch's tuned shadow lives on their defaultStyle;
+// hand over an appearance carrying no shadow to drop it.
+```
+
+On its own it is a plain **parent** widget — `LiquidGlassShadow(child: …)`
+— that paints behind whatever it wraps and never touches it, so it composes
+with any lens or any surface. Wrap the lens; a shadow passed as *content*
+would be clipped to the outline and lose the half that pools below, which
+is the half that reads as contact. `blur`, `opacity`, `color`, `offset`
+(`blur + 2` downward by default), `cornerRadius` (capsule by default) and
+`inset` — how far inside the glass the casting ring sits, for a tighter
+contact on a small control — are the knobs. Under a `touch`, the ring
+follows the deformed outline. Not supported inside a `LiquidGlassBlender`:
+a merged silhouette has no single ring to cast.
 
 ### Sheets — Flutter's bottom sheet, in glass
 
@@ -712,6 +846,78 @@ the bottom `viewInsets` padding you would otherwise write in every
 builder, so a sheet with a text field in it rides the
 keyboard up — give it `isScrollControlled: true` for the room to do so.
 
+### Morph — glass that fits whatever you put in it
+
+Swap the child; the glass measures the new one and flows to its size. You
+never type a dimension:
+
+```dart
+LiquidGlassMorph(
+  alignment: Alignment.bottomRight,
+  child: open
+      ? const Menu(key: ValueKey('menu'))
+      : const Icon(Icons.more_horiz, key: ValueKey('dots')),
+)
+```
+
+That is the whole API. Add a row to `Menu` and the glass grows to match —
+there is one truth about how big the menu is, and the glass reads it instead
+of being told it a second time. `Key` is the identity: a child that keeps its
+type without a key is not seen as new, and will neither cross-fade nor be
+re-measured.
+
+`width` and `height` are **overrides**, not inputs. Set one and that axis is
+pinned while the other is still measured — the fixed-width menu whose height
+follows its rows. Set both and nothing is measured at all.
+
+It is not an `AnimatedContainer`. The morph is **two blobs of one liquid**,
+drawn as a single surface by `LiquidGlassBlender`: the destination blob
+carries the new shape and content, the source blob the old, and the smooth
+union joins them — so mid-morph the outline has a **waist**, the one thing a
+tween can never produce. Growing, the new blob's centre leaps ahead and its
+size catches up, pulling a neck out of the source; shrinking is the same film
+run backwards. Each blob keeps its own corners, the old child blurs out in the
+first 40% of the swap and the new one blurs in over the second half, pinned
+where the glass will finally sit. At rest the two blobs coincide and the union
+is off, so the resting outline is the plain shape. `smoothness` is the neck
+radius, the same quantity as the blender's.
+
+**`alignment` is the parameter people regret.** The widget fills the box it is
+given and places the glass inside it, because a size alone does not say which
+way a surface should grow. `centerLeft` holds the left edge and opens
+rightward; `bottomRight` holds that corner and opens up and left; `center`
+moves both edges — which looks right in every direction, and is exactly why
+getting it wrong stays invisible until the surface walks across the screen.
+Any `Alignment(x, y)` is valid, not just the nine names. If the surface is
+positioned by something that isn't an alignment — a `Positioned`, a list, a
+drag — recover the one its own rect implies:
+
+```dart
+alignment: LiquidGlassMorph.alignmentFor(cardRect, pageRect),
+```
+
+**Motion** is a preset:
+
+```dart
+motion: LiquidGlassMorphMotion.fluid        // the default: leaps and drags a neck
+motion: LiquidGlassMorphMotion.anchoredPop  // pops open from the corner that holds
+motion: LiquidGlassMorphMotion.droplet      // born small, leaps hard, long neck
+motion: LiquidGlassMorphMotion.calm         // no bounce, for sheets and large cards
+```
+
+Behind them are three numbers — the spring (`spring(duration:bounce:)`
+takes a SwiftUI `Spring` straight from a design spec), `stretch` (how far the
+leading blob runs ahead of its own size) and `anchor` (the point the new shape
+grows around; `null` uses the widget's own `alignment`). Everything set once
+and left alone is in `LiquidGlassMorphAdvanced`, behind `advanced`.
+
+Two things to know. A content-sized surface needs one frame to measure before
+it knows how big it is, so it is transparent for that frame; pin both axes and
+there is no warm-up frame. And bound the constraints — under unbounded ones
+there is no box to anchor inside, so put it in a `Stack`, a `SizedBox` or a
+`Padding` inside one. The style's shape is the destination's; border, light,
+tint, blur and refraction pass through to the blender untouched.
+
 ### Tab bar — the moving glass pill
 
 `LiquidGlassTabBar`'s selection pill is real glass on **every renderer**
@@ -723,6 +929,14 @@ all. The tier is chosen by `LiquidGlassTabPillStyle.mode` (`both` /
 are tuned defaults — the shadow authored, like every lens's, on its glass
 style's `appearance.shadow` (the bar capsule's likewise on the bar
 `style`'s appearance).
+
+> **`both` on Skia.** With the shader, the pill on Skia captures the page a
+> second time on top of the bar's own capture — heavy over anything that
+> moves, so `impellerOnly` is the setting to ship there. Under **lite glass**
+> (`LiquidGlassEngine.liteGlassOnSkia = true`, or `liteGlass` set on the
+> bar's styles) that cost is gone: the view takes no capture at all, the pill
+> is a frosted capsule on the same spring, and `both` runs on Skia with no
+> performance issue. On Impeller there is no capture either way.
 
 The tab **under** the pill is its own state: `underGlassIconSize` and
 `underGlassLabelFontSize` on `LiquidGlassTabItemStyle` let the icon and

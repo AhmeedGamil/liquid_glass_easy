@@ -83,8 +83,7 @@ class LiquidGlassControlTile extends StatelessWidget {
   /// Whether the tile is shown; toggling animates the glass in/out.
   final bool visibility;
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.08,
     distortionWidth: 30,
     chromaticAberration: 0.002,
@@ -107,9 +106,8 @@ class LiquidGlassControlTile extends StatelessWidget {
 
     final LiquidGlassAppearance effectiveAppearance = appearance ??
         LiquidGlassAppearance(
-          color: active
-              ? activeColor.withAlpha(180)
-              : Colors.white.withAlpha(30),
+          color:
+              active ? activeColor.withAlpha(180) : Colors.white.withAlpha(30),
           blur: const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
         );
 

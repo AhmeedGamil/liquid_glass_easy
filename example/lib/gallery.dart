@@ -9,19 +9,17 @@ import 'control_center_page.dart';
 import 'fab_dialog_demo.dart';
 import 'sheet_field_page.dart';
 import 'lens_image_page.dart';
+import 'shadow_page.dart';
+import 'lite_page.dart';
+import 'dialog_page.dart';
+import 'scroll_edge_page.dart';
+import 'motion_pill_page.dart';
 import 'liquid_menu_page.dart';
 import 'morph_page.dart';
-import 'morph_menu_page.dart';
-import 'blend_lab_page.dart';
-import 'experimental/liquid_glass_morph/example.dart';
 import 'nav_jelly_tuner.dart';
 import 'flex_tuner.dart';
 import 'basic_controls_page.dart';
 import 'batch_page.dart';
-import 'lens_modes_page.dart';
-import 'photos_lens_lab.dart';
-import 'painted_border_page.dart';
-import 'border_drag_page.dart';
 import 'slider_motion_tuner.dart';
 import 'slider_page.dart';
 import 'tab_bar_page.dart';
@@ -46,7 +44,11 @@ import 'showcases/photos_library_page.dart';
 // Run it with:  flutter run -t lib/gallery.dart
 // =============================================================
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  // One await compiles the lens and blender programs, so the first page a
+  // demo opens — blender, morph, lens — is glass on its very first frame.
+  await LiquidGlassShaders.ensureLoaded();
   runApp(const GalleryApp());
 }
 
@@ -55,16 +57,17 @@ class GalleryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A notifier rather than a const flag so the Settings page's glass
-    // switch can flip the whole app from anywhere.
-    return ValueListenableBuilder<bool>(
-      valueListenable: darkMode,
-      builder: (BuildContext context, bool dark, Widget? _) => MaterialApp(
+    // Notifiers rather than const flags so the Settings page's glass
+    // switches can flip the whole app from anywhere. The lite-glass one is
+    // listened to as well so every mounted lens rebuilds when it flips.
+    return ListenableBuilder(
+      listenable: Listenable.merge(<Listenable>[darkMode, liteGlass]),
+      builder: (BuildContext context, Widget? _) => MaterialApp(
         debugShowCheckedModeBanner: false,
-       // showPerformanceOverlay: true,
+        // showPerformanceOverlay: true,
         theme: galleryTheme(Brightness.light),
         darkTheme: galleryTheme(Brightness.dark),
-        themeMode: dark ? ThemeMode.dark : ThemeMode.light,
+        themeMode: darkMode.value ? ThemeMode.dark : ThemeMode.light,
         // Nothing else to wire for the glass: adaptivity's last resort
         // is the app theme's brightness by default, so every surface
         // that cannot read its backdrop follows this themeMode.
@@ -74,7 +77,7 @@ class GalleryApp extends StatelessWidget {
         // not stall the raster thread waiting for the driver. It paints
         // a few frames under the home page, then removes itself for
         // good; on Impeller it is a no-op.
-        home: const LiquidGlassWarmUp(child: HomePage()),
+        home: const HomePage(),
       ),
     );
   }
@@ -102,6 +105,44 @@ class HomePage extends StatelessWidget {
 
   static final List<_Destination> _demos = [
     _Destination(
+      title: 'Shadow',
+      subtitle: 'The contact shadow that sets glass into a light page, '
+          'on two draggable lenses',
+      icon: Icons.tonality_outlined,
+      gradient: const [Color(0xFF94A3B8), Color(0xFF1E293B)],
+      builder: (_) => const ShadowPage(),
+    ),
+    _Destination(
+      title: 'Lite glass',
+      subtitle: 'The material without the shader: frost, tint and rim, '
+          'no capture and no refraction',
+      icon: Icons.blur_on_rounded,
+      gradient: const [Color(0xFF67E8F9), Color(0xFF0E7490)],
+      builder: (_) => const LitePage(),
+    ),
+    _Destination(
+      title: 'Alert Dialog',
+      subtitle: 'Three glass dialogs through showLiquidGlassDialog, in a '
+          'LiquidGlassScaffold',
+      icon: Icons.chat_bubble_outline_rounded,
+      gradient: const [Color(0xFFFB7185), Color(0xFF9F1239)],
+      builder: (_) => const DialogPage(),
+    ),
+    _Destination(
+      title: 'Scroll Edge',
+      subtitle: 'A tinted, blurred band over each end of a photo journal',
+      icon: Icons.gradient_rounded,
+      gradient: const [Color(0xFFFBBF24), Color(0xFF92400E)],
+      builder: (_) => const ScrollEdgePage(),
+    ),
+    _Destination(
+      title: 'Motion Pill',
+      subtitle: "The slider's capsule thumb on its own, riding a rail",
+      icon: Icons.touch_app_rounded,
+      gradient: const [Color(0xFF818CF8), Color(0xFF312E81)],
+      builder: (_) => const MotionPillPage(),
+    ),
+    _Destination(
       title: 'Blending Liquid Glasses',
       subtitle: 'Drag glass shapes together to fuse, over a photo',
       icon: Icons.blur_on_rounded,
@@ -117,35 +158,11 @@ class HomePage extends StatelessWidget {
     ),
     _Destination(
       title: 'Morph Component',
-      subtitle: 'LiquidGlassMorph — the experimental drop-in widget, with the '
-          'anchor switchable live',
+      subtitle: 'LiquidGlassMorph — glass that fits whatever you put in it, '
+          'with the anchor switchable live',
       icon: Icons.widgets_rounded,
       gradient: const [Color(0xFF22D3EE), Color(0xFF0F766E)],
       builder: (_) => const LiquidGlassMorphExamplePage(),
-    ),
-    _Destination(
-      title: 'Morph Menu',
-      subtitle: 'The button becomes the menu — iOS 26\'s morph transition, '
-          'and the pour that people mistake it for',
-      icon: Icons.more_horiz_rounded,
-      gradient: const [Color(0xFF7C5CFF), Color(0xFF3A1E7A)],
-      builder: (_) => const MorphMenuPage(),
-    ),
-    _Destination(
-      title: 'Blend Lab',
-      subtitle: 'Build a metaball blend by hand: 2–8 lenses, each with its own '
-          'size and corners',
-      icon: Icons.grain_rounded,
-      gradient: const [Color(0xFF2DD4BF), Color(0xFF0F766E)],
-      builder: (_) => const BlendLabPage(),
-    ),
-    _Destination(
-      title: 'Morph',
-      subtitle: 'One sheet of glass that changes shape and dimensions — dot, '
-          'pill, field, card, panel',
-      icon: Icons.transform_rounded,
-      gradient: const [Color(0xFFFF9F0A), Color(0xFFB3241A)],
-      builder: (_) => const MorphPage(),
     ),
     _Destination(
       title: 'Control Center',
@@ -161,44 +178,6 @@ class HomePage extends StatelessWidget {
       icon: Icons.view_carousel_rounded,
       gradient: const [Color(0xFFFF6B5A), Color(0xFFB3241A)],
       builder: (_) => const TabBarPage(),
-    ),
-    _Destination(
-      title: 'Batch',
-      subtitle: 'A wall of glass cards sharing ONE backdrop read, with the '
-          'raster clock to prove it',
-      icon: Icons.dashboard_rounded,
-      gradient: const [Color(0xFF22D3EE), Color(0xFF1D4ED8)],
-      builder: (_) => const BatchPage(),
-    ),
-    _Destination(
-      title: 'Batch vs Group',
-      subtitle: 'The same floating lenses drawn three ways, with the raster '
-          'clock to judge them by',
-      icon: Icons.bubble_chart_rounded,
-      gradient: const [Color(0xFF34D399), Color(0xFF065F46)],
-      builder: (_) => const LensModesPage(),
-    ),
-    _Destination(
-      title: 'Lens Lab',
-      subtitle: 'The photo library with test lenses over it: size them, drag '
-          'them, scroll, and read the clock',
-      icon: Icons.science_rounded,
-      gradient: const [Color(0xFFFBBF24), Color(0xFF92400E)],
-      builder: (_) => const PhotosLensLabPage(),
-    ),
-    _Destination(
-      title: 'Painted Border',
-      subtitle: 'The glass rim with no shader at all, next to the real one',
-      icon: Icons.crop_square_rounded,
-      gradient: const [Color(0xFFA78BFA), Color(0xFF4C1D95)],
-      builder: (_) => const PaintedBorderPage(),
-    ),
-    _Destination(
-      title: 'Border vs Background',
-      subtitle: 'Drag three rims over strong colours: which ones follow?',
-      icon: Icons.open_with_rounded,
-      gradient: const [Color(0xFFF472B6), Color(0xFF831843)],
-      builder: (_) => const BorderDragPage(),
     ),
     _Destination(
       title: 'Touch',
@@ -237,11 +216,17 @@ class HomePage extends StatelessWidget {
     ),
     _Destination(
       title: 'Sheets',
-      subtitle: 'Glass sheets that hug, detent or ride the keyboard, over '
-          'fields on glass',
+      subtitle: 'Glass sheets that hug, detent or sit on the bottom edge',
       icon: Icons.keyboard_double_arrow_up_rounded,
       gradient: const [Color(0xFF00B4DB), Color(0xFF0083B0)],
       builder: (_) => const SheetFieldPage(),
+    ),
+    _Destination(
+      title: 'Batch',
+      subtitle: 'A field of floating glass cards on one shared backdrop read',
+      icon: Icons.grid_view_rounded,
+      gradient: const [Color(0xFF7C5CFF), Color(0xFF3B2E8C)],
+      builder: (_) => const BatchPage(),
     ),
     _Destination(
       title: 'Adaptivity',
@@ -313,9 +298,8 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Brightness brightness = Theme.of(context).brightness;
-    final Color ink = brightness == Brightness.dark
-        ? Colors.white
-        : const Color(0xFF11131A);
+    final Color ink =
+        brightness == Brightness.dark ? Colors.white : const Color(0xFF11131A);
 
     return Scaffold(
       body: DecoratedBox(

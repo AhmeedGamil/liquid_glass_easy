@@ -12,6 +12,7 @@ import 'package:flutter/painting.dart';
 /// motion: LiquidGlassMorphMotion.anchoredPop  // grows from its corner, no neck
 /// motion: LiquidGlassMorphMotion.droplet      // born small, long neck
 /// motion: LiquidGlassMorphMotion.calm         // no bounce, for sheets and cards
+/// motion: LiquidGlassMorphMotion.plain        // one lens, one spring, no blending
 /// ```
 ///
 /// A morph is two blobs of one liquid, not a box being resized. The new
@@ -22,6 +23,17 @@ import 'package:flutter/painting.dart';
 /// how far the leading blob runs ahead of its own size, and where it grows
 /// from. The quantities that are set once and left alone live in
 /// [LiquidGlassMorphAdvanced], behind [advanced].
+///
+/// [blended] is the exception: `false` drops the second blob and the blender
+/// with it, and the morph is a single lens whose outline springs from the
+/// old shape to the new — no neck, no drain, one backdrop pass. That is
+/// what [plain] is; any other preset becomes the one-lens kind with
+/// `copyWith(blended: false)`.
+///
+/// The morph's **duration** — what the content timing in [advanced] is a
+/// fraction of — is the spring's own period, `2π / √stiffness`: the number
+/// [LiquidGlassMorphMotion.spring] takes as `duration`, and 0.45 s for the
+/// presets.
 @immutable
 class LiquidGlassMorphMotion {
   const LiquidGlassMorphMotion({
@@ -29,6 +41,7 @@ class LiquidGlassMorphMotion {
     this.damping = 19.5,
     this.stretch = 0.6,
     this.anchor = Alignment.center,
+    this.blended = true,
     this.advanced = const LiquidGlassMorphAdvanced(),
   })  : assert(stiffness > 0),
         assert(damping >= 0),
@@ -61,8 +74,25 @@ class LiquidGlassMorphMotion {
   /// how Apple's menus grow from a toolbar button.
   final Alignment? anchor;
 
+  /// Whether the morph is two blobs joined by a `LiquidGlassBlender` — the
+  /// default — or **one** lens.
+  ///
+  /// `false` is the one-lens morph: a single outline springs from the old
+  /// shape to the new, its anchor leading its size by [stretch] the same
+  /// way, with both children inside it. Nothing is born, nothing drains and
+  /// there is no neck, so it costs a single backdrop pass — the right kind
+  /// for a surface that changes size more than it changes place. See
+  /// [plain].
+  final bool blended;
+
   /// The knobs that are set once and forgotten.
   final LiquidGlassMorphAdvanced advanced;
+
+  /// The morph's duration, in seconds: the spring's period, `2π / √stiffness`.
+  ///
+  /// This is the clock the content timing in [advanced] runs on. It is the
+  /// `duration` [spring] was given, and 0.45 s for the built-in presets.
+  double get duration => 2 * math.pi / math.sqrt(stiffness);
 
   /// The spring SwiftUI would give you for `Spring(duration:bounce:)`, so a
   /// value copied from a design spec lands here unchanged.
@@ -75,6 +105,7 @@ class LiquidGlassMorphMotion {
     double bounce = 0.3,
     double stretch = 0.6,
     Alignment? anchor = Alignment.center,
+    bool blended = true,
     LiquidGlassMorphAdvanced advanced = const LiquidGlassMorphAdvanced(),
   }) {
     final double seconds = math.max(duration.inMicroseconds / 1e6, 0.001);
@@ -86,6 +117,7 @@ class LiquidGlassMorphMotion {
       damping: 2 * zeta * omega,
       stretch: stretch,
       anchor: anchor,
+      blended: blended,
       advanced: advanced,
     );
   }
@@ -99,6 +131,7 @@ class LiquidGlassMorphMotion {
     double? stretch,
     Alignment? anchor,
     bool clearAnchor = false,
+    bool? blended,
     LiquidGlassMorphAdvanced? advanced,
   }) =>
       LiquidGlassMorphMotion(
@@ -106,6 +139,7 @@ class LiquidGlassMorphMotion {
         damping: damping ?? this.damping,
         stretch: stretch ?? this.stretch,
         anchor: clearAnchor ? null : (anchor ?? this.anchor),
+        blended: blended ?? this.blended,
         advanced: advanced ?? this.advanced,
       );
 
@@ -132,8 +166,17 @@ class LiquidGlassMorphMotion {
       linger: 0,
       sourceFollows: true,
       newScaleFrom: 0.80,
-      contentInStart: 0.3,
     ),
+  );
+
+  /// One lens, one spring: the outline goes from the old shape to the new
+  /// with a little lead in its anchor and nothing else — no second blob, no
+  /// neck, no drain, a single backdrop pass. The content still cross-fades
+  /// on the morph's clock.
+  static const LiquidGlassMorphMotion plain = LiquidGlassMorphMotion(
+    stretch: 0.35,
+    blended: false,
+    advanced: LiquidGlassMorphAdvanced(leadBounce: 0.05),
   );
 
   /// A droplet: born small inside the old shape, leaps hard, drags a long
@@ -166,11 +209,12 @@ class LiquidGlassMorphMotion {
           other.damping == damping &&
           other.stretch == stretch &&
           other.anchor == anchor &&
+          other.blended == blended &&
           other.advanced == advanced;
 
   @override
   int get hashCode =>
-      Object.hash(stiffness, damping, stretch, anchor, advanced);
+      Object.hash(stiffness, damping, stretch, anchor, blended, advanced);
 }
 
 /// The knobs of [LiquidGlassMorphMotion] that are set once and then left
@@ -191,7 +235,8 @@ class LiquidGlassMorphAdvanced {
     this.sourceFollows = false,
     this.neckRamp = 24,
     this.contentOutEnd = 0.40,
-    this.contentInStart = 0.45,
+    this.contentInStart = 0.30,
+    this.contentInEnd = 0.80,
     this.newScaleFrom = 0.90,
     this.oldScaleTo = 0.92,
     this.contentBlur = 8,
@@ -243,14 +288,23 @@ class LiquidGlassMorphAdvanced {
   final double neckRamp;
 
   // ── Content ───────────────────────────────────────────────────────────
+  //
+  // All three are fractions of the MORPH's duration — the spring's period,
+  // `LiquidGlassMorphMotion.duration` — so "the new child shows at 0.3"
+  // means 0.3 of the way through the glass motion, whatever the spring.
 
-  /// Fraction of the widget's `contentTransition` by which the old child is
-  /// gone.
+  /// Fraction of the morph's duration by which the old child is gone.
   final double contentOutEnd;
 
-  /// Fraction of `contentTransition` at which the new child starts to
-  /// appear.
+  /// Fraction of the morph's duration at which the new child starts to
+  /// appear — faint, blurred and scaled down, inside the glass wherever
+  /// the glass has reached by then.
   final double contentInStart;
+
+  /// Fraction of the morph's duration by which the new child is fully
+  /// there: opaque, sharp and at scale. Below 1 it lands before the glass
+  /// settles, which is what keeps the blur off the end of the morph.
+  final double contentInEnd;
 
   /// The new child's scale when it starts to appear; it settles at 1.
   final double newScaleFrom;
@@ -289,6 +343,7 @@ class LiquidGlassMorphAdvanced {
     double? neckRamp,
     double? contentOutEnd,
     double? contentInStart,
+    double? contentInEnd,
     double? newScaleFrom,
     double? oldScaleTo,
     double? contentBlur,
@@ -308,6 +363,7 @@ class LiquidGlassMorphAdvanced {
         neckRamp: neckRamp ?? this.neckRamp,
         contentOutEnd: contentOutEnd ?? this.contentOutEnd,
         contentInStart: contentInStart ?? this.contentInStart,
+        contentInEnd: contentInEnd ?? this.contentInEnd,
         newScaleFrom: newScaleFrom ?? this.newScaleFrom,
         oldScaleTo: oldScaleTo ?? this.oldScaleTo,
         contentBlur: contentBlur ?? this.contentBlur,
@@ -331,6 +387,7 @@ class LiquidGlassMorphAdvanced {
           other.neckRamp == neckRamp &&
           other.contentOutEnd == contentOutEnd &&
           other.contentInStart == contentInStart &&
+          other.contentInEnd == contentInEnd &&
           other.newScaleFrom == newScaleFrom &&
           other.oldScaleTo == oldScaleTo &&
           other.contentBlur == contentBlur &&
@@ -351,6 +408,7 @@ class LiquidGlassMorphAdvanced {
         neckRamp,
         contentOutEnd,
         contentInStart,
+        contentInEnd,
         newScaleFrom,
         oldScaleTo,
         contentBlur,

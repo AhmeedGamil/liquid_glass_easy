@@ -102,8 +102,7 @@ class LiquidGlassTabItemStyle {
   /// it — same lerp as [iconSizeFor].
   double labelFontSizeFor({required double underGlass}) =>
       labelFontSize +
-      ((underGlassLabelFontSize ?? labelFontSize) - labelFontSize) *
-          underGlass;
+      ((underGlassLabelFontSize ?? labelFontSize) - labelFontSize) * underGlass;
 
   /// Resolves the label weight for a cell in [selected] state.
   FontWeight fontWeightFor({required bool selected}) =>

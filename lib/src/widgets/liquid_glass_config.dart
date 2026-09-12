@@ -196,7 +196,7 @@ class LiquidGlassGeometry {
 /// **Refraction** group: how the glass bends light — the optical
 /// distortion of the content behind the lens.
 ///
-/// One of the four configuration groups accepted by [LiquidGlass].
+/// One of the groups a [LiquidGlassStyle] is made of.
 class LiquidGlassRefraction {
   /// Legacy/default standard distortion strength (`0.0`–`1.0`).
   ///
@@ -287,7 +287,7 @@ class LiquidGlassRefraction {
 /// **Material** group: the lens's appearance — tint, blur, saturation and
 /// inner transparency (everything visual that isn't optical refraction).
 ///
-/// One of the four configuration groups accepted by [LiquidGlass].
+/// One of the groups a [LiquidGlassStyle] is made of.
 class LiquidGlassAppearance {
   /// Color saturation of the output (`1.0` = unchanged, `0.0` = grayscale).
   final double saturation;
@@ -308,9 +308,9 @@ class LiquidGlassAppearance {
   /// Honored by [LiquidGlassLens]: the lens wraps itself in the
   /// [LiquidGlassShadow] this describes (its `child` is ignored), with
   /// the ring's corner defaulting to the lens shape's own radius. The
-  /// wrap lives *inside* the flex deformation's box, so on a lens with
-  /// [LiquidGlassBehavior.touch] the ring swells, leans and springs back
-  /// with the body instead of staying frozen on the rest silhouette.
+  /// wrap lives *inside* the flex deformation's box, so on a lens given a
+  /// `touch` the ring swells, leans and springs back with the body
+  /// instead of staying frozen on the rest silhouette.
   /// Its `visible` flag composes with the lens's own `visibility`.
   ///
   /// Not supported inside a [LiquidGlassBlender]: a merged metaball

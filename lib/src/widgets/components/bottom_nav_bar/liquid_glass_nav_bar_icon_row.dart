@@ -195,10 +195,10 @@ class NavBarIconRow extends StatelessWidget {
                     : forceUnselected
                         ? false
                         : i == selectedIndex,
-                underGlass: (forceSelected ||
-                        (!forceUnselected && i == selectedIndex))
-                    ? selectedUnderGlass
-                    : 0,
+                underGlass:
+                    (forceSelected || (!forceUnselected && i == selectedIndex))
+                        ? selectedUnderGlass
+                        : 0,
                 style: itemStyle,
                 adaptive: adaptive,
               ),

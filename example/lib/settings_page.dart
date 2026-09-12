@@ -11,8 +11,11 @@ import 'app_settings.dart';
 //   • Dark mode → app_settings.dart's `darkMode`, which picks the
 //     MaterialApp's themeMode. Every demo opened from the menu reads it
 //     back through `Theme.of(context).brightness`.
+//   • Lite glass → app_settings.dart's `liteGlass`, which sets both
+//     `LiquidGlassEngine` switches, so every lens in the gallery draws
+//     the shader-free material.
 //
-// The setting is not persisted; it resets on restart.
+// The settings are not persisted; they reset on restart.
 //
 //   flutter run -t lib/gallery.dart   → gear icon, top right
 // =============================================================
@@ -78,6 +81,27 @@ class SettingsPage extends StatelessWidget {
                           : 'Glass over a light backdrop',
                       value: value,
                       onChanged: (v) => darkMode.value = v,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionLabel('Engine'),
+              const SizedBox(height: 12),
+              _Card(
+                children: [
+                  ValueListenableBuilder<bool>(
+                    valueListenable: liteGlass,
+                    builder: (context, value, _) => _SwitchRow(
+                      icon: value
+                          ? Icons.blur_on_rounded
+                          : Icons.lens_blur_rounded,
+                      label: 'Lite glass',
+                      detail: value
+                          ? 'Frost, tint and rim — no shader, no capture'
+                          : 'The shader: every lens refracts its backdrop',
+                      value: value,
+                      onChanged: (v) => liteGlass.value = v,
                     ),
                   ),
                 ],

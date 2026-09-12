@@ -190,14 +190,12 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   /// [LiquidGlassTouch]; `null` (the default) disables it entirely.
   final LiquidGlassTouch? touch;
 
-  static const LiquidGlassAppearance _defaultAppearance =
-      LiquidGlassAppearance(
+  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     // Transparent body — let the refraction speak for itself.
     blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
   );
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.07,
     distortionWidth: 28,
     chromaticAberration: 0.002,

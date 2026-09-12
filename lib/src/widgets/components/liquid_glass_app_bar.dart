@@ -119,14 +119,12 @@ class LiquidGlassAppBar extends StatelessWidget {
   /// Font size of the [title] when it is a plain [Text].
   final double fontSize;
 
-  static const LiquidGlassAppearance _defaultAppearance =
-      LiquidGlassAppearance(
+  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
     blur: LiquidGlassBlur(sigmaX: 4, sigmaY: 4),
   );
 
-  static const LiquidGlassRefraction _defaultRefraction =
-      LiquidGlassRefraction(
+  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
     distortion: 0.07,
     distortionWidth: 28,
     chromaticAberration: 0.002,

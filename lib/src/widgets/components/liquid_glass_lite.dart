@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-import '../liquid_glass_config.dart';
 import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_border_mode.dart';
 import '../utils/liquid_glass_light_mode.dart';
@@ -17,43 +16,52 @@ import '../utils/liquid_glass_shape.dart';
 /// tints itself with it, which is why a real lens' border changes colour along
 /// its own length as it crosses a photograph. These are the three ways to
 /// answer that without a fragment shader, cheapest first.
-enum LiquidGlassPickup {
+enum LiquidGlassLitePickup {
   /// The rim carries its own light: one tone, whatever it is over. One
   /// `drawVertices` and nothing else — nothing is read, nothing is layered.
   /// The cheap one.
   none,
 
-  /// The rim's light is **blended** into what is behind it instead of covering
-  /// it, so the background's own colour comes through the highlight. Nothing
-  /// is read back: it is a blend mode, and it is nearly free.
+  /// The rim's light is **blended** into what is under it instead of covering
+  /// it, so the colour underneath comes through the highlight — and then the
+  /// rim's own colour is multiplied in over that, so the shape's `lightColor`
+  /// and `borderColor` show the way they do on a lens: a grey light is a grey
+  /// rim over white, a tint is a tinted rim. The cheap way to look read.
   ///
-  /// The blend is `overlay`, which holds a background's hue far better than
-  /// adding white does — but overlay is multiplicative, so on its own it
-  /// collapses to nothing over black. [LiquidGlassLite.blendFloor] is the
-  /// plain rim screened in underneath to stop that, at the cost of a second
-  /// pass over the same mesh and some of the tint.
-  ///
-  /// At the default floor this holds as much of the background as [backdrop]
-  /// does, for none of its cost. Reach past it only when the rim has to change
-  /// colour ALONG its own length — one rim red where it crosses red and blue
-  /// where it crosses blue, which no blend mode can do.
+  /// Nothing is read back: it is [surface]'s overlay and floor, plus one more
+  /// pass over the same mesh in `multiply`. The pass is skipped when the rim's
+  /// colour is plain white, where it would change nothing.
   blend,
 
   /// The rim is cut out of a brightened, saturated copy of the background, so
   /// its colour varies **along** the rim the way the shader's does: red where
-  /// it crosses red, blue where it crosses blue, within the one rim.
+  /// it crosses red, blue where it crosses blue, within the one rim. The
+  /// default.
   ///
   /// This is the close one, and the expensive one — it reads the backdrop, the
-  /// same cost a lens pays, plus two layers. It is the default, because it is
-  /// the one that looks like the shader; drop to [blend] or [none] when a
+  /// same cost a lens pays, plus two layers. Drop to [blend] or [none] when a
   /// screen has many of them. Two things still part company
   /// with the shader: the colour transform is a matrix, so it cannot
   /// renormalise a *dark* background the way the shader's divide-by-luma does
   /// (over near black the rim reads grey where the shader reads white), and
-  /// [LiquidGlassLite.ambientColor], `lightColor` and `borderColor` no
-  /// longer tint it — the background does. `borderSaturation` still works:
-  /// it is folded into the colour matrix, so it costs nothing.
+  /// [LiquidGlassLite.ambientColor] is not read — the background is the
+  /// ambient. `lightColor` scales the rim as it does in the shader, so a grey
+  /// light is a grey rim over white; `borderColor` scales it too, rather than
+  /// replacing it. `borderSaturation` rides in the colour matrix for free.
+  ///
+  /// It reads the **background** — the frosted, magnified backdrop and nothing
+  /// else, as the shader samples its rim colour before the tint goes on. The
+  /// rim sits over [LiquidGlassLite.color] and under [LiquidGlassLite.child],
+  /// so neither one bleeds into it; the child paints over the rim, as it does
+  /// over a lens.
   backdrop,
+
+  /// [blend]'s rim, painted over the finished **surface** instead: the
+  /// frost, then [LiquidGlassLite.color], then [LiquidGlassLite.child], and
+  /// the rim blends into all three. A tinted glass tints its rim, and a label
+  /// that runs under the edge shows along it. The rim is the topmost thing
+  /// in the box, over the child. Same passes, same cost, no read.
+  surface,
 }
 
 /// Glass **without the shader**: a frosted surface with the lens' own rim
@@ -75,8 +83,8 @@ enum LiquidGlassPickup {
 /// through the shader's own formulas, and the result is one `drawVertices`
 /// call — a triangle mesh whose vertex colors carry the light around the
 /// perimeter and whose alpha carries the falloff across its width. [blur] is
-/// the glass itself; the rim is its edge. The outline is
-/// No shader asset, no `FragmentProgram`, nothing to warm up.
+/// the glass itself; the rim is its edge. No shader asset, no
+/// `FragmentProgram`, nothing to warm up.
 ///
 /// ```dart
 /// LiquidGlassLite(
@@ -102,23 +110,28 @@ enum LiquidGlassPickup {
 /// The shader's rim samples the **refracted background under each pixel** and
 /// tints the highlight with it, so over a photograph the real rim picks the
 /// colours up pixel by pixel. There are three answers to that here, and
-/// [pickup] chooses between them — see [LiquidGlassPickup]:
+/// [pickup] chooses between them — see [LiquidGlassLitePickup]:
 ///
-///  * [LiquidGlassPickup.none] (the default) takes nothing. White light,
-///    which is what the shader produces over a neutral background.
-///  * [LiquidGlassPickup.blend] adds the rim to the background instead
-///    of covering it, so the hue comes through for one blend mode and no read.
-///  * [LiquidGlassPickup.backdrop] cuts the rim out of a brightened copy
-///    of the background, so its colour varies **along** the rim the way the
-///    shader's does. It reads the backdrop, so it costs what a lens costs.
+///  * [LiquidGlassLitePickup.none] takes nothing. White light, which is what
+///    the shader produces over a neutral background.
+///  * [LiquidGlassLitePickup.blend] adds the rim to what is under it instead of
+///    covering it, then multiplies its own colour in, so the hue comes
+///    through and the light colour shows — blend modes, no read.
+///  * [LiquidGlassLitePickup.surface] is the same rim painted over the tint and
+///    the child instead of under them, so the tint colours it.
+///  * [LiquidGlassLitePickup.backdrop] (the default) cuts the rim out of a
+///    brightened copy of the background, so its colour varies **along** the
+///    rim the way the shader's does. It reads the backdrop, so it costs what
+///    a lens costs.
 ///
 /// [ambientColor] is the fourth way, and it is orthogonal: hand it one colour
 /// — a sampled backdrop, or whatever surface the border sits on — and it goes
 /// through the shader's own highlight math, tinting the whole rim at once
 /// instead of each pixel. Free, but one tone for the whole outline.
 ///
-/// There is no refraction and no magnification in any mode. This is the rim
-/// alone, so it does not shift with the content behind it the way glass does.
+/// There is no refraction in any mode — no edge bend. [magnification] is the
+/// flat-slab half only; the rim itself does not shift with the content behind
+/// it the way glass does.
 ///
 /// ## It is an inner border
 ///
@@ -141,7 +154,7 @@ enum LiquidGlassPickup {
 /// ```dart
 /// LiquidGlassLite(
 ///   blur: const LiquidGlassBlur(),
-///   pickup: LiquidGlassPickup.blend,
+///   pickup: LiquidGlassLitePickup.surface,
 ///   shape: shape,
 ///   child: child,
 /// )
@@ -153,8 +166,9 @@ class LiquidGlassLite extends StatelessWidget {
     this.shape = const LiquidGlassShape(),
     this.borderAlpha = 1.0,
     this.blur = const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    this.refraction = const LiquidGlassRefraction(distortion: 0),
-    this.pickup = LiquidGlassPickup.backdrop,
+    this.magnification = 1.0,
+    this.pickup = LiquidGlassLitePickup.backdrop,
+    this.color,
     this.blendFloor = 0.35,
     this.ambientColor,
     this.shapeScale = const Offset(1.0, 1.0),
@@ -171,53 +185,37 @@ class LiquidGlassLite extends StatelessWidget {
   /// does. It defaults to a light `3` — pass `const LiquidGlassBlur()` for a
   /// bare rim over whatever is already there.
   ///
-  /// It costs a backdrop read, and with [LiquidGlassPickup.backdrop] the
+  /// It costs a backdrop read, and with [LiquidGlassLitePickup.backdrop] the
   /// rim's own read comes on top of it: two reads for a surface that carries
   /// both. That is what a blurred lens costs too, so a screen with many of
-  /// them wants `LiquidGlassBlur()` here, or [LiquidGlassPickup.blend]
+  /// them wants `LiquidGlassBlur()` here, or [LiquidGlassLitePickup.surface]
   /// there, or both.
   final LiquidGlassBlur blur;
 
-  /// How the surface bends what is behind it, read from the same descriptor a
-  /// lens takes — and from the same three fields.
-  ///
-  /// A shader can displace every pixel on its own, by the shape's SDF
-  /// gradient, which is what makes a lens bend hardest at the rim and not at
-  /// all in the middle. A matrix has one rule for the whole backdrop, so the
-  /// bend is rebuilt out of two affine layers instead:
-  ///
-  ///  * `magnification` scales the backdrop about the shape's centre, evenly,
-  ///    across the whole surface. This is the flat-slab half: the content
-  ///    inside the outline stops lining up with the content outside it. It
-  ///    rides in the [blur]'s own filter, so it is free when blur is on.
-  ///  * `distortion` and `distortionWidth` build the edge half. A second copy
-  ///    of the backdrop, scaled harder, is cross-faded in over the last
-  ///    `distortionWidth` logical pixels before the outline — full at the edge,
-  ///    gone by the inner end of the band. `distortion` sets how far the edge
-  ///    pushes, in the same units the lens uses. That copy costs its own
-  ///    backdrop read.
-  ///
-  /// The cross-fade is the approximation: a lens *displaces* the band
-  /// continuously, this *blends* between two fixed displacements across it.
-  /// At the widths these run at the difference does not read, and neither
-  /// boundary shows a seam — the ramp is flat at both ends.
-  ///
-  /// `chromaticAberration`, `refractionMode`, `refractionType` and
-  /// `diagonalFlip` are shader-only and ignored here.
-  ///
-  /// The default is `LiquidGlassRefraction(distortion: 0)` — flat, and no read
-  /// of its own. That is deliberately NOT the descriptor's own default: this
-  /// widget exists to be affordable in numbers, and a third backdrop read on
-  /// every instance is not that. Pass `const LiquidGlassRefraction()` to get
-  /// the same bend a lens carries out of the box.
-  final LiquidGlassRefraction refraction;
+  /// How much the surface magnifies what is behind it: the backdrop scaled
+  /// about the shape's centre, evenly, across the whole surface. This is the
+  /// flat-slab half of a lens' refraction — the content inside the outline
+  /// stops lining up with the content outside it. It rides in the [blur]'s
+  /// own filter, so it is free when blur is on. `1.0` is flat.
+  final double magnification;
 
   /// Whether — and how — the rim takes its colour from what is behind it.
-  /// See [LiquidGlassPickup].
-  final LiquidGlassPickup pickup;
+  /// See [LiquidGlassLitePickup].
+  final LiquidGlassLitePickup pickup;
+
+  /// The glass's own tint, `LiquidGlassAppearance.color`'s counterpart: a
+  /// flat fill of the shape between the frost and [child].
+  ///
+  /// Under [LiquidGlassLitePickup.backdrop] and [LiquidGlassLitePickup.blend] the rim
+  /// sits over it and never takes colour from it, as on a lens: laid beneath
+  /// the rim inside the read's own layer, or painted around the rim, cut by
+  /// the rim's alpha. Under [LiquidGlassLitePickup.surface] and
+  /// [LiquidGlassLitePickup.none] it is a plain fill under the child, and the rim
+  /// is painted over it. `null`, or fully transparent, paints nothing.
+  final Color? color;
 
   /// How much plain white rim survives underneath
-  /// [LiquidGlassPickup.blend].
+  /// [LiquidGlassLitePickup.blend] and [LiquidGlassLitePickup.surface].
   ///
   /// The blend there is `overlay`, and overlay multiplies: over black there is
   /// nothing to multiply, so the rim would disappear exactly where it shows
@@ -239,7 +237,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// ```
   ///
   /// The default now holds MORE colour than
-  /// [LiquidGlassPickup.backdrop] does (104 at 70) — and that one reads
+  /// [LiquidGlassLitePickup.backdrop] does (104 at 70) — and that one reads
   /// the backdrop to get there.
   ///
   /// Ignored by the other pickup modes.
@@ -267,20 +265,22 @@ class LiquidGlassLite extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final double zoom = refraction.magnification;
+    final double zoom = magnification;
     final bool frosted =
         blur.sigmaX > 0.0 || blur.sigmaY > 0.0 || (zoom != 1.0 && zoom > 0.0);
-    final bool bends =
-        refraction.distortion > 0.0 && refraction.distortionWidth > 0.0;
-    final bool picksUp = pickup == LiquidGlassPickup.backdrop;
+    final bool fromBackdrop = pickup == LiquidGlassLitePickup.backdrop;
+    final bool picksUp = fromBackdrop;
+    final bool overSurface = pickup == LiquidGlassLitePickup.surface;
+    final Color? tint = (color?.a ?? 0.0) > 0.0 ? color : null;
 
-    // Nothing to read: the rim is one painter over the child, as cheap as the
-    // widget gets.
-    if (!frosted && !bends && !picksUp) {
-      final Widget painted = CustomPaint(
-        foregroundPainter: _painter(),
-        child: child,
-      );
+    // Nothing to read: the rim is one painter, as cheap as the widget gets.
+    if (!frosted && !picksUp) {
+      final Widget painted = overSurface
+          ? CustomPaint(
+              foregroundPainter: _painter(),
+              child: tint == null ? child : _tinted(tint, child),
+            )
+          : _painted(tint, child);
       return child == null ? SizedBox.expand(child: painted) : painted;
     }
 
@@ -288,21 +288,78 @@ class LiquidGlassLite extends StatelessWidget {
     return Stack(
       fit: StackFit.passthrough,
       children: <Widget>[
-        // The glass, under the content.
+        // The glass, under everything.
         if (frosted) Positioned.fill(child: IgnorePointer(child: _frost())),
-        // The edge bend, over the flat glass and under the content, so the
-        // band reads the surface the frost already made.
-        if (bends) Positioned.fill(child: IgnorePointer(child: _edgeBend())),
-        // The content, with the rim over it when the rim is a painter.
+        // Reading the background: the rim goes on now, over the frost and
+        // under all else, and carries the tint beneath itself so the tint
+        // is never in its read. Above the frost, so it reads the frosted
+        // surface and its colour runs smooth along the edge instead of
+        // picking up every speck behind it.
+        if (fromBackdrop)
+          Positioned.fill(child: IgnorePointer(child: _rimPickup(tint))),
+        // Over the surface: the tint is a plain fill, and the rim is painted
+        // last, over the content, blending into tint and child alike.
+        if (overSurface && tint != null)
+          Positioned.fill(child: IgnorePointer(child: _fill(tint))),
+        // The content: over the read rim, over the painted one, or under the
+        // surface rim.
         if (picksUp)
           content
+        else if (overSurface)
+          CustomPaint(foregroundPainter: _painter(), child: content)
         else
-          CustomPaint(foregroundPainter: _painter(), child: content),
-        // The rim, when it has to read the backdrop for its colour. Above the
-        // frost, so it reads the frosted surface and its colour runs smooth
-        // along the edge instead of picking up every speck behind it.
-        if (picksUp) Positioned.fill(child: IgnorePointer(child: _rimPickup())),
+          _painted(tint, content),
       ],
+    );
+  }
+
+  /// A flat fill of [tint], cut to the outline like the frost is.
+  Widget _fill(Color tint) => liquidGlassClip(
+        shape: shape,
+        shapeScale: shapeScale,
+        child: ColoredBox(color: tint),
+      );
+
+  /// [child] over a flat fill of [tint], filling the box.
+  Widget _tinted(Color tint, Widget? child) => Stack(
+        fit: StackFit.passthrough,
+        children: <Widget>[
+          Positioned.fill(child: IgnorePointer(child: _fill(tint))),
+          child ?? const SizedBox.expand(),
+        ],
+      );
+
+  /// The painted rim, composed the way a lens is: the rim over whatever is
+  /// behind the glass, the tint over the rim, [child] over both.
+  ///
+  /// The tint is painted AROUND the rim — cut by the rim's own alpha — so a
+  /// blending rim blends against the background, not against the tint, and
+  /// the tint never lays over the rim's core. Free of any read; the cut is
+  /// one layer, and only when there is a tint.
+  Widget _painted(Color? tint, Widget? child) {
+    final Widget content = child ?? const SizedBox.expand();
+    return CustomPaint(
+      painter: _painter(),
+      child: tint == null
+          ? content
+          : Stack(
+              fit: StackFit.passthrough,
+              children: <Widget>[
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: CustomPaint(
+                      painter: _TintAroundRimPainter(
+                        shape: shape,
+                        borderAlpha: borderAlpha,
+                        shapeScale: shapeScale,
+                        tint: tint,
+                      ),
+                    ),
+                  ),
+                ),
+                content,
+              ],
+            ),
     );
   }
 
@@ -311,10 +368,13 @@ class LiquidGlassLite extends StatelessWidget {
         borderAlpha: borderAlpha,
         ambientColor: ambientColor,
         shapeScale: shapeScale,
-        blendMode: pickup == LiquidGlassPickup.blend
+        blendMode: pickup == LiquidGlassLitePickup.blend ||
+                pickup == LiquidGlassLitePickup.surface
             ? BlendMode.overlay
             : BlendMode.srcOver,
         blendFloor: blendFloor,
+        lightPass: pickup == LiquidGlassLitePickup.blend ||
+            pickup == LiquidGlassLitePickup.surface,
       );
 
   /// The glass itself: the backdrop, magnified and blurred, cut to the
@@ -324,33 +384,14 @@ class LiquidGlassLite extends StatelessWidget {
         shapeScale: shapeScale,
         child: _GlassBackdrop(
           blur: blur,
-          magnification: refraction.magnification,
+          magnification: magnification,
           child: const SizedBox.expand(),
         ),
       );
 
-  /// The edge bend: the backdrop pushed outward, kept only in the band before
-  /// the outline and faded away across it.
-  Widget _edgeBend() => _GlassBackdrop(
-        blur: const LiquidGlassBlur(),
-        magnification: 1.0,
-        edgeShiftPx: refraction.distortion * refraction.distortionWidth,
-        child: CustomPaint(
-          painter: _BandMaskPainter(
-            shape: shape,
-            shapeScale: shapeScale,
-            depth: refraction.distortionWidth,
-          ),
-        ),
-      );
-
-  /// The rim as a hole cut in a brightened copy of the background.
-  ///
-  /// A backdrop filter hands us the background already saturated and lifted;
-  /// the mask painter then keeps only the band the rim covers, at the rim's
-  /// own alpha. What survives is background-coloured, per pixel, with no
-  /// shader anywhere in it.
-  Widget _rimPickup() => ClipRect(
+  /// The backdrop read, masked to the rim. [under] is laid beneath the rim in
+  /// the same layer, so it lands over the frost without entering the read.
+  Widget _rimPickup(Color? under) => ClipRect(
         child: BackdropFilter(
           filter: _highlightFilter(shape.borderSaturation),
           child: CustomPaint(
@@ -358,6 +399,7 @@ class LiquidGlassLite extends StatelessWidget {
               shape: shape,
               borderAlpha: borderAlpha,
               shapeScale: shapeScale,
+              under: under,
             ),
           ),
         ),
@@ -376,24 +418,17 @@ class _GlassBackdrop extends SingleChildRenderObjectWidget {
   const _GlassBackdrop({
     required this.blur,
     required this.magnification,
-    this.edgeShiftPx = 0.0,
     required Widget super.child,
   });
 
   final LiquidGlassBlur blur;
   final double magnification;
 
-  /// How far the outline should push the backdrop, in logical pixels. The
-  /// scale it takes to do that depends on the box, so it is resolved at paint
-  /// time — a fixed zoom would shift a small surface far less than a big one.
-  final double edgeShiftPx;
-
   @override
   _RenderGlassBackdrop createRenderObject(BuildContext context) =>
       _RenderGlassBackdrop(
         blur: blur,
         magnification: magnification,
-        edgeShiftPx: edgeShiftPx,
       );
 
   @override
@@ -403,8 +438,7 @@ class _GlassBackdrop extends SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..blur = blur
-      ..magnification = magnification
-      ..edgeShiftPx = edgeShiftPx;
+      ..magnification = magnification;
   }
 }
 
@@ -412,10 +446,8 @@ class _RenderGlassBackdrop extends RenderProxyBox {
   _RenderGlassBackdrop({
     required LiquidGlassBlur blur,
     required double magnification,
-    required double edgeShiftPx,
   })  : _blur = blur,
-        _magnification = magnification,
-        _edgeShiftPx = edgeShiftPx;
+        _magnification = magnification;
 
   LiquidGlassBlur _blur;
   set blur(LiquidGlassBlur value) {
@@ -428,13 +460,6 @@ class _RenderGlassBackdrop extends RenderProxyBox {
   set magnification(double value) {
     if (_magnification == value) return;
     _magnification = value;
-    markNeedsPaint();
-  }
-
-  double _edgeShiftPx;
-  set edgeShiftPx(double value) {
-    if (_edgeShiftPx == value) return;
-    _edgeShiftPx = value;
     markNeedsPaint();
   }
 
@@ -452,21 +477,14 @@ class _RenderGlassBackdrop extends RenderProxyBox {
       super.paint(context, offset);
       return;
     }
-    final BackdropFilterLayer layer =
-        _handle.layer ??= BackdropFilterLayer();
+    final BackdropFilterLayer layer = _handle.layer ??= BackdropFilterLayer();
     layer.filter = filter;
     context.pushLayer(layer, super.paint, offset);
   }
 
   ui.ImageFilter? _filterAt(Offset offset) {
     final bool blurs = _blur.sigmaX > 0.0 || _blur.sigmaY > 0.0;
-    // A shift in pixels becomes the scale that moves the outline by that much:
-    // a point at the edge sits half the box from the centre, so z - 1 is the
-    // shift over that half.
-    final double half = math.min(size.width, size.height) / 2;
-    final double fromShift =
-        (_edgeShiftPx > 0.0 && half > 0.0) ? _edgeShiftPx / half : 0.0;
-    final double z = _magnification * (1.0 + fromShift);
+    final double z = _magnification;
     final bool bends = z != 1.0 && z > 0.0;
     if (!blurs && !bends) return null;
 
@@ -529,127 +547,92 @@ ColorFilter _highlightFilter(double saturation) {
   ]);
 }
 
-/// Keeps the layer only in the band before the outline, fading it away
-/// inward — the cross-fade that turns one flat magnification into an edge one.
-class _BandMaskPainter extends CustomPainter {
-  const _BandMaskPainter({
+/// A fill of the shape with the rim cut out of it: [tint] everywhere inside
+/// the outline, at `(1 - rim alpha)` of itself where the rim is.
+///
+/// Painted between a painted rim and the child, so the tint lands OVER the
+/// rim's tail without laying over its core, and the rim — blended before
+/// this goes on — took its colour from the background, not from the tint.
+class _TintAroundRimPainter extends CustomPainter {
+  const _TintAroundRimPainter({
     required this.shape,
+    required this.borderAlpha,
     required this.shapeScale,
-    required this.depth,
+    required this.tint,
   });
 
   final LiquidGlassShape shape;
+  final double borderAlpha;
   final Offset shapeScale;
-  final double depth;
+  final Color tint;
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.saveLayer(Offset.zero & size, Paint()..blendMode = BlendMode.dstIn);
     final _RimOutline? outline = _outlineFor(shape, size, shapeScale);
-    if (outline != null) {
-      final ui.Vertices? mesh = _buildBandMesh(outline, size, depth);
-      if (mesh != null) {
-        canvas.clipPath(outline.path);
-        canvas.drawVertices(mesh, BlendMode.modulate, _rimPaint);
-      }
+    if (outline == null) return;
+    canvas.saveLayer(Offset.zero & size, Paint());
+    canvas.clipPath(outline.path);
+    canvas.drawRect(Offset.zero & size, Paint()..color = tint);
+    final ui.Vertices? mesh = _buildRimMesh(
+      outline: outline,
+      shape: shape,
+      size: size,
+      borderAlpha: borderAlpha,
+      ambientColor: null,
+    );
+    if (mesh != null) {
+      // `dstOut`: the fill keeps `1 - alpha` of itself where the mesh is.
+      canvas.drawVertices(
+        mesh,
+        BlendMode.modulate,
+        Paint()
+          ..color = const Color(0xFFFFFFFF)
+          ..blendMode = BlendMode.dstOut,
+      );
     }
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(covariant _BandMaskPainter oldDelegate) =>
-      oldDelegate.depth != depth ||
+  bool shouldRepaint(covariant _TintAroundRimPainter oldDelegate) =>
+      oldDelegate.tint != tint ||
+      oldDelegate.borderAlpha != borderAlpha ||
       oldDelegate.shapeScale != shapeScale ||
       !_sameBorderLook(oldDelegate.shape, shape);
-}
-
-/// A ring of alpha: opaque against the outline, gone [depth] pixels in.
-///
-/// The ramp is a smoothstep, so it is flat at both ends — the band cannot show
-/// a seam where it meets the outline or where it runs out.
-ui.Vertices? _buildBandMesh(_RimOutline outline, Size size, double depth) {
-  final double reach =
-      math.min(depth, 0.45 * math.min(size.width, size.height));
-  if (reach <= 0.0) return null;
-
-  const List<double> stops = <double>[0.0, 0.15, 0.3, 0.5, 0.7, 0.85, 1.0];
-  final int ringCount = stops.length;
-  final List<double> alpha = <double>[
-    for (final double u in stops) _smoothstep(0.0, 1.0, 1.0 - u),
-  ];
-
-  int vertexCount = 0;
-  int indexCount = 0;
-  for (final _RimContour contour in outline.contours) {
-    vertexCount += contour.count * ringCount;
-    indexCount += contour.count * (ringCount - 1) * 6;
-  }
-  if (vertexCount == 0) return null;
-
-  final Float32List positions = Float32List(vertexCount * 2);
-  final Int32List colors = Int32List(vertexCount);
-  final Uint16List indices = Uint16List(indexCount);
-
-  int vi = 0;
-  int ii = 0;
-  int vBase = 0;
-  for (final _RimContour contour in outline.contours) {
-    final int m = contour.count;
-    for (int k = 0; k < ringCount; k++) {
-      final double sd = -stops[k] * reach;
-      final int packed = ((alpha[k] * 255.0).round() << 24) | 0x00ffffff;
-      for (int i = 0; i < m; i++) {
-        positions[vi * 2] = contour.px[i] + contour.nx[i] * sd;
-        positions[vi * 2 + 1] = contour.py[i] + contour.ny[i] * sd;
-        colors[vi] = packed;
-        vi++;
-      }
-    }
-    for (int k = 0; k < ringCount - 1; k++) {
-      final int inner = vBase + k * m;
-      final int outer = inner + m;
-      for (int i = 0; i < m; i++) {
-        final int j = i + 1 == m ? 0 : i + 1;
-        indices[ii++] = inner + i;
-        indices[ii++] = inner + j;
-        indices[ii++] = outer + i;
-        indices[ii++] = inner + j;
-        indices[ii++] = outer + j;
-        indices[ii++] = outer + i;
-      }
-    }
-    vBase += m * ringCount;
-  }
-
-  return ui.Vertices.raw(
-    ui.VertexMode.triangles,
-    positions,
-    colors: colors,
-    indices: indices,
-  );
 }
 
 /// Cuts everything but the rim out of the layer it paints into.
 ///
 /// Drawn inside a backdrop filter, whose layer starts out holding the filtered
-/// background: an inner layer composited with `dstIn` keeps that background
-/// exactly where the rim mesh has alpha, and clears it everywhere else.
+/// background: an inner layer composited with `modulate` keeps that background
+/// exactly where the rim mesh has alpha, scaled by the mesh's colour, and
+/// clears it everywhere else.
 class _RimMaskPainter extends CustomPainter {
   const _RimMaskPainter({
     required this.shape,
     required this.borderAlpha,
     required this.shapeScale,
+    this.under,
   });
 
   final LiquidGlassShape shape;
   final double borderAlpha;
   final Offset shapeScale;
 
+  /// A fill of the shape laid UNDER the rim once it is cut — `dstOver` into
+  /// the layer the rim was just left alone in — so the glass's tint ends up
+  /// below the rim yet was never part of what the rim read.
+  final Color? under;
+
   @override
   void paint(Canvas canvas, Size size) {
     // The layer has to span everything the filter painted, or whatever falls
-    // outside these bounds keeps the background unmasked.
-    canvas.saveLayer(Offset.zero & size, Paint()..blendMode = BlendMode.dstIn);
+    // outside these bounds keeps the background unmasked. `modulate` keeps
+    // the highlight where the mesh has alpha AND multiplies the mesh's
+    // colour into it — the shape's `lightColor` — after the layer clamped
+    // the highlight to white, which is the order the shader does it in.
+    canvas.saveLayer(
+        Offset.zero & size, Paint()..blendMode = BlendMode.modulate);
     final _RimOutline? outline = _outlineFor(shape, size, shapeScale);
     if (outline != null) {
       final ui.Vertices? mesh = _buildRimMesh(
@@ -665,12 +648,26 @@ class _RimMaskPainter extends CustomPainter {
       }
     }
     canvas.restore();
+
+    final Color? fill = under;
+    if (fill != null && outline != null) {
+      canvas.save();
+      canvas.clipPath(outline.path);
+      canvas.drawRect(
+        Offset.zero & size,
+        Paint()
+          ..color = fill
+          ..blendMode = BlendMode.dstOver,
+      );
+      canvas.restore();
+    }
   }
 
   @override
   bool shouldRepaint(covariant _RimMaskPainter oldDelegate) =>
       oldDelegate.borderAlpha != borderAlpha ||
       oldDelegate.shapeScale != shapeScale ||
+      oldDelegate.under != under ||
       !_sameBorderLook(oldDelegate.shape, shape);
 }
 
@@ -687,15 +684,23 @@ class LiquidGlassLitePainter extends CustomPainter {
     this.shapeScale = const Offset(1.0, 1.0),
     this.blendMode = BlendMode.srcOver,
     this.blendFloor = 0.35,
+    this.lightPass = false,
   });
 
   /// The geometry and lighting to draw. See [LiquidGlassLite.shape].
   final LiquidGlassShape shape;
 
   /// How the rim lands on what is already painted. `BlendMode.overlay` is what
-  /// [LiquidGlassPickup.blend] uses: the rim's light is blended into the
-  /// background instead of covering it.
+  /// [LiquidGlassLitePickup.blend] and [LiquidGlassLitePickup.surface] use: the rim's
+  /// light is blended into the background instead of covering it.
   final BlendMode blendMode;
+
+  /// After a blending [blendMode], multiply the rim's own colour in — the
+  /// shape's `lightColor`, `borderColor` and saturation — so they show over
+  /// white, which overlay alone leaves untouched. What [LiquidGlassLitePickup.blend]
+  /// and [LiquidGlassLitePickup.surface] do. Skipped when that colour is plain
+  /// white. Ignored under `BlendMode.srcOver`, whose rim carries it already.
+  final bool lightPass;
 
   /// The plain white rim kept underneath a multiplying [blendMode], so it does
   /// not vanish over black. See [LiquidGlassLite.blendFloor]. Unused when
@@ -762,6 +767,20 @@ class LiquidGlassLitePainter extends CustomPainter {
           ..blendMode = BlendMode.screen,
       );
     }
+
+    // Then the rim's own colour, multiplied in where the mesh has alpha.
+    // `multiply` (not `modulate`) so the coverage lerps the pixel toward the
+    // product and leaves its alpha alone — inside a layer, `modulate` would
+    // punch the rim's alpha through it.
+    if (lightPass && !_rimIsWhite(shape, ambientColor)) {
+      canvas.drawVertices(
+        mesh,
+        BlendMode.modulate,
+        Paint()
+          ..color = const Color(0xFFFFFFFF)
+          ..blendMode = BlendMode.multiply,
+      );
+    }
     canvas.restore();
   }
 
@@ -772,6 +791,7 @@ class LiquidGlassLitePainter extends CustomPainter {
       oldDelegate.shapeScale != shapeScale ||
       oldDelegate.blendMode != blendMode ||
       oldDelegate.blendFloor != blendFloor ||
+      oldDelegate.lightPass != lightPass ||
       !_sameBorderLook(oldDelegate.shape, shape);
 
   @override
@@ -780,6 +800,12 @@ class LiquidGlassLitePainter extends CustomPainter {
 }
 
 final Paint _rimPaint = Paint()..color = const Color(0xFFFFFFFF);
+
+/// Whether the rim mesh's colour is plain white everywhere, so multiplying it
+/// in would change nothing. Only an optical rim has one colour; a classic
+/// sweep always carries a shadow tone somewhere along it.
+bool _rimIsWhite(LiquidGlassShape shape, Color? ambientColor) =>
+    shape.isOpticalBorder && _opticalRimRgb(shape, ambientColor) == 0x00ffffff;
 
 /// Whether two shapes would draw the same rim.
 bool _sameBorderLook(LiquidGlassShape a, LiquidGlassShape b) {
@@ -1295,7 +1321,8 @@ class _OutlineKey {
 }
 
 /// Insertion-ordered, so the first key is the least recently used.
-final Map<_OutlineKey, _RimOutline> _outlineCache = <_OutlineKey, _RimOutline>{};
+final Map<_OutlineKey, _RimOutline> _outlineCache =
+    <_OutlineKey, _RimOutline>{};
 
 _RimOutline? _outlineFor(LiquidGlassShape shape, Size size, Offset scale) {
   final _OutlineKey key = _OutlineKey(

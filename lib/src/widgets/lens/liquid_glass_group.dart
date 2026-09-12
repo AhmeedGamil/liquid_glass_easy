@@ -17,12 +17,15 @@ import 'liquid_glass_blender.dart';
 /// )
 /// ```
 ///
-/// **[smoothness] decides whether they also fuse, and defaults to `null`:
-/// they do not.** The group still draws them as one surface with one read,
-/// but each member keeps its own hard outline, and the shader skips the
-/// smooth-union entirely rather than running it and finding nothing to blend.
-/// Give it a radius and members that come within about half of it flow
-/// together through a metaball bridge.
+/// **[smoothness] decides whether they also fuse, and defaults to none:**
+/// the group still draws them as one surface with one read, but each member
+/// keeps its own hard outline, and the shader skips the smooth-union entirely
+/// rather than running it and finding nothing to blend. Give it a radius and
+/// members that come within about half of it flow together through a metaball
+/// bridge.
+///
+/// That makes this widget `LiquidGlassBlender` with a different default —
+/// `smoothness: 0` there says the same thing.
 ///
 /// **Adaptivity is per member.** Each lens judges the background behind
 /// itself and paints its own verdict into the shared sheet; where two of them
@@ -33,6 +36,26 @@ import 'liquid_glass_blender.dart';
 ///
 /// Two to [maxLensCount] members. Place the group inside a `LiquidGlassView`
 /// for the Skia / web capture path; on Impeller it reads the live backdrop.
+///
+/// ## Deprecated
+///
+/// `LiquidGlassBlender` does this and nothing is lost in the move: this widget
+/// is that one with a different default, and `smoothness: 0` says what a
+/// group says. Every other parameter has the same name and the same meaning.
+///
+/// ```dart
+/// // before
+/// LiquidGlassGroup(style: myStyle, child: child)
+/// // after
+/// LiquidGlassBlender(smoothness: 0, style: myStyle, child: child)
+/// ```
+///
+/// Passing a radius carries over unchanged — `LiquidGlassGroup(smoothness: 40)`
+/// becomes `LiquidGlassBlender(smoothness: 40)`.
+@Deprecated(
+  'Use LiquidGlassBlender with smoothness: 0 instead — it is the same widget '
+  'with a different default. This feature was deprecated after v4.2.0.',
+)
 class LiquidGlassGroup extends StatelessWidget {
   const LiquidGlassGroup({
     super.key,
@@ -42,7 +65,7 @@ class LiquidGlassGroup extends StatelessWidget {
     this.useImpellerBackdrop,
     this.useEngineBlur = true,
     this.debugClipBounds = false,
-  }) : assert(smoothness == null || smoothness > 0);
+  }) : assert(smoothness == null || smoothness >= 0);
 
   /// Fewest members the shared surface is meant for.
   static const int minLensCount = LiquidGlassBlender.minLensCount;

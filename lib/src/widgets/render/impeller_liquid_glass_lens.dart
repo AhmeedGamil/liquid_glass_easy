@@ -396,10 +396,35 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
     return _LensXformProbe(
       onMoved: _onLayerMoved,
       child: Stack(
-      children: [
-        // Blur the backdrop under the lens first, clipped to the lens
-        // shape. This is the input the shader will refract.
-        if (useBlur && liquidGlassUsesRoundedClip(config.effectiveShape))
+        children: [
+          // Blur the backdrop under the lens first, clipped to the lens
+          // shape. This is the input the shader will refract.
+          if (useBlur && liquidGlassUsesRoundedClip(config.effectiveShape))
+            Positioned(
+              left: lensPosition.dx,
+              top: lensPosition.dy,
+              width: config.geometry.width,
+              height: config.geometry.height,
+              child: IgnorePointer(
+                ignoring: true,
+                child: liquidGlassClip(
+                  shape: config.effectiveShape,
+                  shapeScale: clipScale,
+                  child: BackdropFilter(
+                    filter: ui.ImageFilter.blur(
+                      sigmaX: config.effectiveAppearance.blur.sigmaX,
+                      sigmaY: config.effectiveAppearance.blur.sigmaY,
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+
+          // Live-backdrop-sampling shader pass over the whole parent
+          // rect. With blur on, the backdrop it reads is the blurred
+          // patch above. The shapeMask zeroes everything outside the
+          // lens, so output is transparent there.
           Positioned(
             left: lensPosition.dx,
             top: lensPosition.dy,
@@ -411,69 +436,45 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
                 shape: config.effectiveShape,
                 shapeScale: clipScale,
                 child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(
-                    sigmaX: config.effectiveAppearance.blur.sigmaX,
-                    sigmaY: config.effectiveAppearance.blur.sigmaY,
-                  ),
+                  filter: ui.ImageFilter.shader(shader),
                   child: const SizedBox.expand(),
                 ),
               ),
             ),
           ),
 
-        // Live-backdrop-sampling shader pass over the whole parent
-        // rect. With blur on, the backdrop it reads is the blurred
-        // patch above. The shapeMask zeroes everything outside the
-        // lens, so output is transparent there.
-        Positioned(
-          left: lensPosition.dx,
-          top: lensPosition.dy,
-          width: config.geometry.width,
-          height: config.geometry.height,
-          child: IgnorePointer(
-            ignoring: true,
-            child: liquidGlassClip(
-              shape: config.effectiveShape,
-              shapeScale: clipScale,
-              child: BackdropFilter(
-                filter: ui.ImageFilter.shader(shader),
-                child: const SizedBox.expand(),
-              ),
-            ),
-          ),
-        ),
-
-        // Draggable lens hit target + child content.
-        Positioned(
-          left: lensPosition.dx,
-          top: lensPosition.dy,
-          width: config.geometry.width - config.effectiveShape.borderWidth / 2,
-          height:
-              config.geometry.height - config.effectiveShape.borderWidth / 2,
-          child: _wrapFlex(
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onPanUpdate: config.behavior.draggable
-                  ? (details) {
-                      widget.touch.value += details.delta;
-                    }
-                  : null,
-              child: liquidGlassClip(
-                shape: config.effectiveShape,
-                shapeScale: clipScale,
-                // Clip at the deformed bounds, scale the content inside:
-                // the child stretches as pixels (never re-flows) and still
-                // cannot spill past the glass edge.
-                child: liquidGlassFlexChild(
-                  deform: widget.flexDeform,
-                  restSize: widget.flexRestSize,
-                  child: config.child ?? Container(color: Colors.transparent),
+          // Draggable lens hit target + child content.
+          Positioned(
+            left: lensPosition.dx,
+            top: lensPosition.dy,
+            width:
+                config.geometry.width - config.effectiveShape.borderWidth / 2,
+            height:
+                config.geometry.height - config.effectiveShape.borderWidth / 2,
+            child: _wrapFlex(
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onPanUpdate: config.behavior.draggable
+                    ? (details) {
+                        widget.touch.value += details.delta;
+                      }
+                    : null,
+                child: liquidGlassClip(
+                  shape: config.effectiveShape,
+                  shapeScale: clipScale,
+                  // Clip at the deformed bounds, scale the content inside:
+                  // the child stretches as pixels (never re-flows) and still
+                  // cannot spill past the glass edge.
+                  child: liquidGlassFlexChild(
+                    deform: widget.flexDeform,
+                    restSize: widget.flexRestSize,
+                    child: config.child ?? Container(color: Colors.transparent),
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
       ),
     );
   }

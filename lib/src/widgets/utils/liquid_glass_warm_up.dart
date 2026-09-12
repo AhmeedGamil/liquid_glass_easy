@@ -136,7 +136,7 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
     // Nothing can be compiled until the fragment programs themselves are
     // loaded — a lens without them draws the frosted fallback, which is
     // not the pipeline we are here to warm.
-    LiquidGlassShaders.ensureLoaded(false).then((_) {
+    LiquidGlassShaders.ensureLensLoaded(false).then((_) {
       if (!mounted) return;
       _elapsed.start();
       setState(() => _warming = true);

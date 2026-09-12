@@ -182,8 +182,8 @@ class _RingShadowPainter extends CustomPainter {
     // blur cannot invert the inner rect.
     final double band = math.min(blur / 2, box.height / 2 - 0.5);
     final RRect outer = RRect.fromRectAndRadius(
-      Rect.fromLTRB(
-          box.left - 1, box.top - blur / 2, box.right + 1, box.bottom + blur / 2),
+      Rect.fromLTRB(box.left - 1, box.top - blur / 2, box.right + 1,
+          box.bottom + blur / 2),
       radius,
     );
     final RRect inner = RRect.fromRectAndRadius(

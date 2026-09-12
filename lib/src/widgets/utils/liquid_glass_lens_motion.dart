@@ -128,9 +128,8 @@ class LiquidGlassLensMotion {
     _history.removeWhere((s) => s.$2 < cutoff);
     final raw = (_averageAcceleration() * spec.sensitivity)
         .clamp(-spec.maxDeformation, spec.maxDeformation);
-    final ease = spec.responseTime <= 0
-        ? 1.0
-        : (dt / spec.responseTime).clamp(0.0, 1.0);
+    final ease =
+        spec.responseTime <= 0 ? 1.0 : (dt / spec.responseTime).clamp(0.0, 1.0);
     _deviation += (raw - _deviation) * ease;
     return _deviation;
   }

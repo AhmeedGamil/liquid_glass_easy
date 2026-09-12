@@ -3,9 +3,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
-import '../experimental/liquid_glass_morph/liquid_glass_morph.dart';
-import '../experimental/liquid_glass_morph/liquid_glass_morph_motion.dart';
-
 /// Standalone entry point so this showcase can be launched directly with:
 ///   flutter run -t lib/showcases/photos_library_page.dart
 void main() {
@@ -158,6 +155,12 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
   int _filter = 0;
   bool _selecting = false;
   bool _menuOpen = false;
+
+  /// True from the frame the menu is asked to open or close until the
+  /// morph's `onEnd`. While it is up the menu cannot be toggled again, so
+  /// the glass always finishes becoming one thing before it is asked to
+  /// become the other.
+  bool _morphing = false;
   final Set<int> _picked = <int>{};
 
   /// What the filter menu offers. The count is the library's headline
@@ -200,16 +203,36 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
     return '$count $name';
   }
 
+  /// Opens or closes the menu — the only place [_menuOpen] changes, so
+  /// the morph lock is applied to every path. A request that lands while
+  /// the glass is still in flight is dropped, not queued.
+  void _setMenu(bool open) {
+    if (_morphing || open == _menuOpen) return;
+    setState(() {
+      _menuOpen = open;
+      _morphing = true;
+    });
+  }
+
+  void _onMorphEnd() {
+    if (_morphing) setState(() => _morphing = false);
+  }
+
+  /// Picking a row changes the filter and leaves the menu up: the grid
+  /// re-flows behind it, and the tap outside is what puts it away.
   void _pickFilter(int index) => setState(() {
         _filter = index;
-        _menuOpen = false;
         _picked.clear();
       });
 
   void _toggleSelecting() => setState(() {
         // A menu is modal: choosing the other control puts it away, the
-        // way tapping past it does.
-        _menuOpen = false;
+        // way tapping past it does — unless the glass is mid-morph, in
+        // which case the menu stays where it is until it has settled.
+        if (_menuOpen && !_morphing) {
+          _menuOpen = false;
+          _morphing = true;
+        }
         _selecting = !_selecting;
         _picked.clear();
       });
@@ -291,7 +314,7 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           if (_menuOpen)
             GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onTap: () => setState(() => _menuOpen = false),
+              onTap: () => _setMenu(false),
             ),
         ],
 
@@ -302,7 +325,8 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           filters: _filters,
           filter: _filter,
           menuOpen: _menuOpen,
-          onMenu: () => setState(() => _menuOpen = !_menuOpen),
+          onMenu: () => _setMenu(true),
+          onMorphEnd: _onMorphEnd,
           onPickFilter: _pickFilter,
           onSelect: _toggleSelecting,
         ),
@@ -388,6 +412,7 @@ class _LibraryHeader extends StatefulWidget {
     required this.filter,
     required this.menuOpen,
     required this.onMenu,
+    required this.onMorphEnd,
     required this.onPickFilter,
     required this.onSelect,
   });
@@ -398,6 +423,9 @@ class _LibraryHeader extends StatefulWidget {
   final int filter;
   final bool menuOpen;
   final VoidCallback onMenu;
+
+  /// The morph's `onEnd`, passed up so the page can lift its morph lock.
+  final VoidCallback onMorphEnd;
   final ValueChanged<int> onPickFilter;
   final VoidCallback onSelect;
 
@@ -538,6 +566,7 @@ class _LibraryHeaderState extends State<_LibraryHeader> {
                     if (_wide != widget.menuOpen) {
                       setState(() => _wide = widget.menuOpen);
                     }
+                    widget.onMorphEnd();
                   },
                   // Keys: without them a swap is not seen as one, and the
                   // glass would resize instead of morph.
