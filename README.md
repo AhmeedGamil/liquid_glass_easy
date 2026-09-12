@@ -7,6 +7,11 @@
   <a href="https://github.com/AhmeedGamil/liquid_glass_easy/blob/main/LICENSE"><img src="https://img.shields.io/github/license/AhmeedGamil/liquid_glass_easy?style=for-the-badge&color=4CAF50" alt="license"/></a>
 </p>
 
+<p align="center">
+  <strong>📖 <a href="https://ahmeedgamil.github.io/liquid_glass_easy/">Documentation &amp; live demos</a></strong><br/>
+  The full guide, the API reference, and every component running as real liquid glass in your browser — press it, drag it, scroll under it.
+</p>
+
 **A Flutter package that brings Apple's iOS-style Liquid Glass to your app with real-time, interactive lenses.**
 These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract** the content behind them — recreating the iOS 26 Liquid Glass look with stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
