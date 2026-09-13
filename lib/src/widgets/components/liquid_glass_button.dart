@@ -219,6 +219,7 @@ class LiquidGlassButton extends StatelessWidget {
           appearance: resolved.appearance,
           refraction: resolved.refraction,
           adaptivity: resolved.adaptivity,
+          liteGlass: resolved.liteGlass,
         ),
         visibility: visibility,
         // Below the lens, so `IconTheme.of` sees the adaptive content

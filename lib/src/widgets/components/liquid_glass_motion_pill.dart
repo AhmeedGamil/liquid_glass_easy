@@ -445,6 +445,7 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
       refraction: base.refraction.copyWith(
         distortionWidth: base.refraction.distortionWidth * bandScale * comp,
       ),
+      liteGlass: base.liteGlass,
     );
   }
 

@@ -398,6 +398,7 @@ class LiquidGlassTabPillStyle {
             magnification: magnification,
             chromaticAberration: 0.002,
           ),
+      liteGlass: g?.liteGlass,
     );
   }
 
@@ -440,6 +441,7 @@ class LiquidGlassTabPillStyle {
       // sampling a backdrop it cannot see (its own rect reads the
       // capsule's tint, not the page).
       adaptivity: r?.adaptivity,
+      liteGlass: r?.liteGlass,
       // Explicitly inert, not merely "ignored". The static pill never
       // reads this, but the moving pill interpolates FROM it, and
       // `LiquidGlassStyle`'s default refraction is the full-strength one

@@ -178,6 +178,7 @@ class LiquidGlassAppBar extends StatelessWidget {
           appearance: resolved.appearance,
           refraction: resolved.refraction,
           adaptivity: resolved.adaptivity,
+          liteGlass: resolved.liteGlass,
         ),
         visibility: visibility,
         child: _AppBarContent(

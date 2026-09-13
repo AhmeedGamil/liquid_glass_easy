@@ -459,6 +459,7 @@ class LiquidGlassTabBar extends StatelessWidget {
           appearance: barStyle.appearance,
           refraction: barStyle.refraction,
           adaptivity: barStyle.adaptivity,
+          liteGlass: barStyle.liteGlass,
         ),
         visibility: visibility,
         child: content,

@@ -1,4 +1,4 @@
-﻿
+
 name: liquid_glass_easy_example
 description: "Example app demonstrating the usage of liquid_glass_easy package."
 publish_to: "none"
@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
 
   flutter_svg: ^2.3.0
+  # Only the "Device preview" demo: the app scaled to fit a phone frame.
+  device_preview: ^1.3.1
   liquid_glass_easy:
     path: ../
 

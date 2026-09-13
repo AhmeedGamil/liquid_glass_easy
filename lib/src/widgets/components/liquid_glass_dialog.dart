@@ -194,6 +194,7 @@ class LiquidGlassDialog extends StatelessWidget {
             shape: effectiveShape,
             appearance: resolved.appearance,
             refraction: resolved.refraction,
+            liteGlass: resolved.liteGlass,
           ),
           visibility: visibility,
           child: Material(

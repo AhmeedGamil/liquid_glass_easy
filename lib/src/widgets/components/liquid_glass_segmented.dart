@@ -154,6 +154,7 @@ class LiquidGlassSegmentedPillStyle {
             distortionWidth: 10,
             chromaticAberration: 0.002,
           ),
+      liteGlass: g?.liteGlass,
     );
   }
 
@@ -164,6 +165,7 @@ class LiquidGlassSegmentedPillStyle {
       shape: r?.shape ?? _capsule(radius, solidity: 0, light: 1, sat: 1),
       appearance: r?.appearance ??
           const LiquidGlassAppearance(color: Color(0x3CFFFFFF)), // white, a60
+      liteGlass: r?.liteGlass,
     );
   }
 }
@@ -523,6 +525,7 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
         refractionType: refractionType?.withEffectFactor(f),
         chromaticAberration: style.refraction.chromaticAberration * f,
       ),
+      liteGlass: style.liteGlass,
     );
   }
 

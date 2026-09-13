@@ -212,6 +212,7 @@ class LiquidGlassFab extends StatelessWidget {
           // Was dropped: a FAB styled with its own adaptivity never
           // reached the lens, so only an enclosing area could flip it.
           adaptivity: resolved.adaptivity,
+          liteGlass: resolved.liteGlass,
         ),
         visibility: visibility,
         // Below the lens, so `IconTheme.of` sees the adaptive content

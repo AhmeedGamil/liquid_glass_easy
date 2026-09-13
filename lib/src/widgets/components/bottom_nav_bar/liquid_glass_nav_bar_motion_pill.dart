@@ -507,6 +507,7 @@ class _LiquidGlassNavBarMotionPillState
         _lerpRefraction(rest.refraction, active.refraction, t),
         widthCompensation * presence,
       ),
+      liteGlass: active.liteGlass ?? rest.liteGlass,
     );
   }
 

@@ -206,6 +206,7 @@ class _DialogPageState extends State<DialogPage> {
   @override
   Widget build(BuildContext context) {
     return LiquidGlassScaffold(
+      batch: true,
       appBar: const DemoHeader(title: 'Alert Dialog'),
       body: Stack(
         fit: StackFit.expand,
@@ -214,28 +215,33 @@ class _DialogPageState extends State<DialogPage> {
           // A Builder so the dialogs open from a context under the
           // scaffold — that is what hands them its capture.
           Builder(
-            builder: (BuildContext context) => ListView(
-              padding: const EdgeInsets.fromLTRB(20, 100, 20, 200),
-              children: <Widget>[
-                Text(
-                  _result,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 17,
-                    fontWeight: FontWeight.w700,
+            builder: (BuildContext context) => ScrollConfiguration(
+              // Stretch overscroll OFF for this list, to compare.
+              behavior:
+                  const MaterialScrollBehavior().copyWith(overscroll: false),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(20, 100, 20, 200),
+                children: <Widget>[
+                  Text(
+                    _result,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 26),
-                _opener(context, Icons.help_outline_rounded, 'Confirm',
-                    'Two actions, each popping a value', _confirm),
-                const SizedBox(height: 10),
-                _opener(context, Icons.delete_outline_rounded, 'Destructive',
-                    'A tinted action on the same style', _destructive),
-                const SizedBox(height: 10),
-                _opener(context, Icons.article_outlined, 'Long, scrollable',
-                    'Content scrolls inside the panel', _long),
-              ],
+                  const SizedBox(height: 26),
+                  _opener(context, Icons.help_outline_rounded, 'Confirm',
+                      'Two actions, each popping a value', _confirm),
+                  const SizedBox(height: 10),
+                  _opener(context, Icons.delete_outline_rounded, 'Destructive',
+                      'A tinted action on the same style', _destructive),
+                  const SizedBox(height: 10),
+                  _opener(context, Icons.article_outlined, 'Long, scrollable',
+                      'Content scrolls inside the panel', _long),
+                ],
+              ),
             ),
           ),
           DemoPanel(

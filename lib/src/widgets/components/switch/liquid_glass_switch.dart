@@ -766,6 +766,7 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                       shape: resolved.shape,
                       appearance: _withShadow(resolved.appearance, atMorph),
                       refraction: resolved.refraction,
+                      liteGlass: resolved.liteGlass,
                     );
                   }(),
                 ),

@@ -348,6 +348,7 @@ class LiquidGlassSheet extends StatelessWidget {
             appearance: resolved.appearance,
             refraction: resolved.refraction,
             adaptivity: resolved.adaptivity,
+            liteGlass: resolved.liteGlass,
           ),
           // Below the lens, so the adaptive content color it installs is
           // in scope, and read here rather than inherited because the

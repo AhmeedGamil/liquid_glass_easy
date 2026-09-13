@@ -26,6 +26,7 @@ import 'tab_bar_page.dart';
 import 'adaptivity_page.dart';
 import 'adaptivity_advanced_page.dart';
 import 'adaptivity_controller_page.dart';
+import 'device_preview_page.dart';
 import 'showcases/photos_library_page.dart';
 
 // =============================================================
@@ -250,6 +251,14 @@ class HomePage extends StatelessWidget {
       icon: Icons.pause_circle_outline_rounded,
       gradient: const [Color(0xFF136A8A), Color(0xFF267871)],
       builder: (_) => const AdaptivityControllerPage(),
+    ),
+    _Destination(
+      title: 'Device preview',
+      subtitle: 'The whole app scaled down into a phone frame: does the '
+          'glass stay on its outline?',
+      icon: Icons.phonelink_rounded,
+      gradient: const [Color(0xFFF472B6), Color(0xFF9D174D)],
+      builder: (_) => const DevicePreviewPage(),
     ),
   ];
 

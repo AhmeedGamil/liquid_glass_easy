@@ -150,9 +150,48 @@ RenderObject? liquidGlassFilterSubpassAncestor(RenderObject from) {
   return null;
 }
 
-/// Every clip the ancestors between [from] and [surface] impose on it,
-/// intersected, in [surface]'s coordinates — null when nothing on the path
-/// clips. A null [surface] means the window.
+/// The clip a layer imposes on everything beneath it, in the space its own
+/// bounds are expressed in (its parent's children's space): the rect of a
+/// [ClipRectLayer], the outer rect of a [ClipRRectLayer], the bounds of a
+/// [ClipPathLayer]. Null for any other layer, and for a clip layer set to
+/// [Clip.none].
+///
+/// These are the only layers that reach the engine as clip operations, so
+/// they are the only ones that bound a backdrop pass through the clip stack.
+/// Subpasses — image filters, opacity, backdrop filters — bound it too, but
+/// through the pass texture; see [liquidGlassFilterSubpassAncestor].
+Rect? liquidGlassLayerClipBounds(Layer layer) {
+  if (layer is ClipRectLayer) {
+    return layer.clipBehavior == Clip.none ? null : layer.clipRect;
+  }
+  if (layer is ClipRRectLayer) {
+    return layer.clipBehavior == Clip.none ? null : layer.clipRRect?.outerRect;
+  }
+  if (layer is ClipPathLayer) {
+    return layer.clipBehavior == Clip.none
+        ? null
+        : layer.clipPath?.getBounds();
+  }
+  return null;
+}
+
+/// What [liquidGlassAncestorLayerClip] found above a layer.
+class LiquidGlassLayerClip {
+  const LiquidGlassLayerClip({required this.clip, required this.toTop});
+
+  /// Every clip on the path, intersected, in the top space — null when no
+  /// layer on the path clips.
+  final Rect? clip;
+
+  /// Maps the space the starting layer's own bounds are expressed in (its
+  /// parent's children's space) into the top space.
+  final Matrix4 toTop;
+}
+
+/// Every clip the layers above [from] push, intersected, in the **top
+/// space**: the children's space of [until] when it is an ancestor, else
+/// the root layer's children's space — the window in logical pixels, the
+/// root layer itself being the scale to physical pixels and left out.
 ///
 /// A lens asks the engine for a backdrop pass inside a rect it chose; what
 /// it gets is that rect INTERSECTED with every clip already on the stack.
@@ -163,24 +202,44 @@ RenderObject? liquidGlassFilterSubpassAncestor(RenderObject from) {
 /// the LEFT or the TOP, the origin shifts and the glass is drawn that far
 /// from the outline it belongs to.
 ///
-/// The clips are what a scroll viewport, a `ClipRect` or any other clipping
-/// ancestor already reports for semantics — approximate in the sense of
-/// never being tighter than the real one.
-Rect? liquidGlassAncestorPaintClip(RenderObject from, RenderObject? surface) {
-  Rect? clip;
-  RenderObject child = from;
-  RenderObject? parent = child.parent;
-  while (parent != null && parent != surface) {
-    final Rect? own = parent.describeApproximatePaintClip(child);
-    if (own != null) {
-      // Only the clippers pay for a transform; every other ancestor costs
-      // one null-returning call.
-      final Rect inSurface =
-          MatrixUtils.transformRect(parent.getTransformTo(surface), own);
-      clip = clip == null ? inSurface : clip.intersect(inSurface);
+/// This walks the LAYER tree, not the render tree. A render object's
+/// `describeApproximatePaintClip` is a semantics estimate: a viewport
+/// reports its bounds always but pushes the clip only while its content
+/// overflows, so a short list mid-slide "clips" at the page's moving edge
+/// for the estimate and at nothing for the engine — and the glass ran ahead
+/// of its page by the difference. The clip layers are what the engine gets,
+/// so they are what counts, read at compositing time when the tree is final.
+LiquidGlassLayerClip liquidGlassAncestorLayerClip(Layer from, {Layer? until}) {
+  // Nearest first, stopping under [until]. A walk that runs out at the root
+  // drops the root: its transform is the physical-pixel scale, and the
+  // window's logical space is its children's.
+  final List<ContainerLayer> chain = <ContainerLayer>[];
+  bool cappedByUntil = false;
+  for (ContainerLayer? layer = from.parent;
+      layer != null;
+      layer = layer.parent) {
+    if (identical(layer, until)) {
+      cappedByUntil = true;
+      break;
     }
-    child = parent;
-    parent = parent.parent;
+    chain.add(layer);
   }
-  return clip;
+  if (!cappedByUntil && chain.isNotEmpty) chain.removeLast();
+
+  // Top-down, so [toTop] grows one layer at a time: a layer's bounds live
+  // in its parent's space, so they map through the layers ABOVE it only,
+  // and the transform is extended by the layer itself after its clip is
+  // taken. Composed the way `getTransformTo` composes render objects.
+  final Matrix4 toTop = Matrix4.identity();
+  Rect? clip;
+  for (int i = chain.length - 1; i >= 0; i--) {
+    final ContainerLayer layer = chain[i];
+    final Rect? own = liquidGlassLayerClipBounds(layer);
+    if (own != null) {
+      final Rect inTop = MatrixUtils.transformRect(toTop, own);
+      clip = clip == null ? inTop : clip.intersect(inTop);
+    }
+    layer.applyTransform(i > 0 ? chain[i - 1] : from, toTop);
+  }
+  return LiquidGlassLayerClip(clip: clip, toTop: toTop);
 }

@@ -386,6 +386,12 @@ class RenderLiquidGlassLens extends RenderProxyBox
   final LayerHandle<ClipRRectLayer> _skiaBlurClipLayerHandle =
       LayerHandle<ClipRRectLayer>();
 
+  /// The lens-local rect the shader pass was pushed inside this paint: the
+  /// bound of whichever clip layer holds [_shaderLayerHandle]'s layer. Known
+  /// in lens space here and in layer space there, it is what lines the two
+  /// frames up in [_ancestorClipInSurface].
+  Rect? _pushedShaderClip;
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
@@ -569,8 +575,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
     final Rect? clip = _batchClip;
     final Rect? clipInScreen = clip == null
         ? null
-        : _composedPassRect(MatrixUtils.transformRect(transform, clip),
-            subpassAncestor, subpassSize);
+        : _composedPassRect(transform,
+            MatrixUtils.transformRect(transform, clip),
+            subpassAncestor,
+            subpassSize);
     final Offset origin = clipInScreen?.topLeft ?? Offset.zero;
     // Outline-clipped plain pass: the coverage is the fractional lens box,
     // and the engine rounds it out. The shader's frame is shifted by the
@@ -626,15 +634,51 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// near a screen or viewport edge is cut. A two-column grid of batched
   /// lenses shows it as a left column pushed right and a right column that
   /// looks perfectly fine.
-  Rect _composedPassRect(
-      Rect rawInSurface, RenderObject? surface, Size? surfaceSize) {
+  ///
+  /// The clips come from the layer tree ([_ancestorClipInSurface]), which
+  /// is what the engine sees — not from render objects' estimates of what
+  /// they might clip.
+  Rect _composedPassRect(Matrix4 transform, Rect rawInSurface,
+      RenderObject? surface, Size? surfaceSize) {
     Rect cut =
         rawInSurface.intersect(Offset.zero & (surfaceSize ?? _screenSize));
-    final Rect? ancestors = liquidGlassAncestorPaintClip(this, surface);
+    final Rect? ancestors = _ancestorClipInSurface(transform, surface);
     if (ancestors != null) cut = cut.intersect(ancestors);
     // Clipped away entirely: none of this lens is on screen this frame, and
     // an empty rect would hand the shader a zero resolution to divide by.
     return cut.isEmpty ? rawInSurface : cut;
+  }
+
+  /// What the clip layers above this lens cut from its pass, in [surface]'s
+  /// coordinates ([transform] being the lens→surface map) — null when none
+  /// of them clips.
+  ///
+  /// Read off the layer tree at compositing time, so it is what the engine
+  /// gets THIS frame: a viewport that reports a clip but pushed none does not
+  /// count, and a page mid-slide is where its layers say it is. A render
+  /// object's `describeApproximatePaintClip` gets both wrong — a short list
+  /// under a route transition put the glass ahead of its page by exactly the
+  /// phantom edge.
+  ///
+  /// The layers' frame and [transform]'s differ by the paint offsets on the
+  /// way down, so the lens's own clip — the one rect known in both — lines
+  /// them up: same linear part on both sides, only a translation to settle.
+  Rect? _ancestorClipInSurface(Matrix4 transform, RenderObject? surface) {
+    final Layer? own = _shaderLayerHandle.layer?.parent;
+    final Rect? pushed = _pushedShaderClip;
+    if (own == null || pushed == null) return null;
+    final Rect? ownInLayer = liquidGlassLayerClipBounds(own);
+    if (ownInLayer == null) return null;
+    // ignore: invalid_use_of_protected_member
+    final Layer? until = surface?.layer;
+    final LiquidGlassLayerClip above =
+        liquidGlassAncestorLayerClip(own, until: until);
+    final Rect? clip = above.clip;
+    if (clip == null) return null;
+    final Offset inTop =
+        MatrixUtils.transformRect(above.toTop, ownInLayer).topLeft;
+    final Offset inSurface = MatrixUtils.transformRect(transform, pushed).topLeft;
+    return clip.shift(inSurface - inTop);
   }
 
   /// Which way the frame is shifted against the engine's rounding. `1`
@@ -654,6 +698,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
   Offset _passRounding(
       Matrix4 transform, RenderObject? surface, Size? surfaceSize) {
     final Rect raw = _composedPassRect(
+        transform,
         MatrixUtils.transformRect(transform, Offset.zero & size),
         surface,
         surfaceSize);
@@ -731,6 +776,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       case LiquidGlassShaderClip.outline:
       case LiquidGlassShaderClip.outlineTracked:
         _shaderClipRectLayerHandle.layer = null;
+        _pushedShaderClip = Offset.zero & size;
         if (_exactClip) {
           _shaderClipRRectLayerHandle.layer = null;
           _shaderClipPathLayerHandle.layer = context.pushClipPath(
@@ -850,6 +896,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// Outside the outline the shader emits zero coverage, so the padding shows
   /// the untouched backdrop and stays invisible.
   void _pushShaderPass(PaintingContext context, Offset offset, Rect clip) {
+    _pushedShaderClip = clip;
     _shaderClipRectLayerHandle.layer = context.pushClipRect(
       needsCompositing,
       offset,
