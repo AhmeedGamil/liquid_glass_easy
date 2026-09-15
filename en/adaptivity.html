@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Adaptivity · Liquid Glass Easy</title>
+<meta name="description" content="Glass that reads what is behind it and changes its mind.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/adaptivity.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/adaptivity.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/adaptivity.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/adaptivity.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Adaptivity · Liquid Glass Easy">
+<meta property="og:description" content="Glass that reads what is behind it and changes its mind.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/adaptivity.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Adaptivity · Liquid Glass Easy">
+<meta name="twitter:description" content="Glass that reads what is behind it and changes its mind.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Adaptivity","description":"Glass that reads what is behind it and changes its mind.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/en/adaptivity.html","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="adaptivity">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/adaptivity.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/adaptivity.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html" aria-current="page">Adaptivity</a><ul class="toc"><li><a href="#something-has-to-read-the-pixels">Something has to read the pixels</a></li><li><a href="#the-three-ways-to-use-it">The three ways to use it</a></li><li><a href="#where-the-verdict-comes-from">Where the verdict comes from</a></li><li><a href="#where-the-verdict-comes-from">Where the verdict comes from</a></li><li><a href="#the-palettes">The palettes</a></li><li><a href="#one-verdict-for-a-whole-cluster">One verdict for a whole cluster</a></li><li><a href="#links-for-followers-that-cannot-sit-inside">Links — for followers that cannot sit inside</a></li><li><a href="#holding-still-and-adapting-on-cue">Holding still, and adapting on cue</a></li><li><a href="#bare-icons-and-text">Bare icons and text</a></li></ul></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=adaptivity&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="Adaptivity"></iframe></div><figcaption>Drag the glass across the palette — <a href="../demos/index.html?d=adaptivity&amp;v=-5acfe021d">open full screen ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>Adaptivity</h1>
+<p class="tagline">Glass that reads what is behind it and changes its mind.</p>
+<p>A floating bar over a photo has one hard problem: the photo. White icons vanish over a beach and black icons vanish over a night sky. Adaptivity is the answer iOS uses — the glass tint <strong>and</strong> the content colour switch between two palettes depending on whether the background behind that particular lens is dark or light, and both animate on every flip.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassLens</span>(
+  <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(
+    <span class="t-a">adaptivity</span>: <span class="t-y">LiquidGlassAdaptivity</span>(),
+  ),
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">Icon</span>(<span class="t-y">Icons</span>.favorite),   <span class="t-c">// follows the verdict</span>
+)</code></pre></div>
+<p>The child is wrapped in an <code>IconTheme</code> and a <code>DefaultTextStyle</code> carrying the active content colour, so any <code>Icon</code> or <code>Text</code> that does not hardcode its own colour adapts by itself.</p>
+<h2 id="something-has-to-read-the-pixels">Something has to read the pixels<a class="anchor" href="#something-has-to-read-the-pixels" aria-label="Link to this section">#</a></h2>
+<p>That config on its own decides <strong>what to do with a verdict</strong>, not where the verdict comes from. Nothing reads pixels until something opens the sampler, and there are exactly two things that do — a scaffold, or a view:</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-c">// 1 — the scaffold opens it for you</span>
+<span class="t-y">LiquidGlassScaffold</span>(
+  <span class="t-a">adaptivity</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassScaffoldAdaptivity</span>(),
+  <span class="t-a">body</span>: myPage,
+  <span class="t-a">bottomBar</span>: myTabBar,        <span class="t-c">// chrome adapts, OS bar icons follow</span>
+)
+
+<span class="t-c">// 2 — a view, for glass you place yourself</span>
+<span class="t-y">LiquidGlassView</span>(
+  <span class="t-a">adaptiveSampling</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassAdaptiveSampling</span>(),
+  <span class="t-a">backgroundWidget</span>: <span class="t-k">const</span> <span class="t-y">MyPhoto</span>(),
+  <span class="t-a">child</span>: myGlassUI,
+)
+
+<span class="t-c">// 3 — neither: it still runs, it just cannot look</span>
+<span class="t-y">LiquidGlassLens</span>(
+  <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(<span class="t-a">adaptivity</span>: <span class="t-y">LiquidGlassAdaptivity</span>()),
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">Icon</span>(<span class="t-y">Icons</span>.favorite),
+)   <span class="t-c">// → falls back to the app theme's brightness, and says so once</span></code></pre></div>
+<p><strong>All three are valid.</strong> Inside a scaffold, <code>adaptivity</code> is the switch and a descendant cannot flip it — a tab bar carrying its own <code>style.adaptivity</code> will not start captures on a scaffold that did not ask for them. Inside a view, <code>adaptiveSampling</code> is the switch. With neither, every adaptive surface still resolves a verdict and still paints a palette; it simply resolves it from the bottom of the chain below, which in practice means one palette forever. The package prints a one-time warning naming the reason, so a page that is frozen on the wrong palette is diagnosable rather than mysterious.</p>
+<aside class="note"><span class="label">NOTE</span><p>This is also why adaptivity is a reason to wrap a page in a <code>LiquidGlassView</code> <strong>on Impeller</strong>, where refraction needs no view at all: reading pixels means a capture, and Impeller never takes one. See <a href="engines.html">Engines and the view</a>.</p></aside>
+<h2 id="the-three-ways-to-use-it">The three ways to use it<a class="anchor" href="#the-three-ways-to-use-it" aria-label="Link to this section">#</a></h2>
+<ul class="bullets"><li><strong>Real time, everywhere.</strong> Put a <code>LiquidGlassScaffold</code> with <code>adaptivity</code>, or a <code>LiquidGlassView</code> with <code>adaptiveSampling</code>, above the page. Every adaptive lens under it then judges the pixels behind <strong>itself</strong> and flips on its own, live, as the background scrolls or changes — you wire nothing per lens.</li><li><strong>One lens, its own way.</strong> Give that lens a <code>style.adaptivity</code> of its own and it keeps the shared verdict but uses your palettes, your thresholds, your <code>duration</code>.</li><li><strong>Not at all.</strong> <code>LiquidGlassAdaptivity.none</code> on a surface opts it out completely, even inside an area or a scaffold that adapts everything else: it keeps its plain <code>appearance.color</code> and no palette is installed over its child.</li><li><strong>Pinned, with no sampling at all.</strong> <code>permanentBrightness</code> when you already know what is behind the glass and it is not going to change — a lens on a background you authored, or over a photo you shipped. It is <em>not</em> the app’s light/dark mode: it is you choosing which of the two palettes this lens wears, permanently. This one needs no scaffold, no view and no sampler — nothing reads pixels for it, because the answer was given.</li></ul>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-c">// pinned: this lens is always on the dark palette, and never samples</span>
+<span class="t-y">LiquidGlassLens</span>(
+  <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(
+    <span class="t-a">adaptivity</span>: <span class="t-y">LiquidGlassAdaptivity</span>(
+      <span class="t-a">permanentBrightness</span>: <span class="t-y">Brightness</span>.dark,
+    ),
+  ),
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">Icon</span>(<span class="t-y">Icons</span>.favorite),
+)</code></pre></div>
+<h2 id="where-the-verdict-comes-from">Where the verdict comes from<a class="anchor" href="#where-the-verdict-comes-from" aria-label="Link to this section">#</a></h2>
+<h2 id="where-the-verdict-comes-from">Where the verdict comes from<a class="anchor" href="#where-the-verdict-comes-from" aria-label="Link to this section">#</a></h2>
+<p>In priority order, and the first one that answers wins:</p>
+<ul class="bullets"><li><code>permanentBrightness</code> — a manual verdict that never yields, and the only one that stops captures for that surface. Use it when you already know what is behind the glass, or to drive the palette from your own state.</li><li>A followed <strong>`link`</strong> — on a consumer, a link always means <em>follow it</em>.</li><li>The enclosing <strong>`LiquidGlassAdaptiveArea`</strong> — descendants follow it with no link needed.</li><li><strong>Its own sampling</strong>, when the surface sits under an open sampler: the view takes a second, tiny capture of its background, converts the pixels to perceptual CIE L* lightness, and classifies that surface’s own bounds with smoothing and hysteresis.</li><li><code>initialBrightness</code> — a <em>guess</em>, not a verdict. It holds only until sampling produces something real, then yields: a matching guess means nothing moves on entry, a wrong one animates into the truth.</li><li><code>brightnessFallback</code> — the bottom of the chain, for a surface that cannot read pixels at all. <code>appTheme</code> (the default) reads <code>Theme.of(context).brightness</code>; <code>platform</code> reads <code>MediaQuery.platformBrightness</code>, the OS switch, which <code>MaterialApp.themeMode</code> does <strong>not</strong> affect.</li></ul>
+<aside class="note warn"><span class="label">WATCH OUT</span><p><strong>Outside a `MaterialApp`, use `platform`.</strong> <code>Theme</code> has no <code>maybeOf</code>, so with no <code>Theme</code> ancestor <code>Theme.of</code> silently returns Flutter’s fallback theme and <code>appTheme</code> reads <em>light</em> instead of following the device. Separately, <code>LiquidGlassAdaptivity.none</code> opts a surface out entirely — it keeps its plain <code>appearance.color</code> and installs no palette, even inside an area. That is not the same as pinning: <code>permanentBrightness</code> still uses the palettes, just on one side.</p></aside>
+<aside class="note"><span class="label">NOTE</span><p>The sampler is <strong>not</strong> the rendering capture, and it is far smaller than one. It reads the background at <code>pixelRatio: 0.05</code> — a 400px-wide page becomes a ~20px thumbnail, a few kilobytes — at most <strong>8 times a second</strong>, and one pass answers every adaptive surface in the view: ten of them cost one capture, not ten. It runs only while something on screen is actually adaptive, and it is <strong>idle-gated</strong> — if the page renders no frames, nothing is sampled at all, because pixels cannot change without a frame. A still screen costs literally nothing, and a moving one costs a 20px thumbnail eight times a second. This is not a performance decision you have to weigh.</p></aside>
+<h2 id="the-palettes">The palettes<a class="anchor" href="#the-palettes" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><colgroup><col style="width:30.8%"><col style="width:23.1%"><col style="width:46.2%"></colgroup><thead><tr><th>Field</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Field"><code>glassColorOnDark</code></td><td data-label="Default"><code>0x26000000</code></td><td data-label="What it does">Glass tint while the background behind the lens is dark.</td></tr><tr><td data-label="Field"><code>contentColorOnDark</code></td><td data-label="Default"><code>white</code></td><td data-label="What it does">Icon and text colour over a dark background.</td></tr><tr><td data-label="Field"><code>glassColorOnLight</code></td><td data-label="Default"><code>0x3DFFFFFF</code></td><td data-label="What it does">Glass tint over a light background.</td></tr><tr><td data-label="Field"><code>contentColorOnLight</code></td><td data-label="Default"><code>0xFF1C1C1E</code></td><td data-label="What it does">Icon and text colour over a light background.</td></tr><tr><td data-label="Field"><code>duration</code></td><td data-label="Default"><code>300ms</code></td><td data-label="What it does">How long a flip animates.</td></tr><tr><td data-label="Field"><code>initialBrightness</code></td><td data-label="Default"><code>null</code></td><td data-label="What it does">What to assume <strong>before the first verdict arrives</strong> — your guess at what the widget mounts over.</td></tr><tr><td data-label="Field"><code>continuousGlassColor</code></td><td data-label="Default"><code>false</code></td><td data-label="What it does">Glides the tint through the whole range instead of switching between the two ends.</td></tr></tbody></table></div>
+<h2 id="one-verdict-for-a-whole-cluster">One verdict for a whole cluster<a class="anchor" href="#one-verdict-for-a-whole-cluster" aria-label="Link to this section">#</a></h2>
+<p>Five adaptive lenses in a row each sample their own patch, and over a busy photo they can disagree — one flips while its neighbour does not, and the row shimmers. <code>LiquidGlassAdaptiveArea</code> fixes that: an invisible region that paints nothing, samples <strong>its own</strong> bounds once, and hands the single verdict to every adaptive descendant. One region, one answer, flips in lockstep.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassAdaptiveArea</span>(
+  <span class="t-a">adaptivity</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassAdaptivity</span>(),
+  <span class="t-a">systemChrome</span>: <span class="t-y">LiquidGlassSystemChrome</span>.statusBar,
+  <span class="t-a">child</span>: <span class="t-y">Row</span>(<span class="t-a">children</span>: myGlassActions),
+)</code></pre></div>
+<p>A descendant with no adaptivity of its own inherits the area's palettes entirely. A descendant that has its own keeps its palettes but still follows the area's verdict — unless it carries an explicit <code>permanentBrightness</code>, because manual always wins, or its own <code>link</code>, because an explicit channel beats an ambient one.</p>
+<h2 id="links-for-followers-that-cannot-sit-inside">Links — for followers that cannot sit inside<a class="anchor" href="#links-for-followers-that-cannot-sit-inside" aria-label="Link to this section">#</a></h2>
+<p>Some followers cannot be in the area's subtree: a different branch of the tree, or a component with a render pipeline of its own — <code>LiquidGlassTabBar</code> in glass-pill mode. A <code>LiquidGlassAdaptivityLink</code> is the channel between them. <strong>On an area a link means publish; on a surface it means follow.</strong></p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">final</span> link = <span class="t-y">LiquidGlassAdaptivityLink</span>();
+
+<span class="t-y">LiquidGlassAdaptiveArea</span>(                         <span class="t-c">// PUBLISHER</span>
+  adaptivity: myPalettes.<span class="t-f">copyWith</span>(<span class="t-a">link</span>: link),
+  <span class="t-a">child</span>: <span class="t-y">MyHeader</span>(),
+)
+
+<span class="t-y">LiquidGlassLens</span>(                                 <span class="t-c">// FOLLOWER, anywhere</span>
+  style: <span class="t-y">LiquidGlassStyle</span>(
+    <span class="t-a">adaptivity</span>: myPalettes.<span class="t-f">copyWith</span>(<span class="t-a">link</span>: link),
+  ),
+  <span class="t-a">child</span>: myAction,
+)</code></pre></div>
+<p>Use one publisher per link. A follower never samples — it mirrors, flipping on the same frame — so give publisher and followers the same <code>duration</code> and the transitions run in lockstep. The link is a plain <code>ValueNotifier&lt;Brightness?&gt;</code>, so your app can read it, or drive a whole group by setting <code>value</code> itself; it also carries a <code>lightness</code> notifier that followers running <code>continuousGlassColor</code> glide from. An area given no link still works — it mints a private one for its own subtree.</p>
+<h2 id="holding-still-and-adapting-on-cue">Holding still, and adapting on cue<a class="anchor" href="#holding-still-and-adapting-on-cue" aria-label="Link to this section">#</a></h2>
+<p>Sampling every frame of a fling is wasted work, and palettes flipping mid-scroll can look busy. <code>LiquidGlassAdaptivityController</code> pauses a whole group and lets you take a single look on your own cue — a scroll settling, a page entering. <code>adaptOnce()</code> gives every widget holding the controller exactly one look: it samples, animates to the result, and freezes again, with <code>enabled</code> still false throughout. <code>enable()</code> and <code>disable()</code> toggle continuous adaptation.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">final</span> adaptCtrl = <span class="t-y">LiquidGlassAdaptivityController</span>(<span class="t-a">enabled</span>: <span class="t-k">false</span>);
+
+<span class="t-y">NotificationListener</span>&lt;<span class="t-y">ScrollEndNotification</span>&gt;(
+  <span class="t-a">onNotification</span>: (_) { adaptCtrl.<span class="t-f">adaptOnce</span>(); <span class="t-k">return</span> <span class="t-k">false</span>; },
+  <span class="t-a">child</span>: myFeed,
+)</code></pre></div>
+<h2 id="bare-icons-and-text">Bare icons and text<a class="anchor" href="#bare-icons-and-text" aria-label="Link to this section">#</a></h2>
+<p>A lens installs the adaptive colour for its own child only, so a hero title sitting straight on a photo has no way to follow along. <code>LiquidGlassAdaptiveContent</code> closes that gap — same verdict machine, same animated <code>IconTheme</code> and <code>DefaultTextStyle</code>, no glass.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassAdaptiveContent</span>(
+  <span class="t-a">adaptivity</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassAdaptivity</span>(),
+  <span class="t-a">child</span>: <span class="t-y">Text</span>(<span class="t-s">'Reykjavík'</span>, <span class="t-a">style</span>: <span class="t-y">TextStyle</span>(<span class="t-a">fontSize</span>: <span class="t-n">34</span>)),
+)</code></pre></div>
+<p>With <code>adaptivity</code> left null it inherits the enclosing area's config entirely. And for content that ignores <code>IconTheme</code> and <code>DefaultTextStyle</code> — an <code>SvgPicture</code>, a <code>CustomPaint</code>, a halo that has to invert with the ink it sits under — it takes a <strong>`builder`</strong> instead, handing you the colour and the verdict directly:</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassAdaptiveContent</span>(
+  <span class="t-a">builder</span>: (context, color, brightness) =&gt; <span class="t-y">SvgPicture</span>.<span class="t-f">asset</span>(
+    <span class="t-s">'assets/logo.svg'</span>,
+    <span class="t-a">colorFilter</span>: <span class="t-y">ColorFilter</span>.<span class="t-f">mode</span>(color, <span class="t-y">BlendMode</span>.srcIn),
+  ),
+)</code></pre></div>
+<aside class="note tip"><span class="label">TIP</span><p><code>systemChrome</code> lets an area drive the status-bar icon brightness from the same verdict, so the system icons flip with your glass instead of against it.</p></aside>
+</div>
+<nav class="pager"><a href="touch.html"><span class="dir">PREVIOUS</span>Touch</a><a class="next" href="morph.html"><span class="dir">NEXT</span>Morph</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="adaptivity" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Liquid Glass Easy — Real glass for Flutter.</title>
+<meta name="description" content="A shader lens that refracts, magnifies and tints what is behind it, and answers a finger like a soft body — Apple’s Liquid Glass, the iOS 26 and iOS 27 material, on Impeller and on the web.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/index.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Liquid Glass Easy — Real glass for Flutter.">
+<meta property="og:description" content="A shader lens that refracts, magnifies and tints what is behind it, and answers a finger like a soft body — Apple’s Liquid Glass, the iOS 26 and iOS 27 material, on Impeller and on the web.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Liquid Glass Easy — Real glass for Flutter.">
+<meta name="twitter:description" content="A shader lens that refracts, magnifies and tints what is behind it, and answers a finger like a soft body — Apple’s Liquid Glass, the iOS 26 and iOS 27 material, on Impeller and on the web.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"SoftwareSourceCode","name":"liquid_glass_easy","description":"A shader lens that refracts, magnifies and tints what is behind it, and answers a finger like a soft body — Apple’s Liquid Glass, the iOS 26 and iOS 27 material, on Impeller and on the web.","url":"https://ahmeedgamil.github.io/liquid_glass_easy","codeRepository":"https://github.com/AhmeedGamil/liquid_glass_easy","programmingLanguage":"Dart","runtimePlatform":"Flutter","version":"4.3.1","license":"https://opensource.org/licenses/MIT","author":{"@type":"Person","name":"Ahmed Gamil"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/index.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/index.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap">
+<header class="hero">
+<p class="eyebrow-row">
+<span class="pill">v4.3.1</span>
+<span class="pill">MIT</span>
+<span class="pill">Impeller &amp; Skia</span>
+<span class="pill">iOS · Android · Web · Desktop</span>
+</p>
+<h1>Real glass for Flutter.</h1>
+<p class="lede">A shader lens that refracts, magnifies and tints what is behind it, and answers a finger like a soft body — Apple’s Liquid Glass, the iOS 26 and iOS 27 material, on Impeller and on the web.</p>
+<div class="cta">
+<a class="btn primary" href="start.html">Get started</a>
+<button class="btn mono copy-inline" type="button" dir="ltr"><code>flutter pub add liquid_glass_easy</code></button>
+<a class="btn stat" href="https://github.com/AhmeedGamil/liquid_glass_easy" title="Stars on GitHub" rel="noopener"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><strong data-stat="stars" dir="ltr">121</strong><span class="unit">stars</span></a>
+<a class="btn stat" href="https://pub.dev/packages/liquid_glass_easy" title="Likes on pub.dev" rel="noopener"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><strong data-stat="likes" dir="ltr">260</strong><span class="unit">likes</span></a>
+</div>
+</header>
+<figure class="demo hero-demo">
+<div class="demo-frame">
+<iframe src="../demos/index.html?d=lens-plain&amp;embed=1&amp;v=-5acfe021d" title="Liquid glass" allow="clipboard-write"></iframe>
+</div>
+<figcaption>Live, in your browser — drag the glass across the photo. <a href="../demos/index.html?d=lens-plain&amp;v=-5acfe021d">open full screen ↗</a></figcaption>
+</figure>
+<section class="section">
+<h2>Basics</h2>
+<p class="sub">Install it, put one lens on screen, and learn what the engine is doing.</p>
+<div class="cards">
+<a class="card" href="start.html"><div class="t">Getting started</div><div class="d">Install it, and get one lens on screen.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>Engines and the view</h2>
+<p class="sub">Impeller reads the backdrop, Skia captures one, and what that changes.</p>
+<div class="cards">
+<a class="card" href="engines.html"><div class="t">Engines and the view</div><div class="d">Impeller reads the backdrop. Skia needs a capture. Same widgets.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>The material</h2>
+<p class="sub">The lens itself: its style, its touch response, and the ways lenses combine.</p>
+<div class="cards">
+<a class="card" href="lens.html"><div class="t">The lens and its style</div><div class="d">One widget, one style object: shape, appearance, refraction.</div></a>
+<a class="card" href="lite.html"><div class="t">Lite glass</div><div class="d">The material without the shader: frost, tint and rim, and nothing to compile.</div></a>
+<a class="card" href="batch.html"><div class="t">Batch</div><div class="d">Any number of lenses, one read of the backdrop — on Impeller.</div></a>
+<a class="card" href="blend.html"><div class="t">Blend</div><div class="d">Two to eight lenses, fused into one liquid surface.</div></a>
+<a class="card" href="group.html"><div class="t">Group</div><div class="d">Several lenses, one sheet of glass, one backdrop read.</div></a>
+<a class="card" href="touch.html"><div class="t">Touch</div><div class="d">Glass that answers a finger — and never moves.</div></a>
+<a class="card" href="adaptivity.html"><div class="t">Adaptivity</div><div class="d">Glass that reads what is behind it and changes its mind.</div></a>
+<a class="card" href="morph.html"><div class="t">Morph</div><div class="d">Glass that measures its child and flows to the new size.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>Components</h2>
+<p class="sub">Drop-in glass controls with the wiring already done.</p>
+<div class="cards">
+<a class="card" href="components.html"><div class="t">Components</div><div class="d">Drop-in controls with the blocks already wired.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>Craft</h2>
+<p class="sub">Making it fast, legible and correct on every engine.</p>
+<div class="cards">
+<a class="card" href="efficiency.html"><div class="t">Using it efficiently</div><div class="d">Pick the right piece, and the cost mostly takes care of itself.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>API reference</h2>
+<p class="sub">Every exported type, generated from the source.</p>
+<div class="cards">
+<a class="card" href="api-view.html"><div class="t">The view<span class="count">9</span></div><div class="d">The capture pipeline the Skia and web backends need, and its controllers.</div></a>
+<a class="card" href="api-lens.html"><div class="t">The lens and its style<span class="count">20</span></div><div class="d">One widget and the descriptor that decides how it looks: shape, appearance, refraction, and the value objects underneath them.</div></a>
+<a class="card" href="api-grouping.html"><div class="t">Combining lenses<span class="count">3</span></div><div class="d">Three ways several lenses can share one read of the backdrop, or fuse into one surface.</div></a>
+<a class="card" href="api-touch.html"><div class="t">Touch and motion<span class="count">9</span></div><div class="d">How a surface answers a finger, and the moving-glass model the slider and the nav pill are built from.</div></a>
+<a class="card" href="api-adaptivity.html"><div class="t">Adaptivity and legibility<span class="count">12</span></div><div class="d">Glass that reads what is behind it and flips its tint and its content colour, plus the scroll edge that keeps floating chrome legible.</div></a>
+<a class="card" href="api-components.html"><div class="t">Components<span class="count">16</span></div><div class="d">The drop-in controls: buttons, dialogs, sheets, the slider, the switch and the morph.</div></a>
+<a class="card" href="api-chrome.html"><div class="t">App chrome<span class="count">14</span></div><div class="d">The scaffold, the bars that float over a page, and the glyph slots every icon in them accepts.</div></a>
+<a class="card" href="api-shape-helpers.html"><div class="t">Shape helpers<span class="count">7</span></div><div class="d">The free functions the renderers use to clip and trace a lens outline. Exported because both halves of the library need them; you will rarely call one directly.</div></a>
+</div>
+</section>
+<section class="section">
+<h2>Live demos</h2>
+<p class="sub">Running in your browser — not a recording. Each opens the demo app with its own notes and code.</p>
+<div class="cards two">
+<a class="card" href="../demos/index.html?d=touch&amp;v=-5acfe021d"><div class="t">Touch</div><div class="d">Press and drag a glass card — it deforms, and never moves.</div></a>
+<a class="card" href="../demos/index.html?d=blend&amp;v=-5acfe021d"><div class="t">Blend</div><div class="d">Drag glass shapes together and watch their outlines fuse into one.</div></a>
+<a class="card" href="../demos/index.html?d=photos&amp;v=-5acfe021d"><div class="t">Photo library</div><div class="d">A real app: an edge-to-edge grid under a glass title bar.</div></a>
+<a class="card" href="../demos/index.html?d=scaffold&amp;v=-5acfe021d"><div class="t">Scaffold</div><div class="d">A page that captures itself, with a header and a tab bar over it.</div></a>
+<a class="card" href="../demos/index.html?d=adaptivity&amp;v=-5acfe021d"><div class="t">Adaptivity</div><div class="d">Every surface judges the photo behind itself and flips on its own.</div></a>
+</div>
+</section>
+<aside class="note" style="margin-top:34px">
+<span class="label">ON THE WEB</span>
+<p>The web is always Skia, never Impeller, so every demo here is wrapped in a <code>LiquidGlassView</code> — otherwise the glass would degrade to a plain frosted blur. On a phone none of that setup is needed.</p>
+</aside>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="index" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+<footer class="site">
+<span>MIT · built by Ahmed Gamil</span>
+<span><a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub</a> · <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev</a> · v4.3.1</span>
+</footer>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

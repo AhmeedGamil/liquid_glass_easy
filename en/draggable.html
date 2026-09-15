@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Draggable · Liquid Glass Easy</title>
+<meta name="description" content="Drag wiring you do not have to write again.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/draggable.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/draggable.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/draggable.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/draggable.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Draggable · Liquid Glass Easy">
+<meta property="og:description" content="Drag wiring you do not have to write again.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/draggable.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Draggable · Liquid Glass Easy">
+<meta name="twitter:description" content="Drag wiring you do not have to write again.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Draggable","description":"Drag wiring you do not have to write again.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/en/draggable.html","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="draggable">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/draggable.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/draggable.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html" aria-current="page">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=draggable&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="Draggable"></iframe></div><figcaption>Drag it, and watch the offset — <a href="../demos/index.html?d=draggable&amp;v=-5acfe021d">open full screen ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>Draggable</h1>
+<p class="tagline">Drag wiring you do not have to write again.</p>
+<p><code>LiquidGlassDraggable</code> wraps any widget, moves it with the finger, keeps the offset itself and reports it through <code>onChanged</code>. The child keeps its layout slot, so nothing around it reflows as it travels.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassDraggable</span>(
+  <span class="t-a">enabled</span>: <span class="t-k">true</span>,
+  <span class="t-a">initialOffset</span>: <span class="t-y">Offset</span>.zero,
+  <span class="t-a">onChanged</span>: (o) =&gt; <span class="t-f">setState</span>(() =&gt; offset = o),
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">SizedBox</span>.<span class="t-f">square</span>(
+    <span class="t-a">dimension</span>: <span class="t-n">190</span>,
+    <span class="t-a">child</span>: <span class="t-y">LiquidGlassLens</span>(
+      <span class="t-a">style</span>: <span class="t-y">LiquidGlassStyle</span>(
+        <span class="t-a">shape</span>: <span class="t-y">LiquidGlassShape</span>.<span class="t-f">squircle</span>(<span class="t-a">cornerRadius</span>: <span class="t-n">56</span>),
+      ),
+    ),
+  ),
+)</code></pre></div>
+<div class="table-wrap"><table><colgroup><col style="width:25.0%"><col style="width:25.0%"><col style="width:50.0%"></colgroup><thead><tr><th>Parameter</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Parameter"><code>child</code></td><td data-label="Default">—</td><td data-label="What it does">Anything. A lens is the usual one.</td></tr><tr><td data-label="Parameter"><code>enabled</code></td><td data-label="Default"><code>true</code></td><td data-label="What it does">False freezes it in place without unwrapping anything.</td></tr><tr><td data-label="Parameter"><code>initialOffset</code></td><td data-label="Default"><code>Offset.zero</code></td><td data-label="What it does">Where it starts.</td></tr><tr><td data-label="Parameter"><code>onChanged</code></td><td data-label="Default"><code>null</code></td><td data-label="What it does">Called with the offset as it moves.</td></tr></tbody></table></div>
+<aside class="note tip"><span class="label">TIP</span><p>Dragging a lens over a background captured <strong>once</strong> costs a shader pass and nothing else. It is the cheapest interesting thing you can do with glass on Skia.</p></aside>
+</div>
+<nav class="pager"><a href="motion.html"><span class="dir">PREVIOUS</span>Motion</a><a class="next" href="shadow.html"><span class="dir">NEXT</span>Shadow</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="draggable" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

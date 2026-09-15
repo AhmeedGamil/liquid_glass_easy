@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>المحركات والعارض · Liquid Glass Easy</title>
+<meta name="description" content="يقرأ Impeller الخلفية، ويحتاج Skia إلى التقاط. والعناصر نفسها.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/engines.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/engines.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="ar_AR">
+<meta property="og:title" content="المحركات والعارض · Liquid Glass Easy">
+<meta property="og:description" content="يقرأ Impeller الخلفية، ويحتاج Skia إلى التقاط. والعناصر نفسها.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/ar/engines.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="المحركات والعارض · Liquid Glass Easy">
+<meta name="twitter:description" content="يقرأ Impeller الخلفية، ويحتاج Skia إلى التقاط. والعناصر نفسها.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"المحركات والعارض","description":"يقرأ Impeller الخلفية، ويحتاج Skia إلى التقاط. والعناصر نفسها.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/ar/engines.html","inLanguage":"ar","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="engines">
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="التوثيق"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>ابحث في التوثيق…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="اللغة"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">AR</span></button><div class="pop lang-pop"><a href="../en/engines.html" lang="en" dir="ltr" hreflang="en">English</a><a href="../ar/engines.html" lang="ar" dir="rtl" hreflang="ar" aria-current="true">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="المظهر"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>فاتح</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>داكن</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>النظام</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="كل عرض في الموقع يرسم الزجاج الخفيف بلا مظلِّل — بلا التقاط للصفحة، صقيع ولون وحافة. وعند الإيقاف تكسر العروض الضوء." aria-label="زجاج خفيف"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">زجاج خفيف</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">التوثيق</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="شريط التوثيق الجانبي"><div class="nav-group"><div class="nav-title">الأساسيات</div><ul class="nav"><li><a href="start.html">البداية</a></li></ul></div><div class="nav-group"><div class="nav-title">المحركات والعارض</div><ul class="nav"><li><a href="engines.html" aria-current="page">المحركات والعارض</a><ul class="toc"><li><a href="#performance-by-engine-and-platform">الأداء حسب المحرك والمنصة</a></li><li><a href="#blur-then-shader-or-shader-then-blur">تضبيب ثم شيدر، أم شيدر ثم تضبيب</a></li><li><a href="#liquidglassview">LiquidGlassView</a></li><li><a href="#capture-once-or-every-frame">التقاط واحد أم كل إطار</a></li><li><a href="#when-impeller-still-wants-a-view">متى يريد Impeller عارضاً رغم ذلك</a></li><li><a href="#compile-the-shaders-before-the-first-frame">ترجم الشيدرات قبل الإطار الأول</a></li><li><a href="#recommended-settings">إعدادات مقترحة</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">المادة</div><ul class="nav"><li><a href="lens.html">العدسة وأسلوبها</a></li><li><a href="lite.html">الزجاج الخفيف</a></li><li><a href="batch.html">الدفعة</a></li><li><a href="blend.html">الانصهار</a></li><li><a href="group.html">المجموعة</a></li><li><a href="touch.html">اللمس</a></li><li><a href="adaptivity.html">التكيّف</a></li><li><a href="morph.html">التحوّل</a></li></ul></div><div class="nav-group"><div class="nav-title">المكوّنات</div><ul class="nav"><li><a href="components.html">المكوّنات</a><ul class="sub"><li><a href="slider.html">المزلاج</a></li><li><a href="toggle.html">المفتاح</a></li><li><a href="button.html">الزر</a></li><li><a href="fab.html">زر الإجراء العائم</a></li><li><a href="appbar.html">الشريط العلوي</a></li><li><a href="tabbar.html">شريط التبويبات</a></li><li><a href="scaffold.html">الهيكل</a></li><li><a href="scrolledge.html">حافة التمرير</a></li><li><a href="motion.html">الحركة</a></li><li><a href="draggable.html">القابل للسحب</a></li><li><a href="shadow.html">الظل</a></li><li><a href="sheet.html">الأوراق</a></li><li><a href="dialog.html">الحوارات</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">الإتقان</div><ul class="nav"><li><a href="efficiency.html">الاستخدام الكفء</a></li></ul></div><div class="nav-group"><div class="nav-title">مرجع الواجهة</div><ul class="nav"><li><a href="api.html">مرجع الواجهة البرمجية</a></li><li><a href="api-view.html">العارض</a></li><li><a href="api-lens.html">العدسة وأسلوبها</a></li><li><a href="api-grouping.html">دمج العدسات</a></li><li><a href="api-touch.html">اللمس والحركة</a></li><li><a href="api-adaptivity.html">التكيّف والوضوح</a></li><li><a href="api-components.html">المكوّنات</a></li><li><a href="api-chrome.html">هيكل التطبيق</a></li><li><a href="api-shape-helpers.html">دوال الأشكال</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">عروض حية ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=capture&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="الالتقاط"></iframe></div><figcaption>أدر مقابض الالتقاط — <a href="../demos/index.html?d=capture&amp;v=-5acfe021d">افتح بملء الشاشة ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>المحركات والعارض</h1>
+<p class="tagline">يقرأ Impeller الخلفية، ويحتاج Skia إلى التقاط. والعناصر نفسها.</p>
+<p>يحتاج الانكسار إلى البكسلات التي خلف الزجاج. يستطيع Impeller أن يناول الشيدر الخلفيةَ الحية، ولا يستطيع Skia ذلك. هذا الفارق وحده هو القصة كلها، و<code>LiquidGlassView</code> هو الجواب عنه.</p>
+<div class="table-wrap"><table><colgroup><col style="width:40.0%"><col style="width:60.0%"></colgroup><thead><tr><th>الإعداد</th><th>ما تفعله العدسة</th></tr></thead><tbody><tr><td data-label="الإعداد"><strong>Impeller</strong> — الافتراضي على iOS و Android</td><td data-label="ما تفعله العدسة">تكسر <strong>الخلفية الحية</strong>: كل ما رسمه تطبيقك خلفها. بلا عارض ولا عنصر خلفية ولا إعداد.</td></tr><tr><td data-label="الإعداد"><strong>Skia</strong> داخل <code>LiquidGlassView</code></td><td data-label="ما تفعله العدسة">تكسر <code>backgroundWidget</code> <strong>الملتقَط</strong> للعارض، أينما جلست العدسة داخل <code>child</code> الخاص به.</td></tr><tr><td data-label="الإعداد"><strong>Skia</strong> بلا عارض</td><td data-label="ما تفعله العدسة">تتراجع إلى سطح <strong>مصنفر</strong> — ضبابية ولون وحافة — وتسجّل تنبيه تنقيح واحداً.</td></tr></tbody></table></div>
+<aside class="note"><span class="label">ملاحظة</span><p>الويب دائماً Skia. يفتقر كل من CanvasKit ومُصيّر HTML إلى شيدر الخلفية، فكل صفحة ويب تريد انكساراً حقيقياً تحتاج <code>LiquidGlassView</code>. وكل عرض على هذا الموقع موضوع داخل واحد.</p></aside>
+<h2 id="performance-by-engine-and-platform">الأداء حسب المحرك والمنصة<a class="anchor" href="#performance-by-engine-and-platform" aria-label="Link to this section">#</a></h2>
+<p><strong>Impeller هو أفضل محرك للزجاج</strong> — أداءً ومظهراً. تقرأ العدسة الخلفية الموجودة أصلاً لدى وحدة الرسوميات، فيكلّف الإطار تمريرة شيدر واحدة لكل عدسة (واحدة لكل دفعة مع <code>LiquidGlassBatch</code>) ولا يُرسم شيء مرتين. أما Skia فعليه أن ينتج الخلفية كنسيج أولاً، وهذا الالتقاط هو كامل كلفته. ومقدار الضرر يعتمد على المكان الذي يعمل فيه Skia.</p>
+<div class="table-wrap"><table><colgroup><col style="width:27.3%"><col style="width:18.2%"><col style="width:54.5%"></colgroup><thead><tr><th>أين</th><th>الأداء</th><th>لماذا</th></tr></thead><tbody><tr><td data-label="أين"><strong>Impeller</strong> — iOS و Android</td><td data-label="الأداء"><strong>الأفضل</strong></td><td data-label="لماذا">خلفية حية بلا التقاط. وتبقى العدسات الكثيرة رخيصة داخل دفعة.</td></tr><tr><td data-label="أين"><strong>Skia</strong> — سطح المكتب</td><td data-label="الأداء"><strong>أقوى Skia</strong></td><td data-label="لماذا">وحدة رسوميات سريعة وذاكرة وفيرة تمتصّان الالتقاط؛ والزجاج الكامل بـ<code>pixelRatio: 1.0</code> مع التقاط لحظي مريح.</td></tr><tr><td data-label="أين"><strong>Skia</strong> — الهاتف</td><td data-label="الأداء"><strong>جيد</strong></td><td data-label="لماذا">الالتقاط في المتناول لعدسات قليلة. وخفض <code>pixelRatio</code> مع <code>realTimeCapture: false</code> للخلفيات الساكنة يبقيه سلساً على الهواتف الأقدم.</td></tr><tr><td data-label="أين"><strong>Skia</strong> — الويب</td><td data-label="الأداء"><strong>الأضعف</strong></td><td data-label="لماذا">يعبر الالتقاط مسار WebGL في المتصفح كل إطار، فهو أبطأ مكان للزجاج الكامل. أبقِ عدد العدسات قليلاً، وخفّض <code>pixelRatio</code>، وفضّل الزجاج الخفيف لكل ما هو كثيف.</td></tr></tbody></table></div>
+<h2 id="blur-then-shader-or-shader-then-blur">تضبيب ثم شيدر، أم شيدر ثم تضبيب<a class="anchor" href="#blur-then-shader-or-shader-then-blur" aria-label="Link to this section">#</a></h2>
+<p>يبدو المحركان متطابقين تقريباً، والفارق الوحيد الذي تراه يأتي من ترتيب تشغيل التضبيب وشيدر الانكسار. على <strong>Impeller</strong> تُضبَّب الخلفية <strong>أولاً ثم يعمل الشيدر على البكسلات المضبَّبة</strong>: فالانكسار والتكبير والحافة كلها تثني صورة ناعمة أصلاً، فتكون حافة الزجاج بنعومة داخله وتُقرأ القطعة كلها كمادة واحدة.</p>
+<p>على <strong>Skia</strong> الترتيب معكوس: <strong>يعمل الشيدر أولاً على الالتقاط الحاد، ثم يُطبَّق التضبيب بعده</strong> — وعلى الداخل فقط، فلا تُضبَّب حافة الزجاج. يحتفظ الشريط المنكسر على طول الحافة بتفاصيله، فتبدو حافة Skia أحدّ وأوضح قليلاً من الأسلوب نفسه على Impeller. وهو فارق صغير، و<code>LiquidGlassStyle</code> نفسه يعطي الشكل واللون والانكسار ذاته على الاثنين؛ ما يتغيّر هو نعومة الحافة فحسب. والاستثناء الوحيد على Skia هو حين تستخدم <strong>المُدمِج</strong>: فشيدر <code>LiquidGlassBlender</code> يضبّب العدسات بنفسه، فتُضبَّب حافتها أيضاً وتبدو الحافة كما على Impeller.</p>
+<aside class="note"><span class="label">ملاحظة</span><p>إن ضبطتَ أسلوباً على الويب فبدا أحدّ قليلاً عند الحافة مما هو على الهاتف، فهذا هو السبب — ولا شيء يحتاج تغييراً. ومظهر Impeller هو المرجع.</p></aside>
+<h2 id="liquidglassview">LiquidGlassView<a class="anchor" href="#liquidglassview" aria-label="Link to this section">#</a></h2>
+<p>العارض هو خط الالتقاط: يحوّل <code>backgroundWidget</code> إلى نسيج ثم يسلّم هذا النسيج لكل عدسة داخل <code>child</code>. قائمة معاملاته الكاملة مُولَّدة من الشيفرة في <a href="api-view.html#liquidglassview">صفحة الواجهة</a>، وهذه هي التي ستمدّ يدك إليها فعلاً.</p>
+<div class="table-wrap"><table><colgroup><col style="width:27.3%"><col style="width:18.2%"><col style="width:54.5%"></colgroup><thead><tr><th>المعامل</th><th>الافتراضي</th><th>ما يتحكم به</th></tr></thead><tbody><tr><td data-label="المعامل"><code>backgroundWidget</code></td><td data-label="الافتراضي">—</td><td data-label="ما يتحكم به">الطبقة التي تُلتقط. العدسات تكسر هذه، لا <code>child</code>.</td></tr><tr><td data-label="المعامل"><code>child</code></td><td data-label="الافتراضي"><code>null</code></td><td data-label="ما يتحكم به">واجهتك. أي شيء هنا يمكن أن يحمل عدسة، على أي عمق.</td></tr><tr><td data-label="المعامل"><code>pixelRatio</code></td><td data-label="الافتراضي"><code>1.0</code></td><td data-label="ما يتحكم به">دقة الالتقاط. ما دون <code>1</code> أرخص وأنعم، والزجاج يخفي قدراً مدهشاً من ذلك.</td></tr><tr><td data-label="المعامل"><code>realTimeCapture</code></td><td data-label="الافتراضي"><code>true</code></td><td data-label="ما يتحكم به">إعادة الالتقاط كل إطار. <strong>أطفئه</strong> لخلفية لا تتحرك.</td></tr><tr><td data-label="المعامل"><code>useSync</code></td><td data-label="الافتراضي"><code>true</code></td><td data-label="ما يتحكم به">يُبقي الالتقاط متزامناً مع الإطار قيد البناء. إطفاؤه أرخص وقد يتأخر إطاراً واحداً.</td></tr><tr><td data-label="المعامل"><code>refreshRate</code></td><td data-label="الافتراضي"><code>deviceRefreshRate</code></td><td data-label="ما يتحكم به">يحدّ من تواتر الالتقاط، بمعزل عن معدّل الشاشة.</td></tr><tr><td data-label="المعامل"><code>useImpellerBackdrop</code></td><td data-label="الافتراضي"><code>null</code></td><td data-label="ما يتحكم به">يتجاوز الاكتشاف التلقائي للمحرك. اتركه فارغاً إلا إن كنت تختبر المسار الآخر عن قصد.</td></tr><tr><td data-label="المعامل"><code>controller</code></td><td data-label="الافتراضي"><code>null</code></td><td data-label="ما يتحكم به"><code>LiquidGlassViewController</code>، من أجل <code>captureOnce()</code> — لقطة واحدة عند إشارتك — ولقيادة التكيّف يدوياً.</td></tr><tr><td data-label="المعامل"><code>adaptiveSampling</code></td><td data-label="الافتراضي"><code>null</code></td><td data-label="ما يتحكم به"><strong>على المحركين.</strong> يشغّل التقاط الإضاءة الصغير الذي يقرأه <code>LiquidGlassAdaptivity</code>. والفارغ يعني ألا معاينة إطلاقاً، فترتدّ الأسطح المتكيّفة إلى تخمين. والتقاط واحد يخدم كل سطح متكيّف في العارض، وهو مقيّد بالخمول: شاشة ساكنة لا تعاين شيئاً.</td></tr><tr><td data-label="المعامل"><code>batch</code></td><td data-label="الافتراضي"><code>true</code></td><td data-label="ما يتحكم به"><strong>على Impeller فقط.</strong> يضع عدسات <code>child</code> على قراءة واحدة مشتركة للخلفية، وعدسات <code>backgroundWidget</code> على أخرى. وهو خامل على مسار الالتقاط الذي يقرأ أصلاً مرة واحدة لكل عارض. انظر <a href="batch.html">الحزمة</a>.</td></tr><tr><td data-label="المعامل"><code>regionCapture</code></td><td data-label="الافتراضي"><code>false</code></td><td data-label="ما يتحكم به">يلتقط مستطيل كل عدسة بدل الخلفية كلها — مكسبٌ حين تجلس عدسة صغيرة على خلفية كبيرة، وخسارةٌ حين تنتشر عدسات كثيرة عليها. على مسار <code>useSync</code> في Skia فقط.</td></tr></tbody></table></div>
+<h2 id="capture-once-or-every-frame">التقاط واحد أم كل إطار<a class="anchor" href="#capture-once-or-every-frame" aria-label="Link to this section">#</a></h2>
+<p>يرسم <code>realTimeCapture: true</code> الخلفيةَ في كل إطار. وهذا صحيح لقائمة تنساب أو فيديو أو تدرّج متحرك — أي شيء يتحرك حقاً. وهو هدر خالص لخلفية لا تتغيّر أبداً.</p>
+<p>حين تكون الخلفية ساكنة، خذ لقطة <strong>واحدة</strong> واكسرها إلى الأبد. تحريك عدسة فوق صورة ثابتة لا يكلّف شيئاً إضافياً: يُعاد تشغيل الشيدر، ولا يُعاد رسم أي شيء.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="نسخ" data-copied="تم النسخ">نسخ</button></div><pre><code><span class="t-k">final</span> controller = <span class="t-y">LiquidGlassViewController</span>();
+
+<span class="t-y">LiquidGlassView</span>(
+  <span class="t-a">controller</span>: controller,
+  <span class="t-a">backgroundWidget</span>: <span class="t-k">const</span> <span class="t-y">MyBackground</span>(),
+  <span class="t-a">realTimeCapture</span>: <span class="t-k">false</span>,
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">MyGlassUI</span>(),
+);
+
+<span class="t-c">// Re-snapshot by hand after the background actually changes:</span>
+<span class="t-k">await</span> controller.<span class="t-f">captureOnce</span>();</code></pre></div>
+<p>يشغّل عرض هذه الصفحة خلفيةً لا تكفّ عن الانزلاق. اضبط الالتقاط على <strong>مجمَّد</strong> فيظل الزجاج يكسر أشرطةً تجاوزها الزمن بينما تمضي الأشرطة حوله — والفارق بينهما هو مقدار قِدَم اللقطة، و<code>capture once</code> يغلقه.</p>
+<aside class="note"><span class="label">ملاحظة</span><p>على Impeller لا ينطبق شيء مما <em>سبق</em> — تقرأ العدسة الخلفية مباشرة ولا يوجد التقاط لتضبطه. فـ<code>pixelRatio</code> و<code>realTimeCapture</code> و<code>useSync</code> و<code>refreshRate</code> و<code>regionCapture</code> شأن يخصّ Skia وحده. ويبقى للعارض عملٌ هناك، انظر أدناه.</p></aside>
+<h2 id="when-impeller-still-wants-a-view">متى يريد Impeller عارضاً رغم ذلك<a class="anchor" href="#when-impeller-still-wants-a-view" aria-label="Link to this section">#</a></h2>
+<p>على Impeller لا تحتاج العدسة إلى شيء: تقرأ الخلفية الحية أينما جلست. فيبدو العارض إجراءً شكلياً يخصّ Skia — وهو كذلك بالنسبة للانكسار. لكنه ليس كذلك لبقية ما يوفّره، واثنان منها يستحقان أن تمدّ يدك إليهما على Impeller أيضاً.</p>
+<ul class="bullets"><li><strong>`adaptiveSampling` — وهو غير اختياري.</strong> يحكم <code>LiquidGlassAdaptivity</code> على الخلفية بقراءة بكسلاتها، وقراءة البكسلات تعني التقاطاً. ولا التقاط لدى Impeller: فهو لا يأخذ واحداً أبداً. فـ<code>LiquidGlassView</code> مضبوطاً عليه <code>adaptiveSampling</code> هو الطريق ليجد الزجاج المتكيّف ما يحكم عليه على <strong>كلا</strong> المحركين — وبدونه يرتدّ كل سطح متكيّف إلى التخمين من سِمة التطبيق. وهو التقاط واحد ضئيل (بنسبة بكسل <code>0.05</code>، ثماني مرات في الثانية) تتشاركه كل الأسطح المتكيّفة في العارض، ويتوقف تماماً ما دامت الشاشة ساكنة.</li><li><strong>`batch` — خاص بـImpeller بطبعه.</strong> يحزم العارض عدساته افتراضياً، وهو توفير خالص على Impeller: فمسار الالتقاط يقرأ أصلاً مرة واحدة لكل عارض، بينما على Impeller تنسخ كل عدسة الخلفية لنفسها ما لم تقل الحزمة غير ذلك.</li><li><strong>شجرة واحدة، محركان.</strong> لا يكلّف العارض على Impeller شيئاً وراء العنصر نفسه، فكتابة الصفحة داخله تعني أن الشيفرة ذاتها تعمل على الهاتف وعلى الويب بلا تفرّع.</li></ul>
+<h2 id="compile-the-shaders-before-the-first-frame">ترجم الشيدرات قبل الإطار الأول<a class="anchor" href="#compile-the-shaders-before-the-first-frame" aria-label="Link to this section">#</a></h2>
+<p>هذا ليس عن الالتقاط، ولا عن المحرك أيضاً — بل ينطبق على الاثنين. فبرامج الزجاج تُترجَم مرة واحدة في كل تشغيل للتطبيق، على يد أول عدسة تُركَّب، والعدسة التي لم يصل برنامجها بعد ترسم بديلها المصنفر حتى يصل. و<code>LiquidGlassShaders.ensureLoaded()</code> في <code>main()</code> ينقل تلك الترجمة إلى ما قبل الإطار الأول.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="نسخ" data-copied="تم النسخ">نسخ</button></div><pre><code><span class="t-y">Future</span>&lt;<span class="t-k">void</span>&gt; <span class="t-f">main</span>() <span class="t-k">async</span> {
+  <span class="t-y">WidgetsFlutterBinding</span>.<span class="t-f">ensureInitialized</span>();
+  <span class="t-c">// Every program at once: the lens's, and the blender's.</span>
+  <span class="t-k">await</span> <span class="t-y">LiquidGlassShaders</span>.<span class="t-f">ensureLoaded</span>();
+  <span class="t-f">runApp</span>(<span class="t-k">const</span> <span class="t-y">MyApp</span>());
+}</code></pre></div>
+<aside class="note"><span class="label">ملاحظة</span><p>والمخزن لكل نسخة من التطبيق، فيسدّد ثمنه مرة واحدة وتكون كل عدسة بعد الأولى زجاجاً في إطارها الأول. وهو يهمّ أكثر ما يهمّ حيث يكون التطبيق قصير العمر أو يُعاد إنشاؤه مراراً — كصفحة تضمّن عارض Flutter لكل قسم — إذ لا توجد «عدسة ثانية» يُوزَّع الثمن عليها.</p></aside>
+<h2 id="recommended-settings">إعدادات مقترحة<a class="anchor" href="#recommended-settings" aria-label="Link to this section">#</a></h2>
+<ul class="bullets"><li><strong>للحالة العامة:</strong> <code>useSync: true</code> و <code>pixelRatio: 0.8</code>–<code>1.0</code>.</li><li><strong>عندما يسبق الأداء:</strong> <code>useSync: false</code> و <code>pixelRatio: 0.5</code>–<code>0.7</code>.</li><li><strong>خلفية ساكنة:</strong> <code>realTimeCapture: false</code> يتفوّق على كل المقابض الأخرى مجتمعة.</li></ul>
+</div>
+<nav class="pager"><a href="start.html"><span class="dir">السابق</span>البداية</a><a class="next" href="lens.html"><span class="dir">التالي</span>العدسة وأسلوبها</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="engines" data-lang="ar">
+<h2>التعليقات</h2>
+<p class="comments-sub">التعليقات هي مناقشات GitHub — يمكنك الرد من أيٍّ من المكانين.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="بحث">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="ابحث في التوثيق…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="لا نتائج مطابقة."
+         data-hint="اكتب للبحث"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

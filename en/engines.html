@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Engines and the view · Liquid Glass Easy</title>
+<meta name="description" content="Impeller reads the backdrop. Skia needs a capture. Same widgets.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/engines.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Engines and the view · Liquid Glass Easy">
+<meta property="og:description" content="Impeller reads the backdrop. Skia needs a capture. Same widgets.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Engines and the view · Liquid Glass Easy">
+<meta name="twitter:description" content="Impeller reads the backdrop. Skia needs a capture. Same widgets.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Engines and the view","description":"Impeller reads the backdrop. Skia needs a capture. Same widgets.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/en/engines.html","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="engines">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/engines.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/engines.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html" aria-current="page">Engines and the view</a><ul class="toc"><li><a href="#performance-by-engine-and-platform">Performance by engine and platform</a></li><li><a href="#blur-then-shader-or-shader-then-blur">Blur then shader, or shader then blur</a></li><li><a href="#liquidglassview">LiquidGlassView</a></li><li><a href="#capture-once-or-every-frame">Capture once, or every frame</a></li><li><a href="#when-impeller-still-wants-a-view">When Impeller still wants a view</a></li><li><a href="#compile-the-shaders-before-the-first-frame">Compile the shaders before the first frame</a></li><li><a href="#recommended-settings">Recommended settings</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=capture&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="Capture"></iframe></div><figcaption>Turn the capture knobs — <a href="../demos/index.html?d=capture&amp;v=-5acfe021d">open full screen ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>Engines and the view</h1>
+<p class="tagline">Impeller reads the backdrop. Skia needs a capture. Same widgets.</p>
+<p>Refraction needs the pixels behind the glass. Impeller can hand a shader the live backdrop; Skia cannot. That single difference is the whole story, and <code>LiquidGlassView</code> is the answer to it.</p>
+<div class="table-wrap"><table><colgroup><col style="width:40.0%"><col style="width:60.0%"></colgroup><thead><tr><th>Setup</th><th>What the lens does</th></tr></thead><tbody><tr><td data-label="Setup"><strong>Impeller</strong> — iOS/Android default</td><td data-label="What the lens does">Refracts the <strong>live backdrop</strong>: whatever your app painted behind it. No view, no background widget, no setup.</td></tr><tr><td data-label="Setup"><strong>Skia</strong> inside a <code>LiquidGlassView</code></td><td data-label="What the lens does">Refracts the view’s <strong>captured</strong> <code>backgroundWidget</code>, wherever the lens sits inside the view’s <code>child</code>.</td></tr><tr><td data-label="Setup"><strong>Skia</strong> with no view</td><td data-label="What the lens does">Degrades to a <strong>frosted</strong> surface — blur, tint, rim — and logs a one-time debug notice.</td></tr></tbody></table></div>
+<aside class="note"><span class="label">NOTE</span><p>The web is always Skia. CanvasKit and the HTML renderer both lack the backdrop shader, so every web page that wants real refraction needs a <code>LiquidGlassView</code>. Every demo on this site is inside one.</p></aside>
+<h2 id="performance-by-engine-and-platform">Performance by engine and platform<a class="anchor" href="#performance-by-engine-and-platform" aria-label="Link to this section">#</a></h2>
+<p><strong>Impeller is the best engine for the glass</strong> — in performance and visually. The lens reads the backdrop the GPU already has, so a frame costs one shader pass per lens (one per batch, with <code>LiquidGlassBatch</code>) and nothing is rasterized twice. Skia has to produce the backdrop as a texture first, and that capture is the whole of its cost. How much it hurts depends on where Skia is running.</p>
+<div class="table-wrap"><table><colgroup><col style="width:27.3%"><col style="width:18.2%"><col style="width:54.5%"></colgroup><thead><tr><th>Where</th><th>Performance</th><th>Why</th></tr></thead><tbody><tr><td data-label="Where"><strong>Impeller</strong> — iOS, Android</td><td data-label="Performance"><strong>Best</strong></td><td data-label="Why">Live backdrop, no capture. Many lenses stay cheap inside a batch.</td></tr><tr><td data-label="Where"><strong>Skia</strong> — desktop</td><td data-label="Performance"><strong>Strongest Skia</strong></td><td data-label="Why">A fast GPU and plenty of memory absorb the capture; full glass at <code>pixelRatio: 1.0</code> with real-time capture is comfortable.</td></tr><tr><td data-label="Where"><strong>Skia</strong> — mobile</td><td data-label="Performance"><strong>Good</strong></td><td data-label="Why">The capture is affordable for a few lenses. Lower <code>pixelRatio</code> and <code>realTimeCapture: false</code> for static backgrounds keep it smooth on older phones.</td></tr><tr><td data-label="Where"><strong>Skia</strong> — web</td><td data-label="Performance"><strong>Weakest</strong></td><td data-label="Why">The capture crosses the browser’s WebGL path every frame, so it is the slowest place for full glass. Keep lens counts low, drop <code>pixelRatio</code>, and prefer lite glass for anything dense.</td></tr></tbody></table></div>
+<h2 id="blur-then-shader-or-shader-then-blur">Blur then shader, or shader then blur<a class="anchor" href="#blur-then-shader-or-shader-then-blur" aria-label="Link to this section">#</a></h2>
+<p>The two engines look almost the same, and the one difference you can see comes from the order in which the blur and the refraction shader run. On <strong>Impeller</strong> the backdrop is <strong>blurred first and the shader runs on the blurred pixels</strong>: the refraction, the magnification and the rim all bend an already-soft image, so the edge of the glass is as soft as its interior and the whole piece reads as one material.</p>
+<p>On <strong>Skia</strong> the order is reversed: <strong>the shader runs first on the sharp capture, and the blur is applied afterwards</strong> — and only to the interior, so the border of the glass is not blurred. The refracted band along the edge keeps its detail, which makes a Skia rim look a touch crisper and more defined than the same style on Impeller. It is a small difference and the same <code>LiquidGlassStyle</code> gives the same shape, tint and refraction on both; it is only the softness of the edge that moves. The one exception on Skia is when you use the <strong>blender</strong>: the <code>LiquidGlassBlender</code> shader blurs the lenses itself, so their border is blurred too and the edge looks the same as on Impeller.</p>
+<aside class="note"><span class="label">NOTE</span><p>If you tune a style on the web and it looks a little sharper at the edge than on a phone, this is why — nothing needs changing. The Impeller look is the reference one.</p></aside>
+<h2 id="liquidglassview">LiquidGlassView<a class="anchor" href="#liquidglassview" aria-label="Link to this section">#</a></h2>
+<p>The view is the capture pipeline: it rasterizes <code>backgroundWidget</code> into a texture and hands that texture to every lens inside <code>child</code>. Its full parameter list is generated from the source on the <a href="api-view.html#liquidglassview">API page</a>; these are the ones you will actually reach for.</p>
+<div class="table-wrap"><table><colgroup><col style="width:27.3%"><col style="width:18.2%"><col style="width:54.5%"></colgroup><thead><tr><th>Parameter</th><th>Default</th><th>What it controls</th></tr></thead><tbody><tr><td data-label="Parameter"><code>backgroundWidget</code></td><td data-label="Default">—</td><td data-label="What it controls">The layer being captured. Lenses refract this, not the <code>child</code>.</td></tr><tr><td data-label="Parameter"><code>child</code></td><td data-label="Default"><code>null</code></td><td data-label="What it controls">Your UI. Anything here can hold a lens, at any depth.</td></tr><tr><td data-label="Parameter"><code>pixelRatio</code></td><td data-label="Default"><code>1.0</code></td><td data-label="What it controls">Resolution of the capture. Below <code>1</code> is cheaper and softer; the glass hides a surprising amount of it.</td></tr><tr><td data-label="Parameter"><code>realTimeCapture</code></td><td data-label="Default"><code>true</code></td><td data-label="What it controls">Re-capture every frame. Turn it <strong>off</strong> for a background that does not move.</td></tr><tr><td data-label="Parameter"><code>useSync</code></td><td data-label="Default"><code>true</code></td><td data-label="What it controls">Keeps the capture in step with the frame being built. Off is cheaper and can lag by a frame.</td></tr><tr><td data-label="Parameter"><code>refreshRate</code></td><td data-label="Default"><code>deviceRefreshRate</code></td><td data-label="What it controls">Caps how often the capture runs, independent of the display.</td></tr><tr><td data-label="Parameter"><code>useImpellerBackdrop</code></td><td data-label="Default"><code>null</code></td><td data-label="What it controls">Overrides engine auto-detection. Leave it null unless you are testing the other path on purpose.</td></tr><tr><td data-label="Parameter"><code>controller</code></td><td data-label="Default"><code>null</code></td><td data-label="What it controls">A <code>LiquidGlassViewController</code>, for <code>captureOnce()</code> — one snapshot on your cue — and for driving adaptivity by hand.</td></tr><tr><td data-label="Parameter"><code>adaptiveSampling</code></td><td data-label="Default"><code>null</code></td><td data-label="What it controls"><strong>Both engines.</strong> Turns on the tiny background-luminance capture <code>LiquidGlassAdaptivity</code> reads. Null means no sampling at all, so adaptive surfaces inside fall back to a guess. One capture serves every adaptive surface in the view, and it is idle-gated: a still screen samples nothing.</td></tr><tr><td data-label="Parameter"><code>batch</code></td><td data-label="Default"><code>true</code></td><td data-label="What it controls"><strong>Impeller only.</strong> Puts the lenses in <code>child</code> on one shared read of the backdrop, and those in <code>backgroundWidget</code> on another. Inert on the capture path, which already reads once per view. See <a href="batch.html">Batch</a>.</td></tr><tr><td data-label="Parameter"><code>regionCapture</code></td><td data-label="Default"><code>false</code></td><td data-label="What it controls">Captures each lens’s own rect instead of the whole background — a win when a small lens sits on a large background, a loss when many lenses are spread across it. Skia <code>useSync</code> path only.</td></tr></tbody></table></div>
+<h2 id="capture-once-or-every-frame">Capture once, or every frame<a class="anchor" href="#capture-once-or-every-frame" aria-label="Link to this section">#</a></h2>
+<p><code>realTimeCapture: true</code> rasterizes the background every frame. That is right for a scrolling feed, a video, an animating gradient — anything genuinely moving. It is pure waste for a background that never changes.</p>
+<p>When the background is static, take <strong>one</strong> snapshot and refract it forever. Moving a lens over a fixed image costs nothing extra: the shader re-runs, but nothing re-rasterizes.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">final</span> controller = <span class="t-y">LiquidGlassViewController</span>();
+
+<span class="t-y">LiquidGlassView</span>(
+  <span class="t-a">controller</span>: controller,
+  <span class="t-a">backgroundWidget</span>: <span class="t-k">const</span> <span class="t-y">MyBackground</span>(),
+  <span class="t-a">realTimeCapture</span>: <span class="t-k">false</span>,
+  <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">MyGlassUI</span>(),
+);
+
+<span class="t-c">// Re-snapshot by hand after the background actually changes:</span>
+<span class="t-k">await</span> controller.<span class="t-f">captureOnce</span>();</code></pre></div>
+<p>This page's demo runs a background that never stops sliding. Set the capture to <strong>frozen</strong> and the glass goes on refracting bands that have already moved on, while the ones around it carry on — the offset between them is how old the snapshot has become, and <code>capture once</code> closes it.</p>
+<aside class="note"><span class="label">NOTE</span><p>On Impeller none of <em>this</em> applies — the lens reads the backdrop directly and there is no capture to configure. <code>pixelRatio</code>, <code>realTimeCapture</code>, <code>useSync</code>, <code>refreshRate</code> and <code>regionCapture</code> are Skia concerns only. The view still has a job there; see below.</p></aside>
+<h2 id="when-impeller-still-wants-a-view">When Impeller still wants a view<a class="anchor" href="#when-impeller-still-wants-a-view" aria-label="Link to this section">#</a></h2>
+<p>On Impeller a lens needs nothing: it reads the live backdrop wherever it sits. So the view looks like a Skia formality — and it is, for refraction. It is not for everything else the view provides, and two of those are worth reaching for on Impeller too.</p>
+<ul class="bullets"><li><strong>`adaptiveSampling` — the one that is not optional.</strong> <code>LiquidGlassAdaptivity</code> judges the background by reading its pixels, and reading pixels means a capture. Impeller has none: it never takes one. So a <code>LiquidGlassView</code> with <code>adaptiveSampling</code> set is how adaptive glass gets something to judge on <strong>either</strong> engine — without it, every adaptive surface inside falls back to guessing from the app theme. It is one tiny capture (pixel ratio <code>0.05</code>, 8 per second) shared by every adaptive surface in the view, and it stops entirely while the screen is still.</li><li><strong>`batch` — Impeller-only by nature.</strong> The view batches its lenses by default, which is a pure Impeller saving: it is the capture path that already reads once per view, while on Impeller each lens copies the backdrop for itself unless a batch says otherwise.</li><li><strong>One tree, both engines.</strong> A view costs nothing on Impeller beyond the widget itself, so writing the page inside one means the same code runs on a phone and on the web without a branch.</li></ul>
+<h2 id="compile-the-shaders-before-the-first-frame">Compile the shaders before the first frame<a class="anchor" href="#compile-the-shaders-before-the-first-frame" aria-label="Link to this section">#</a></h2>
+<p>This one is not about the capture, and it is not about the engine either — it applies to both. The glass programs are compiled once per run of the app, by whichever lens mounts first, and a lens whose program has not arrived yet paints its frosted fallback until it does. <code>LiquidGlassShaders.ensureLoaded()</code> in <code>main()</code> moves that compile ahead of the first frame.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">Future</span>&lt;<span class="t-k">void</span>&gt; <span class="t-f">main</span>() <span class="t-k">async</span> {
+  <span class="t-y">WidgetsFlutterBinding</span>.<span class="t-f">ensureInitialized</span>();
+  <span class="t-c">// Every program at once: the lens's, and the blender's.</span>
+  <span class="t-k">await</span> <span class="t-y">LiquidGlassShaders</span>.<span class="t-f">ensureLoaded</span>();
+  <span class="t-f">runApp</span>(<span class="t-k">const</span> <span class="t-y">MyApp</span>());
+}</code></pre></div>
+<aside class="note"><span class="label">NOTE</span><p>The cache is per app instance, so it pays for itself once and every lens after the first is glass on its first frame. It matters most where an app is short-lived or repeatedly re-created — a page embedding a Flutter view per section, for instance — because there is no &quot;second lens&quot; to amortise it against.</p></aside>
+<h2 id="recommended-settings">Recommended settings<a class="anchor" href="#recommended-settings" aria-label="Link to this section">#</a></h2>
+<ul class="bullets"><li><strong>General:</strong> <code>useSync: true</code>, <code>pixelRatio: 0.8</code>–<code>1.0</code>.</li><li><strong>Performance-first:</strong> <code>useSync: false</code>, <code>pixelRatio: 0.5</code>–<code>0.7</code>.</li><li><strong>Static background:</strong> <code>realTimeCapture: false</code> beats every other tuning knob combined.</li></ul>
+</div>
+<nav class="pager"><a href="start.html"><span class="dir">PREVIOUS</span>Getting started</a><a class="next" href="lens.html"><span class="dir">NEXT</span>The lens and its style</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="engines" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

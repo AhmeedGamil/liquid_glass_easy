@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Tab bar · Liquid Glass Easy</title>
+<meta name="description" content="Tabs in one glass capsule, no scaffold required.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/tabbar.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/tabbar.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/tabbar.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/tabbar.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="Tab bar · Liquid Glass Easy">
+<meta property="og:description" content="Tabs in one glass capsule, no scaffold required.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/tabbar.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tab bar · Liquid Glass Easy">
+<meta name="twitter:description" content="Tabs in one glass capsule, no scaffold required.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"Tab bar","description":"Tabs in one glass capsule, no scaffold required.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/en/tabbar.html","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="tabbar">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/tabbar.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/tabbar.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html" aria-current="page">Tab bar</a><ul class="toc"><li><a href="#styling-the-items">Styling the items</a></li><li><a href="#custom-glyphs">Custom glyphs</a></li><li><a href="#the-two-tiers">The two tiers</a></li><li><a href="#the-rest-of-the-pill">The rest of the pill</a></li><li><a href="#standalone-bar-on-impeller">Standalone bar on Impeller</a></li></ul></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=tabbar&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="Tab bar"></iframe></div><figcaption>All three pill modes, one chip apart — <a href="../demos/index.html?d=tabbar&amp;v=-5acfe021d">open full screen ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>Tab bar</h1>
+<p class="tagline">Tabs in one glass capsule, no scaffold required.</p>
+<p><code>LiquidGlassTabBar</code> is the bar on its own: you place it, you keep the index, you decide what the page does with it. Like the app bar it is a single lens, so on Skia it wants an ancestor <code>LiquidGlassView</code> whose background is the page it should refract.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassTabBar</span>(
+  <span class="t-a">items</span>: <span class="t-k">const</span> [
+    <span class="t-y">LiquidGlassTabBarItem</span>(
+      <span class="t-a">icon</span>: <span class="t-y">Icons</span>.today_outlined,
+      <span class="t-a">selectedIcon</span>: <span class="t-y">Icons</span>.today_rounded,
+      <span class="t-a">label</span>: <span class="t-s">'Today'</span>,
+    ),
+    <span class="t-y">LiquidGlassTabBarItem</span>(<span class="t-a">icon</span>: <span class="t-y">Icons</span>.bar_chart_rounded, <span class="t-a">label</span>: <span class="t-s">'Charts'</span>),
+  ],
+  <span class="t-a">selectedIndex</span>: index,
+  <span class="t-a">onChanged</span>: (i) =&gt; <span class="t-f">setState</span>(() =&gt; index = i),
+  <span class="t-a">width</span>: <span class="t-n">330</span>,
+)</code></pre></div>
+<p>That background does not have to be the page. The <strong>tab bar in a card</strong> demo centres the bar in a card and hands it the card's own surface, so the glass stops at the card rim — the page around it is never captured and never bends, and there is nothing behind the bar but the card's material. Which pipeline the bar needs is the one decision to make, and <code>resolveGlassPill()</code> answers it for the current renderer: true and the glass pill wants the bar's own dual-view machinery through <code>buildGlassPillBar(body: …)</code>; false and the flat tier is a single lens, so one <code>LiquidGlassView</code> over the card is enough.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">final</span> bar = <span class="t-y">LiquidGlassTabBar</span>(
+  <span class="t-a">items</span>: _items,
+  <span class="t-a">selectedIndex</span>: index,
+  <span class="t-a">onChanged</span>: (i) =&gt; <span class="t-f">setState</span>(() =&gt; index = i),
+  <span class="t-a">width</span>: cardWidth - <span class="t-n">26</span>,
+  <span class="t-c">// The card is the whole world the bar sits in: dead centre, no gap.</span>
+  alignment: <span class="t-y">Alignment</span>.center,
+  <span class="t-a">margin</span>: <span class="t-y">EdgeInsets</span>.zero,
+);
+
+<span class="t-y">SizedBox</span>(
+  <span class="t-a">width</span>: cardWidth,
+  <span class="t-a">height</span>: <span class="t-n">112</span>,
+  <span class="t-a">child</span>: <span class="t-y">ClipRRect</span>(
+    <span class="t-a">borderRadius</span>: <span class="t-y">BorderRadius</span>.<span class="t-f">circular</span>(<span class="t-n">26</span>),
+    <span class="t-a">child</span>: bar.<span class="t-f">resolveGlassPill</span>()
+        ? bar.<span class="t-f">buildGlassPillBar</span>(<span class="t-a">body</span>: cardSurface)
+        : <span class="t-y">LiquidGlassView</span>(
+            <span class="t-a">backgroundWidget</span>: cardSurface,
+            <span class="t-a">child</span>: <span class="t-y">Center</span>(<span class="t-a">child</span>: bar),
+          ),
+  ),
+)</code></pre></div>
+<div class="table-wrap"><table><colgroup><col style="width:25.0%"><col style="width:25.0%"><col style="width:50.0%"></colgroup><thead><tr><th>Parameter</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Parameter"><code>items</code></td><td data-label="Default">—</td><td data-label="What it does"><code>LiquidGlassTabBarItem</code>s: icon, selected icon, label.</td></tr><tr><td data-label="Parameter"><code>selectedIndex</code> / <code>onChanged</code></td><td data-label="Default">—</td><td data-label="What it does">You own the index.</td></tr><tr><td data-label="Parameter"><code>width</code> / <code>height</code></td><td data-label="Default"><code>320</code> / <code>64</code></td><td data-label="What it does">The capsule.</td></tr><tr><td data-label="Parameter"><code>margin</code> / <code>itemPadding</code> / <code>alignment</code></td><td data-label="Default">—</td><td data-label="What it does">Where the bar sits and how the items are spaced inside it.</td></tr><tr><td data-label="Parameter"><code>itemStyle</code></td><td data-label="Default"><code>LiquidGlassTabItemStyle()</code></td><td data-label="What it does">Icon and label colours, sizes and weights — see below.</td></tr><tr><td data-label="Parameter"><code>pillStyle</code></td><td data-label="Default"><code>LiquidGlassTabPillStyle()</code></td><td data-label="What it does">Everything about the selection marker — see below.</td></tr><tr><td data-label="Parameter"><code>style</code> / <code>visibility</code></td><td data-label="Default"><code>null</code> / <code>true</code></td><td data-label="What it does">The bar capsule’s own glass, and the switch that turns it off.</td></tr></tbody></table></div>
+<h2 id="styling-the-items">Styling the items<a class="anchor" href="#styling-the-items" aria-label="Link to this section">#</a></h2>
+<p>Colours and sizes are grouped rather than flat, so a bar's look travels as one value. <code>underGlassIconSize</code> and <code>underGlassLabelFontSize</code> are the interesting pair: a glass-pill bar draws each tab <strong>twice</strong> — once normally and once under the pill — and those two let the copy under the glass be a different size, which is how the magnification is cancelled out.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code>itemStyle: <span class="t-k">const</span> <span class="t-y">LiquidGlassTabItemStyle</span>(
+  <span class="t-a">selectedColor</span>: <span class="t-y">Colors</span>.white,
+  <span class="t-a">unselectedColor</span>: <span class="t-y">Colors</span>.white70,
+  <span class="t-a">iconSize</span>: <span class="t-n">24</span>,
+  <span class="t-a">underGlassIconSize</span>: <span class="t-n">21</span>,      <span class="t-c">// cancels the pill's magnification</span>
+  labelFontSize: <span class="t-n">10.5</span>,
+  <span class="t-a">selectedFontWeight</span>: <span class="t-y">FontWeight</span>.w600,
+)</code></pre></div>
+<h2 id="custom-glyphs">Custom glyphs<a class="anchor" href="#custom-glyphs" aria-label="Link to this section">#</a></h2>
+<p>Tabs are not limited to <code>IconData</code>. Pass an <code>iconBuilder</code> — or a <code>labelBuilder</code> — and an <code>SvgPicture</code>, an <code>Image</code> or a <code>CustomPaint</code> all work.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassTabBarItem</span>(
+  <span class="t-a">label</span>: <span class="t-s">'Home'</span>,
+  <span class="t-a">iconBuilder</span>: (context, i) =&gt; <span class="t-y">SvgPicture</span>.<span class="t-f">asset</span>(
+    i.selected ? <span class="t-s">'assets/home_fill.svg'</span> : <span class="t-s">'assets/home.svg'</span>,
+    <span class="t-a">width</span>: i.size,
+    <span class="t-a">height</span>: i.size,
+    <span class="t-a">colorFilter</span>: <span class="t-y">ColorFilter</span>.<span class="t-f">mode</span>(i.color, <span class="t-y">BlendMode</span>.srcIn),
+  ),
+)</code></pre></div>
+<p>The builder is handed a <code>LiquidGlassGlyph</code>: the colour the bar already resolved for the layer being drawn, the glyph box size, whether that layer is the selected one, and whether it is the copy under the glass. Tint with <code>i.color</code> and your artwork follows the palette <em>and</em> the morph pill's reveal. Multi-colour art can ignore the colour entirely.</p>
+<h2 id="the-two-tiers">The two tiers<a class="anchor" href="#the-two-tiers" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><colgroup><col style="width:30.0%"><col style="width:70.0%"></colgroup><thead><tr><th>`pillStyle.mode`</th><th>What the selection is</th></tr></thead><tbody><tr><td data-label="`pillStyle.mode`"><code>none</code></td><td data-label="What the selection is">A translucent highlight inside the bar’s single lens. Instant, or a soft slide with <code>animated: true</code>. Cheap everywhere.</td></tr><tr><td data-label="`pillStyle.mode`"><code>impellerOnly</code></td><td data-label="What the selection is">The glass <strong>morph pill</strong> where it is free, the highlight on Skia.</td></tr><tr><td data-label="`pillStyle.mode`"><code>both</code> <em>(default)</em></td><td data-label="What the selection is">The morph pill on both engines — a second refracting surface that bends the bar itself. On Skia, only under lite glass — see the note below.</td></tr></tbody></table></div>
+<h2 id="the-rest-of-the-pill">The rest of the pill<a class="anchor" href="#the-rest-of-the-pill" aria-label="Link to this section">#</a></h2>
+<p><code>LiquidGlassTabPillStyle</code> carries the whole selection: whether it shows at all, its colour and blur, its shape, the glass it wears when lifted and the plain style it wears at rest, how fast it travels, and how it deforms on the way.</p>
+<div class="table-wrap"><table><colgroup><col style="width:25.0%"><col style="width:25.0%"><col style="width:50.0%"></colgroup><thead><tr><th>Field</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Field"><code>show</code></td><td data-label="Default"><code>true</code></td><td data-label="What it does">Draw a selection marker at all.</td></tr><tr><td data-label="Field"><code>animated</code></td><td data-label="Default"><code>false</code></td><td data-label="What it does">In <code>none</code> mode, slide the highlight instead of snapping it.</td></tr><tr><td data-label="Field"><code>color</code> / <code>blur</code></td><td data-label="Default"><code>0x2EAEAEB2</code> / —</td><td data-label="What it does">The marker’s fill and its backdrop blur.</td></tr><tr><td data-label="Field"><code>growHeight</code></td><td data-label="Default"><code>9</code></td><td data-label="What it does">How much taller than the item row the pill is.</td></tr><tr><td data-label="Field"><code>distortion</code> / <code>distortionWidth</code> / <code>magnification</code></td><td data-label="Default"><code>0.04</code> / <code>12</code> / <code>1</code></td><td data-label="What it does">The pill’s own refraction, over the bar beneath it.</td></tr><tr><td data-label="Field"><code>travelStiffness</code> / <code>travelDamping</code></td><td data-label="Default"><code>280</code> / <code>31.4</code></td><td data-label="What it does">The spring that carries it between tabs.</td></tr><tr><td data-label="Field"><code>glassStyle</code> / <code>rest</code> / <code>shape</code></td><td data-label="Default"><code>null</code></td><td data-label="What it does">Full overrides for the lifted look, the resting look and the outline.</td></tr></tbody></table></div>
+<p>The moving pill deforms as it travels, on the same model the slider's thumb uses: <code>pillStyle.motion</code> is a <code>LiquidGlassLensMotionSpec</code>, tuned here to a gentler ceiling for tab-scale travel. See <a href="motion.html">Motion</a>.</p>
+<aside class="note warn"><span class="label">WATCH OUT</span><p><strong>`both` on Skia: shader glass no, lite glass yes.</strong> With the shader, on Skia (and the web) the morph pill captures <strong>twice</strong>: a second full-page capture on top of the bar's own, heavy over anything that moves — there, <code>impellerOnly</code> is the setting to ship. Under <strong>lite glass</strong> — <code>LiquidGlassEngine.liteGlassOnSkia = true</code>, or <code>liteGlass</code> set on the bar's styles — that cost is gone: the view takes no capture at all, the pill is a frosted capsule on the same spring, and <code>both</code> runs on Skia with no performance issue. On Impeller there is <strong>no capture at all</strong> either way: the pill is a backdrop read like any other lens, and it is very efficient — use it freely.</p></aside>
+<h2 id="standalone-bar-on-impeller">Standalone bar on Impeller<a class="anchor" href="#standalone-bar-on-impeller" aria-label="Link to this section">#</a></h2>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">Stack</span>(
+  <span class="t-a">children</span>: [
+    <span class="t-y">MyPage</span>(),
+    <span class="t-y">LiquidGlassTabBar</span>.<span class="t-f">withImpeller</span>(
+      <span class="t-a">items</span>: items,
+      <span class="t-a">selectedIndex</span>: index,
+      <span class="t-a">onChanged</span>: (i) =&gt; <span class="t-f">setState</span>(() =&gt; index = i),
+    ),
+  ],
+)</code></pre></div>
+<p><code>.withImpeller</code> is the bodyless bar: no scaffold, no page handed in. It expands to fill, so drop it as the <strong>last</strong> child of a <code>Stack</code>. On Skia it falls back to a frosted bar that still shows content through it.</p>
+</div>
+<nav class="pager"><a href="appbar.html"><span class="dir">PREVIOUS</span>App bar</a><a class="next" href="scaffold.html"><span class="dir">NEXT</span>Scaffold</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="tabbar" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

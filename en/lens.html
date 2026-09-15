@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>The lens and its style · Liquid Glass Easy</title>
+<meta name="description" content="One widget, one style object: shape, appearance, refraction.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/lens.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/lens.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/lens.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/lens.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="en_US">
+<meta property="og:title" content="The lens and its style · Liquid Glass Easy">
+<meta property="og:description" content="One widget, one style object: shape, appearance, refraction.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/en/lens.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The lens and its style · Liquid Glass Easy">
+<meta name="twitter:description" content="One widget, one style object: shape, appearance, refraction.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"TechArticle","headline":"The lens and its style","description":"One widget, one style object: shape, appearance, refraction.","url":"https://ahmeedgamil.github.io/liquid_glass_easy/en/lens.html","inLanguage":"en","isPartOf":{"@type":"WebSite","name":"Liquid Glass Easy","url":"https://ahmeedgamil.github.io/liquid_glass_easy"},"author":{"@type":"Person","name":"Ahmed Gamil"},"about":{"@type":"SoftwareSourceCode","name":"liquid_glass_easy","programmingLanguage":"Dart"}}</script>
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="lens">
+<a class="skip" href="#main">Skip to content</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="Documentation"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>Search the docs…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="Language"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">EN</span></button><div class="pop lang-pop"><a href="../en/lens.html" lang="en" dir="ltr" hreflang="en" aria-current="true">English</a><a href="../ar/lens.html" lang="ar" dir="rtl" hreflang="ar">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="Theme"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>Light</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>Dark</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>System</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">Documentation</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html" aria-current="page">The lens and its style</a><ul class="toc"><li><a href="#liquidglassstyle">LiquidGlassStyle</a></li><li><a href="#shape">Shape</a></li><li><a href="#appearance">Appearance</a></li><li><a href="#refraction">Refraction</a></li><li><a href="#borders">Borders</a></li><li><a href="#every-parameter">Every parameter</a></li></ul></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">Live demos ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap wide">
+<div class="doc-split">
+<aside class="doc-demo">
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=lens&amp;embed=1&amp;v=-5acfe021d" loading="lazy" title="Lens"></iframe></div><figcaption>One lens, and every style knob — <a href="../demos/index.html?d=lens&amp;v=-5acfe021d">open full screen ↗</a></figcaption></figure>
+</aside>
+<div class="doc-main">
+<h1>The lens and its style</h1>
+<p class="tagline">One widget, one style object: shape, appearance, refraction.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassLens</span>({
+  <span class="t-y">LiquidGlassStyle</span> style = <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(),
+  bool visibility = <span class="t-k">true</span>,
+  <span class="t-y">LiquidGlassTouch</span>? touch,
+  bool? useImpellerBackdrop,
+  <span class="t-y">Widget</span>? child,
+})</code></pre></div>
+<p>Size comes from layout, never from the lens. The <code>child</code> is clipped to the glass shape. <code>visibility: false</code> switches the glass off instantly — no backdrop cost, no child — so it is the cheap way to hide a lens you will show again.</p>
+<h2 id="liquidglassstyle">LiquidGlassStyle<a class="anchor" href="#liquidglassstyle" aria-label="Link to this section">#</a></h2>
+<p>Everything about how a lens looks lives in one object, so a look travels as a single value. <code>copyWith(...)</code> and <code>merge(other)</code> are there for theme and override patterns.</p>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassStyle</span>({
+  <span class="t-y">LiquidGlassShape</span>? shape,          <span class="t-c">// null → continuous rounded rect</span>
+  <span class="t-y">LiquidGlassAppearance</span> appearance = <span class="t-k">const</span> <span class="t-y">LiquidGlassAppearance</span>(),
+  <span class="t-y">LiquidGlassRefraction</span> refraction = <span class="t-k">const</span> <span class="t-y">LiquidGlassRefraction</span>(),
+  <span class="t-y">LiquidGlassAdaptivity</span>? adaptivity,
+})</code></pre></div>
+<h2 id="shape">Shape<a class="anchor" href="#shape" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><colgroup><col style="width:50.0%"><col style="width:50.0%"></colgroup><thead><tr><th>Constructor</th><th>Corner curve</th></tr></thead><tbody><tr><td data-label="Constructor"><code>LiquidGlassShape.roundedRectangle(...)</code></td><td data-label="Corner curve">Plain <strong>circular</strong> corners. The cheapest to clip.</td></tr><tr><td data-label="Constructor"><code>LiquidGlassShape.squircle(...)</code></td><td data-label="Corner curve"><strong>Lⁿ squircle</strong> — iOS-style continuous curvature.</td></tr><tr><td data-label="Constructor"><code>LiquidGlassShape.continuousRoundedRectangle(...)</code></td><td data-label="Corner curve"><strong>Apple capsule-style</strong> continuous corners. The <strong>default</strong>; collapses to a clean capsule at full radius.</td></tr></tbody></table></div>
+<p>All three share <code>cornerRadius</code>, <code>borderWidth</code>, <code>borderColor</code>, <code>lightColor</code>, <code>lightIntensity</code>, <code>lightDirection</code>, <code>borderType</code> and <code>clipQuality</code>.</p>
+<aside class="note tip"><span class="label">TIP</span><p><strong>Picking `clipQuality`.</strong> For <code>squircle</code> it is worth setting <code>LiquidGlassClipQuality.exact</code> — the squircle has a shader-matched <code>ClipPath</code>, so the child and blur silhouette follow the true curve. For <code>continuousRoundedRectangle</code> leave it at the default: a rounded-rect clip already hugs the continuous corner so closely that <code>exact</code> only buys you an extra save layer.</p></aside>
+<h2 id="appearance">Appearance<a class="anchor" href="#appearance" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><colgroup><col style="width:30.8%"><col style="width:23.1%"><col style="width:46.2%"></colgroup><thead><tr><th>Property</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Property"><code>color</code></td><td data-label="Default"><code>transparent</code></td><td data-label="What it does">Base tint. Usually a low-alpha white or black.</td></tr><tr><td data-label="Property"><code>blur</code></td><td data-label="Default"><code>LiquidGlassBlur()</code></td><td data-label="What it does">Blur applied to what shows through the glass.</td></tr><tr><td data-label="Property"><code>saturation</code></td><td data-label="Default"><code>1.0</code></td><td data-label="What it does"><code>1.0</code> unchanged, <code>0.0</code> grayscale, above <code>1</code> more vivid.</td></tr><tr><td data-label="Property"><code>enableInnerRadiusTransparent</code></td><td data-label="Default"><code>false</code></td><td data-label="What it does">Makes the inner, undistorted region fully transparent.</td></tr></tbody></table></div>
+<h2 id="refraction">Refraction<a class="anchor" href="#refraction" aria-label="Link to this section">#</a></h2>
+<div class="table-wrap"><table><colgroup><col style="width:30.8%"><col style="width:23.1%"><col style="width:46.2%"></colgroup><thead><tr><th>Property</th><th>Default</th><th>What it does</th></tr></thead><tbody><tr><td data-label="Property"><code>distortion</code></td><td data-label="Default"><code>0.1</code></td><td data-label="What it does">How hard the edge band bends content, <code>0.0</code>–<code>1.0</code>.</td></tr><tr><td data-label="Property"><code>distortionWidth</code></td><td data-label="Default"><code>30</code></td><td data-label="What it does">Thickness of that band around the perimeter, in px.</td></tr><tr><td data-label="Property"><code>magnification</code></td><td data-label="Default"><code>1.0</code></td><td data-label="What it does">Zoom of what is seen through the glass. <code>1.0</code> is none.</td></tr><tr><td data-label="Property"><code>chromaticAberration</code></td><td data-label="Default"><code>0.003</code></td><td data-label="What it does">Colour-channel separation at the rim. <code>0.0</code> disables it.</td></tr><tr><td data-label="Property"><code>refractionMode</code></td><td data-label="Default"><code>shapeRefraction</code></td><td data-label="What it does"><code>shapeRefraction</code> follows the outline; <code>radialRefraction</code> bends in a circular pattern.</td></tr><tr><td data-label="Property"><code>refractionType</code></td><td data-label="Default"><code>null</code></td><td data-label="What it does">Swap the model itself — e.g. <code>OpticalRefraction(refraction:, refractionWidth:, depth:)</code> for a thickness-based lens.</td></tr></tbody></table></div>
+<h2 id="borders">Borders<a class="anchor" href="#borders" aria-label="Link to this section">#</a></h2>
+<p>The rim is part of the shape, set through <code>borderType</code>. There are two models and they are genuinely different ideas, not two presets.</p>
+<div class="table-wrap"><table><colgroup><col style="width:30.0%"><col style="width:70.0%"></colgroup><thead><tr><th>Mode</th><th>What it is</th></tr></thead><tbody><tr><td data-label="Mode"><code>OpticalBorder</code></td><td data-label="What it is"><strong>Default.</strong> An SDF rim light that falls out of the glass shape: background-tinted highlights, dual-sided speculars, a height profile. The rim colour adapts to whatever is behind the lens.</td></tr><tr><td data-label="Mode"><code>ClassicBorder</code></td><td data-label="What it is"><strong>Deprecated.</strong> Light and shadow sweep the outline by the angle between surface normal and light direction. Stylized, and you control the colours directly — a rim that is drawn rather than derived. Use <code>OpticalBorder</code>.</td></tr></tbody></table></div>
+<div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-c">// Optical: borderSaturation, ambientIntensity, borderSolidity</span>
+shape: <span class="t-y">LiquidGlassShape</span>.<span class="t-f">squircle</span>(
+  <span class="t-a">cornerRadius</span>: <span class="t-n">36</span>,
+  <span class="t-a">borderType</span>: <span class="t-y">OpticalBorder</span>(
+    <span class="t-a">borderSaturation</span>: <span class="t-n">1.5</span>,
+    <span class="t-a">ambientIntensity</span>: <span class="t-n">1.0</span>,
+    <span class="t-a">borderSolidity</span>: <span class="t-n">0.0</span>,
+  ),
+)
+
+<span class="t-c">// borderWidth, lightIntensity, lightColor and lightDirection live on the</span>
+<span class="t-c">// shape itself, so they apply whichever border type is in use.</span>
+shape: <span class="t-y">LiquidGlassShape</span>.<span class="t-f">squircle</span>(
+  <span class="t-a">cornerRadius</span>: <span class="t-n">36</span>,
+  <span class="t-a">borderWidth</span>: <span class="t-n">1.4</span>,
+  <span class="t-a">lightIntensity</span>: <span class="t-n">1.0</span>,
+  <span class="t-a">lightColor</span>: <span class="t-y">Color</span>(<span class="t-n">0xB2FFFFFF</span>),
+)</code></pre></div>
+<aside class="note warn"><span class="label">WATCH OUT</span><p><code>ClassicBorder</code> is <strong>deprecated</strong>. It has no optical counterpart for <code>shadowColor</code>, <code>oneSideLightIntensity</code> or <code>doubleSideLightIntensity</code> because the optical rim has no separate light to aim — it comes out of the shape. Move to <code>OpticalBorder</code> and shape the rim with <code>borderSaturation</code>, <code>ambientIntensity</code>, <code>borderSolidity</code> and <code>lightSpread</code>.</p></aside>
+<h2 id="every-parameter">Every parameter<a class="anchor" href="#every-parameter" aria-label="Link to this section">#</a></h2>
+<p>The tables above are the ones worth learning. The complete list — every field, every default, straight from the source — is generated on the <a href="api-lens.html">lens API page</a>.</p>
+</div>
+<nav class="pager"><a href="engines.html"><span class="dir">PREVIOUS</span>Engines and the view</a><a class="next" href="lite.html"><span class="dir">NEXT</span>Lite glass</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="lens" data-lang="en">
+<h2>Comments</h2>
+<p class="comments-sub">Comments are GitHub Discussions — reply from either place.</p>
+</section>
+</div>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="Search">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="Search the docs…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="Nothing matches that."
+         data-hint="Type to search"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

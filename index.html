@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Liquid Glass Easy — documentation</title>
+<meta name="description" content="Documentation and live browser demos for liquid_glass_easy, a Flutter package for Apple's Liquid Glass material.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/index.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/index.html">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css">
+<script>
+(function(){
+  var known = ["en","ar"];
+  var want;
+  try { want = localStorage.getItem('lge-lang'); } catch (e) {}
+  var list = [].concat(want || [], navigator.languages || [navigator.language || '']);
+  for (var i = 0; i < list.length; i++) {
+    var code = String(list[i] || '').toLowerCase().split('-')[0];
+    if (known.indexOf(code) !== -1) { location.replace(code + '/index.html' + location.hash); return; }
+  }
+  location.replace('en/index.html' + location.hash);
+})();
+</script>
+</head>
+<body class="root-redirect">
+<main>
+  <span class="mark" aria-hidden="true"></span>
+  <h1>Liquid Glass Easy</h1>
+  <p>Documentation for the Flutter liquid glass package.</p>
+  <nav class="root-langs">
+  <a href="en/index.html" lang="en" dir="ltr" hreflang="en">English</a>
+  <a href="ar/index.html" lang="ar" dir="rtl" hreflang="ar">العربية</a>
+  </nav>
+</main>
+</body>
+</html>

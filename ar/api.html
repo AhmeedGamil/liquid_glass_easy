@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>مرجع الواجهة البرمجية · Liquid Glass Easy</title>
+<meta name="description" content="كل نوع عام تصدّره الحزمة، بمعاملاته وقيمه الافتراضية.">
+<link rel="canonical" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/api.html">
+<link rel="alternate" hreflang="en" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/api.html">
+<link rel="alternate" hreflang="ar" href="https://ahmeedgamil.github.io/liquid_glass_easy/ar/api.html">
+<link rel="alternate" hreflang="x-default" href="https://ahmeedgamil.github.io/liquid_glass_easy/en/api.html">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Liquid Glass Easy">
+<meta property="og:locale" content="ar_AR">
+<meta property="og:title" content="مرجع الواجهة البرمجية · Liquid Glass Easy">
+<meta property="og:description" content="كل نوع عام تصدّره الحزمة، بمعاملاته وقيمه الافتراضية.">
+<meta property="og:url" content="https://ahmeedgamil.github.io/liquid_glass_easy/ar/api.html">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="مرجع الواجهة البرمجية · Liquid Glass Easy">
+<meta name="twitter:description" content="كل نوع عام تصدّره الحزمة، بمعاملاته وقيمه الافتراضية.">
+<meta property="og:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<meta property="og:image:width" content="1161">
+<meta property="og:image:height" content="860">
+<meta property="og:image:alt" content="A liquid glass lens refracting the Flutter UI behind it.">
+<meta name="twitter:image" content="https://ahmeedgamil.github.io/liquid_glass_easy/social.jpg">
+<link rel="stylesheet" href="../styles.css">
+<script>
+(function(){var s;try{s=localStorage.getItem('lge-theme')}catch(e){}
+var m=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+document.documentElement.dataset.theme=(s==='light'||s==='dark')?s:(m?'dark':'light');
+document.documentElement.dataset.themePref=s||'system';
+var l;try{l=localStorage.getItem('lge-lite')}catch(e){}
+document.documentElement.dataset.lite=l==='1'?'on':'off';})();
+</script>
+
+<script data-goatcounter="https://liquidglasseasy.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>
+</head>
+<body data-page="api">
+<a class="skip" href="#main">تخطَّ إلى المحتوى</a>
+<header class="top"><button class="icon-btn menu" type="button" aria-expanded="false" aria-controls="sidebar" aria-label="التوثيق"><svg class="ico ico-menu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg></button><a class="top-brand" href="index.html"><span class="mark" aria-hidden="true"></span><span>Liquid Glass Easy</span></a><div class="tools"><button class="search-btn" type="button" aria-haspopup="dialog"><svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg><span>ابحث في التوثيق…</span><kbd>/</kbd></button><div class="menu-wrap lang-wrap"><button class="icon-btn" type="button" aria-expanded="false" aria-label="اللغة"><svg class="ico ico-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18"/></svg><span class="lang-code">AR</span></button><div class="pop lang-pop"><a href="../en/api.html" lang="en" dir="ltr" hreflang="en">English</a><a href="../ar/api.html" lang="ar" dir="rtl" hreflang="ar" aria-current="true">العربية</a></div></div><div class="menu-wrap theme-wrap"><button class="icon-btn theme-btn" type="button" aria-expanded="false" aria-label="المظهر"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg></button><div class="pop theme-pop"><button type="button" data-theme-set="light"><svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.4M12 19.6V22M2 12h2.4M19.6 12H22M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M19.1 4.9l-1.7 1.7M6.6 17.4l-1.7 1.7"/></svg>فاتح</button><button type="button" data-theme-set="dark"><svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 14.2A8.4 8.4 0 0 1 9.8 4a8.4 8.4 0 1 0 10.2 10.2z"/></svg>داكن</button><button type="button" data-theme-set="system"><svg class="ico ico-auto" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3v18" fill="currentColor" stroke="none"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>النظام</button></div></div><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="كل عرض في الموقع يرسم الزجاج الخفيف بلا مظلِّل — بلا التقاط للصفحة، صقيع ولون وحافة. وعند الإيقاف تكسر العروض الضوء." aria-label="زجاج خفيف"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">زجاج خفيف</span></button></div></header>
+<div class="layout">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="index.html">
+      <span class="words">
+        <span class="eyebrow">LIQUID GLASS EASY</span>
+        <span class="name">التوثيق</span>
+      </span>
+      <span class="ver">v4.3.1</span>
+    </a>
+    <nav aria-label="شريط التوثيق الجانبي"><div class="nav-group"><div class="nav-title">الأساسيات</div><ul class="nav"><li><a href="start.html">البداية</a></li></ul></div><div class="nav-group"><div class="nav-title">المحركات والعارض</div><ul class="nav"><li><a href="engines.html">المحركات والعارض</a></li></ul></div><div class="nav-group"><div class="nav-title">المادة</div><ul class="nav"><li><a href="lens.html">العدسة وأسلوبها</a></li><li><a href="lite.html">الزجاج الخفيف</a></li><li><a href="batch.html">الدفعة</a></li><li><a href="blend.html">الانصهار</a></li><li><a href="group.html">المجموعة</a></li><li><a href="touch.html">اللمس</a></li><li><a href="adaptivity.html">التكيّف</a></li><li><a href="morph.html">التحوّل</a></li></ul></div><div class="nav-group"><div class="nav-title">المكوّنات</div><ul class="nav"><li><a href="components.html">المكوّنات</a><ul class="sub"><li><a href="slider.html">المزلاج</a></li><li><a href="toggle.html">المفتاح</a></li><li><a href="button.html">الزر</a></li><li><a href="fab.html">زر الإجراء العائم</a></li><li><a href="appbar.html">الشريط العلوي</a></li><li><a href="tabbar.html">شريط التبويبات</a></li><li><a href="scaffold.html">الهيكل</a></li><li><a href="scrolledge.html">حافة التمرير</a></li><li><a href="motion.html">الحركة</a></li><li><a href="draggable.html">القابل للسحب</a></li><li><a href="shadow.html">الظل</a></li><li><a href="sheet.html">الأوراق</a></li><li><a href="dialog.html">الحوارات</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">الإتقان</div><ul class="nav"><li><a href="efficiency.html">الاستخدام الكفء</a></li></ul></div><div class="nav-group"><div class="nav-title">مرجع الواجهة</div><ul class="nav"><li><a href="api.html" aria-current="page">مرجع الواجهة البرمجية</a></li><li><a href="api-view.html">العارض</a></li><li><a href="api-lens.html">العدسة وأسلوبها</a></li><li><a href="api-grouping.html">دمج العدسات</a></li><li><a href="api-touch.html">اللمس والحركة</a></li><li><a href="api-adaptivity.html">التكيّف والوضوح</a></li><li><a href="api-components.html">المكوّنات</a></li><li><a href="api-chrome.html">هيكل التطبيق</a></li><li><a href="api-shape-helpers.html">دوال الأشكال</a></li></ul></div></nav>
+    <div class="nav-foot">
+      <a href="../demos/index.html">عروض حية ↗</a>
+      <a href="https://pub.dev/packages/liquid_glass_easy">pub.dev ↗</a>
+      <a href="https://github.com/AhmeedGamil/liquid_glass_easy">GitHub ↗</a>
+    </div>
+  </aside>
+  <div class="scrim" hidden></div>
+  <main class="content" id="main" tabindex="-1">
+    <div class="wrap">
+<h1>مرجع الواجهة البرمجية</h1>
+<p class="tagline">كل نوع عام تصدّره الحزمة، بمعاملاته وقيمه الافتراضية.</p>
+<aside class="note"><span class="label">ملاحظة</span><p>يُولَّد هذا القسم من شيفرة الحزمة في كل بناء: كل نوع هنا تصدير حقيقي، وكل قيمة افتراضية هي ما تُترجَم به الشيفرة فعلاً.</p></aside>
+<h2 id="api-view">العارض<a class="anchor" href="#api-view" aria-label="Link to this section">#</a></h2>
+<p>خط الالتقاط الذي تحتاجه واجهتا Skia والويب، ومتحكماته.</p>
+<div class="api-index">
+<a class="api-chip" href="api-view.html#liquidglassview"><span class="k k-klass">صنف</span><code>LiquidGlassView</code></a>
+<a class="api-chip" href="api-view.html#liquidglassviewcontroller"><span class="k k-klass">صنف</span><code>LiquidGlassViewController</code></a>
+<a class="api-chip" href="api-view.html#liquidglasscontroller"><span class="k k-klass">صنف</span><code>LiquidGlassController</code></a>
+<a class="api-chip" href="api-view.html#liquidglassshaders"><span class="k k-klass">صنف</span><code>LiquidGlassShaders</code></a>
+<a class="api-chip" href="api-view.html#liquidglassengine"><span class="k k-klass">صنف</span><code>LiquidGlassEngine</code></a>
+<a class="api-chip" href="api-view.html#liquidglassrefreshrate"><span class="k k-enumeration">تعداد</span><code>LiquidGlassRefreshRate</code></a>
+<a class="api-chip" href="api-view.html#liquidglassposition"><span class="k k-klass">صنف</span><code>LiquidGlassPosition</code></a>
+<a class="api-chip" href="api-view.html#liquidglassoffsetposition"><span class="k k-klass">صنف</span><code>LiquidGlassOffsetPosition</code></a>
+<a class="api-chip" href="api-view.html#liquidglassalignposition"><span class="k k-klass">صنف</span><code>LiquidGlassAlignPosition</code></a>
+</div>
+<h2 id="api-lens">العدسة وأسلوبها<a class="anchor" href="#api-lens" aria-label="Link to this section">#</a></h2>
+<p>عنصر واحد والواصف الذي يحدد شكله: الهيئة والمظهر والانكسار، والكائنات القيمية تحتها.</p>
+<div class="api-index">
+<a class="api-chip" href="api-lens.html#liquidglasslens"><span class="k k-klass">صنف</span><code>LiquidGlassLens</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasslite"><span class="k k-klass">صنف</span><code>LiquidGlassLite</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasslitepickup"><span class="k k-enumeration">تعداد</span><code>LiquidGlassLitePickup</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassstyle"><span class="k k-klass">صنف</span><code>LiquidGlassStyle</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassshape"><span class="k k-klass">صنف</span><code>LiquidGlassShape</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassappearance"><span class="k k-klass">صنف</span><code>LiquidGlassAppearance</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassrefraction"><span class="k k-klass">صنف</span><code>LiquidGlassRefraction</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassblur"><span class="k k-klass">صنف</span><code>LiquidGlassBlur</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassshadow"><span class="k k-klass">صنف</span><code>LiquidGlassShadow</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasscornerstyle"><span class="k k-enumeration">تعداد</span><code>LiquidGlassCornerStyle</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassclipquality"><span class="k k-enumeration">تعداد</span><code>LiquidGlassClipQuality</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasslightmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassLightMode</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassbordertype"><span class="k k-klass">صنف</span><code>LiquidGlassBorderType</code></a>
+<a class="api-chip" href="api-lens.html#classicborder"><span class="k k-klass">صنف</span><code>ClassicBorder</code></a>
+<a class="api-chip" href="api-lens.html#opticalborder"><span class="k k-klass">صنف</span><code>OpticalBorder</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassbordermode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassBorderMode</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassrefractiontype"><span class="k k-klass">صنف</span><code>LiquidGlassRefractionType</code></a>
+<a class="api-chip" href="api-lens.html#standardrefraction"><span class="k k-klass">صنف</span><code>StandardRefraction</code></a>
+<a class="api-chip" href="api-lens.html#opticalrefraction"><span class="k k-klass">صنف</span><code>OpticalRefraction</code></a>
+<a class="api-chip" href="api-lens.html#liquidglassrefractionmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassRefractionMode</code></a>
+</div>
+<h2 id="api-grouping">دمج العدسات<a class="anchor" href="#api-grouping" aria-label="Link to this section">#</a></h2>
+<p>ثلاث طرق تتشارك بها عدة عدسات قراءة واحدة للخلفية، أو تنصهر في سطح واحد.</p>
+<div class="api-index">
+<a class="api-chip" href="api-grouping.html#liquidglassgroup"><span class="k k-klass">صنف</span><code>LiquidGlassGroup</code></a>
+<a class="api-chip" href="api-grouping.html#liquidglassbatch"><span class="k k-klass">صنف</span><code>LiquidGlassBatch</code></a>
+<a class="api-chip" href="api-grouping.html#liquidglassblender"><span class="k k-klass">صنف</span><code>LiquidGlassBlender</code></a>
+</div>
+<h2 id="api-touch">اللمس والحركة<a class="anchor" href="#api-touch" aria-label="Link to this section">#</a></h2>
+<p>كيف يستجيب السطح للإصبع، ونموذج الزجاج المتحرك الذي بُني منه المزلاج وحبة شريط التنقل.</p>
+<div class="api-index">
+<a class="api-chip" href="api-touch.html#liquidglasstouch"><span class="k k-klass">صنف</span><code>LiquidGlassTouch</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassflex"><span class="k k-klass">صنف</span><code>LiquidGlassFlex</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassflexdeform"><span class="k k-klass">صنف</span><code>LiquidGlassFlexDeform</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassflexadvanced"><span class="k k-klass">صنف</span><code>LiquidGlassFlexAdvanced</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassflexoutline"><span class="k k-enumeration">تعداد</span><code>LiquidGlassFlexOutline</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassmotionpill"><span class="k k-klass">صنف</span><code>LiquidGlassMotionPill</code></a>
+<a class="api-chip" href="api-touch.html#liquidglasslensmotion"><span class="k k-klass">صنف</span><code>LiquidGlassLensMotion</code></a>
+<a class="api-chip" href="api-touch.html#liquidglasslensmotionspec"><span class="k k-klass">صنف</span><code>LiquidGlassLensMotionSpec</code></a>
+<a class="api-chip" href="api-touch.html#liquidglassdraggable"><span class="k k-klass">صنف</span><code>LiquidGlassDraggable</code></a>
+</div>
+<h2 id="api-adaptivity">التكيّف والوضوح<a class="anchor" href="#api-adaptivity" aria-label="Link to this section">#</a></h2>
+<p>زجاج يقرأ ما خلفه فيقلب لونه ولون محتواه، إضافة إلى حافة التمرير التي تُبقي العناصر العائمة واضحة.</p>
+<div class="api-index">
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivity"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptivity</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivesampling"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptiveSampling</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivearea"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptiveArea</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptiveareascope"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptiveAreaScope</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivecontent"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptiveContent</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivitylink"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptivityLink</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassadaptivitycontroller"><span class="k k-klass">صنف</span><code>LiquidGlassAdaptivityController</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassbrightnessfallback"><span class="k k-enumeration">تعداد</span><code>LiquidGlassBrightnessFallback</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglasssystemchrome"><span class="k k-enumeration">تعداد</span><code>LiquidGlassSystemChrome</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassscrolledge"><span class="k k-klass">صنف</span><code>LiquidGlassScrollEdge</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassedge"><span class="k k-enumeration">تعداد</span><code>LiquidGlassEdge</code></a>
+<a class="api-chip" href="api-adaptivity.html#liquidglassscrolledgestyle"><span class="k k-enumeration">تعداد</span><code>LiquidGlassScrollEdgeStyle</code></a>
+</div>
+<h2 id="api-components">المكوّنات<a class="anchor" href="#api-components" aria-label="Link to this section">#</a></h2>
+<p>عناصر التحكم الجاهزة: الأزرار والحوارات والأوراق والمزلاج والمفتاح والتحوّل.</p>
+<div class="api-index">
+<a class="api-chip" href="api-components.html#liquidglassbutton"><span class="k k-klass">صنف</span><code>LiquidGlassButton</code></a>
+<a class="api-chip" href="api-components.html#liquidglassfab"><span class="k k-klass">صنف</span><code>LiquidGlassFab</code></a>
+<a class="api-chip" href="api-components.html#liquidglassfloatingactionbutton"><span class="k k-typedef">نوع مُسمّى</span><code>LiquidGlassFloatingActionButton</code></a>
+<a class="api-chip" href="api-components.html#liquidglassdialog"><span class="k k-klass">صنف</span><code>LiquidGlassDialog</code></a>
+<a class="api-chip" href="api-components.html#liquidglassalertdialog"><span class="k k-klass">صنف</span><code>LiquidGlassAlertDialog</code></a>
+<a class="api-chip" href="api-components.html#showliquidglassdialog"><span class="k k-function">function</span><code>showLiquidGlassDialog</code></a>
+<a class="api-chip" href="api-components.html#liquidglasssheet"><span class="k k-klass">صنف</span><code>LiquidGlassSheet</code></a>
+<a class="api-chip" href="api-components.html#showliquidglasssheet"><span class="k k-function">function</span><code>showLiquidGlassSheet</code></a>
+<a class="api-chip" href="api-components.html#liquidglasssheetanchor"><span class="k k-enumeration">تعداد</span><code>LiquidGlassSheetAnchor</code></a>
+<a class="api-chip" href="api-components.html#liquidglassslider"><span class="k k-klass">صنف</span><code>LiquidGlassSlider</code></a>
+<a class="api-chip" href="api-components.html#liquidglasssliderlayout"><span class="k k-klass">صنف</span><code>LiquidGlassSliderLayout</code></a>
+<a class="api-chip" href="api-components.html#liquidglassswitch"><span class="k k-klass">صنف</span><code>LiquidGlassSwitch</code></a>
+<a class="api-chip" href="api-components.html#liquidglassswitchlayout"><span class="k k-klass">صنف</span><code>LiquidGlassSwitchLayout</code></a>
+<a class="api-chip" href="api-components.html#liquidglassmorph"><span class="k k-klass">صنف</span><code>LiquidGlassMorph</code></a>
+<a class="api-chip" href="api-components.html#liquidglassmorphmotion"><span class="k k-klass">صنف</span><code>LiquidGlassMorphMotion</code></a>
+<a class="api-chip" href="api-components.html#liquidglassmorphadvanced"><span class="k k-klass">صنف</span><code>LiquidGlassMorphAdvanced</code></a>
+</div>
+<h2 id="api-chrome">هيكل التطبيق<a class="anchor" href="#api-chrome" aria-label="Link to this section">#</a></h2>
+<p>الهيكل، والأشرطة التي تطفو فوق الصفحة، ومنافذ الأيقونات التي تقبلها.</p>
+<div class="api-index">
+<a class="api-chip" href="api-chrome.html#liquidglassscaffold"><span class="k k-klass">صنف</span><code>LiquidGlassScaffold</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglassscaffoldadaptivity"><span class="k k-klass">صنف</span><code>LiquidGlassScaffoldAdaptivity</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglassappbar"><span class="k k-klass">صنف</span><code>LiquidGlassAppBar</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabbar"><span class="k k-klass">صنف</span><code>LiquidGlassTabBar</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabbaritem"><span class="k k-klass">صنف</span><code>LiquidGlassTabBarItem</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabbaraction"><span class="k k-klass">صنف</span><code>LiquidGlassTabBarAction</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabitemstyle"><span class="k k-klass">صنف</span><code>LiquidGlassTabItemStyle</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabpillstyle"><span class="k k-klass">صنف</span><code>LiquidGlassTabPillStyle</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasstabmagnifierpillstyle"><span class="k k-klass">صنف</span><code>LiquidGlassTabMagnifierPillStyle</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasspillmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassPillMode</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglassglyph"><span class="k k-klass">صنف</span><code>LiquidGlassGlyph</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglassglyphbuilder"><span class="k k-typedef">نوع مُسمّى</span><code>LiquidGlassGlyphBuilder</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasslabel"><span class="k k-klass">صنف</span><code>LiquidGlassLabel</code></a>
+<a class="api-chip" href="api-chrome.html#liquidglasslabelbuilder"><span class="k k-typedef">نوع مُسمّى</span><code>LiquidGlassLabelBuilder</code></a>
+</div>
+<h2 id="api-shape-helpers">دوال الأشكال<a class="anchor" href="#api-shape-helpers" aria-label="Link to this section">#</a></h2>
+<p>الدوال الحرة التي تستخدمها المُصيّرات لقص مسار العدسة ورسمه. مُصدَّرة لأن نصفي المكتبة يحتاجانها، ونادراً ما تستدعيها بنفسك.</p>
+<div class="api-index">
+<a class="api-chip" href="api-shape-helpers.html#liquidglassclip"><span class="k k-function">function</span><code>liquidGlassClip</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglassclipcornerradius"><span class="k k-function">function</span><code>liquidGlassClipCornerRadius</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglasscornerstyle"><span class="k k-function">function</span><code>liquidGlassCornerStyle</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglassusesroundedclip"><span class="k k-function">function</span><code>liquidGlassUsesRoundedClip</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglasscornersegments"><span class="k k-function">function</span><code>liquidGlassCornerSegments</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglasssquirclepath"><span class="k k-function">function</span><code>liquidGlassSquirclePath</code></a>
+<a class="api-chip" href="api-shape-helpers.html#liquidglasscontinuousroundedrectpath"><span class="k k-function">function</span><code>liquidGlassContinuousRoundedRectPath</code></a>
+</div>
+<nav class="pager"><a href="efficiency.html"><span class="dir">السابق</span>الاستخدام الكفء</a><a class="next" href="api-view.html"><span class="dir">التالي</span>العارض</a></nav>
+<section class="comments" data-giscus
+  data-repo="AhmeedGamil/liquid_glass_easy" data-repo-id="R_kgDOQSg9fQ"
+  data-category="Comments" data-category-id="DIC_kwDOQSg9fc4DFagq"
+  data-term="api" data-lang="ar">
+<h2>التعليقات</h2>
+<p class="comments-sub">التعليقات هي مناقشات GitHub — يمكنك الرد من أيٍّ من المكانين.</p>
+</section>
+
+    </div>
+  </main>
+</div>
+<div class="search-panel" hidden>
+  <div class="search-box" role="dialog" aria-modal="true"
+       aria-label="بحث">
+    <div class="search-field">
+      <svg class="ico ico-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>
+      <input type="search" autocomplete="off" spellcheck="false"
+             placeholder="ابحث في التوثيق…">
+      <kbd>esc</kbd>
+    </div>
+    <div class="search-results" data-empty="لا نتائج مطابقة."
+         data-hint="اكتب للبحث"></div>
+  </div>
+</div>
+<script src="../site.js" defer></script>
+</body>
+</html>

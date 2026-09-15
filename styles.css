@@ -1,0 +1,1287 @@
+/* liquid_glass_easy docs — hand-written, no build step, no external fonts.
+ *
+ * Two themes and two writing directions out of one sheet. The colours are
+ * tokens on :root, swapped wholesale by [data-theme]; the layout is written in
+ * logical properties, so the Arabic build is the same CSS read the other way
+ * round rather than a second stylesheet that drifts.
+ *
+ *   1  tokens          light + dark palettes
+ *   2  base            html, body, links, focus
+ *   3  chrome          top bar, sidebar, search
+ *   4  article         headings, prose, tables, code, notes
+ *   5  api             the generated reference
+ *   6  landing         hero, cards, footer
+ *   7  responsive      the two breakpoints
+ */
+
+/* ── 1 · tokens ──────────────────────────────────────────────── */
+
+:root {
+  /* Brand. The one constant across both themes: the package's own blue and
+     violet, which is also what the favicon and the demo island are made of. */
+  --brand-1: #6a76ff;
+  --brand-2: #a9dcff;
+
+  --sidebar: 268px;
+  --measure: 800px;
+  --top: 56px;
+
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --ease: cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+/* Light. Not white: a page about a material that tints what is behind it
+   reads better on something with a temperature of its own. */
+:root,
+:root[data-theme="light"] {
+  color-scheme: light;
+
+  --bg: #f6f7fb;
+  --bg-2: #eceef6;
+  --panel: #ffffff;
+  --panel-2: #f2f4fa;
+  --line: rgba(16, 20, 45, 0.1);
+  --line-strong: rgba(16, 20, 45, 0.2);
+
+  --text: rgba(20, 23, 40, 0.82);
+  --text-dim: rgba(20, 23, 40, 0.55);
+  --text-bright: #10142d;
+
+  --link: #3d52d5;
+  --code-fg: #1f4bb8;
+  --code-bg: rgba(61, 82, 213, 0.08);
+
+  --info: #2f6fed;
+  --warn: #b45309;
+  --tip: #0f8a5f;
+  --focus: #3d52d5;
+
+  --shadow-sm: 0 1px 2px rgba(16, 20, 45, 0.06),
+    0 4px 16px rgba(16, 20, 45, 0.05);
+  --shadow-lg: 0 12px 40px rgba(16, 20, 45, 0.14);
+
+  --bloom-1: rgba(106, 118, 255, 0.13);
+  --bloom-2: rgba(80, 190, 255, 0.11);
+
+  /* Syntax. Muted enough that a long sample stays a block of text rather than
+     a fruit salad, separated enough to scan. */
+  --t-com: rgba(20, 23, 40, 0.45);
+  --t-str: #0a7d4f;
+  --t-key: #8b3fc9;
+  --t-num: #b4530a;
+  --t-typ: #1667a8;
+  --t-fun: #9a6100;
+  --t-arg: #3f5bb5;
+  --code-panel: #fbfcff;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg: #0b0b12;
+  --bg-2: #08080e;
+  --panel: #12121c;
+  --panel-2: #171722;
+  --line: rgba(255, 255, 255, 0.1);
+  --line-strong: rgba(255, 255, 255, 0.2);
+
+  --text: rgba(255, 255, 255, 0.78);
+  --text-dim: rgba(255, 255, 255, 0.5);
+  --text-bright: #ffffff;
+
+  --link: #b7d9ff;
+  --code-fg: #9fd2ff;
+  --code-bg: rgba(159, 210, 255, 0.1);
+
+  --info: #6ea8ff;
+  --warn: #ffb020;
+  --tip: #34d399;
+  --focus: #7cb4ff;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 18px 50px rgba(0, 0, 0, 0.55);
+
+  --bloom-1: rgba(106, 118, 255, 0.15);
+  --bloom-2: rgba(80, 190, 255, 0.1);
+
+  --t-com: rgba(255, 255, 255, 0.44);
+  --t-str: #9ce6a6;
+  --t-key: #cf9df0;
+  --t-num: #f9a07a;
+  --t-typ: #8dd6ff;
+  --t-fun: #ffd382;
+  --t-arg: #93b8ff;
+  --code-panel: #14141f;
+}
+
+/* ── 2 · base ────────────────────────────────────────────────── */
+
+* { box-sizing: border-box; }
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scroll-behavior: smooth;
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* The Arabic build asks for a face that has Arabic glyphs, and a little more
+   line height: the script is taller and sits closer to itself than Latin. */
+html[lang="ar"] body {
+  font-family: "Segoe UI", "Noto Naskh Arabic", "Noto Sans Arabic", "Geeza Pro",
+    "Dubai", Tahoma, var(--sans);
+  line-height: 1.85;
+  font-size: 16.5px;
+}
+/* Identifiers, samples and version numbers stay left-to-right inside RTL
+   prose, or the punctuation around them ends up on the wrong side. */
+html[dir="rtl"] code,
+html[dir="rtl"] kbd,
+html[dir="rtl"] .ver,
+html[dir="rtl"] .lang-code { direction: ltr; unicode-bidi: isolate; }
+
+/* Two soft blooms behind everything, in the package's own blue and violet.
+   The page is about a material that tints what is behind it; a flat void made
+   that argument badly. Fixed, so it never scrolls or repaints. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(58rem 40rem at 78% -8%, var(--bloom-1), transparent 62%),
+    radial-gradient(46rem 34rem at 4% 6%, var(--bloom-2), transparent 60%);
+}
+
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+code {
+  font-family: var(--mono);
+  font-size: 0.86em;
+  color: var(--code-fg);
+  background: var(--code-bg);
+  padding: 0.1em 0.34em;
+  border-radius: 5px;
+}
+pre code { background: none; padding: 0; }
+
+kbd {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-block-end-width: 2px;
+  border-radius: 5px;
+  color: var(--text-dim);
+  background: var(--panel);
+}
+
+::selection { background: color-mix(in srgb, var(--brand-1) 30%, transparent); }
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Off-screen until tabbed to — the first stop on every page, so a keyboard
+   does not walk the whole sidebar before reaching the article. */
+.skip {
+  position: fixed;
+  inset-inline-start: 12px;
+  inset-block-start: -60px;
+  z-index: 90;
+  padding: 10px 16px;
+  border-radius: var(--r-md);
+  background: var(--panel);
+  border: 1px solid var(--line-strong);
+  color: var(--text-bright);
+  font-size: 14px;
+  transition: inset-block-start 0.15s var(--ease);
+}
+.skip:focus { inset-block-start: 12px; text-decoration: none; }
+
+#main:focus { outline: none; }
+
+.ico {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  display: block;
+}
+
+/* ── 3 · chrome ──────────────────────────────────────────────── */
+
+.top {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 40;
+  height: var(--top);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-inline: 14px;
+  border-block-end: 1px solid var(--line);
+  background: color-mix(in srgb, var(--bg) 82%, transparent);
+  backdrop-filter: saturate(1.6) blur(14px);
+  -webkit-backdrop-filter: saturate(1.6) blur(14px);
+}
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding-inline: 9px;
+  border: 1px solid transparent;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+}
+.icon-btn:hover { background: var(--panel-2); border-color: var(--line); }
+
+.menu { display: none; }
+
+.top-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+  font-weight: 700;
+  color: var(--text-bright);
+  font-size: 15px;
+}
+.top-brand:hover { text-decoration: none; }
+/* Without this the name sets a minimum width for the whole bar, and on a
+   narrow phone the bar makes the document wider than the viewport — which
+   reads as "the article is cut off on the right". */
+.top-brand span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 520px) {
+  .top-brand span:last-child { display: none; }
+}
+/* The bar carries the brand at every width: on desktop the sidebar has the
+   full brand block too, but without this the bar's leading side is empty. */
+
+/* The package's mark: the pub.dev thumbnail, cropped to its lens. A CSS url()
+   resolves against this stylesheet, and logo.png sits beside it. */
+.mark {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  border-radius: 50%;
+  background: #0b0b12 url(logo.png) center / cover no-repeat;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    0 4px 14px color-mix(in srgb, var(--brand-1) 35%, transparent);
+}
+
+.tools {
+  margin-inline-start: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.search-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  min-width: 210px;
+  padding-inline: 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: start;
+}
+.search-btn:hover { border-color: var(--line-strong); }
+.search-btn span {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-btn kbd { padding: 1px 5px; }
+
+/* The two pop-up menus. Plain links inside, so the language switcher works
+   with the script off and a crawler can see every translation. */
+.menu-wrap { position: relative; }
+.pop {
+  position: absolute;
+  inset-block-start: calc(100% + 6px);
+  inset-inline-end: 0;
+  min-width: 168px;
+  padding: 5px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  display: none;
+  z-index: 50;
+}
+.menu-wrap.open .pop { display: block; }
+.pop a,
+.pop button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  text-align: start;
+}
+.pop a:hover,
+.pop button:hover { background: var(--panel-2); text-decoration: none; }
+.pop a[aria-current="true"],
+.pop button[aria-current="true"] {
+  color: var(--text-bright);
+  font-weight: 650;
+  background: var(--panel-2);
+}
+
+.lang-code { font-size: 11.5px; font-weight: 750; letter-spacing: 0.4px; }
+
+/* The lite-glass switch: lit while it is on. */
+.lite-btn .lite-label { font-size: 12px; font-weight: 650; }
+.lite-btn[aria-pressed="true"] {
+  background: var(--panel-2);
+  border-color: var(--line);
+  color: var(--text-bright);
+}
+@media (max-width: 720px) { .lite-btn .lite-label { display: none; } }
+
+/* The same switch placed in a page body, with its explanation beside it. */
+.lite-inline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 18px 0 22px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+}
+.lite-inline .lite-btn {
+  flex: none;
+  border-color: var(--line);
+  background: var(--panel-2);
+}
+.lite-inline .lite-btn .lite-label { display: inline; }
+.lite-inline p { margin: 0; font-size: 14px; }
+
+/* One button, two glyphs: the sun in light, the moon in dark. */
+.theme-btn .ico-moon { display: none; }
+:root[data-theme="dark"] .theme-btn .ico-sun { display: none; }
+:root[data-theme="dark"] .theme-btn .ico-moon { display: block; }
+
+.layout {
+  display: flex;
+  align-items: flex-start;
+  min-height: calc(100vh - var(--top));
+}
+
+.sidebar {
+  width: var(--sidebar);
+  flex: 0 0 var(--sidebar);
+  border-inline-end: 1px solid var(--line);
+  padding: 22px 12px 40px;
+  position: sticky;
+  inset-block-start: var(--top);
+  height: calc(100vh - var(--top));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+.sidebar::-webkit-scrollbar { width: 9px; }
+.sidebar::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 9px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+
+.brand {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 2px 10px 18px;
+}
+.brand:hover { text-decoration: none; }
+.brand .words { min-width: 0; }
+.brand .eyebrow {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  color: var(--text-dim);
+}
+.brand .name {
+  display: block;
+  color: var(--text-bright);
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.brand .ver {
+  grid-column: 1;
+  justify-self: start;
+  padding: 1px 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  font-size: 10.5px;
+  color: var(--text-dim);
+  font-family: var(--mono);
+}
+
+.nav-group { margin-bottom: 18px; }
+.nav-title {
+  padding: 0 11px 6px;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+html[lang="ar"] .nav-title { letter-spacing: 0; font-size: 11.5px; }
+
+.nav { list-style: none; margin: 0; padding: 0; }
+.nav li { margin-bottom: 1px; }
+.nav a {
+  position: relative;
+  display: block;
+  padding: 7px 11px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.14s var(--ease), color 0.14s var(--ease);
+}
+.nav a:hover { background: var(--panel-2); text-decoration: none; }
+.nav a[aria-current="page"] {
+  background: var(--panel-2);
+  color: var(--text-bright);
+  font-weight: 700;
+}
+/* The accent bar says "this one" at a glance, before the weight registers. */
+.nav a[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: -8px;
+  inset-block: 7px;
+  width: 3px;
+  border-radius: 3px;
+  background: linear-gradient(var(--brand-2), var(--brand-1));
+}
+
+.nav .sub,
+.nav .toc {
+  list-style: none;
+  margin: 2px 0 6px;
+  padding: 0;
+  padding-inline-start: 20px;
+  margin-inline-start: 12px;
+  border-inline-start: 1px solid var(--line);
+}
+.nav .sub a { padding: 5px 10px; font-size: 13.5px; color: var(--text-dim); }
+.nav .sub a:hover { color: var(--text); }
+.nav .sub a[aria-current="page"] { color: var(--text-bright); }
+.nav .sub a[aria-current="page"]::before { inset-inline-start: -21px; }
+
+/* This page's own headings, under this page's entry. One rail does both jobs,
+   which leaves the right-hand column free for the demo. */
+.nav .toc a {
+  padding: 3px 10px;
+  font-size: 13px;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.nav .toc a:hover { color: var(--text); }
+.nav .toc a.here { color: var(--text-bright); background: var(--panel-2); }
+.nav .sub .toc { padding-inline-start: 16px; }
+
+.nav-foot {
+  margin-top: 8px;
+  padding: 14px 11px 0;
+  border-block-start: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 13.5px;
+}
+
+.scrim { display: none; }
+
+.content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 38px 40px 90px;
+}
+/* An identifier with no spaces in it is one long word. Left alone it decides
+   how wide the page is on a phone. */
+.content p,
+.content li,
+.content td,
+.content th { overflow-wrap: anywhere; }
+.wrap { max-width: var(--measure); margin: 0 auto; }
+.wrap.wide { max-width: 1180px; }
+
+/* The search overlay. Built by the generator, filled by site.js on first
+   open — the index is a separate file, so a visitor who never searches never
+   downloads it. */
+.search-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, var(--bg-2) 72%, transparent);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  padding: 12vh 20px 20px;
+}
+.search-panel[hidden] { display: none; }
+.search-box {
+  max-width: 640px;
+  margin: 0 auto;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-block-end: 1px solid var(--line);
+  color: var(--text-dim);
+}
+.search-field input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 16px;
+  outline: none;
+}
+.search-results { max-height: 56vh; overflow-y: auto; padding: 6px; }
+.search-results a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: var(--r-sm);
+  color: var(--text);
+}
+.search-results a:hover,
+.search-results a.sel { background: var(--panel-2); text-decoration: none; }
+.search-results .r-t {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-bright);
+  font-weight: 650;
+}
+.search-results .r-k {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 0 7px;
+}
+.search-results .r-d {
+  font-size: 13px;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.search-results .empty { padding: 18px 12px; color: var(--text-dim); }
+
+/* ── 4 · article ─────────────────────────────────────────────── */
+
+h1 {
+  color: var(--text-bright);
+  font-size: clamp(29px, 4.2vw, 38px);
+  line-height: 1.14;
+  font-weight: 800;
+  margin: 0 0 10px;
+  letter-spacing: -0.5px;
+}
+html[lang="ar"] h1 { letter-spacing: 0; line-height: 1.3; }
+
+.tagline {
+  color: var(--text-dim);
+  font-size: 17px;
+  margin: 0 0 8px;
+  padding-bottom: 24px;
+  border-block-end: 1px solid var(--line);
+}
+
+h2 {
+  color: var(--text-bright);
+  font-size: 21px;
+  font-weight: 700;
+  margin: 40px 0 12px;
+  scroll-margin-top: calc(var(--top) + 16px);
+  letter-spacing: -0.2px;
+}
+html[lang="ar"] h2 { letter-spacing: 0; }
+
+h2 .anchor {
+  opacity: 0;
+  margin-inline-start: 8px;
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 16px;
+  transition: opacity 0.14s var(--ease);
+}
+h2:hover .anchor, h2 .anchor:focus-visible { opacity: 1; }
+
+p { margin: 0 0 16px; }
+strong { color: var(--text-bright); font-weight: 700; }
+em { color: var(--text-bright); font-style: italic; opacity: 0.92; }
+
+ul.bullets { margin: 0 0 18px; padding-inline-start: 20px; }
+ul.bullets li { margin-bottom: 8px; }
+ul.bullets li::marker { color: var(--text-dim); }
+
+/* ── code ── */
+
+.code {
+  background: var(--code-panel);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  margin: 0 0 22px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+.code-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px 7px 14px;
+  border-block-end: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.code .caption {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.copy {
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 12px;
+  padding: 3px 10px;
+  cursor: pointer;
+}
+.copy:hover { color: var(--text-bright); border-color: var(--line-strong); }
+.copy.done { color: var(--tip); border-color: var(--tip); }
+
+.code pre {
+  margin: 0;
+  padding: 14px 16px 16px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 13.2px;
+  line-height: 1.62;
+  color: var(--text);
+  tab-size: 2;
+}
+
+.t-c { color: var(--t-com); font-style: italic; }
+.t-s { color: var(--t-str); }
+.t-k { color: var(--t-key); }
+.t-n { color: var(--t-num); }
+.t-y { color: var(--t-typ); }
+.t-f { color: var(--t-fun); }
+.t-a { color: var(--t-arg); }
+
+/* ── tables ── */
+
+.table-wrap { overflow-x: auto; margin: 0 0 22px; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14.5px;
+  margin: 0 0 22px;
+}
+.table-wrap table { margin: 0; }
+th {
+  text-align: start;
+  padding: 9px 12px;
+  border-block-end: 1px solid var(--line-strong);
+  color: var(--text-bright);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+html[lang="ar"] th { letter-spacing: 0; font-size: 12.5px; }
+td {
+  padding: 11px 12px;
+  border-block-end: 1px solid var(--line);
+  vertical-align: top;
+}
+tbody tr:hover { background: var(--panel-2); }
+
+/* ── notes ── */
+
+.note {
+  display: block;
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--info);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  padding: 13px 16px;
+  margin: 0 0 22px;
+}
+.note.warn { border-inline-start-color: var(--warn); }
+.note.tip { border-inline-start-color: var(--tip); }
+.note .label {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--info);
+  margin-bottom: 4px;
+}
+html[lang="ar"] .note .label { letter-spacing: 0; font-size: 11.5px; }
+.note.warn .label { color: var(--warn); }
+.note.tip .label { color: var(--tip); }
+.note p { margin: 0; font-size: 15px; }
+
+/* ── demos ── */
+
+/* The demo app is a dark document inside an iframe. In the light theme that
+   would read as a hole in the page, so it is framed as a screen: a dark bezel
+   with a highlight on it, which is a thing a page is allowed to contain. */
+.demo { margin: 0 0 26px; }
+.demo-frame {
+  position: relative;
+  border-radius: 20px;
+  padding: 8px;
+  background: linear-gradient(160deg, #23232f, #0d0d14);
+  box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+.demo-frame iframe {
+  display: block;
+  width: 100%;
+  height: 520px;
+  border: 0;
+  border-radius: 13px;
+  background: #0b0b12;
+}
+.demo figcaption {
+  margin-top: 10px;
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+
+/* The demo comes first in the markup, so stacked it leads the page: on a phone
+   the thing you came to see is on screen, not a page-length scroll away. Wide
+   enough, the grid puts it back beside the prose, where it rides along while
+   the prose scrolls past it. */
+.doc-split { display: block; }
+@media (min-width: 1180px) {
+  .doc-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    gap: 46px;
+    align-items: start;
+  }
+  .doc-main { min-width: 0; grid-area: 1 / 1; }
+  .doc-demo {
+    grid-area: 1 / 2;
+    position: sticky;
+    inset-block-start: calc(var(--top) + 24px);
+  }
+  .doc-demo .demo-frame iframe { height: 600px; }
+  .pager { grid-area: 2 / 1 / 3 / -1; }
+  /* Prose column only: the demo beside it is sticky and can run down into
+     this row, and a full-width thread would sit underneath it. */
+  .comments { grid-area: 3 / 1 / 4 / 2; }
+}
+
+/* ── pager ── */
+
+.pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-top: 54px;
+  padding-top: 26px;
+  border-block-start: 1px solid var(--line);
+}
+.pager a {
+  display: block;
+  padding: 13px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--text-bright);
+  font-weight: 650;
+  font-size: 15px;
+}
+.pager a:hover { border-color: var(--line-strong); text-decoration: none; }
+.pager a.next { grid-column: 2; text-align: end; }
+.pager .dir {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+html[lang="ar"] .pager .dir { letter-spacing: 0; font-size: 11.5px; }
+
+/* ── comments ── */
+
+.comments {
+  margin-top: 54px;
+  padding-top: 26px;
+  border-block-start: 1px solid var(--line);
+}
+.comments h2 { margin: 0 0 4px; }
+.comments .comments-sub {
+  margin: 0 0 18px;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+/* giscus renders LTR even on the Arabic pages; left to inherit, its layout
+   collides with the RTL writing direction around it. */
+.comments .giscus { direction: ltr; }
+
+/* ── 5 · api ─────────────────────────────────────────────────── */
+
+.api {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  padding: 20px 22px 6px;
+  margin: 0 0 26px;
+  box-shadow: var(--shadow-sm);
+  scroll-margin-top: calc(var(--top) + 16px);
+}
+.api.inline { margin-block: 8px 26px; }
+
+.api-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.api-head h2,
+.api-head h3 {
+  margin: 0;
+  font-size: 19px;
+  letter-spacing: 0;
+}
+.api-head h2 code,
+.api-head h3 code {
+  font-size: 1em;
+  background: none;
+  padding: 0;
+  color: var(--text-bright);
+}
+.api-head .anchor { font-size: 15px; }
+
+.k {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.9px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid var(--line);
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+html[lang="ar"] .k { letter-spacing: 0; }
+.k-klass { color: var(--info); border-color: color-mix(in srgb, var(--info) 40%, transparent); }
+.k-enumeration { color: var(--tip); border-color: color-mix(in srgb, var(--tip) 40%, transparent); }
+.k-typedef,
+.k-mixin { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+
+.api-ext { font-size: 13px; color: var(--text-dim); }
+.api-ext code { font-size: 12.5px; }
+.api-guide {
+  margin-inline-start: auto;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.api-doc p { font-size: 15px; margin-bottom: 12px; }
+.api-doc { margin-bottom: 14px; }
+
+.api-sub {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 22px 0 10px;
+}
+html[lang="ar"] .api-sub { letter-spacing: 0; font-size: 13px; }
+
+.sig {
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--code-panel);
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  direction: ltr;
+}
+.sig code {
+  background: none;
+  padding: 0;
+  color: var(--text-bright);
+  font-size: 13px;
+  white-space: pre;
+}
+.sig-doc { font-size: 14px; color: var(--text-dim); margin: -4px 0 12px; }
+
+.api-table { font-size: 14px; margin-bottom: 6px; }
+.api-table th { font-size: 10px; }
+.api-table td { padding: 9px 12px; }
+.api-table.params td:first-child { white-space: nowrap; }
+.api-table code { font-size: 12.5px; }
+
+.req {
+  display: inline-block;
+  margin-inline-start: 6px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--warn);
+}
+.dash { color: var(--text-dim); }
+
+.api-file {
+  font-size: 12px;
+  color: var(--text-dim);
+  border-block-start: 1px solid var(--line);
+  padding-top: 10px;
+  margin: 18px 0 14px;
+}
+.api-file code { font-size: 11.5px; }
+
+.ref code { border-bottom: 1px dashed currentColor; }
+
+.api-index {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 26px;
+}
+/* The jump list at the head of a group page. Not called `.top` — that is the
+   site header, and a second class by that name lands the header's sticky
+   56px-tall rule on a list of chips. */
+.api-index.lead {
+  padding-bottom: 22px;
+  border-block-end: 1px solid var(--line);
+  margin-bottom: 30px;
+}
+.api-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  color: var(--text);
+}
+.api-chip:hover {
+  border-color: var(--line-strong);
+  text-decoration: none;
+  background: var(--panel-2);
+}
+.api-chip code { background: none; padding: 0; font-size: 12.5px; }
+.api-chip .k { font-size: 9px; padding: 1px 6px; }
+
+/* ── 6 · landing ─────────────────────────────────────────────── */
+
+.hero { padding: 14px 0 4px; }
+.eyebrow-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 18px;
+}
+.pill {
+  font-size: 11.5px;
+  padding: 3px 11px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  color: var(--text-dim);
+  background: var(--panel);
+}
+.hero h1 { font-size: clamp(34px, 6vw, 54px); margin-bottom: 14px; }
+.lede {
+  font-size: 18.5px;
+  color: var(--text-dim);
+  max-width: 660px;
+  margin-bottom: 24px;
+}
+
+.cta { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding-inline: 18px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--text-bright);
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.btn:hover { text-decoration: none; background: var(--panel-2); }
+.btn.primary {
+  border-color: transparent;
+  background: linear-gradient(150deg, var(--brand-2), var(--brand-1));
+  color: #0b0b12;
+  box-shadow: 0 6px 22px color-mix(in srgb, var(--brand-1) 34%, transparent);
+}
+.btn.primary:hover { filter: brightness(1.06); }
+.btn.mono code { background: none; padding: 0; font-size: 13px; }
+.btn.mono.done code { color: var(--tip); }
+
+/* The two counters — GitHub stars and pub.dev likes — each a link to its
+   source. The number keeps its slot while site.js refreshes it. */
+.btn.stat { gap: 7px; padding-inline: 14px; }
+.btn.stat svg { flex: none; color: var(--text-dim); }
+.btn.stat strong { font-weight: 700; font-variant-numeric: tabular-nums; }
+.btn.stat .unit { color: var(--text-dim); font-weight: 500; }
+.btn.stat:hover svg { color: var(--brand-1); }
+
+.hero-demo { margin-top: 34px; }
+
+.section { margin-top: 56px; }
+.section h2 { margin-top: 0; }
+/* Scoped: the sidebar's nested page list is also `.sub`, and it does not want
+   a landing page's paragraph margins. */
+.section .sub { color: var(--text-dim); margin: -6px 0 20px; }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(248px, 1fr));
+  gap: 12px;
+}
+.cards.two { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.card {
+  display: block;
+  padding: 15px 17px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--text);
+  transition: border-color 0.14s var(--ease), transform 0.14s var(--ease);
+}
+.card:hover {
+  border-color: var(--line-strong);
+  text-decoration: none;
+  transform: translateY(-1px);
+}
+.card .t {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-bright);
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+.card .d { font-size: 13.5px; color: var(--text-dim); line-height: 1.5; }
+.card .count {
+  margin-inline-start: auto;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 0 7px;
+}
+
+.site {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 60px;
+  padding-top: 24px;
+  border-block-start: 1px solid var(--line);
+  font-size: 13.5px;
+  color: var(--text-dim);
+}
+
+/* The root document: no chrome, just the language choice, for the moment
+   before the redirect fires or for a browser that will not run it. */
+.root-redirect { display: grid; place-items: center; min-height: 100vh; }
+.root-redirect main { text-align: center; padding: 24px; }
+.root-redirect .mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  margin: 0 auto 18px;
+  background-image: url(logo.png);
+}
+.root-redirect h1 { font-size: 30px; }
+.root-redirect p { color: var(--text-dim); }
+.root-langs { display: flex; gap: 10px; justify-content: center; margin-top: 18px; }
+.root-langs a {
+  padding: 9px 20px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  color: var(--text-bright);
+}
+
+/* ── 7 · responsive ──────────────────────────────────────────── */
+
+@media (max-width: 1180px) {
+  .content { padding: 32px 26px 80px; }
+}
+
+@media (max-width: 980px) {
+  .menu { display: inline-flex; }
+  .search-btn { min-width: 0; }
+  .search-btn span, .search-btn kbd { display: none; }
+
+  .sidebar {
+    position: fixed;
+    inset-block: var(--top) 0;
+    inset-inline-start: 0;
+    z-index: 45;
+    background: var(--bg);
+    transform: translateX(-102%);
+    transition: transform 0.2s var(--ease);
+    box-shadow: var(--shadow-lg);
+    height: auto;
+  }
+  html[dir="rtl"] .sidebar { transform: translateX(102%); }
+  body.nav-open .sidebar { transform: none; }
+  body.nav-open .scrim {
+    display: block;
+    position: fixed;
+    inset: var(--top) 0 0;
+    z-index: 44;
+    background: color-mix(in srgb, var(--bg-2) 55%, transparent);
+  }
+  /* The sidebar carries the brand for the drawer; the bar has its own. */
+  .sidebar .brand { display: none; }
+}
+
+@media (max-width: 680px) {
+  .content { padding: 24px 16px 70px; }
+  .demo-frame iframe { height: 460px; }
+  .pager { grid-template-columns: 1fr; }
+  .pager a.next { grid-column: 1; }
+  .api { padding: 16px 15px 4px; }
+  .api-guide { margin-inline-start: 0; }
+
+  /* Tables stack into labelled rows. `data-label` is written by the generator
+     from the header cell, so the header can be hidden without the numbers
+     losing what they mean. */
+  table, thead, tbody, tr, th, td { display: block; }
+  thead { display: none; }
+  table { font-size: 14px; }
+  tr {
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--panel);
+    padding: 4px 12px 8px;
+    margin-bottom: 10px;
+  }
+  tbody tr:hover { background: var(--panel); }
+  td { border: 0; padding: 6px 0; }
+  td:empty { display: none; }
+  td::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--text-dim);
+    margin-bottom: 2px;
+  }
+  html[lang="ar"] td::before { letter-spacing: 0; font-size: 11.5px; }
+  .api-table.params td:first-child { white-space: normal; }
+}
+
+/* A markdown heading inside a source comment. Small, because it divides a
+   description rather than a page. */
+.api-h {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-bright);
+  margin: 18px 0 8px;
+}
+.api-doc ul.bullets { margin-bottom: 14px; font-size: 15px; }

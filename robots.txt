@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://ahmeedgamil.github.io/liquid_glass_easy/sitemap.xml
