@@ -412,6 +412,13 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   Rect _target = Rect.zero;
   Rect _origin = Rect.zero;
 
+  /// The rect the old child is pinned to: the one it was drawn in when the
+  /// swap came, set right then. [_origin] is the glass's and is only known
+  /// once the new child has been measured, a frame later — read for the
+  /// content on that frame it is the PREVIOUS morph's origin, and the old
+  /// child was drawn one frame inside the outline it is about to leave for.
+  Rect _srcPin = Rect.zero;
+
   /// The smallest and largest area the glass has had: the material thickens
   /// from one to the other, so a shape's thickness is the same every time it
   /// is visited.
@@ -551,7 +558,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
 
     if (!_seeded) {
       _seeded = true;
-      _target = _origin = to;
+      _target = _origin = _srcPin = to;
       _smallArea = _bigArea = to.width * to.height;
       _setOverflow(to, to);
       _dst.shape = shape;
@@ -701,6 +708,12 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       final double returningAt = _srcLevel(t);
       _srcFrom = leavingAt;
       _dstFrom = returning ? returningAt : 0;
+      // Each child keeps the rect it is drawn in: the one leaving stays
+      // pinned where it was arriving, and one coming back returns to where
+      // it was leaving from. Neither waits for the measurement.
+      final Rect was = _srcPin;
+      _srcPin = _target;
+      if (returning) _target = was;
       // The clock restarts NOW, not when the measurement lands a frame
       // later — read at rest (t = 1) it would paint the incoming child
       // fully opaque inside the OLD outline for that gap frame.
@@ -1033,10 +1046,10 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     final double level = _srcLevel(t);
     if (level <= 0.001) return null;
     final double k = 1 - level;
-    final Offset pinned = _origin.topLeft - blob.topLeft;
+    final Offset pinned = _srcPin.topLeft - blob.topLeft;
     final Offset riding = Offset(
-      (blob.width - _origin.width) / 2,
-      (blob.height - _origin.height) / 2,
+      (blob.width - _srcPin.width) / 2,
+      (blob.height - _srcPin.height) / 2,
     );
     return _MorphMeasure(
       key: _keyOf(child),

@@ -37,7 +37,7 @@ private/
 test/
 # Local-only web demo app (not part of the published package)
 web_demos/
-
+border_enhance/
 # Local agent / toolchain folders
 .agents/
 .codex/

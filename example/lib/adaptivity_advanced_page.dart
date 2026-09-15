@@ -109,12 +109,12 @@ const LiquidGlassShape _navBarShape = LiquidGlassShape(
   //clipQuality: LiquidGlassClipQuality.exact,
   borderWidth: 0.8,
   lightIntensity: 1.1,
-  lightDirection: 39,
+  lightDirection: 0,
   lightColor: Colors.grey,
 
   borderType: OpticalBorder(
     borderSaturation: 1.2,
-    ambientIntensity: 1.0,
+    ambientIntensity: 0.0,
     borderSolidity: 1,
   ),
 );

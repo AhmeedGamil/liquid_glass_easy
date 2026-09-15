@@ -399,7 +399,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^4.3.0
+  liquid_glass_easy: ^4.3.1
 ```
 
 ```bash

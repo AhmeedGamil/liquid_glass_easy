@@ -1,4 +1,5 @@
-## Unreleased
+## 4.3.1
+- **`LiquidGlassMorph` no longer draws the leaving child one frame inside the outline it is about to leave for.** The old child was pinned to the glass's origin, and that origin is only known once the new child has been measured, a frame after the swap — read on that frame it was still the *previous* morph's origin, so for one frame the leaving child sat in the wrong rect. Each child now keeps the rect it was drawn in, set at the swap itself: the one leaving stays pinned where it was arriving, and one coming back mid-flight returns to where it was leaving from. Neither waits for the measurement.
 - **A batched, blurred lens no longer runs ahead of its page during a route transition.** The composed pass measured its frame from the clips its ancestors *reported*, and a viewport reports its bounds whether or not it pushed the clip — it only pushes one while its content overflows. A short list mid-slide therefore "clipped" at the page's moving edge for the lens and at nothing for the engine, and the glass was drawn ahead of its outline by the difference, up to the pass padding. The frame is now read from the clip layers themselves at compositing time, which is exactly what the engine gets: a viewport that did not clip does not count, and a page is where its layers say it is.
 
 ## 4.3.0
