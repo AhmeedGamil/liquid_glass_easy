@@ -285,18 +285,14 @@ class LiquidGlassScaffold extends StatefulWidget {
 
   /// See [LiquidGlassView.batch]. `true` (the default) puts the glass in
   /// [body] on one shared read of the backdrop and the chrome — app bar,
-  /// tab bar, action, FAB, [dialog], [lenses] — on another. It is the one
-  /// chrome batch on both tab bar paths: with a glass pill the bar's
-  /// capsule sits in its inner view and the slots in the outer one on
-  /// Impeller, and the scaffold hands both views the same key. A
+  /// action, FAB, [dialog], [lenses] — on another. It is the one chrome
+  /// batch on both tab bar paths, and the tab bar is never in it: on
+  /// either path the bar's glass takes a read of its own. A
   /// `showLiquidGlassSheet` or a `showLiquidGlassDialog` opened from a
   /// context inside this scaffold can join that batch too, with
   /// `batch: true` on the call, so the sheet or the dialog costs no read
   /// of its own — the same read the tab bar takes. Off by default: each
-  /// takes a read of its own. With a glass pill tab bar the
-  /// moving pill and its magnifier keep reads of their own: the pill
-  /// exists to refract the capsule under it, which no batch member can
-  /// see.
+  /// takes a read of its own.
   final bool batch;
 
   /// The palettes this scaffold's glass chrome wears, the OS bars it
@@ -464,6 +460,8 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         pixelRatio: widget.pixelRatio,
         useSync: widget.useSync,
         useImpellerBackdrop: widget.useImpellerBackdrop,
+        // The bar keeps its own glass out of this batch; only the chrome
+        // slots share it.
         batch: widget.batch,
         foregroundBatchId: _chromeBatch,
         realTimeCapture: widget.realTimeCapture,
@@ -689,7 +687,10 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
                     left: navMargin.left,
                     right: navMargin.right,
                   ),
-                  child: widget.bottomNavigationBar!,
+                  // Its own read, never the chrome batch's.
+                  child: LiquidGlassBatch.exclude(
+                    child: widget.bottomNavigationBar!,
+                  ),
                 ),
               ),
             ),

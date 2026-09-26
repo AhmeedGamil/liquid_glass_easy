@@ -362,17 +362,16 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final bool useSync;
   final bool? useImpellerBackdrop;
 
-  /// See `LiquidGlassView.batch`, forwarded to both views. The moving
-  /// glass pill and the magnifier pill are kept out regardless: each sits
-  /// on the capsule to refract it, and a batch member cannot see another
-  /// member's glass.
+  /// See `LiquidGlassView.batch`, forwarded to both views. The bar's own
+  /// glass — capsule, moving pill and magnifier pill — is kept out
+  /// regardless: each takes a read of its own, so the batch only carries
+  /// the host's [chromeChild].
   final bool batch;
 
   /// See `LiquidGlassView.foregroundBatchId`, handed to both views: with it
-  /// the capsule (the inner view's child) and the outer slots (the outer
-  /// view's) are one batch — how the scaffold puts its tab bar and its
-  /// `dialog` slot on a single read, and the sheets and dialogs it
-  /// presents when they ask for it. Library-internal.
+  /// the [chromeChild] slots are one batch whichever view draws them — how
+  /// the scaffold puts its `dialog` slot and the sheets and dialogs it
+  /// presents when they ask for it on a single read. Library-internal.
   final int? foregroundBatchId;
 
   /// Whether the **inner** view (body + bar capsule) captures every frame.
@@ -1670,7 +1669,11 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 width: layout.width,
                 height: layout.height,
                 child: IgnorePointer(
-                  child: LiquidGlassLens(style: capsuleStyle),
+                  // Its own read, never a batch's: the bar stays off the
+                  // shared chrome read even when the host batches.
+                  child: LiquidGlassBatch.exclude(
+                    child: LiquidGlassLens(style: capsuleStyle),
+                  ),
                 ),
               ),
               // The host's chrome, on Skia only, on THIS view's capture: it

@@ -226,6 +226,8 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// capture then sleeps whenever the pill is at rest. [outerChild] is the
   /// explicit outer slot on both renderers; pass [outerNeedsRealtime]
   /// while it is showing. [bottomInset] is the safe-area bottom inset.
+  /// [batch] is off by default: every lens in both views takes a read of
+  /// its own.
   Widget buildGlassPillBar({
     required Widget body,
     Widget? chromeChild,
@@ -235,7 +237,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     double pixelRatio = 1.0,
     bool useSync = true,
     bool? useImpellerBackdrop,
-    bool batch = true,
+    bool batch = false,
     int? foregroundBatchId,
     bool realTimeCapture = true,
     bool outerNeedsRealtime = false,
