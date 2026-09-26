@@ -719,8 +719,25 @@ MergedField evaluateMerged(vec2 p) {
 // Background sampling (CA + optional in-shader blur), saturation, tint —
 // mirrors liquid_glass.frag's finalSample.
 // =====================================================
+// Engine-blur pass: u_imageRegion holds the pass clip, size negated. The input
+// texture is then u_resolution (the engine writes its size there).
+bool composePass() { return u_imageSize.x < 0.0; }
+
+// Where FlutterFragCoord counts from. Engines that crop the input to the clip
+// hand a texture smaller than the clip's far corner; newer ones keep the pass.
+vec2 fragOrigin() {
+    if (!composePass()) return vec2(0.0);
+    vec2 clipFar = u_imageOffset - u_imageSize;
+    bool clipLocal = u_resolution.x < clipFar.x - 1.0 ||
+                     u_resolution.y < clipFar.y - 1.0;
+    return clipLocal ? u_imageOffset : vec2(0.0);
+}
+
+vec2 imageSizePx() { return composePass() ? u_resolution : u_imageSize; }
+
 vec2 refractedToUv(vec2 refractedPx) {
-    vec2 uv = clamp((refractedPx - u_imageOffset) / u_imageSize,
+    vec2 imageOffset = composePass() ? fragOrigin() : u_imageOffset;
+    vec2 uv = clamp((refractedPx - imageOffset) / imageSizePx(),
                     vec2(0.001), vec2(0.999));
     // GLES sampler Y-flip — only on engines BEFORE the OpenGLES coordinate
     // unification (post-3.44.0 sets IMPELLER_OPENGLES_UNFLIPPED_DEPRECATED).
@@ -746,7 +763,7 @@ vec3 sampleChroma(vec2 uv, float shift) {
 // Two-ring blur where EACH tap is a chroma-split sample, so CA happens BEFORE
 // the blur — the colour fringe is diffused by the frost, not laid over it.
 vec3 blurFieldChroma(vec2 uv, float shift) {
-    vec2 pxToUv = 1.0 / max(u_imageSize, vec2(EPS));
+    vec2 pxToUv = 1.0 / max(imageSizePx(), vec2(EPS));
     vec3 color = sampleChroma(uv, shift);
     float count = 1.0;
     for (int ring = 1; ring <= 2; ring++) {
@@ -799,7 +816,7 @@ float computeShapeMask(float shapeDistPx) {
 // Main
 // =====================================================
 void main() {
-    vec2 fragPx   = FlutterFragCoord().xy;
+    vec2 fragPx   = FlutterFragCoord().xy + fragOrigin();
     float invResY = 1.0 / u_resolution.y;
     vec2 uvNorm   = fragPx * invResY;
 

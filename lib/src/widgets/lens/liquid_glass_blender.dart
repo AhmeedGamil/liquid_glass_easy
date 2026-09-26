@@ -1024,42 +1024,34 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     final double sigma = _blurSigma;
     final bool engineBlur = _useEngineBlur && sigma > 0;
 
-    // ENGINE-BLUR COMPOSE PATH — clip-local frame.
+    // ENGINE-BLUR COMPOSE PATH.
     //
     // Clipping the compose pass to the tight glass rect (`glassRect`) bounds the
-    // costly backdrop+blur to where the glass is — but clipping the snapshot
-    // ALSO moves the outer shader's FlutterFragCoord origin to glassRect.topLeft
-    // (the snapshot is bounded by the clip). So we pack EVERYTHING in that
-    // clip-local frame, or the pieces desync:
-    //   • lens centres shifted by −glassRect.topLeft (else the silhouette slides
-    //     down by topLeft — the "lenses shifted to bottom" artefact),
-    //   • resolution = glassRect.size,
-    //   • sampling window = the rect from its OWN origin: offset 0, size = the
-    //     rect — matching the clip-sized snapshot 1:1 (else the refracted
-    //     content slides/scales inside the lens).
-    // Earlier breakage was a half-and-half frame (clip-local FragCoord but
-    // surface-local lenses / imageSize); keep all four in lockstep.
+    // costly backdrop+blur to where the glass is. Where FlutterFragCoord counts
+    // from on that pass depends on the engine: some crop the shader's input to
+    // the clip and count from its top-left, newer ones keep the pass's frame.
+    // Dart cannot tell which, so the lenses stay GLOBAL and the pass clip goes
+    // down in the sampling window with its size negated; the shader compares it
+    // with the input size the engine wrote into u_resolution and picks the
+    // origin (see fragOrigin in metaball_glass.frag). Sampling is against that
+    // input size too, so the window always matches the texture 1:1.
     final Rect glassRect = engineBlur
         ? _glassClipRect(members, this, Offset.zero & size)
         : Rect.zero;
-
-    // Plain (no-blur) path: FlutterFragCoord is FULL-SCREEN physical px → pack
-    // GLOBAL lens rects against _screenSize. Engine-blur path: clip-local.
-    final List<MetaballLensUniform> packedLenses = engineBlur
-        ? _lensesIn(members, this)
-            .map((l) => l.translated(-glassRect.topLeft))
-            .toList(growable: false)
-        : _lensesIn(members, null);
+    final Rect glassRectInScreen = engineBlur
+        ? MatrixUtils.transformRect(getTransformTo(null), glassRect)
+        : Rect.zero;
 
     _packShared(
-      resolution: engineBlur ? glassRect.size : _screenSize,
-      lenses: packedLenses,
+      resolution: _screenSize,
+      lenses: _lensesIn(members, null),
       scale: _devicePixelRatio,
       // Engine blur runs before the shader → don't blur again in-shader.
       blur: engineBlur ? 0.0 : sigma,
-      // Clip-local snapshot → sample from its own origin: offset 0, window = rect.
-      imageOffset: Offset.zero,
-      imageSize: engineBlur ? glassRect.size : null,
+      imageOffset: engineBlur ? glassRectInScreen.topLeft : Offset.zero,
+      imageSize: engineBlur
+          ? Size(-glassRectInScreen.width, -glassRectInScreen.height)
+          : null,
     );
 
     final ui.ImageFilter shaderFilter = ui.ImageFilter.shader(_shader);
@@ -1088,11 +1080,9 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     // limits where pixels land — the shader's backdrop sampler is the FULL
     // screen regardless — so we keep it as a cost saver.
     //
-    // Engine-blur COMPOSE path: clip to the tight `glassRect`. The shader was
-    // packed in this rect's clip-local frame above (lenses shifted, resolution =
-    // rect, sampling window = rect from origin), so the snapshot, FragCoord and
-    // sampling all share one frame — the costly backdrop+blur is bounded to the
-    // glass region instead of the whole surface.
+    // Engine-blur COMPOSE path: clip to the tight `glassRect`, the same rect
+    // packed into the sampling window above — the costly backdrop+blur is
+    // bounded to the glass region instead of the whole surface.
     final Rect clipRect = engineBlur
         ? glassRect
         : _glassClipRect(members, this, Offset.zero & size);

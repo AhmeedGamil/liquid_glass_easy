@@ -566,12 +566,14 @@ class RenderLiquidGlassLens extends RenderProxyBox
     // refracted inside it.
     final Size? subpassSize =
         subpassAncestor is RenderBox ? subpassAncestor.size : null;
-    // Batched with a composed blur, the shader reads an intermediate bounded
-    // by the pass's clip, so FlutterFragCoord starts at that rect's top-left:
-    // pack the whole frame there — origin, resolution and sampling window —
-    // or the pieces desync and the glass slides inside its own outline. The
-    // rect that counts is the one the ENGINE ends up with, not the one we
-    // asked for; see [_composedPassRect].
+    // Batched with a composed blur, where FlutterFragCoord counts from depends
+    // on the engine: some crop the shader's input to the pass's clip and count
+    // from its top-left, newer ones keep the surface's frame. Dart cannot tell
+    // which, so the geometry stays in surface space and the clip goes down in
+    // the sampling window with its size negated; the shader compares it with
+    // the input size the engine wrote into u_resolution and picks the origin
+    // (see fragOrigin in liquid_glass.frag). The rect that counts is the one
+    // the ENGINE ends up with, not the one we asked for; see [_composedPassRect].
     final Rect? clip = _batchClip;
     final Rect? clipInScreen = clip == null
         ? null
@@ -579,7 +581,6 @@ class RenderLiquidGlassLens extends RenderProxyBox
             MatrixUtils.transformRect(transform, clip),
             subpassAncestor,
             subpassSize);
-    final Offset origin = clipInScreen?.topLeft ?? Offset.zero;
     // Outline-clipped plain pass: the coverage is the fractional lens box,
     // and the engine rounds it out. The shader's frame is shifted by the
     // fraction the rounding eats, so the content lands where it would have
@@ -592,10 +593,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
         : Offset.zero;
     _packUniforms(
       _mainShader,
-      resolution: clipInScreen?.size ?? subpassSize ?? _screenSize,
+      resolution: subpassSize ?? _screenSize,
       lensPosition: linearXform
           ? Offset.zero
-          : MatrixUtils.transformPoint(transform, Offset.zero) - origin + track,
+          : MatrixUtils.transformPoint(transform, Offset.zero) + track,
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.
@@ -604,15 +605,17 @@ class RenderLiquidGlassLens extends RenderProxyBox
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
       honorBackdropAlpha: false,
-      // Clip-local snapshot → sample it from its own origin, window = the
-      // rect. Tracked: the full-surface texture, seen from the shifted frame.
-      imageOffset: track,
-      imageSize: clipInScreen?.size,
+      // Composed: the pass clip, size negated (see above). Tracked: the
+      // full-surface texture, seen from the shifted frame.
+      imageOffset: clipInScreen?.topLeft ?? track,
+      imageSize: clipInScreen == null
+          ? null
+          : Size(-clipInScreen.width, -clipInScreen.height),
       xformA: linearXform ? s[0] : 1,
       xformB: linearXform ? s[4] : 0,
       xformC: linearXform ? s[1] : 0,
       xformD: linearXform ? s[5] : 1,
-      xformOffset: linearXform ? Offset(s[12], s[13]) - origin : Offset.zero,
+      xformOffset: linearXform ? Offset(s[12], s[13]) : Offset.zero,
     );
   }
 
@@ -816,10 +819,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// blurs the shared copy and hands the result to the shader, which is the
   /// same chain in one read.
   ///
-  /// That costs a coordinate frame. Composing bounds the shader's input to
-  /// this pass's clip, so `FlutterFragCoord()` starts at the clip's top-left
-  /// rather than the screen's, and [_packImpellerMainUniforms] packs the
-  /// geometry clip-local whenever [_batchClip] is set. The clip is widened to
+  /// That costs a coordinate frame. Composing can bound the shader's input to
+  /// this pass's clip, so `FlutterFragCoord()` may start at the clip's
+  /// top-left rather than the screen's, and [_packImpellerMainUniforms] hands
+  /// the shader the clip whenever [_batchClip] is set. The clip is widened to
   /// match: a Gaussian reads `3 * sigma` past every pixel it writes, and past
   /// the clip there is nothing to read but the edge, repeated.
   void _paintImpellerBatched(PaintingContext context, Offset offset) {
