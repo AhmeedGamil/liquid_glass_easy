@@ -364,6 +364,107 @@ void main() {
         u_magnification
     );
 
+#ifdef LIQUID_GLASS_WINDOWS
+    // Outside the band: the straight magnified sample, no CA. One sample and
+    // one border call serve both sides, so each is compiled once.
+    vec2 samplePx = magPx;
+    float caShift = 0.0;
+    bool drawBase = true;
+    if (zoneMask < 0.5) {
+        drawBase = u_enableBackgroundTransparency <= 0.5;
+    } else {
+        // ===============================
+        // Distortion zone logic
+        // ===============================
+        float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
+
+        // ===============================
+        // Refracted position
+        // ===============================
+
+        vec2 refrPx = magPx;
+
+        if (u_refractionType == REFRACTION_OPTICAL) {
+            // Shape mode follows the SDF normal; radial mode bends outward
+            // from the lens center while using the same physical calculation.
+            vec2 opticalNormal = shapeData.normal;
+            if (u_refractionMode == REFRACTION_RADIAL) {
+                vec2 radial = magPx - lensCenterPx;
+                float radialLength = length(radial);
+                if (radialLength > EPS) {
+                    opticalNormal = radial / radialLength;
+                }
+            }
+            refrPx = computeRefractedPosition(
+                magPx,
+                opticalNormal,
+                refrDistPx,
+                u_distortionThicknessPx,
+                u_refractionIndex,
+                u_distortion,
+                zoneT
+            );
+        }
+        else if(u_refractionMode== REFRACTION_SHAPE) {
+            // Stable shape refraction (inset-anchor based).
+            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
+            refrPx = computeShapeRefraction(
+                magPx,
+                shapeData.normal,
+                refrDistPx,
+                u_distortionThicknessPx,
+                distortionFactor,
+                u_magnification,
+                u_diagonalFlip,
+                zoneT
+            );
+
+        }
+        else if(u_refractionMode== REFRACTION_RADIAL){
+            vec2 distortionCenter = lensCenterPx;
+            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
+            refrPx = refractFromAnchorPx(
+                magPx,
+                distortionCenter,
+                distortionFactor,
+                u_magnification,
+                u_diagonalFlip,
+                zoneT
+            );
+        }
+        samplePx = refrPx;
+        // Confine chromatic aberration to the distortion band and ramp it with
+        // zoneT so the colour fringing is strongest at the shape edge.
+        caShift = u_chromaticAberration * zoneT;
+    }
+
+    // ===============================
+    // Final sample & border
+    // ===============================
+    vec3 preTintCol = vec3(0.0);
+    vec4 base = vec4(0.0);
+    if (drawBase) {
+        base = finalSample(samplePx, shapeMask, caShift, xformed, preTintCol);
+    }
+
+    vec4 borderPremul = getSweepBorder(
+        uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
+        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_lightColor, u_shadowColor,
+        u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
+        preTintCol, u_ambientIntensity,
+        u_doubleSideLightIntensity,
+        u_borderSaturation,
+        u_borderSolidity,
+        u_lightSpread,
+        u_borderMode
+    );
+
+    // ===============================
+    // Output composite
+    // ===============================
+    frag_color = overlayPremul(base, borderPremul, u_borderMode);
+#else
     if (zoneMask < 0.5) {
         // Outside distortion zone
         vec3 preTintCol = vec3(0.0);
@@ -477,4 +578,5 @@ void main() {
     // Output composite
     // ===============================
     frag_color = overlayPremul(base, borderPremul, u_borderMode);
+#endif
 }

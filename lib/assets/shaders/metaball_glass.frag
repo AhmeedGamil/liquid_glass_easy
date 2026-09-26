@@ -35,7 +35,9 @@
 //     rounded-rect gradients (exact, single pass, no dFdx and no 5-tap).
 // SKIA_GRAPHICS_BACKEND (impellerc's SkSL-target define): take the analytic
 // branch so this entry compiles as valid SkSL on `flutter build web` (3.44+).
-#if !defined(METABALL_SKIA) && !defined(SKIA_GRAPHICS_BACKEND)
+// Windows (Impeller on ANGLE) takes the analytic branch too: derivatives read
+// back as zero there, which drops refraction.
+#if !defined(METABALL_SKIA) && !defined(SKIA_GRAPHICS_BACKEND) && !defined(LIQUID_GLASS_WINDOWS)
 #define GLASS_USE_DERIVATIVE_GRAD
 #define SHAPE_GRAD_1TAP 1
 #else
@@ -140,6 +142,23 @@ uniform mat4 u_lensTintB;
 #define u_lensTint5 u_lensTintB[1]
 #define u_lensTint6 u_lensTintB[2]
 #define u_lensTint7 u_lensTintB[3]
+
+// Windows walks the members in a loop: ANGLE's D3D compiler takes minutes on
+// eight inlined copies. Mobile GL drivers run the loop ~10x slower.
+#ifdef LIQUID_GLASS_WINDOWS
+mat4 memberPair(int k) {
+    if (k < 2) return u_lensPair0;
+    if (k < 4) return u_lensPair1;
+    if (k < 6) return u_lensPair2;
+    return u_lensPair3;
+}
+
+vec4 memberLens(int k) { return memberPair(k)[2 * (k - 2 * (k / 2))]; }
+vec4 memberMeta(int k) { return memberPair(k)[2 * (k - 2 * (k / 2)) + 1]; }
+vec4 memberTint(int k) {
+    return (k < 4) ? u_lensTintA[k] : u_lensTintB[k - 4];
+}
+#endif
 
 // ── Shared glass block (same semantics as liquid_glass.frag) ──────────────
 // All loose scalars are merged into vec4s to cut bindings; the #define block
@@ -572,6 +591,12 @@ NearestMember nearestMember(vec2 p) {
     n.lens = vec4(0.0);
     n.meta = vec4(0.0);
     n.tint = u_lensColor;
+#ifdef LIQUID_GLASS_WINDOWS
+    for (int k = 0; k < 8; k++) {
+        keepNearest(p, memberLens(k), memberMeta(k), memberTint(k), n);
+    }
+    return n;
+#endif
     keepNearest(p, u_lens0, u_lensMeta0, u_lensTint0, n);
     keepNearest(p, u_lens1, u_lensMeta1, u_lensTint1, n);
     keepNearest(p, u_lens2, u_lensMeta2, u_lensTint2, n);
@@ -687,6 +712,13 @@ MergedField evaluateMerged(vec2 p) {
     vec2 anchorAcc = vec2(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
+#ifdef LIQUID_GLASS_WINDOWS
+    for (int k = 0; k < 8; k++) {
+        accumulateMerged(p, memberLens(k), memberMeta(k), memberTint(k),
+                         m.smoothSdf, m.hardSdf, anchorAcc, anchorW, tintAcc,
+                         m.grad);
+    }
+#else
     accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
     accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
@@ -703,6 +735,7 @@ MergedField evaluateMerged(vec2 p) {
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
     accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+#endif
     m.anchor = (anchorW > EPS) ? anchorAcc / anchorW : p;
     m.tint   = resolveTint(tintAcc, anchorW);
     return m;
@@ -870,6 +903,67 @@ void main() {
 
     vec2 magPx = applyLensMagnification(fragPx, anchorPx, u_magnification);
 
+#ifdef LIQUID_GLASS_WINDOWS
+    // Outside the band: the straight magnified sample, no CA. One sample and
+    // one border call serve both sides, so each is compiled once.
+    vec2 samplePx = magPx;
+    float caShift = 0.0;
+    bool drawBase = true;
+    if (zoneMask < 0.5) {
+        drawBase = u_enableBackgroundTransparency <= 0.5;
+    } else {
+        float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
+
+        vec2 refrPx;
+        if (u_refractionType == REFRACTION_OPTICAL) {
+            vec2 opticalNormal = shapeData.normal;
+            if (u_refractionMode == REFRACTION_RADIAL) {
+                vec2 radial = magPx - anchorPx;
+                float radialLength = length(radial);
+                if (radialLength > EPS) opticalNormal = radial / radialLength;
+            }
+            refrPx = computeRefractedPosition(
+                magPx, opticalNormal, shapeData.sdf,
+                u_distortionThicknessPx, u_refractionIndex, u_distortion, zoneT
+            );
+        } else if (u_refractionMode == REFRACTION_SHAPE) {
+            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
+            refrPx = computeShapeRefraction(
+                magPx, shapeData.normal, shapeData.sdf,
+                u_distortionThicknessPx, distortionFactor,
+                u_magnification, u_diagonalFlip, zoneT
+            );
+        } else {
+            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
+            refrPx = refractFromAnchorPx(
+                magPx, anchorPx, distortionFactor,
+                u_magnification, u_diagonalFlip, zoneT
+            );
+        }
+        samplePx = refrPx;
+        caShift = u_chromaticAberration * zoneT;
+    }
+
+    vec3 preTintCol = vec3(0.0);
+    vec4 base = vec4(0.0);
+    if (drawBase) {
+        base = finalSample(samplePx, shapeMask, caShift, lensTint, preTintCol);
+    }
+
+    vec4 borderPremul = getSweepBorder(
+        uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
+        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_lightColor, u_shadowColor,
+        u_lightIntensity, u_borderAlpha, u_lightDirection,
+        u_oneSideLightIntensity, u_lightMode,
+        preTintCol, u_ambientIntensity,
+        u_doubleSideLightIntensity,
+        u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
+        rimWrap
+    );
+
+    frag_color = overlayPremul(base, borderPremul, u_borderMode);
+#else
     if (zoneMask < 0.5) {
         // Outside the distortion band — straight magnified sample + border.
         vec3 preTintCol = vec3(0.0);
@@ -939,4 +1033,5 @@ void main() {
     );
 
     frag_color = overlayPremul(base, borderPremul, u_borderMode);
+#endif
 }

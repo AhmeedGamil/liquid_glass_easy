@@ -20,6 +20,10 @@
 // so the Impeller entries stay valid SkSL (3.44+ validates at build time).
 #elif defined(LIQUID_GLASS_SKIA) || defined(SKIA_GRAPHICS_BACKEND)
 #define GLASS_GRAD_METHOD 1
+// Windows (Impeller on ANGLE): derivatives read back as zero, which drops
+// refraction, so take the analytic path as Skia does.
+#elif defined(LIQUID_GLASS_WINDOWS)
+#define GLASS_GRAD_METHOD 1
 #else
 #define GLASS_GRAD_METHOD 0
 #endif

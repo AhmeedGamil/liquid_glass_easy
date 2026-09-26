@@ -1,6 +1,6 @@
 import 'dart:ui' as ui;
 
-import 'package:meta/meta.dart';
+import 'package:flutter/foundation.dart';
 
 /// App-wide cache for the compiled liquid-glass fragment programs.
 ///
@@ -66,6 +66,28 @@ class LiquidGlassShaders {
     false: 'lib/assets/shaders/metaball_glass_skia.frag',
   };
 
+  // Impeller on Windows runs through ANGLE, whose shader compiler takes
+  // minutes on the default entries; these build lighter code for it.
+  static const String _mainWindowsAsset =
+      'lib/assets/shaders/liquid_glass_windows.frag';
+  static const String _borderWindowsAsset =
+      'lib/assets/shaders/liquid_glass_border_windows.frag';
+  static const String _metaballWindowsAsset =
+      'lib/assets/shaders/metaball_glass_windows.frag';
+
+  static bool _windowsEntries(bool impeller) =>
+      impeller && !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  static String _mainAssetFor(bool impeller) =>
+      _windowsEntries(impeller) ? _mainWindowsAsset : _mainAsset[impeller]!;
+
+  static String _borderAssetFor(bool impeller) =>
+      _windowsEntries(impeller) ? _borderWindowsAsset : _borderAsset[impeller]!;
+
+  static String _metaballAssetFor(bool impeller) => _windowsEntries(impeller)
+      ? _metaballWindowsAsset
+      : _metaballAsset[impeller]!;
+
   /// The engine's native backend — Impeller exposes the shader image filter.
   static bool get _defaultImpeller => ui.ImageFilter.isShaderFilterSupported;
 
@@ -115,8 +137,9 @@ class LiquidGlassShaders {
 
   static Future<void> _load(bool impeller) async {
     try {
-      _mainPrograms[impeller] ??= await _loadProgram(_mainAsset[impeller]!);
-      _borderPrograms[impeller] ??= await _loadProgram(_borderAsset[impeller]!);
+      _mainPrograms[impeller] ??= await _loadProgram(_mainAssetFor(impeller));
+      _borderPrograms[impeller] ??=
+          await _loadProgram(_borderAssetFor(impeller));
     } finally {
       // Reset so a failed load (e.g. asset missing in a broken build) can be
       // retried instead of caching the failure forever.
@@ -147,7 +170,7 @@ class LiquidGlassShaders {
   static Future<ui.FragmentProgram> _loadMetaball(bool impeller) async {
     try {
       return _metaballPrograms[impeller] =
-          await _loadProgram(_metaballAsset[impeller]!);
+          await _loadProgram(_metaballAssetFor(impeller));
     } finally {
       // Reset so a failed load can be retried instead of cached forever.
       _metaballLoading.remove(impeller);
