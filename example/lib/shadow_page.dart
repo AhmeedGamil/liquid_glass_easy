@@ -13,6 +13,8 @@ import 'demo_kit.dart';
 // LiquidGlassShadow through `appearance.shadow`, and the panel drives its
 // numbers. The first chip switches it off outright, which is the whole
 // argument: without it the glass floats flat, with it the glass sits in.
+// The second flips `insideGlass`: off keeps the ring outside the outline,
+// so none of it is refracted into the glass.
 // =============================================================
 
 void main() {
@@ -46,6 +48,7 @@ class _ShadowPageState extends State<ShadowPage> {
   double _opacity = 0.4;
   double _offset = 12;
   double _inset = 0;
+  bool _insideGlass = true;
 
   static const Color _ink = Color(0xFF1F2937);
 
@@ -73,6 +76,7 @@ class _ShadowPageState extends State<ShadowPage> {
         offset: Offset(0, _offset),
         inset: _inset,
         visible: _on,
+        insideGlass: _insideGlass,
       );
 
   LiquidGlassStyle _style(LiquidGlassShape shape) => LiquidGlassStyle(
@@ -176,6 +180,14 @@ class _ShadowPageState extends State<ShadowPage> {
                       selected: _on,
                       label: (bool v) => v ? 'shadow on' : 'shadow off',
                       onChanged: (bool v) => setState(() => _on = v),
+                    ),
+                    const SizedBox(height: 6),
+                    DemoChips<bool>(
+                      values: const <bool>[true, false],
+                      selected: _insideGlass,
+                      label: (bool v) =>
+                          v ? 'insideGlass: true' : 'insideGlass: false',
+                      onChanged: (bool v) => setState(() => _insideGlass = v),
                     ),
                     const SizedBox(height: 6),
                     DemoSlider(

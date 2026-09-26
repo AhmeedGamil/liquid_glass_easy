@@ -704,6 +704,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
       scale: s.scale,
       inset: s.inset,
       visible: s.visible && widget.visibility,
+      insideGlass: s.insideGlass,
       child: lens,
     );
   }

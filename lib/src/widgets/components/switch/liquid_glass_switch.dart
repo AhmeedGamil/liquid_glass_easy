@@ -761,6 +761,7 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                                 cornerRadius: shadow.cornerRadius ?? pillH / 2,
                                 inset: shadow.inset,
                                 visible: shadow.visible,
+                                insideGlass: shadow.insideGlass,
                               );
                     return LiquidGlassStyle(
                       shape: resolved.shape,

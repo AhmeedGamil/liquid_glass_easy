@@ -46,6 +46,16 @@ import 'package:flutter/material.dart';
 /// under it — the glass on the inside, the page on the outside — instead
 /// of laying flat grey over both.
 ///
+/// ## Keeping it out of the glass
+///
+/// [insideGlass] decides whether the part of the ring that falls under
+/// the outline is drawn at all. `true` (the default) is the contact look
+/// above: the upper arc darkens the inside of the rim. `false` clips the
+/// ring to the **outside** of the outline and paints it *over* the glass
+/// instead of behind it — visually the same drop beneath, but a lens's
+/// backdrop sample never contains it, so a refracting rim cannot pull it
+/// into the interior as a dark inner band.
+///
 /// ## Under a deformed lens
 ///
 /// A squashed or stretched lens keeps its authored corner radius and
@@ -93,6 +103,17 @@ class LiquidGlassShadow extends StatelessWidget {
   /// widget tree's shape.
   final bool visible;
 
+  /// Whether the shadow is drawn under the glass outline.
+  ///
+  /// `true` (the default) paints the whole ring behind the glass, so its
+  /// upper arc darkens the inside of the rim as contact. `false` keeps
+  /// only what falls **outside** the outline and paints it over the glass,
+  /// so the lens's backdrop sample never carries the shadow and the
+  /// refraction band has nothing dark to pull inward. The outline is a
+  /// rounded rectangle at the lens's corner radius, so a continuous corner
+  /// is matched to within its own curvature difference.
+  final bool insideGlass;
+
   /// The glass this shadow belongs to. Sized by the parent; the shadow
   /// takes whatever box the child gets.
   final Widget? child;
@@ -107,6 +128,7 @@ class LiquidGlassShadow extends StatelessWidget {
     this.scale = const Offset(1, 1),
     this.inset = 0,
     this.visible = true,
+    this.insideGlass = true,
     this.child,
   });
 
@@ -114,19 +136,26 @@ class LiquidGlassShadow extends StatelessWidget {
   Widget build(BuildContext context) {
     final Widget content = child ?? const SizedBox.expand();
     if (!visible || opacity <= 0) return content;
+    final _RingShadowPainter painter = _RingShadowPainter(
+      blur: blur,
+      opacity: opacity,
+      color: color,
+      offset: offset ?? Offset(0, blur + 2),
+      cornerRadius: cornerRadius,
+      scale: scale,
+      inset: inset,
+      exteriorOnly: !insideGlass,
+    );
     return CustomPaint(
       // Background, so it paints BEFORE the child: the glass sits over
       // its own shadow, and a solid rest pill covering the glass covers
       // the shadow with it.
-      painter: _RingShadowPainter(
-        blur: blur,
-        opacity: opacity,
-        color: color,
-        offset: offset ?? Offset(0, blur + 2),
-        cornerRadius: cornerRadius,
-        scale: scale,
-        inset: inset,
-      ),
+      painter: insideGlass ? painter : null,
+      // Exterior-only: painted AFTER the child, so a backdrop-sampling
+      // lens has already read its backdrop before the shadow exists. It
+      // is clipped to the outside of the outline, so it never covers the
+      // glass it is painted over.
+      foregroundPainter: insideGlass ? null : painter,
       child: content,
     );
   }
@@ -140,6 +169,7 @@ class _RingShadowPainter extends CustomPainter {
   final double? cornerRadius;
   final Offset scale;
   final double inset;
+  final bool exteriorOnly;
 
   const _RingShadowPainter({
     required this.blur,
@@ -149,6 +179,7 @@ class _RingShadowPainter extends CustomPainter {
     required this.cornerRadius,
     required this.scale,
     required this.inset,
+    required this.exteriorOnly,
   });
 
   @override
@@ -195,6 +226,23 @@ class _RingShadowPainter extends CustomPainter {
       ..addRRect(outer)
       ..addRRect(inner);
 
+    if (exteriorOnly) {
+      // The glass outline itself — the FULL box, not the inset casting
+      // pill — with the same clamped, stretched corner. Everything the
+      // blurred ring lands under it is cut away.
+      final Rect full = Offset.zero & size;
+      final double fullR = math.min(
+          cornerRadius ?? math.min(full.width / sx, full.height / sy) / 2,
+          math.min(full.width / sx, full.height / sy) / 2);
+      final RRect outline = RRect.fromRectAndRadius(
+          full, Radius.elliptical(fullR * sx, fullR * sy));
+      final double reach = blur * 3 + offset.distance + 2;
+      canvas.clipPath(Path()
+        ..fillType = PathFillType.evenOdd
+        ..addRect(full.inflate(reach))
+        ..addRRect(outline));
+    }
+
     canvas.drawPath(
       ring.shift(offset),
       Paint()
@@ -212,5 +260,6 @@ class _RingShadowPainter extends CustomPainter {
       offset != old.offset ||
       cornerRadius != old.cornerRadius ||
       scale != old.scale ||
-      inset != old.inset;
+      inset != old.inset ||
+      exteriorOnly != old.exteriorOnly;
 }

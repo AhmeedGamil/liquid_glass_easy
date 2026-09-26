@@ -459,6 +459,7 @@ class _LiquidGlassNavBarMotionPillState
         scale: Offset(scaleX, scaleY),
         inset: shadow.inset,
         visible: shadow.visible,
+        insideGlass: shadow.insideGlass,
         child: glassPill,
       );
     }

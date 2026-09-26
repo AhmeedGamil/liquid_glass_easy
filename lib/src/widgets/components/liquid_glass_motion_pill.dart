@@ -383,6 +383,7 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
         scale: Offset(scaleX, scaleY),
         inset: shadow.inset,
         visible: shadow.visible,
+        insideGlass: shadow.insideGlass,
         child: pill,
       );
     }
