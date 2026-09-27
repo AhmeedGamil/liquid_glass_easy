@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-// LiquidGlassWarmUp is not part of the public API.
-// ignore: implementation_imports
-import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_warm_up.dart';
 
 // =============================================================
 // Switch showcase — LiquidGlassSwitch, the sliding-thumb switch,
@@ -36,10 +33,7 @@ class _SwitchApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData.light(useMaterial3: true),
-      // Compiles the glass programs during launch instead of under the
-      // first finger. Skia only, once per install — delete this wrapper
-      // (and clear the app's storage) to feel the stall again.
-      home: const LiquidGlassWarmUp(child: SwitchPage()),
+      home: const SwitchPage(),
     );
   }
 }
