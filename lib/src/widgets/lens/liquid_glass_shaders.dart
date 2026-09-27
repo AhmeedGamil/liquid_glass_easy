@@ -17,8 +17,11 @@ import 'package:flutter/foundation.dart';
 /// are therefore cached **per backend** (`impeller` true/false), and every
 /// call passes the backend it needs:
 ///
-///   * `impeller == true`  → `liquid_glass.frag` / `liquid_glass_border.frag`
+///   * `impeller == true`  → `liquid_glass.frag`
 ///   * `impeller == false` → `liquid_glass_skia.frag` / `..._border_skia.frag`
+///
+/// The border program is Skia-only: it draws the sharp rim over the Skia
+/// capture's blur. Impeller draws its rim in the main pass and never loads it.
 ///
 /// `LiquidGlassView` and the standalone `LiquidGlassLens` both load through
 /// this cache, so whichever mounts first pays the one-time async compile and
@@ -51,10 +54,8 @@ class LiquidGlassShaders {
     true: 'lib/assets/shaders/liquid_glass.frag',
     false: 'lib/assets/shaders/liquid_glass_skia.frag',
   };
-  static const Map<bool, String> _borderAsset = {
-    true: 'lib/assets/shaders/liquid_glass_border.frag',
-    false: 'lib/assets/shaders/liquid_glass_border_skia.frag',
-  };
+  static const String _borderAsset =
+      'lib/assets/shaders/liquid_glass_border_skia.frag';
 
   // The merged-surface entry, used by LiquidGlassBlender and nothing else.
   // [ensureLoaded] compiles it with the rest; the lens itself waits only on
@@ -66,37 +67,36 @@ class LiquidGlassShaders {
     false: 'lib/assets/shaders/metaball_glass_skia.frag',
   };
 
-  // Impeller on Windows runs through ANGLE, whose shader compiler takes
-  // minutes on the default entries; these build lighter code for it.
-  static const String _mainWindowsAsset =
-      'lib/assets/shaders/liquid_glass_windows.frag';
-  static const String _borderWindowsAsset =
-      'lib/assets/shaders/liquid_glass_border_windows.frag';
-  static const String _metaballWindowsAsset =
-      'lib/assets/shaders/metaball_glass_windows.frag';
+  // Impeller on desktop GLES (Windows through ANGLE, Linux on the system
+  // driver). ANGLE's shader compiler takes minutes on the default entries;
+  // these build lighter code for it, with the analytic gradient.
+  static const String _mainDesktopAsset =
+      'lib/assets/shaders/liquid_glass_desktop.frag';
+  static const String _metaballDesktopAsset =
+      'lib/assets/shaders/metaball_glass_desktop.frag';
 
-  static bool _windowsEntries(bool impeller) =>
-      impeller && !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+  static bool _desktopEntries(bool impeller) =>
+      impeller &&
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   static String _mainAssetFor(bool impeller) =>
-      _windowsEntries(impeller) ? _mainWindowsAsset : _mainAsset[impeller]!;
+      _desktopEntries(impeller) ? _mainDesktopAsset : _mainAsset[impeller]!;
 
-  static String _borderAssetFor(bool impeller) =>
-      _windowsEntries(impeller) ? _borderWindowsAsset : _borderAsset[impeller]!;
-
-  static String _metaballAssetFor(bool impeller) => _windowsEntries(impeller)
-      ? _metaballWindowsAsset
+  static String _metaballAssetFor(bool impeller) => _desktopEntries(impeller)
+      ? _metaballDesktopAsset
       : _metaballAsset[impeller]!;
 
   /// The engine's native backend — Impeller exposes the shader image filter.
   static bool get _defaultImpeller => ui.ImageFilter.isShaderFilterSupported;
 
-  /// Whether the lens's two programs for [impeller] are compiled and shader
-  /// instances can be created synchronously via
-  /// [createMainShader]/[createBorderShader].
+  /// Whether the lens's programs for [impeller] are compiled and shader
+  /// instances can be created synchronously via [createMainShader] (and, on
+  /// Skia, [createBorderShader]).
   static bool isLoadedFor(bool impeller) =>
       _mainPrograms.containsKey(impeller) &&
-      _borderPrograms.containsKey(impeller);
+      (impeller || _borderPrograms.containsKey(impeller));
 
   /// Whether the engine's native backend is loaded. Convenience for callers
   /// that don't track the backend explicitly.
@@ -122,7 +122,7 @@ class LiquidGlassShaders {
     ]).then((_) {});
   }
 
-  /// The lens's two programs only, for [impeller]: what a lens needs to
+  /// The lens's programs only, for [impeller]: what a lens needs to
   /// paint, without waiting on the blender's larger entry.
   ///
   /// The lens, the view and the warm-up load through this so a first lens is
@@ -138,8 +138,9 @@ class LiquidGlassShaders {
   static Future<void> _load(bool impeller) async {
     try {
       _mainPrograms[impeller] ??= await _loadProgram(_mainAssetFor(impeller));
-      _borderPrograms[impeller] ??=
-          await _loadProgram(_borderAssetFor(impeller));
+      if (!impeller) {
+        _borderPrograms[impeller] ??= await _loadProgram(_borderAsset);
+      }
     } finally {
       // Reset so a failed load (e.g. asset missing in a broken build) can be
       // retried instead of caching the failure forever.
@@ -200,13 +201,12 @@ class LiquidGlassShaders {
     return program!.fragmentShader();
   }
 
-  /// Creates a fresh border-shader instance for [impeller] (defaults to the
-  /// engine's native backend). [isLoadedFor] must be true for that backend.
-  static ui.FragmentShader createBorderShader([bool? impeller]) {
-    final bool backend = impeller ?? _defaultImpeller;
-    final program = _borderPrograms[backend];
+  /// Creates a fresh border-shader instance. Skia only — Impeller has no
+  /// border program. [isLoadedFor] must be true for Skia.
+  static ui.FragmentShader createBorderShader() {
+    final program = _borderPrograms[false];
     assert(program != null,
-        'LiquidGlassShaders not loaded — await ensureLoaded($backend) first.');
+        'LiquidGlassShaders not loaded — await ensureLoaded(false) first.');
     return program!.fragmentShader();
   }
 }

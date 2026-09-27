@@ -464,20 +464,22 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
       // same shader object with the last uniforms set, producing
       // context-switch artifacts (old lens content leaking, new lens
       // appearing transparent).
+      // The border program is Skia-only (web here); Impeller draws its rim
+      // in the main pass.
       final count = widget.children.length;
       _shaders = {
         'liquid_glass_list': _createShaderList(
             () => LiquidGlassShaders.createMainShader(_useImpeller), count),
-        'liquid_glass_border_list': _createShaderList(
-            () => LiquidGlassShaders.createBorderShader(_useImpeller), count),
+        if (!_useImpeller)
+          'liquid_glass_border_list': _createShaderList(
+              LiquidGlassShaders.createBorderShader, count),
       };
     } else {
       // Skia native draws each CustomPaint immediately, so a single
       // shared shader instance is safe and cheaper.
       _shaders = {
         'liquid_glass': LiquidGlassShaders.createMainShader(_useImpeller),
-        'liquid_glass_border':
-            LiquidGlassShaders.createBorderShader(_useImpeller),
+        'liquid_glass_border': LiquidGlassShaders.createBorderShader(),
       };
     }
   }
@@ -489,8 +491,10 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
     setState(() {
       _shaders['liquid_glass_list'] = _createShaderList(
           () => LiquidGlassShaders.createMainShader(_useImpeller), newCount);
-      _shaders['liquid_glass_border_list'] = _createShaderList(
-          () => LiquidGlassShaders.createBorderShader(_useImpeller), newCount);
+      if (!_useImpeller) {
+        _shaders['liquid_glass_border_list'] = _createShaderList(
+            LiquidGlassShaders.createBorderShader, newCount);
+      }
     });
   }
 
@@ -1109,9 +1113,9 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
 
           final bool indexReady = !_usePerLensShaders ||
               (shaderList != null &&
-                  borderList != null &&
                   index < shaderList.length &&
-                  index < borderList.length);
+                  (_useImpeller ||
+                      (borderList != null && index < borderList.length)));
 
           if (canRender && indexReady) {
             // Per-lens region capture: when this lens has its own
@@ -1132,7 +1136,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
                   ? shaderList![index]
                   : _shaders['liquid_glass'] as ui.FragmentShader?,
               border: _usePerLensShaders
-                  ? borderList![index]
+                  ? (borderList?[index])
                   : _shaders['liquid_glass_border'] as ui.FragmentShader?,
               // A retired cache is handed over as null so the painter
               // falls through to the paint-time capture. Region images

@@ -238,68 +238,6 @@ void main() {
     float zoneLimit = u_distortionThicknessPx;
     float zoneMask = step(distAbsPx, zoneLimit);
 
-#ifdef LIQUID_GLASS_WINDOWS
-    // One ambient sample for both sides of the band, so it is compiled once.
-    vec2 samplePx = magPx;
-    bool sampleAmbient = true;
-    if (zoneMask < 0.5) {
-        sampleAmbient = u_enableBackgroundTransparency <= 0.5;
-    } else {
-        float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
-        vec2 refrPx = magPx;
-
-        if (u_refractionType == REFRACTION_OPTICAL) {
-            // Match the main shader's optical sample for both geometries.
-            vec2 opticalNormal = shapeData.normal;
-            if (u_refractionMode == REFRACTION_RADIAL) {
-                vec2 radial = magPx - lensCenterPx;
-                float radialLength = length(radial);
-                if (radialLength > EPS) {
-                    opticalNormal = radial / radialLength;
-                }
-            }
-            refrPx = computeRefractedPosition(
-                magPx,
-                opticalNormal,
-                refrDistPx,
-                u_distortionThicknessPx,
-                u_refractionIndex,
-                u_distortion,
-                zoneT
-            );
-        } else if (u_refractionMode == REFRACTION_SHAPE) {
-            // Stable shape refraction (inset-anchor based) — keep in
-            // sync with liquid_glass.frag.
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = computeShapeRefraction(
-                magPx,
-                shapeData.normal,
-                refrDistPx,
-                u_distortionThicknessPx,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT
-            );
-
-        } else {
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = refractFromAnchorPx(
-                magPx,
-                lensCenterPx,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT
-            );
-        }
-
-        samplePx = refrPx;
-    }
-    if (sampleAmbient) {
-        ambientCol = sampleAmbientColor(samplePx);
-    }
-#else
     ambientCol = vec3(0.0);
     if (zoneMask < 0.5) {
         if (u_enableBackgroundTransparency <= 0.5) {
@@ -357,7 +295,6 @@ void main() {
 
         ambientCol = sampleAmbientColor(refrPx);
     }
-#endif
 
     // The caller already passes the full band width (pre-doubled, and
     // including the optical-mode extra when applicable). After clipping

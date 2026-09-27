@@ -35,9 +35,9 @@
 //     rounded-rect gradients (exact, single pass, no dFdx and no 5-tap).
 // SKIA_GRAPHICS_BACKEND (impellerc's SkSL-target define): take the analytic
 // branch so this entry compiles as valid SkSL on `flutter build web` (3.44+).
-// Windows (Impeller on ANGLE) takes the analytic branch too: derivatives read
+// Desktop (Impeller on GLES) takes the analytic branch too: derivatives read
 // back as zero there, which drops refraction.
-#if !defined(METABALL_SKIA) && !defined(SKIA_GRAPHICS_BACKEND) && !defined(LIQUID_GLASS_WINDOWS)
+#if !defined(METABALL_SKIA) && !defined(SKIA_GRAPHICS_BACKEND) && !defined(LIQUID_GLASS_DESKTOP)
 #define GLASS_USE_DERIVATIVE_GRAD
 #define SHAPE_GRAD_1TAP 1
 #else
@@ -143,9 +143,9 @@ uniform mat4 u_lensTintB;
 #define u_lensTint6 u_lensTintB[2]
 #define u_lensTint7 u_lensTintB[3]
 
-// Windows walks the members in a loop: ANGLE's D3D compiler takes minutes on
+// Desktop walks the members in a loop: ANGLE's D3D compiler takes minutes on
 // eight inlined copies. Mobile GL drivers run the loop ~10x slower.
-#ifdef LIQUID_GLASS_WINDOWS
+#ifdef LIQUID_GLASS_DESKTOP
 mat4 memberPair(int k) {
     if (k < 2) return u_lensPair0;
     if (k < 4) return u_lensPair1;
@@ -591,7 +591,7 @@ NearestMember nearestMember(vec2 p) {
     n.lens = vec4(0.0);
     n.meta = vec4(0.0);
     n.tint = u_lensColor;
-#ifdef LIQUID_GLASS_WINDOWS
+#ifdef LIQUID_GLASS_DESKTOP
     for (int k = 0; k < 8; k++) {
         keepNearest(p, memberLens(k), memberMeta(k), memberTint(k), n);
     }
@@ -712,7 +712,7 @@ MergedField evaluateMerged(vec2 p) {
     vec2 anchorAcc = vec2(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
-#ifdef LIQUID_GLASS_WINDOWS
+#ifdef LIQUID_GLASS_DESKTOP
     for (int k = 0; k < 8; k++) {
         accumulateMerged(p, memberLens(k), memberMeta(k), memberTint(k),
                          m.smoothSdf, m.hardSdf, anchorAcc, anchorW, tintAcc,
@@ -903,7 +903,7 @@ void main() {
 
     vec2 magPx = applyLensMagnification(fragPx, anchorPx, u_magnification);
 
-#ifdef LIQUID_GLASS_WINDOWS
+#ifdef LIQUID_GLASS_DESKTOP
     // Outside the band: the straight magnified sample, no CA. One sample and
     // one border call serve both sides, so each is compiled once.
     vec2 samplePx = magPx;

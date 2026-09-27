@@ -621,7 +621,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
 
     _mainShader ??= LiquidGlassShaders.createMainShader(impeller);
     if (mode == LiquidGlassLensRenderMode.skiaCapture) {
-      _borderShader ??= LiquidGlassShaders.createBorderShader(impeller);
+      _borderShader ??= LiquidGlassShaders.createBorderShader();
     }
 
     final Size screenSize = MediaQuery.sizeOf(context);

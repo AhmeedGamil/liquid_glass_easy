@@ -364,7 +364,7 @@ void main() {
         u_magnification
     );
 
-#ifdef LIQUID_GLASS_WINDOWS
+#ifdef LIQUID_GLASS_DESKTOP
     // Outside the band: the straight magnified sample, no CA. One sample and
     // one border call serve both sides, so each is compiled once.
     vec2 samplePx = magPx;
