@@ -201,10 +201,17 @@ class LiquidGlassShaders {
     return program!.fragmentShader();
   }
 
-  /// Creates a fresh border-shader instance. Skia only — Impeller has no
-  /// border program. [isLoadedFor] must be true for Skia.
-  static ui.FragmentShader createBorderShader() {
-    final program = _borderPrograms[false];
+  /// Creates a fresh border-shader instance for [impeller] (defaults to the
+  /// engine's native backend). The border program is Skia-only: Impeller
+  /// draws its rim in the main pass and never loads it, so only the Skia
+  /// backend has one. [isLoadedFor] must be true for Skia.
+  static ui.FragmentShader createBorderShader([bool? impeller]) {
+    final bool backend = impeller ?? _defaultImpeller;
+    final program = _borderPrograms[backend];
+    if (program == null && backend) {
+      throw UnsupportedError('LiquidGlassShaders has no border program on '
+          'Impeller — its rim is drawn in the main pass.');
+    }
     assert(program != null,
         'LiquidGlassShaders not loaded — await ensureLoaded(false) first.');
     return program!.fragmentShader();

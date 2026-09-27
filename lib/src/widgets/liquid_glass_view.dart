@@ -472,14 +472,14 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
             () => LiquidGlassShaders.createMainShader(_useImpeller), count),
         if (!_useImpeller)
           'liquid_glass_border_list': _createShaderList(
-              LiquidGlassShaders.createBorderShader, count),
+              () => LiquidGlassShaders.createBorderShader(false), count),
       };
     } else {
       // Skia native draws each CustomPaint immediately, so a single
       // shared shader instance is safe and cheaper.
       _shaders = {
         'liquid_glass': LiquidGlassShaders.createMainShader(_useImpeller),
-        'liquid_glass_border': LiquidGlassShaders.createBorderShader(),
+        'liquid_glass_border': LiquidGlassShaders.createBorderShader(false),
       };
     }
   }
@@ -493,7 +493,7 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
           () => LiquidGlassShaders.createMainShader(_useImpeller), newCount);
       if (!_useImpeller) {
         _shaders['liquid_glass_border_list'] = _createShaderList(
-            LiquidGlassShaders.createBorderShader, newCount);
+            () => LiquidGlassShaders.createBorderShader(false), newCount);
       }
     });
   }
