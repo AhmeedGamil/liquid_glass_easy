@@ -5,11 +5,13 @@ import 'package:flutter/widgets.dart';
 import '../components/liquid_glass_shadow.dart';
 import '../components/slider/liquid_glass_slider.dart';
 import '../components/switch/liquid_glass_switch.dart';
+import '../lens/liquid_glass_blender.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../lens/liquid_glass_shaders.dart';
 import '../liquid_glass_config.dart' show LiquidGlassAppearance;
 import '../liquid_glass_style.dart';
 import '../liquid_glass_view.dart';
+import 'liquid_glass_blur.dart';
 
 /// Compiles the glass GPU programs during launch, so the first touch of a
 /// glass control does not pay for them.
@@ -31,9 +33,12 @@ import '../liquid_glass_view.dart';
 /// covers it anyway. From the second launch onwards this widget finds
 /// everything already cached and costs nothing.
 ///
-/// Impeller compiles its pipelines ahead of time and has no such stall,
-/// so on an Impeller engine this is a no-op that adds nothing to the
-/// tree.
+/// Impeller precompiles only its own shaders. A custom program's pipeline
+/// is built on its first draw, on the raster thread — for the blender's
+/// merged surface that is the better part of a second the first time a
+/// page with one opens. So on Impeller this draws a plain lens and a
+/// two-member [LiquidGlassBlender] for a few frames instead: one draw of
+/// each program is all a pipeline needs.
 ///
 /// ## Using it
 ///
@@ -123,20 +128,31 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
   /// the wait for them is not warm-up time.
   final Stopwatch _elapsed = Stopwatch();
 
-  /// Impeller precompiles its pipelines, so there is nothing to warm.
+  /// Impeller warms by drawing each program once, not by sweeping.
   static bool get _impeller => ui.ImageFilter.isShaderFilterSupported;
+
+  /// Frames the Impeller glass stays up. Counted rather than timed: the
+  /// first of them can itself take the better part of a second.
+  static const int _impellerFrames = 4;
+
+  /// Frames painted since the warm glass was mounted.
+  int _frames = 0;
 
   @override
   void initState() {
     super.initState();
-    if (!widget.enabled || _impeller) {
+    if (!widget.enabled) {
       _done = true;
       return;
     }
     // Nothing can be compiled until the fragment programs themselves are
     // loaded — a lens without them draws the frosted fallback, which is
-    // not the pipeline we are here to warm.
-    LiquidGlassShaders.ensureLensLoaded(false).then((_) {
+    // not the pipeline we are here to warm. Impeller also needs the
+    // blender's program, which the Skia run does not draw.
+    final Future<void> loaded = _impeller
+        ? LiquidGlassShaders.ensureLoaded(true)
+        : LiquidGlassShaders.ensureLensLoaded(false);
+    loaded.then((_) {
       if (!mounted) return;
       _elapsed.start();
       setState(() => _warming = true);
@@ -152,7 +168,11 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
   void _nextFrame() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _done) return;
-      if (_elapsed.elapsed >= widget.duration) {
+      _frames++;
+      final bool finished = _impeller
+          ? _frames >= _impellerFrames
+          : _elapsed.elapsed >= widget.duration;
+      if (finished) {
         _elapsed.stop();
         setState(() {
           _warming = false;
@@ -198,7 +218,9 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
             top: 0,
             width: _panelWidth,
             height: _panelHeight,
-            child: _WarmControls(progress: _progress),
+            child: _impeller
+                ? const _WarmImpellerGlass()
+                : _WarmControls(progress: _progress),
           ),
         widget.child,
       ],
@@ -208,6 +230,68 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
 
 const double _panelWidth = 300;
 const double _panelHeight = 130;
+
+/// The Impeller run: one draw of each custom program, which is what builds
+/// its pipeline. Blurred like real glass, so the blender takes the same
+/// composed blur + shader pass the pages do.
+class _WarmImpellerGlass extends StatelessWidget {
+  const _WarmImpellerGlass();
+
+  static const LiquidGlassStyle _style = LiquidGlassStyle(
+    appearance: LiquidGlassAppearance(
+      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return const IgnorePointer(
+      child: Stack(
+        alignment: Alignment.topLeft,
+        children: [
+          // A lone lens: the main program (Impeller has no border pass).
+          Positioned(
+            left: 0,
+            top: 0,
+            width: 60,
+            height: 40,
+            child: LiquidGlassLens(style: _style),
+          ),
+          // The merged-surface program. A blender paints nothing with
+          // fewer than two members, so it gets two, overlapping.
+          Positioned(
+            left: 0,
+            top: 50,
+            width: 120,
+            height: 40,
+            child: LiquidGlassBlender(
+              style: _style,
+              child: Stack(
+                alignment: Alignment.topLeft,
+                children: [
+                  Positioned(
+                    left: 0,
+                    top: 0,
+                    width: 60,
+                    height: 40,
+                    child: LiquidGlassLens(style: _style),
+                  ),
+                  Positioned(
+                    left: 50,
+                    top: 0,
+                    width: 60,
+                    height: 40,
+                    child: LiquidGlassLens(style: _style),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// The real components, plus the thumb glass they only draw under a
 /// finger.

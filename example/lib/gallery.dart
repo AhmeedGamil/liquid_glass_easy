@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+// LiquidGlassWarmUp is not part of the public API.
+// ignore: implementation_imports
+import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_warm_up.dart';
 
 import 'app_settings.dart';
 import 'settings_page.dart';
@@ -77,8 +80,9 @@ class GalleryApp extends StatelessWidget {
         // the first switch or slider touched on the Skia backend does
         // not stall the raster thread waiting for the driver. It paints
         // a few frames under the home page, then removes itself for
-        // good; on Impeller it is a no-op.
-        home: const HomePage(),
+        // good. On Impeller it draws a lens and a blender once, so the
+        // first page with a blender does not stall building its pipeline.
+        home: const LiquidGlassWarmUp(child: HomePage()),
       ),
     );
   }
