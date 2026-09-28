@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 /// The contact shadow of a glass pill: a soft dark band
@@ -182,6 +183,17 @@ class _RingShadowPainter extends CustomPainter {
     required this.exteriorOnly,
   });
 
+  /// Desktops draw the ring from two blurred rounded rects instead of one
+  /// blurred path. A blurred path is rasterised on the pixel grid, so a
+  /// moving ring steps a whole pixel at a time: invisible at a phone's pixel
+  /// ratio, a visible jerk at a desktop's 1. A lone rounded rect is blurred
+  /// at its exact sub-pixel position, so the ring slides.
+  static bool get _fromRRects =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.linux ||
+          defaultTargetPlatform == TargetPlatform.macOS);
+
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty || opacity <= 0 || blur <= 0) return;
@@ -221,11 +233,7 @@ class _RingShadowPainter extends CustomPainter {
       Rect.fromLTRB(box.left, box.top + band, box.right, box.bottom - band),
       radius,
     );
-    final Path ring = Path()
-      ..fillType = PathFillType.evenOdd
-      ..addRRect(outer)
-      ..addRRect(inner);
-
+    Path? cut;
     if (exteriorOnly) {
       // The glass outline itself — the FULL box, not the inset casting
       // pill — with the same clamped, stretched corner. Everything the
@@ -237,12 +245,22 @@ class _RingShadowPainter extends CustomPainter {
       final RRect outline = RRect.fromRectAndRadius(
           full, Radius.elliptical(fullR * sx, fullR * sy));
       final double reach = blur * 3 + offset.distance + 2;
-      canvas.clipPath(Path()
+      cut = Path()
         ..fillType = PathFillType.evenOdd
         ..addRect(full.inflate(reach))
-        ..addRRect(outline));
+        ..addRRect(outline);
+      canvas.clipPath(cut);
     }
 
+    if (_fromRRects) {
+      _paintFromRRects(canvas, outer.shift(offset), inner.shift(offset), cut);
+      return;
+    }
+
+    final Path ring = Path()
+      ..fillType = PathFillType.evenOdd
+      ..addRRect(outer)
+      ..addRRect(inner);
     canvas.drawPath(
       ring.shift(offset),
       Paint()
@@ -250,6 +268,46 @@ class _RingShadowPainter extends CustomPainter {
         ..maskFilter = MaskFilter.blur(BlurStyle.normal, blur)
         ..blendMode = BlendMode.multiply,
     );
+  }
+
+  /// The ring as the blurred [outer] capsule minus the blurred [inner] one
+  /// (the inner sits wholly inside the outer, and a blur is linear). The two
+  /// land in the red and green channels of an opaque layer, and the layer's
+  /// colour filter turns red minus green into the shadow's alpha: the same
+  /// coverage the even-odd path gives.
+  void _paintFromRRects(Canvas canvas, RRect outer, RRect inner, Path? cut) {
+    final Rect layer = outer.outerRect.inflate(blur * 3 + 1);
+    canvas.saveLayer(
+      layer,
+      Paint()
+        ..blendMode = BlendMode.multiply
+        ..colorFilter = ColorFilter.matrix(<double>[
+          0, 0, 0, 0, color.r * 255, //
+          0, 0, 0, 0, color.g * 255, //
+          0, 0, 0, 0, color.b * 255, //
+          opacity, -opacity, 0, 0, 0,
+        ]),
+    );
+    // Clipped again inside the layer: Impeller does not carry the clip
+    // above into the layer's own draws.
+    if (cut != null) canvas.clipPath(cut);
+    canvas.drawRect(layer, Paint()..color = const Color(0xFF000000));
+    final MaskFilter soft = MaskFilter.blur(BlurStyle.normal, blur);
+    canvas.drawRRect(
+      outer,
+      Paint()
+        ..color = const Color(0xFFFF0000)
+        ..maskFilter = soft
+        ..blendMode = BlendMode.plus,
+    );
+    canvas.drawRRect(
+      inner,
+      Paint()
+        ..color = const Color(0xFF00FF00)
+        ..maskFilter = soft
+        ..blendMode = BlendMode.plus,
+    );
+    canvas.restore();
   }
 
   @override
