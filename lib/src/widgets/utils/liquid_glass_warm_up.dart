@@ -2,9 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 
-import '../components/liquid_glass_shadow.dart';
-import '../components/slider/liquid_glass_slider.dart';
-import '../components/switch/liquid_glass_switch.dart';
 import '../lens/liquid_glass_blender.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../lens/liquid_glass_shaders.dart';
@@ -13,32 +10,20 @@ import '../liquid_glass_style.dart';
 import '../liquid_glass_view.dart';
 import 'liquid_glass_blur.dart';
 
-/// Compiles the glass GPU programs during launch, so the first touch of a
-/// glass control does not pay for them.
+/// Compiles the glass GPU programs during launch, so the first page that
+/// shows glass does not pay for them.
 ///
 /// ## The problem this solves
 ///
-/// On the Skia backend every distinct draw configuration needs a GLSL
-/// program that the **driver** compiles, on the raster thread, the first
-/// time that configuration is drawn. The components hide their glass
-/// until they are touched — a switch's thumb is a solid pill until your
-/// finger lands, and its contact shadow is not in the tree at all — so
-/// the compile happens under the finger and stalls the raster thread for
-/// 100-250 ms.
+/// A custom program is compiled on its first draw, on the raster thread —
+/// for the blender's merged surface that is the better part of a second
+/// the first time a page with one opens. So this draws a plain lens and a
+/// two-member [LiquidGlassBlender] for a few frames at app start: one
+/// draw of each program is all it needs.
 ///
-/// It happens exactly once per install: the engine writes the compiled
-/// programs to a persistent on-disk cache and reloads them on every
-/// later launch. So the fix is not to avoid the work but to **move** it
-/// — into app start, where a hitch is invisible and a splash usually
-/// covers it anyway. From the second launch onwards this widget finds
-/// everything already cached and costs nothing.
-///
-/// Impeller precompiles only its own shaders. A custom program's pipeline
-/// is built on its first draw, on the raster thread — for the blender's
-/// merged surface that is the better part of a second the first time a
-/// page with one opens. So on Impeller this draws a plain lens and a
-/// two-member [LiquidGlassBlender] for a few frames instead: one draw of
-/// each program is all a pipeline needs.
+/// On Skia the lenses sit in a [LiquidGlassView] of their own, since a
+/// Skia lens samples its view's capture. On Impeller they read the
+/// backdrop directly and need no view.
 ///
 /// ## Using it
 ///
@@ -52,30 +37,9 @@ import 'liquid_glass_blur.dart';
 /// it: the glass it renders reads `MediaQuery`, which only exists below
 /// the app widget.
 ///
-/// ## What it warms
-///
-/// A real [LiquidGlassSwitch] and a real [LiquidGlassSlider], mounted
-/// and driven, rather than stand-in shapes. Each owns its own
-/// `LiquidGlassView`, so this compiles the capture, the glass shader,
-/// the blur and the border pass at the sizes and styles those two
-/// components genuinely use — which a generic lens only approximates.
-///
-/// Alongside them sits one lens wearing [LiquidGlassSwitch.defaultStyle]
-/// — shadow included — swept across the thumb's morph range. That
-/// covers the two draws a control only ever makes once a finger is on
-/// it, and which mounting one at rest therefore misses:
-///
-///  * the contact shadow, a `MaskFilter.blur` under `BlendMode.multiply`
-///  * the `saveLayer` an `Opacity` pushes as the rest pill fades out
-///
-/// The sweep matters because those offscreens are sized to the lens, and
-/// a control's lens is a different size on every frame of its morph.
-/// Redrawing one fixed box would warm one cache bucket; sweeping walks
-/// the range the morph will actually ask for.
-///
 /// ## Why it renders real glass
 ///
-/// Painted for real, for [duration], and then removed — not drawn into
+/// Painted for real for a few frames and then removed — not drawn into
 /// an offscreen picture. A backdrop filter is a compositor concept with
 /// no `Canvas` equivalent, so the blur pass **cannot** be warmed from a
 /// recorded `ui.Picture` at all; it has to be a mounted subtree.
@@ -89,25 +53,12 @@ class LiquidGlassWarmUp extends StatefulWidget {
   /// once the warm-up is done.
   final Widget child;
 
-  /// How long the warm glass is held for.
-  ///
-  /// Time rather than a frame count, so the run lasts as long on a
-  /// 120 Hz screen as on a 60 Hz one — the faster screen simply steps
-  /// the sweep more finely, which is free.
-  ///
-  /// It needs to span more than a frame or two: a view captures its
-  /// background after the first frame paints, and a lens with no
-  /// capture yet skips its glass entirely, so the earliest frames
-  /// compile nothing at all.
-  final Duration duration;
-
   /// Set false to skip the warm-up entirely.
   final bool enabled;
 
   const LiquidGlassWarmUp({
     super.key,
     required this.child,
-    this.duration = const Duration(seconds: 3),
     this.enabled = true,
   });
 
@@ -123,17 +74,13 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
   /// this widget is a pass-through forever.
   bool _done = false;
 
-  /// Runs from the frame the warm glass is mounted, not from
-  /// [initState] — the shader programs load asynchronously first, and
-  /// the wait for them is not warm-up time.
-  final Stopwatch _elapsed = Stopwatch();
-
-  /// Impeller warms by drawing each program once, not by sweeping.
   static bool get _impeller => ui.ImageFilter.isShaderFilterSupported;
 
-  /// Frames the Impeller glass stays up. Counted rather than timed: the
-  /// first of them can itself take the better part of a second.
-  static const int _impellerFrames = 4;
+  /// Frames the warm glass stays up. Counted rather than timed: the
+  /// first of them can itself take the better part of a second. Skia
+  /// gets more, because its view captures after the first frame paints
+  /// and a lens with no capture yet skips its glass entirely.
+  static int get _warmFrames => _impeller ? 4 : 8;
 
   /// Frames painted since the warm glass was mounted.
   int _frames = 0;
@@ -147,14 +94,9 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
     }
     // Nothing can be compiled until the fragment programs themselves are
     // loaded — a lens without them draws the frosted fallback, which is
-    // not the pipeline we are here to warm. Impeller also needs the
-    // blender's program, which the Skia run does not draw.
-    final Future<void> loaded = _impeller
-        ? LiquidGlassShaders.ensureLoaded(true)
-        : LiquidGlassShaders.ensureLensLoaded(false);
-    loaded.then((_) {
+    // not the pipeline we are here to warm.
+    LiquidGlassShaders.ensureLoaded(_impeller).then((_) {
       if (!mounted) return;
-      _elapsed.start();
       setState(() => _warming = true);
       _nextFrame();
     }).catchError((Object _) {
@@ -169,33 +111,18 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _done) return;
       _frames++;
-      final bool finished = _impeller
-          ? _frames >= _impellerFrames
-          : _elapsed.elapsed >= widget.duration;
-      if (finished) {
-        _elapsed.stop();
+      if (_frames >= _warmFrames) {
         setState(() {
           _warming = false;
           _done = true;
         });
         return;
       }
-      // Redraw at the next step of the sweep. Repeating one identical
-      // draw would recompile nothing; it is the CHANGING geometry that
-      // earns the extra frames.
-      setState(() {});
-      // The views' own pumps are already asking for frames while they
-      // capture, but this does not rely on that staying true.
+      // The Skia view's own pump asks for frames while it captures, but
+      // this does not rely on that staying true.
       WidgetsBinding.instance.scheduleFrame();
       _nextFrame();
     });
-  }
-
-  /// How far through the run, `0`..`1`.
-  double get _progress {
-    final int total = widget.duration.inMicroseconds;
-    if (total <= 0) return 1;
-    return (_elapsed.elapsed.inMicroseconds / total).clamp(0.0, 1.0);
   }
 
   @override
@@ -210,8 +137,8 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
       fit: StackFit.passthrough,
       children: [
         // First child = painted first = underneath. An opaque screen on
-        // top hides it while Skia still executes the draws, because
-        // Flutter does not cull what is overdrawn.
+        // top hides it while the draws still execute, because Flutter
+        // does not cull what is overdrawn.
         if (_warming)
           Positioned(
             left: 0,
@@ -219,8 +146,12 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
             width: _panelWidth,
             height: _panelHeight,
             child: _impeller
-                ? const _WarmImpellerGlass()
-                : _WarmControls(progress: _progress),
+                ? const _WarmGlass()
+                : const LiquidGlassView(
+                    realTimeCapture: true,
+                    backgroundWidget: ColoredBox(color: Color(0xFF808080)),
+                    child: _WarmGlass(),
+                  ),
           ),
         widget.child,
       ],
@@ -228,14 +159,13 @@ class _LiquidGlassWarmUpState extends State<LiquidGlassWarmUp> {
   }
 }
 
-const double _panelWidth = 300;
-const double _panelHeight = 130;
+const double _panelWidth = 120;
+const double _panelHeight = 90;
 
-/// The Impeller run: one draw of each custom program, which is what builds
-/// its pipeline. Blurred like real glass, so the blender takes the same
-/// composed blur + shader pass the pages do.
-class _WarmImpellerGlass extends StatelessWidget {
-  const _WarmImpellerGlass();
+/// One draw of each custom program. Blurred like real glass, so the
+/// blender takes the same blur + shader pass the pages do.
+class _WarmGlass extends StatelessWidget {
+  const _WarmGlass();
 
   static const LiquidGlassStyle _style = LiquidGlassStyle(
     appearance: LiquidGlassAppearance(
@@ -249,7 +179,7 @@ class _WarmImpellerGlass extends StatelessWidget {
       child: Stack(
         alignment: Alignment.topLeft,
         children: [
-          // A lone lens: the main program (Impeller has no border pass).
+          // A lone lens: the main program, plus the border pass on Skia.
           Positioned(
             left: 0,
             top: 0,
@@ -291,147 +221,4 @@ class _WarmImpellerGlass extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The real components, plus the thumb glass they only draw under a
-/// finger.
-class _WarmControls extends StatelessWidget {
-  /// `0`..`1` across the run.
-  final double progress;
-
-  const _WarmControls({required this.progress});
-
-  /// The switch thumb's two boxes. The lens below sweeps between them,
-  /// which is the range a real morph walks.
-  static const Size _thumbRest = Size(37, 24);
-  static const Size _thumbSwollen = Size(58, 38.333);
-
-  @override
-  Widget build(BuildContext context) {
-    // The switch flips a few times across the run so its track redraws,
-    // its colour cross-fades and its capture keeps refreshing, rather
-    // than sitting on one static frame.
-    final bool on = (progress * 4).floor().isEven;
-    // The slider sweeps its whole travel, so its fill, its track and its
-    // pill are drawn at a spread of positions and widths.
-    final double slid = progress;
-
-    final double t = _sweep(progress);
-    final Size thumb = Size(
-      _thumbRest.width + (_thumbSwollen.width - _thumbRest.width) * t,
-      _thumbRest.height + (_thumbSwollen.height - _thumbRest.height) * t,
-    );
-    // Never exactly 1.0: at full opacity RenderOpacity drops the layer
-    // and the saveLayer pipeline goes unwarmed.
-    final double cover = 0.05 + 0.9 * t;
-
-    return IgnorePointer(
-      child: Stack(
-        alignment: Alignment.topLeft,
-        children: [
-          // The real controls, each carrying its own view and capture.
-          // onChanged is a sink: nothing here is interactive, the values
-          // are driven by the sweep above.
-          Positioned(
-            left: 0,
-            top: 0,
-            child: LiquidGlassSwitch(value: on, onChanged: _ignore),
-          ),
-          Positioned(
-            left: 0,
-            top: 44,
-            width: 280,
-            child: LiquidGlassSlider(value: slid, onChanged: _ignore),
-          ),
-          // The thumb's own glass, at the sizes a morph passes through
-          // and wearing the shadow the components only draw once
-          // touched. Needs a view of its own: a lens samples its
-          // ancestor view's capture, and the controls' views are theirs.
-          Positioned(
-            left: 0,
-            top: 88,
-            width: _thumbSwollen.width,
-            height: _thumbSwollen.height,
-            child: LiquidGlassView(
-              realTimeCapture: true,
-              backgroundWidget: const ColoredBox(color: Color(0xFF808080)),
-              child: Stack(
-                alignment: Alignment.topLeft,
-                children: [
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    width: thumb.width,
-                    height: thumb.height,
-                    child: LiquidGlassLens(
-                      style: LiquidGlassSwitch.defaultStyle,
-                      child: Opacity(
-                        opacity: cover,
-                        child: const ColoredBox(color: Color(0xFFFFFFFF)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          // The slider pill's style is a different shape and refraction
-          // from the switch's, so it is its own program configuration.
-          Positioned(
-            left: 70,
-            top: 88,
-            width: 60,
-            height: 34,
-            child: LiquidGlassView(
-              realTimeCapture: true,
-              backgroundWidget: const ColoredBox(color: Color(0xFF808080)),
-              child: Stack(
-                alignment: Alignment.topLeft,
-                children: [
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    width: thumb.width,
-                    height: thumb.height,
-                    child: LiquidGlassLens(
-                      style: _sliderPillWithShadow,
-                      child: Opacity(
-                        opacity: cover,
-                        child: const ColoredBox(color: Color(0xFFFFFFFF)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// A triangle wave: 0 → 1 → 0 twice across the run, so the sweep
-  /// covers the size range in both directions rather than once.
-  static double _sweep(double p) {
-    final double x = (p * 2) % 1.0;
-    return x < 0.5 ? x * 2 : (1 - x) * 2;
-  }
-
-  static void _ignore(Object? _) {}
-
-  /// The slider's own pill look, wearing a contact shadow so the mask
-  /// blur is compiled for this configuration too.
-  static final LiquidGlassStyle _sliderPillWithShadow = LiquidGlassStyle(
-    shape: LiquidGlassSlider.defaultStyle.shape,
-    appearance: LiquidGlassAppearance(
-      saturation: LiquidGlassSlider.defaultStyle.appearance.saturation,
-      blur: LiquidGlassSlider.defaultStyle.appearance.blur,
-      color: LiquidGlassSlider.defaultStyle.appearance.color,
-      enableInnerRadiusTransparent: LiquidGlassSlider
-          .defaultStyle.appearance.enableInnerRadiusTransparent,
-      shadow: LiquidGlassSlider.defaultStyle.appearance.shadow ??
-          const LiquidGlassShadow(inset: 3),
-    ),
-    refraction: LiquidGlassSlider.defaultStyle.refraction,
-  );
 }
