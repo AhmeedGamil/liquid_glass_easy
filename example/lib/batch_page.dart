@@ -120,6 +120,7 @@ class _BatchPageState extends State<BatchPage>
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 26,
       borderWidth: 1.2,
+      borderType: OpticalBorder(ambientIntensity: 1),
     ),
     appearance: LiquidGlassAppearance(
       color: Color(0x14FFFFFF),
