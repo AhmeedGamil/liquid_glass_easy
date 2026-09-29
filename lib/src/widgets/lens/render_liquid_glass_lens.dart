@@ -440,6 +440,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required double scale,
     required double borderWidth,
     required bool includeLensColor,
+    bool includeShapeAa = true,
     // Lens-anywhere lenses never honor the captured backdrop's alpha: the
     // capture is treated as opaque so the optical rim/body survive over dark
     // or empty regions. Only the slider/toggle (a separate painter path) opt
@@ -478,6 +479,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       refractionType: _refraction.refractionType,
       includeLensColor: includeLensColor,
       lensColor: _appearance.color,
+      includeShapeAa: includeShapeAa,
       honorBackdropAlpha: honorBackdropAlpha,
       imageOffset: imageOffset,
       imageSize: imageSize,
@@ -488,10 +490,6 @@ class RenderLiquidGlassLens extends RenderProxyBox
       xformOffset: xformOffset,
     );
   }
-
-  double get _fullBorderWidth =>
-      _shape.borderWidth * 2.0 +
-      (_shape.isOpticalBorder && _shape.borderWidth > 0 ? 2.0 : 0.0);
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -600,7 +598,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.
-      borderWidth: _fullBorderWidth,
+      borderWidth: _shape.borderWidth,
       includeLensColor: true,
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
@@ -845,7 +843,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
     // Room for everything that reaches past the lens box: the Gaussian tail,
     // the refraction band the shader samples across, and the rim.
     final double reach = _refraction.effectiveDistortionWidth +
-        _fullBorderWidth +
+        _shape.borderWidth +
+        _shape.borderSoftness +
         _shaderClipPad;
     final Rect clip = _snappedShaderClip(
       3.0 * _appearance.blur.sigmaX + reach,
@@ -988,7 +987,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       scale: 1.0,
       // Blur path: suppress the main-pass border; a sharp border pass
       // is drawn on top of the blur below (mirrors the legacy painter).
-      borderWidth: useBlur ? 0.0 : _fullBorderWidth,
+      borderWidth: useBlur ? 0.0 : _shape.borderWidth,
       includeLensColor: true,
       honorBackdropAlpha: _honorBackdropAlpha,
       xformA: linearXform ? s[0] : 1,
@@ -1060,8 +1059,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
           resolution: viewSize,
           lensPosition: shaderOrigin,
           scale: 1.0,
-          borderWidth: _fullBorderWidth,
-          includeLensColor: false,
+          borderWidth: _shape.borderWidth,
+          includeLensColor: true,
+          // The border shader stops short of the two main-only uniforms.
+          includeShapeAa: false,
           honorBackdropAlpha: _honorBackdropAlpha,
           // Same space as the main pass, so the rim hugs the same outline
           // and reads the backdrop from the same place.

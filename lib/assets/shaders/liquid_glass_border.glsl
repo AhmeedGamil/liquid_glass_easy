@@ -25,31 +25,66 @@ precision GLASS_FLOAT_PRECISION float;
 const vec3 BORDER_LUMA = vec3(0.2126, 0.7152, 0.0722);
 
 // =======================================================
-//  Compute a renderer-style highlight color informed by
-//  the sampled background, but compressed toward a stable,
-//  coherent rim tone instead of raw per-pixel colors.
+//  Perceptual boost (CIE Lab, D65)
+//  The rim gains lightness and chroma without washing the
+//  colour it was sampled from out toward grey.
 // =======================================================
-vec3 getHighlightColor(vec3 bgColor, float targetBrightness) {
-    float luminance = dot(bgColor, BORDER_LUMA);
-    vec3 saturatedBg = bgColor / max(luminance, 0.001);
-    saturatedBg = mix(bgColor, saturatedBg, 0.8);
+const vec3 LAB_WHITE = vec3(0.95045593, 1.0, 1.08905775);
+// Both matrices are built COLUMN-wise from the rows they name, so the
+// row-vector products below (`v * M`) evaluate the intended row dots.
+const mat3 LAB_RGB_TO_XYZ = mat3(
+    vec3(0.4124, 0.3576, 0.1805),
+    vec3(0.2126, 0.7152, 0.0722),
+    vec3(0.0193, 0.1192, 0.9505)
+);
+const mat3 LAB_XYZ_TO_RGB = mat3(
+    vec3( 3.2406255, -1.5372080, -0.4986286),
+    vec3(-0.9689307,  1.8757561,  0.0415175),
+    vec3( 0.0557101, -0.2040211,  1.0569959)
+);
 
-    float colorfulness = length(bgColor - vec3(luminance));
-    float colorMix = clamp(colorfulness + 0.5, 0.5, 1.0);
+float borderLabF(float t) {
+    return t > 0.00885645 ? pow(max(t, 1e-8), 1.0 / 3.0)
+                          : 7.787037 * t + 0.13793103;
+}
 
-    vec3 highlight = mix(vec3(targetBrightness), saturatedBg, colorMix);
-    return clamp(highlight, 0.0, 1.0);
+float borderLabFInv(float t) {
+    return t > 0.206897 ? t * t * t : 0.12841855 * (t - 0.13793103);
+}
+
+// Adds `dL` lightness and `dC` chroma in Lab. The sRGB triple goes into the
+// matrix as-is (no transfer function); chroma scales a/b, so the hue holds.
+vec3 labBoost(vec3 srgb, float dL, float dC, float maxL) {
+    vec3 xyz = (srgb * LAB_RGB_TO_XYZ) / LAB_WHITE;
+    vec3 f = vec3(borderLabF(xyz.x), borderLabF(xyz.y), borderLabF(xyz.z));
+    vec3 lab = vec3(116.0 * f.y - 16.0,
+                    500.0 * (f.x - f.y),
+                    200.0 * (f.y - f.z));
+
+    // A flat add along the existing hue; a neutral colour takes it on +b
+    // (the yellow axis), so a black backdrop lifts warm-neutral, not pink.
+    float chroma = length(lab.yz);
+    lab.yz = chroma > 1e-4 ? lab.yz * ((chroma + dC) / chroma)
+                           : vec2(0.0, dC);
+    lab.x = clamp(lab.x + dL, 0.0, maxL);
+
+    float y = (lab.x + 16.0) / 116.0;
+    vec3 outXyz = LAB_WHITE * vec3(borderLabFInv(y + lab.y / 500.0),
+                                   borderLabFInv(y),
+                                   borderLabFInv(y - lab.z / 200.0));
+    return clamp(outXyz * LAB_XYZ_TO_RGB, 0.0, 1.0);
 }
 
 // =======================================================
-//  Lens height profile — circular cross-section
-//  (used by optical mode only)
+//  Rim falloff — 1 on the outline, 0 at `rangePx` inside.
+//  The fifth power keeps the bright core hard against the
+//  outline and gives it a long, soft inward tail; it
+//  integrates to rangePx / 6.
 // =======================================================
-float getLensHeight(float sd, float thickness) {
-    if (sd >= 0.0 || thickness <= 0.0) return 0.0;
-    if (sd < -thickness) return thickness;
-    float x = thickness + sd;
-    return sqrt(max(0.0, thickness * thickness - x * x));
+float getRimFalloff(float sdPx, float rangePx) {
+    float t = max(1.0 + sdPx / max(rangePx, 1e-3), 0.0);
+    float t2 = t * t;
+    return clamp(t2 * t2 * t, 0.0, 1.0);
 }
 
 // =======================================================
@@ -69,7 +104,9 @@ vec4 getClassicBorder(
 ){
     if (borderWidthPx <= 0.0 || borderAlpha <= 0.0) return vec4(0.0);
 
-    float halfW = borderWidthPx * 0.5;
+    // The band is centred on the outline and spans the authored width to each
+    // side; the outer half is clipped away, leaving that width inside.
+    float halfW = borderWidthPx;
     if (signedEdgeOrthoDistPx > halfW) return vec4(0.0);
 
     float mask = 1.0 - smoothstep(
@@ -132,56 +169,76 @@ vec4 getClassicBorder(
 }
 
 // =======================================================
-//  OPTICAL MODE: Apple-style rim light + specular + caustic
-//  Border emerges as an optical consequence of the glass shape.
+//  OPTICAL MODE: an all-round rim under a directional glare
+//  The border is not drawn as a stroke — it is what the
+//  glass edge does to the backdrop behind it. Both bands
+//  ramp in from the outline and brighten in CIE Lab, so a
+//  coloured backdrop keeps its hue as the rim goes hot.
 // =======================================================
+
+// How the public values read inside the rim, so their usual ranges land on
+// the rim's own: width 1, intensity 1, solidity 0.5 = the rest look.
+const float RIM_RANGE_PER_WIDTH   = 5.4;   // ramp depth per unit of width
+const float RIM_INTENSITY_SCALE   = 0.1;   // lightIntensity 1 -> 0.1
+const float RIM_SHARPNESS_AT_ZERO = -0.6;  // solidity 0..1 -> shift -0.6..0.4
+// The silhouette's coverage ramp is centred this far INSIDE the outline (in
+// units of the AA band); the rim is measured from there so its core lands on it.
+const float RIM_OUTLINE_INSET     = 0.167;
+
+// Rim constants: the values with no uniform of their own.
+const float RIM_EDGE_GAIN       = 6.0;   // weight scale of both bands
+const float RIM_OPPOSITE_BIAS   = 1.0;   // glare on the arc facing away
+const float RIM_FRESNEL_SHARPNESS = 0.0; // shift on the side rim's ramp
+// The side rim's depth, as a multiple of the glare's: (70 / 30)^2.
+const float RIM_FRESNEL_RANGE_RATIO = 5.4444444;
+// The side rim's arcs sit 90 degrees from the glare's, at this fixed spread.
+const float RIM_FRESNEL_SPREAD = 0.5;
+// Share of the tint's alpha the rim colours take. The body mixes at the
+// full alpha, which reads as 0.8 of the material amount; the rim wants 0.5.
+const float RIM_TINT_SHARE = 0.625;
+
+// The rim body: the glare over the side rim, both boosted in Lab.
 vec4 getOpticalBorder(
     vec2 uvNorm, vec2 centerNorm, float signedEdgeOrthoDistPx,
     vec2 gradDistPx,
     float borderWidthPx, float softnessPx, vec4 tint,
-    vec4 lightColor, vec4 shadowColor, float lightIntensity,
+    vec4 lightColor, float lightIntensity,
     float borderAlpha, float lightDirDeg,
-    float oneSideLightIntensity, float lightMode,
+    float lightMode,
     vec3 ambientColor, float ambientIntensity,
-    float doubleSideLightIntensity,
     float borderSaturation,
     float borderSolidity,
-    float lightSpread
+    float lightSpread,
+    float aaPx        // the silhouette's AA band width, in fragment px
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap   // half-Lambert blend amount; only compiled for the metaball
 #endif
 ){
+    // lightColor, softnessPx and borderSaturation take no part here. Outside
+    // the outline the silhouette's own coverage ends the rim.
     if (borderWidthPx <= 0.0 || borderAlpha <= 0.0) return vec4(0.0);
 
-    // NOTE: the optical-mode width adjustment (historically `+ 2` here)
-    // is now applied on the Dart side, in *logical* px, before the
-    // per-path `scale` is applied. Doing it there keeps the rim the same
-    // logical width on both the Skia (logical-px) and Impeller
-    // (physical-px) shader spaces; adding a fixed constant here would be
-    // ~dpr too thin on Impeller. `borderWidthPx` already includes it.
+    // Distance from where the silhouette actually sits, not the outline.
+    float sd = signedEdgeOrthoDistPx + RIM_OUTLINE_INSET * max(aaPx, 1.0);
 
-    float sd = signedEdgeOrthoDistPx;
+    // The glare ramp's depth follows the authored width; borderSolidity is
+    // the additive shift on it, read from its 0..1 range.
+    float rangePx = borderWidthPx * RIM_RANGE_PER_WIDTH;
+    float sharpness = RIM_SHARPNESS_AT_ZERO + clamp(borderSolidity, 0.0, 1.0);
+    float glareGeometry = getRimFalloff(sd + sharpness * rangePx, rangePx);
 
-    // 1. Rim factor — SDF-based rational falloff
-    float rimWidth = max(borderWidthPx, 1.0);
-    float k = 0.89;
-    float x = sd / rimWidth;
-    float rimFactor = 1.0 / (1.0 + k * x * x);
+    float fresnelRangePx = rangePx * RIM_FRESNEL_RANGE_RATIO;
 
-    // Fade out deep inside
-    float innerFade = 1.0 - smoothstep(
-        borderWidthPx * 1.5, borderWidthPx * 3.0,
-        max(-sd, 0.0)
-    );
-    rimFactor *= innerFade;
+    // Past every live ramp's end the rim is exactly zero: skip the pow work.
+    // The side rim only reaches in when ambientIntensity lights it.
+    bool sideOn = ambientIntensity > 0.0;
+    float reachPx = (1.0 + sharpness) * rangePx;
+    if (sideOn) {
+        reachPx = max(reachPx, (1.0 + RIM_FRESNEL_SHARPNESS) * fresnelRangePx);
+    }
+    if (sd <= -reachPx) return vec4(0.0);
 
-    // Fade out outside the shape
-    float outerFade = 1.0 - smoothstep(0.0, max(softnessPx, 1.0), max(sd, 0.0));
-    rimFactor *= outerFade;
-
-    if (rimFactor <= 0.001) return vec4(0.0);
-
-    // 2. Surface normal
+    // Surface normal — shape gradient, or radial from the centre.
     vec2 normal;
     if (lightMode == LIGHT_NORMAL_EDGE) {
         normal = normalize(gradDistPx);
@@ -189,105 +246,74 @@ vec4 getOpticalBorder(
         normal = normalize(uvNorm - centerNorm);
     }
 
-    // 3. Light direction
     float lightRad = radians(lightDirDeg);
     vec2 lightDirV = vec2(cos(lightRad), sin(lightRad));
-
-    // 4. Lens height for shape mask
-    float thickness = borderWidthPx;
-    float height = getLensHeight(sd, thickness);
-    float normalizedHeight = thickness > 0.0 ? height / thickness : 0.0;
-    float shapeMask = clamp((1.0 - normalizedHeight) * 1.111, 0.0, 1.0);
-    float thicknessFactor = clamp((thickness - 2.0) * 0.5, 0.0, 1.0);
-
-    // 5. Background-tinted highlight color
-    vec3 highlightCol = vec3(1.0);
-    if (dot(ambientColor, ambientColor) > 1e-5) {
-        highlightCol = getHighlightColor(ambientColor, 1.0);
-    }
-    highlightCol *= lightColor.rgb;
-
-    if (tint.a > 0.0) {
-        highlightCol = mix(highlightCol, tint.rgb, clamp(tint.a, 0.0, 1.0));
-    }
-
-    if (borderSaturation != 1.0) {
-        float rimLuma = dot(highlightCol, BORDER_LUMA);
-        highlightCol = mix(vec3(rimLuma), highlightCol, borderSaturation);
-    }
-
-    // 6. Light-driven strength — computed WITHOUT the spatial mask.
-    //    These terms control how strongly the rim shows, but must not
-    //    extend its physical extent. We sum them up first, then cap the
-    //    total to 1.0 before multiplying by the geometric mask.
-    // Angular response. Default: lights the front and back of the light
-    // axis but is ZERO at 90° — fine for a single convex shape. Under
-    // LIQUID_GLASS_RIM_WRAP (metaball only) it blends toward a half-Lambert
-    // response (0.5 at 90°), so a merged shape's concave neck — whose
-    // normals are perpendicular to the light — keeps a rim and the border
-    // stays connected. The production single-lens shaders don't define the
-    // macro, so this compiles to just the original hard response.
-
-    // lightSpread widens the rim's angular reach (higher = broader);
-    // 0.5 reproduces the original pow(.,1.5) falloff exactly.
-    float spread = clamp(lightSpread, 0.0, 1.0);
-    float spreadExp = mix(2.5, 0.5, spread);
-    // Below 0.5 the exponent alone can't shrink the bright core (the ×3 gain
-    // saturates it), so also narrow the angular window of each light lobe.
-    float lobeCut = (0.5 - min(spread, 0.5)) * 1.7;
-#ifdef LIQUID_GLASS_RIM_WRAP
     float ndl = dot(normal, lightDirV);
-    float hardFront = clamp((max(ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float hardBack = clamp((max(-ndl, 0.0) - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float hard = hardFront + hardBack * 1;
-    float wrapped = clamp((ndl * 0.5 + 0.5 - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float totalInfluence = mix(hard, wrapped, clamp(wrap, 0.0, 1.0));
-#else
-    float mainLight = max(dot(normal, lightDirV), 0.0);
-    float oppositeLight = max(dot(normal, -lightDirV), 0.0);
-    mainLight = clamp((mainLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    oppositeLight = clamp((oppositeLight - lobeCut) / (1.0 - lobeCut), 0.0, 1.0);
-    float totalInfluence = mainLight + oppositeLight * 1;
+
+    // Angular response: two opposing arcs on the light axis, brightest where
+    // the surface faces the light and dark at 90°.
+    float facing = ndl * ndl;
+    // The side rim's axis: the light turned 90°, so its arcs fill the gaps.
+    float ndlSide = dot(normal, vec2(-lightDirV.y, lightDirV.x));
+    float facingSide = ndlSide * ndlSide;
+#ifdef LIQUID_GLASS_RIM_WRAP
+    // A merged blob's concave neck faces sideways and would fall in the dark
+    // band; wrap blends toward a half-Lambert response that keeps it lit.
+    facing = mix(facing, ndl * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
+    facingSide = mix(facingSide, ndlSide * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
 #endif
-    float directional = pow(totalInfluence, spreadExp) * lightIntensity * 3.0;
-    float ambient = ambientIntensity * 0.1;
-    float lightStrength = directional + ambient;
+    float sideBias = ndl < 0.0 ? RIM_OPPOSITE_BIAS : 1.0;
 
-    // 7. One-side specular boost (visibility only — no spatial mask here)
-    if (oneSideLightIntensity > 0.0) {
-        float spec1 = max(dot(normal, lightDirV), 0.0);
-        spec1 = pow(spec1, 8.0);
-        lightStrength += spec1 * lightIntensity * (0.8 * oneSideLightIntensity);
+    // lightSpread is the inverse of convergence: 0 focuses the arcs on the
+    // light axis, 1 flattens the exponent so they wrap the perimeter.
+    float arcExponent = 0.1 + (1.0 - clamp(lightSpread, 0.0, 1.0)) * 2.0;
+    // Both pow() bases below are floored: an exact zero base is undefined.
+    float tintShare = clamp(tint.a, 0.0, 1.0) * RIM_TINT_SHARE;
+
+    // Side rim: the same two-arc response on the side axis, at a fixed
+    // spread, driven by ambientIntensity on the glare's intensity scale.
+    vec3 fresnelColor = vec3(0.0);
+    float fresnelWeight = 0.0;
+    float fresnelValue = sideOn ? getRimFalloff(
+        sd + RIM_FRESNEL_SHARPNESS * fresnelRangePx, fresnelRangePx) : 0.0;
+    if (fresnelValue > 0.0) {
+        float sideExponent = 0.1 + (1.0 - RIM_FRESNEL_SPREAD) * 2.0;
+        float angularSide = clamp(
+            pow(max(facingSide * 1.2 * ambientIntensity * RIM_INTENSITY_SCALE,
+                    1e-6), sideExponent),
+            0.0, 1.0);
+
+        // Its colour: white pulled toward the tint by its rim share, lifted
+        // up to +20 L, weighted by its own ramp.
+        vec3 fresnelTint = mix(vec3(1.0), tint.rgb, tintShare);
+        float fresnelDrive = angularSide * fresnelValue;
+        fresnelColor = labBoost(fresnelTint, 20.0 * fresnelDrive, 0.0, 100.0);
+        fresnelWeight = clamp(fresnelDrive * 0.7 * RIM_EDGE_GAIN, 0.0, 1.0);
     }
 
-    // 8. Double-side specular boost (visibility only — no spatial mask here)
-    if (doubleSideLightIntensity > 0.0) {
-        float sf = max(dot(normal, lightDirV), 0.0);
-        sf = pow(sf, 8.0);
-        float sb = max(dot(normal, -lightDirV), 0.0);
-        sb = pow(sb, 8.0);
-        lightStrength += (sf + sb) * lightIntensity * (0.8 * doubleSideLightIntensity);
+    // Glare: the refracted backdrop with the tint at its rim share, lifted
+    // up to +150 L and +30 C by angle x depth. Past its ramp it is zero.
+    vec3 glareColor = vec3(0.0);
+    float glareWeight = 0.0;
+    if (glareGeometry > 0.0) {
+        float angular = clamp(
+            pow(max(facing * 1.2 * sideBias * lightIntensity * RIM_INTENSITY_SCALE,
+                    1e-6), arcExponent),
+            0.0, 1.0);
+        vec3 glareSource = mix(ambientColor, tint.rgb, tintShare);
+        float glareDrive = angular * glareGeometry;
+        glareColor = labBoost(glareSource, 150.0 * glareDrive,
+                              30.0 * glareDrive, 120.0);
+        glareWeight = clamp(glareDrive * RIM_EDGE_GAIN, 0.0, 1.0);
     }
 
-    // 9. Decouple thickness from intensity: cap light contribution to 1.0
-    //    BEFORE applying the spatial mask. Without this cap, large light
-    //    values would push pixels in the soft tail of rimFactor past 1.0,
-    //    and the final clamp would make them fully visible — visually
-    //    fattening the rim. With the cap, the rim's physical extent is
-    //    fixed by rimFactor * thicknessFactor * shapeMask alone, while
-    //    lights only modulate visibility within that extent.
-    //
-    //    `borderSolidity` blends between the two regimes:
-    //      0.0 → cap on (current behavior, fixed extent, never goes solid)
-    //      1.0 → cap off (old behavior — high lightIntensity pushes the
-    //            rim to fully solid via the final alpha clamp)
-    float cappedLight = clamp(lightStrength, 0.0, 1.0);
-    float effectiveLight = mix(cappedLight, lightStrength, clamp(borderSolidity, 0.0, 1.0));
-    float spatialMask = rimFactor * thicknessFactor * shapeMask;
+    // The side rim mixed in first and the glare over it, folded into one layer.
+    float rimWeight = 1.0 - (1.0 - fresnelWeight) * (1.0 - glareWeight);
+    if (rimWeight <= 0.001) return vec4(0.0);
+    vec3 rimPremul = fresnelColor * fresnelWeight * (1.0 - glareWeight)
+                   + glareColor * glareWeight;
 
-    // 10. Final strength and premultiply
-    float a = clamp(borderAlpha * effectiveLight * spatialMask, 0.0, 1.0);
-    return vec4(highlightCol * a, a);
+    return vec4(rimPremul * borderAlpha, rimWeight * borderAlpha);
 }
 
 // =======================================================
@@ -305,22 +331,24 @@ vec4 getSweepBorder(
     float borderSaturation,
     float borderSolidity,
     float lightSpread,
+    float aaPx,
     float borderMode
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap
 #endif
 ){
     if (borderMode >= 0.5) {
-        // OPTICAL mode
+        // OPTICAL mode. The one-/double-side specular terms and the shadow
+        // colour are classic-only, and the Dart side already zeroes them here.
         return getOpticalBorder(
             uvNorm, centerNorm, signedEdgeOrthoDistPx, gradDistPx,
             borderWidthPx, softnessPx, tint,
-            lightColor, shadowColor, lightIntensity,
+            lightColor, lightIntensity,
             borderAlpha, lightDirDeg,
-            oneSideLightIntensity, lightMode,
+            lightMode,
             ambientColor, ambientIntensity,
-            doubleSideLightIntensity, borderSaturation,
-            borderSolidity, lightSpread
+            borderSaturation,
+            borderSolidity, lightSpread, aaPx
 #ifdef LIQUID_GLASS_RIM_WRAP
             , wrap
 #endif

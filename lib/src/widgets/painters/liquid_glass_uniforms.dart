@@ -31,10 +31,11 @@ import '../utils/liquid_glass_shape.dart';
 /// always provide logical values; the physical conversion lives here.
 ///
 /// ## Border shader variant
-/// The border shader (`liquid_glass_border.frag`) is identical to the
-/// main shader except it has **no `u_lensColor`**. Pass
-/// [includeLensColor] `false` for that shader so the four lens-color
-/// floats are skipped and the remaining indices stay aligned.
+/// The border shader (`liquid_glass_border.frag`) carries the same
+/// uniforms as the main shader up to and including `u_lensColor` — the rim
+/// lifts from the tinted glass, so that pass needs the tint too — but not
+/// `u_honorBackdropAlpha` / `u_shapeAaPx`. Pass [includeLensColor] `true`
+/// for both and [includeShapeAa] `false` for the border shader.
 ///
 /// ## Sampler
 /// This function only writes the `setFloat` uniforms. The image sampler
@@ -58,9 +59,9 @@ void packLiquidGlassUniforms(
   required bool enableInnerRadiusTransparent,
   required double diagonalFlip,
 
-  /// Border width in logical px. The caller decides the multiplier:
-  /// the main pass uses `borderWidth * 2` (or `0` when the border is
-  /// suppressed for the blur path), the border pass uses `borderWidth`.
+  /// The authored border width in logical px, verbatim — each border mode
+  /// expands it into its own band in the shader. Callers pass `0` only to
+  /// suppress the border, as the blur path does for the main pass.
   required double borderWidth,
   required double borderAlpha,
   required double chromaticAberration,
@@ -69,9 +70,15 @@ void packLiquidGlassUniforms(
   required LiquidGlassRefractionType? refractionType,
 
   /// Whether to emit the four `u_lensColor` floats. `true` for the main
-  /// shader, `false` for the border shader (which lacks that uniform).
+  /// shader and the border shader alike; `false` only for a shader that has
+  /// no such uniform.
   required bool includeLensColor,
   Color lensColor = const Color(0x00000000),
+
+  /// Whether to emit `u_honorBackdropAlpha` and `u_shapeAaPx`, the two
+  /// uniforms only the main shader declares. `false` for the border shader,
+  /// or its uniform array overflows by exactly those two floats.
+  bool includeShapeAa = true,
 
   /// Whether the shader should fold the sampled backdrop's alpha into the
   /// lens coverage. `true` on the Skia capture path (the bound snapshot
@@ -212,10 +219,10 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, imgSize.width * scale);
   shader.setFloat(i++, imgSize.height * scale);
 
-  // u_honorBackdropAlpha + u_shapeAaPx — main shader only (the last two
-  // uniforms in liquid_glass.frag; the border shader declares neither, so
-  // writing them there would overflow its uniform array).
-  if (includeLensColor) {
+  // u_honorBackdropAlpha + u_shapeAaPx — main shader only (the border
+  // shader declares neither, so writing them there would overflow its
+  // uniform array).
+  if (includeShapeAa) {
     shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
     // u_shapeAaPx — edge-AA band width in fragment px = one logical pixel.
     // `scale` is 1.0 on Skia (logical-px shader) and dpr on Impeller

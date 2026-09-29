@@ -284,13 +284,11 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       enableInnerRadiusTransparent:
           cfg.effectiveAppearance.enableInnerRadiusTransparent,
       diagonalFlip: cfg.effectiveRefraction.diagonalFlip,
-      // Full border-band width in logical px: doubled (the outer half is
-      // clipped by the lens shape), plus the optical-mode extra. Passing
-      // it here — rather than adding a constant inside the shader — lets
-      // `packLiquidGlassUniforms` apply `scale` (dpr) so the rim has the
+      // The authored border width in logical px, verbatim — each border mode
+      // expands it into its own band in the shader. Passing logical px lets
+      // `packLiquidGlassUniforms` apply `scale` (dpr), so the rim has the
       // same logical width on Impeller as it does on Skia.
-      borderWidth: shape.borderWidth * 2.0 +
-          (shape.isOpticalBorder && shape.borderWidth > 0 ? 2.0 : 0.0),
+      borderWidth: shape.borderWidth,
       borderAlpha: effectiveBorderAlpha,
       chromaticAberration: effectiveChromaticAberration,
       saturation: effectiveSaturation,

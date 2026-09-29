@@ -249,7 +249,10 @@ float computeShapeMask(float shapeDistPx) {
     // is the same physical width on Skia and Impeller; the max() floor keeps a
     // safe 1px fallback if the uniform is ever unset.
     float aa = max(u_shapeAaPx, 1.0);
-    return 1.0 - smoothstep(-0.5 * aa, 0.5 * aa, shapeDistPx);
+    // Two thirds of the band sit inside the outline: the outline itself is
+    // 74% faded, so over a dark backdrop the lighter glass shows a thin dark
+    // hairline at its very edge. The optical rim measures from that centre.
+    return 1.0 - smoothstep(-0.667 * aa, 0.333 * aa, shapeDistPx);
 }
 
 
@@ -364,6 +367,12 @@ void main() {
         u_magnification
     );
 
+    // The rim's material tint: the lens colour, so the rim lifts from the
+    // tinted glass rather than the bare backdrop (a black backdrop under a
+    // light tint would otherwise lift to a grey darker than the body).
+    // borderColor, when set, replaces it: its documented role.
+    vec4 rimTint = (u_borderColor.a > 0.0) ? u_borderColor : u_lensColor;
+
 #ifdef LIQUID_GLASS_DESKTOP
     // Outside the band: the straight magnified sample, no CA. One sample and
     // one border call serve both sides, so each is compiled once.
@@ -449,7 +458,7 @@ void main() {
 
     vec4 borderPremul = getSweepBorder(
         uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
-        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_borderWidth, u_borderSoftness, rimTint,
         u_lightColor, u_shadowColor,
         u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
         preTintCol, u_ambientIntensity,
@@ -457,6 +466,7 @@ void main() {
         u_borderSaturation,
         u_borderSolidity,
         u_lightSpread,
+        u_shapeAaPx,
         u_borderMode
     );
 
@@ -476,7 +486,7 @@ void main() {
         vec3 ambientCol = preTintCol;
         vec4 borderPremul = getSweepBorder(
             uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
-            u_borderWidth, u_borderSoftness, u_borderColor,
+            u_borderWidth, u_borderSoftness, rimTint,
             u_lightColor, u_shadowColor,
             u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
             ambientCol, u_ambientIntensity,
@@ -484,6 +494,7 @@ void main() {
             u_borderSaturation,
             u_borderSolidity,
             u_lightSpread,
+            u_shapeAaPx,
             u_borderMode
         );
 
@@ -563,7 +574,7 @@ void main() {
     vec3 ambientCol2 = preTintCol2;
     vec4 borderPremul = getSweepBorder(
         uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
-        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_borderWidth, u_borderSoftness, rimTint,
         u_lightColor, u_shadowColor,
         u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
         ambientCol2, u_ambientIntensity,
@@ -571,6 +582,7 @@ void main() {
         u_borderSaturation,
         u_borderSolidity,
         u_lightSpread,
+        u_shapeAaPx,
         u_borderMode
     );
 

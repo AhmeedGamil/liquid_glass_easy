@@ -137,19 +137,11 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(index++, enableInnerRadiusTransparent ? 1.0 : 0.0);
     shader.setFloat(index++, diagonalFlip);
 
-    // No-blur path: main shader draws the border itself. We pass the
-    // full border-band width: doubled (the band is centered on the edge
-    // and its outer half is clipped by `canvas.clipRRect` below, leaving
-    // the intended width inside the shape), plus the optical-mode extra
-    // — historically a `+ 2` inside the shader, now added here in
-    // logical px so it scales consistently across the Skia and Impeller
-    // shader spaces.
+    // The authored border width in logical px, verbatim — each border mode
+    // expands it into its own band in the shader.
     // Blur path: suppress the border in the main shader so the
     // second-pass painter draws it sharp on top of the blur.
-    final double opticalExtra =
-        (border!.isOpticalBorder && border!.borderWidth > 0) ? 2.0 : 0.0;
-    shader.setFloat(
-        index++, (!useBlur) ? border!.borderWidth * 2.0 + opticalExtra : 0);
+    shader.setFloat(index++, (!useBlur) ? border!.borderWidth : 0);
     shader.setFloat(index++, border!.borderSoftness);
 
     shader.setFloat(index++, border!.borderColor?.r ?? 0);
@@ -334,6 +326,9 @@ class LiquidGlassBorderPainter extends CustomPainter {
   final LiquidGlassRefractionType? refractionType;
   final LiquidGlassShape border;
   final double borderAlpha;
+  /// The lens's material colour. The rim lifts from the tinted glass, so
+  /// the border shader needs it as much as the main pass does.
+  final Color lensColor;
   final ui.Image? image;
 
   /// See [LiquidGlassPainter.imageFallback]. Paint-time synchronous
@@ -368,6 +363,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
     required this.border,
     required this.borderAlpha,
     required this.image,
+    this.lensColor = const Color(0x00000000),
     this.imageFallback,
     this.shapeScale = const Offset(1, 1),
     this.imageOffset,
@@ -421,13 +417,9 @@ class LiquidGlassBorderPainter extends CustomPainter {
       ..setFloat(index++, distortionWidth)
       ..setFloat(index++, enableInnerRadiusTransparent ? 1.0 : 0.0)
       ..setFloat(index++, diagonalFlip)
-      // Full border-band width: doubled (the shader no longer doubles
-      // internally) plus the optical-mode extra, in logical px. Matches
-      // the main pass and the Impeller path.
-      ..setFloat(
-          index++,
-          border.borderWidth * 2.0 +
-              (border.isOpticalBorder && border.borderWidth > 0 ? 2.0 : 0.0))
+      // The authored border width in logical px, as the main pass and the
+      // Impeller path pass it.
+      ..setFloat(index++, border.borderWidth)
       ..setFloat(index++, border.borderSoftness)
       ..setFloat(index++, border.borderColor?.r ?? 0)
       ..setFloat(index++, border.borderColor?.g ?? 0)
@@ -444,6 +436,11 @@ class LiquidGlassBorderPainter extends CustomPainter {
       ..setFloat(index++, border.shadowColor.b)
       ..setFloat(index++, border.shadowColor.a)
       ..setFloat(index++, border.lightDirection)
+      // u_lensColor — the same slot as the main shader.
+      ..setFloat(index++, lensColor.r)
+      ..setFloat(index++, lensColor.g)
+      ..setFloat(index++, lensColor.b)
+      ..setFloat(index++, lensColor.a)
       ..setFloat(
           index++, border.isOpticalBorder ? 0.0 : border.oneSideLightIntensity)
       ..setFloat(index++, chromaticAberration)
@@ -476,12 +473,6 @@ class LiquidGlassBorderPainter extends CustomPainter {
     borderShader.setImageSampler(0, sampledImage);
 
     final paint = Paint()..shader = borderShader;
-
-    // In optical mode, use additive blending
-    // if (border.borderMode == LiquidGlassBorderMode.optical) {
-    //   paint.blendMode = BlendMode.overlay;
-    // }
-
     canvas.drawRRect(rrect, paint);
   }
 
@@ -506,6 +497,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
         oldDelegate.refractionMode != refractionMode ||
         oldDelegate.refractionType != refractionType ||
         oldDelegate.borderAlpha != borderAlpha ||
+        oldDelegate.lensColor != lensColor ||
         oldDelegate.borderShader != borderShader ||
         oldDelegate.imageOffset != imageOffset ||
         oldDelegate.imageSize != imageSize ||

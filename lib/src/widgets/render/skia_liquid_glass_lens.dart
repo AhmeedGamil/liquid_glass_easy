@@ -235,6 +235,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                 refractionType: config.effectiveRefraction.refractionType,
                 border: config.effectiveShape,
                 borderAlpha: (1 - animValue),
+                lensColor: config.effectiveAppearance.color,
                 image: image,
                 imageFallback: imageFallback,
                 imageOffset: imageRegion?.topLeft,

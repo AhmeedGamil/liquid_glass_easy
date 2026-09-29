@@ -1308,8 +1308,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       distortionWidth: refraction.effectiveDistortionWidth,
       enableInnerRadiusTransparent: appearance.enableInnerRadiusTransparent,
       diagonalFlip: refraction.diagonalFlip,
-      borderWidth: shape.borderWidth * 2.0 +
-          (shape.isOpticalBorder && shape.borderWidth > 0 ? 2.0 : 0.0),
+      borderWidth: shape.borderWidth,
       borderAlpha: 1.0,
       chromaticAberration: refraction.chromaticAberration,
       saturation: appearance.saturation,

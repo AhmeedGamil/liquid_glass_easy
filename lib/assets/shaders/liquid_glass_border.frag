@@ -8,9 +8,11 @@
 #include <flutter/runtime_effect.glsl>
 // Same backend-split gradient method as liquid_glass.frag: derivative on
 // Impeller (this entry), analytic on Skia (liquid_glass_border_skia.frag).
+// common.glsl must come FIRST: it sets GLASS_FLOAT_PRECISION, and the optical
+// rim's Lab conversion needs the highp it selects.
 #include "liquid_glass_grad_select.glsl"
-#include "liquid_glass_border.glsl"
 #include "liquid_glass_common.glsl"
+#include "liquid_glass_border.glsl"
 #define PI 3.14159265
 precision highp float; // or highp float
 
@@ -24,9 +26,9 @@ uniform sampler2D u_texture_input;
 // --- Packed scalar uniforms (Metal [[buffer(N)]] limit fix) ----------------
 // Mirrors liquid_glass.frag: scalars merged into vec4s to stay under iOS 26
 // Impeller's ~30 Metal-buffer cap. The #define block restores scalar names;
-// float offsets are unchanged, so the Dart packing code stays in sync. The
-// border shader has no u_lensColor, so u_packA..C sit four floats earlier than
-// in the main shader — but their component meaning is identical.
+// float offsets are unchanged, so the Dart packing code stays in sync,
+// including u_lensColor at the main shader's slot: the rim lifts from the
+// tinted glass, so this pass needs the tint too.
 
 // x=lensWidth  y=lensHeight  z=cornerRadius  w=cornerStyle
 //   cornerStyle: 0 = circular, 1 = squircle (full smoothing),
@@ -47,6 +49,10 @@ uniform float u_lightIntensity;
 uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform float u_lightDirection;
+uniform vec4  u_lensColor;
+// The rim's material tint: the lens colour, or borderColor when set (its
+// documented role is to replace the rim's colour outright).
+#define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : u_lensColor)
 // x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode
 uniform vec4 u_packA;
 // x=refractionMode  y=refractionType  z=refractionIndex  w=ambientIntensity
@@ -220,7 +226,8 @@ void main() {
     // 1-pixel constant — fwidth(float) trips up SkSL on some
     // devices, so don't use it.
     float outerAa = 1.0;
-    float outerMask = 1.0 - smoothstep(-outerAa * 0.5, outerAa * 0.5,
+    // Same inward bias as the main pass's shape mask.
+    float outerMask = 1.0 - smoothstep(-outerAa * 0.667, outerAa * 0.333,
                                        shapeData.orthoDist);
 
     // Cheap early-out for fragments well past the AA band.
@@ -296,10 +303,8 @@ void main() {
         ambientCol = sampleAmbientColor(refrPx);
     }
 
-    // The caller already passes the full band width (pre-doubled, and
-    // including the optical-mode extra when applicable). After clipping
-    // the outer half, the visible inner portion matches the intended
-    // width. Kept as a named local for readability.
+    // The authored width, verbatim — each border mode expands it into its own
+    // band. Kept as a named local for readability.
     float effectiveBorderWidth = u_borderWidth;
 
     vec4 borderPremul = getSweepBorder(
@@ -309,7 +314,7 @@ void main() {
     shapeData.grad,// unified signed-distance value
         effectiveBorderWidth,
         u_borderSoftness,
-        u_borderColor,
+        rimTint,
         u_lightColor,
         u_shadowColor,
         u_lightIntensity,
@@ -320,6 +325,7 @@ void main() {
         u_borderSaturation,
         u_borderSolidity,
         u_lightSpread,
+        outerAa,
         u_borderMode
     );
     // Apply the soft outer-edge mask so the rounded corners fade

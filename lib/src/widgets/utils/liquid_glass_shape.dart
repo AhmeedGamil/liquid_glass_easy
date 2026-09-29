@@ -68,8 +68,9 @@ class LiquidGlassShape {
 
   /// The primary highlight color applied to illuminated areas of the lens border.
   ///
-  /// Used in both classic mode (sweep gradient highlight) and optical mode
-  /// (specular boost highlights). Usually a lighter tint such as white or pale yellow.
+  /// Used in classic mode (sweep gradient highlight). The optical rim takes
+  /// its colour from the backdrop and currently ignores this. Usually a
+  /// lighter tint such as white or pale yellow.
   final Color lightColor;
 
   /// The directional angle (in degrees) from which the simulated light hits the lens.
@@ -79,6 +80,9 @@ class LiquidGlassShape {
   /// - `180°` from the left, and `270°` from the bottom.
   ///
   /// Used to compute where highlights and shadows fall on the border.
+  ///
+  /// Defaults to `0`, which puts the optical rim's two arcs on the left
+  /// and right of the outline.
   final double lightDirection;
 
   /// Defines how lighting is calculated along the liquid glass border.
@@ -98,7 +102,8 @@ class LiquidGlassShape {
   /// Defines the rendering style and mode-specific parameters for the border.
   ///
   /// - [ClassicBorder] — Sweep gradient with light/shadow colors and softness.
-  /// - [OpticalBorder] — Apple-style SDF rim light with ambient tinting and saturation.
+  /// - [OpticalBorder] — A directional highlight on the backdrop seen through
+  ///   the edge, with a fill light under it.
   ///
   /// Defaults to [OpticalBorder].
   final LiquidGlassBorderType borderType;

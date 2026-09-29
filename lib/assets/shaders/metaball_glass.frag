@@ -178,6 +178,9 @@ uniform vec4  u_borderColor;
 uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform vec4  u_lensColor;
+// The rim's material tint: the blended member colour (main's lensTint), or
+// borderColor when set (its documented role is to replace the rim's colour).
+#define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : lensTint)
 // x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode
 uniform vec4 u_packA;
 // x=refractionMode  y=refractionType  z=refractionIndex  w=ambientIntensity
@@ -842,7 +845,10 @@ vec4 finalSample(vec2 refractedPx, float shapeMask, float caShift,
 
 float computeShapeMask(float shapeDistPx) {
     float aa = max(u_shapeAaPx, 1.0);
-    return 1.0 - smoothstep(-0.5 * aa, 0.5 * aa, shapeDistPx);
+    // Two thirds of the band sit inside the outline: the outline itself is
+    // 74% faded, so over a dark backdrop the lighter glass shows a thin dark
+    // hairline at its very edge. The optical rim measures from that centre.
+    return 1.0 - smoothstep(-0.667 * aa, 0.333 * aa, shapeDistPx);
 }
 
 // =====================================================
@@ -952,13 +958,13 @@ void main() {
 
     vec4 borderPremul = getSweepBorder(
         uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_borderWidth, u_borderSoftness, rimTint,
         u_lightColor, u_shadowColor,
         u_lightIntensity, u_borderAlpha, u_lightDirection,
         u_oneSideLightIntensity, u_lightMode,
         preTintCol, u_ambientIntensity,
         u_doubleSideLightIntensity,
-        u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
+        u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
         rimWrap
     );
 
@@ -973,13 +979,13 @@ void main() {
 
         vec4 borderPremul = getSweepBorder(
             uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-            u_borderWidth, u_borderSoftness, u_borderColor,
+            u_borderWidth, u_borderSoftness, rimTint,
             u_lightColor, u_shadowColor,
             u_lightIntensity, u_borderAlpha, u_lightDirection,
             u_oneSideLightIntensity, u_lightMode,
             preTintCol, u_ambientIntensity,
             u_doubleSideLightIntensity,
-            u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
+            u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
             rimWrap
         );
 
@@ -1022,13 +1028,13 @@ void main() {
 
     vec4 borderPremul = getSweepBorder(
         uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-        u_borderWidth, u_borderSoftness, u_borderColor,
+        u_borderWidth, u_borderSoftness, rimTint,
         u_lightColor, u_shadowColor,
         u_lightIntensity, u_borderAlpha, u_lightDirection,
         u_oneSideLightIntensity, u_lightMode,
         preTintCol2, u_ambientIntensity,
         u_doubleSideLightIntensity,
-        u_borderSaturation, u_borderSolidity, u_lightSpread, u_borderMode,
+        u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
         rimWrap
     );
 

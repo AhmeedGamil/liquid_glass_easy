@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Defines the rendering style for the liquid glass border.
 ///
-/// [OpticalBorder] is the default and the one to use: Apple-style SDF rim
-/// lighting, derived from the glass shape, tinted by what is behind it.
+/// [OpticalBorder] is the default and the one to use: a rim that falls out
+/// of the glass optics — a directional highlight on the backdrop seen through
+/// the edge, with a side light under it.
 /// [ClassicBorder] is the older sweep-gradient rim and is **deprecated**.
 ///
 /// Example:
@@ -112,23 +113,29 @@ class ClassicBorder extends LiquidGlassBorderType {
   });
 }
 
-/// Apple-style optical border.
+/// Optical border.
 ///
-/// The border emerges as an optical consequence of the glass shape,
-/// using SDF-based rim lighting with rational falloff, background-tinted
-/// highlights, dual-sided specular reflections, and a lens height profile.
+/// The border is not stroked — it is what the glass edge does to the
+/// backdrop behind it: a **highlight**, the refracted backdrop itself blown out
+/// along the light axis, anchored on the shape outline and falling off
+/// inward. `lightIntensity` drives the two arcs, `borderWidth` their depth.
 ///
-/// The border automatically picks up background color through ambient
-/// tinting (always active in optical mode).
+/// The highlight brightens in CIE Lab, so a colored backdrop keeps its hue as
+/// the rim goes hot instead of washing out to grey — which is how the border
+/// picks up the background color (always active in optical mode).
 ///
 /// Parameters specific to optical mode:
-/// - [borderSaturation] — Saturation boost applied to the border color.
-/// - [ambientIntensity] — Ambient lighting contribution to the rim.
-/// - [borderSolidity] — How much `lightIntensity` can drive the rim toward
-///   a fully opaque/solid look.
-/// - [lightSpread] — How far the bright rim highlight wraps around the
-///   perimeter (higher = broader).
+/// - [borderSaturation] — Currently has no effect on the optical rim.
+/// - [ambientIntensity] — Strength of the side rim: a second pair of arcs
+///   at 90° to the light, so the sides the highlight leaves dark keep a rim.
+/// - [borderSolidity] — How solid the rim reads: higher holds the band at
+///   full for longer, lower pulls it tight against the outline.
+/// - [lightSpread] — How far the highlight wraps around the perimeter
+///   (higher = broader).
 class OpticalBorder extends LiquidGlassBorderType {
+  /// **Currently has no effect:** the optical rim takes its colour from the
+  /// backdrop alone. Kept so existing code keeps compiling.
+  ///
   /// Controls the saturation boost applied to the final border color.
   ///
   /// Values above `1.0` increase color vividness, while values below `1.0`
@@ -142,48 +149,47 @@ class OpticalBorder extends LiquidGlassBorderType {
   /// Recommended range: `0.0` to `3.0`.
   final double borderSaturation;
 
-  /// Controls the ambient lighting contribution to the optical rim.
+  /// The optical rim's side light.
   ///
-  /// The ambient term is added on top of the directional light strength,
-  /// brightening the rim uniformly so it remains visible even on the
-  /// shadow side of the shape.
+  /// Lights a second pair of arcs on the axis at 90° to [lightDirection],
+  /// where the highlight's own arcs fall to nothing, so those sides keep a
+  /// rim. It is a softer band than the highlight: white pulled toward the
+  /// glass colour, a gentler lift, a wider and softer ramp, and a fixed
+  /// moderate spread. It reads on the same scale as
+  /// [LiquidGlassShape.lightIntensity].
   ///
-  /// - `0.0` — No ambient contribution (rim only lit from the directional
-  ///   light).
-  /// - `1.0` — Default ambient gain.
-  /// - `>1.0` — Stronger ambient glow that washes around the entire rim.
+  /// - `0.0` — The highlight's two arcs only; the sides are bare glass.
+  /// - `1.0` — Default: a soft rim on the sides.
+  /// - `3.0` — The sides read as strongly as the highlight.
   ///
-  /// Recommended range: `0.0` to `5.0`.
+  /// Recommended range: `0.0` to `3.0`.
   final double ambientIntensity;
 
-  /// Controls how much `lightIntensity` can push the optical rim toward a
-  /// fully solid (opaque) appearance.
+  /// How solid the optical rim reads across its depth.
   ///
-  /// By default the optical rim caps its internal light contribution to
-  /// `1.0` so increasing `lightIntensity` only modulates visibility within
-  /// a fixed extent — the rim never goes fully solid. With higher solidity
-  /// the cap is gradually lifted, allowing high `lightIntensity` to drive
-  /// the rim alpha to fully opaque (the older renderer-style behavior).
+  /// The rim is a ramp that is strongest on the outline and falls away
+  /// inward. Solidity slides that ramp: higher values hold the band at full
+  /// for longer before it falls, so the rim reads as a solid line with a soft
+  /// tail; lower values pull it tight against the outline.
   ///
-  /// - `0.0` — Translucent rim only (default; current behavior).
-  /// - `0.5` — Halfway: rim brightens past the cap but stays partially
-  ///   translucent.
-  /// - `1.0` — Light-driven solid rim (legacy behavior — high
-  ///   `lightIntensity` makes the rim opaque).
+  /// - `0.0` — Barely there: a faint hairline.
+  /// - `0.5` — Default: a crisp, thin rim.
+  /// - `0.6` — The plain ramp, full exactly on the outline.
+  /// - `1.0` — Solid over the first 40% of the depth, then falls.
   ///
   /// Recommended range: `0.0` to `1.0`.
   final double borderSolidity;
 
-  /// Controls how far the bright rim highlight spreads around the perimeter.
+  /// Controls how far the highlight spreads around the perimeter.
   ///
-  /// The optical rim has two overlapping contributions: an angle-independent
-  /// ambient ring (see [ambientIntensity]) and a directional highlight that is
-  /// brightest where the surface faces the light. `lightSpread` widens or
-  /// tightens the angular reach of that directional highlight — i.e. how much
-  /// of the perimeter it wraps across before fading into the ambient ring.
+  /// The highlight lights two opposing arcs on the light axis and falls to nothing
+  /// at 90° to it, where only the fill light (see [ambientIntensity]) is
+  /// left. `lightSpread` widens or tightens those arcs — i.e. how much of the
+  /// perimeter the highlight wraps across before the fill takes over.
   ///
   /// - `0.0` — Tight, concentrated highlight on the light-facing sides only.
-  /// - `0.5` — Default (matches the legacy fixed falloff).
+  /// - `0.5` — Moderate wrap.
+  /// - `0.9` — Default.
   /// - `1.0` — Broad highlight that wraps almost all the way around the rim.
   ///
   /// Recommended range: `0.0` to `1.0`.
@@ -192,7 +198,7 @@ class OpticalBorder extends LiquidGlassBorderType {
   const OpticalBorder({
     this.borderSaturation = 1.0,
     this.ambientIntensity = 1.0,
-    this.borderSolidity = 0.0,
-    this.lightSpread = 0.5,
+    this.borderSolidity = 0.5,
+    this.lightSpread = 0.9,
   });
 }
