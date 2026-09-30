@@ -25,54 +25,25 @@ precision GLASS_FLOAT_PRECISION float;
 const vec3 BORDER_LUMA = vec3(0.2126, 0.7152, 0.0722);
 
 // =======================================================
-//  Perceptual boost (CIE Lab, D65)
-//  The rim gains lightness and chroma without washing the
-//  colour it was sampled from out toward grey.
+//  Rim lift
+//  sRGB is already spaced for the eye, so lightness is added
+//  straight to luma: equal visible steps on any backdrop.
 // =======================================================
-const vec3 LAB_WHITE = vec3(0.95045593, 1.0, 1.08905775);
-// Both matrices are built COLUMN-wise from the rows they name, so the
-// row-vector products below (`v * M`) evaluate the intended row dots.
-const mat3 LAB_RGB_TO_XYZ = mat3(
-    vec3(0.4124, 0.3576, 0.1805),
-    vec3(0.2126, 0.7152, 0.0722),
-    vec3(0.0193, 0.1192, 0.9505)
-);
-const mat3 LAB_XYZ_TO_RGB = mat3(
-    vec3( 3.2406255, -1.5372080, -0.4986286),
-    vec3(-0.9689307,  1.8757561,  0.0415175),
-    vec3( 0.0557101, -0.2040211,  1.0569959)
-);
+// Chroma units per sRGB unit of colour offset.
+const float RIM_CHROMA_SCALE = 0.00724;
+// Colour offset per chroma unit on a neutral: warm, not pink.
+const vec3 RIM_NEUTRAL_WARM = vec3(0.0026, -0.0002, -0.006);
 
-float labCurve(float t) {
-    return t > 0.00885645 ? pow(max(t, 1e-8), 1.0 / 3.0)
-                          : 7.787037 * t + 0.13793103;
-}
-
-float labCurveInv(float t) {
-    return t > 0.206897 ? t * t * t : 0.12841855 * (t - 0.13793103);
-}
-
-// Adds `addL` lightness and `addC` chroma in Lab. The sRGB triple goes into
-// the matrix as-is (no transfer function); a/b scale together, so hue holds.
-vec3 labBoost(vec3 rgb, float addL, float addC, float ceilL) {
-    vec3 xyzN = (rgb * LAB_RGB_TO_XYZ) / LAB_WHITE;
-    vec3 curved = vec3(labCurve(xyzN.x), labCurve(xyzN.y), labCurve(xyzN.z));
-    vec3 lab = vec3(116.0 * curved.y - 16.0,
-                    500.0 * (curved.x - curved.y),
-                    200.0 * (curved.y - curved.z));
-
-    // A flat add along the existing hue; a neutral colour takes it on +b
-    // (the yellow axis), so a black backdrop lifts warm-neutral, not pink.
-    float abLen = length(lab.yz);
-    lab.yz = abLen > 1e-4 ? lab.yz * ((abLen + addC) / abLen)
-                          : vec2(0.0, addC);
-    lab.x = clamp(lab.x + addL, 0.0, ceilL);
-
-    float fy = (lab.x + 16.0) / 116.0;
-    vec3 xyzOut = LAB_WHITE * vec3(labCurveInv(fy + lab.y / 500.0),
-                                   labCurveInv(fy),
-                                   labCurveInv(fy - lab.z / 200.0));
-    return clamp(xyzOut * LAB_XYZ_TO_RGB, 0.0, 1.0);
+// Adds `addL` lightness (0..100 scale, capped at `ceilL`) and `addC` chroma;
+// the colour offset only grows in length, so hue holds.
+vec3 rimLift(vec3 rgb, float addL, float addC, float ceilL) {
+    float luma = dot(rgb, BORDER_LUMA);
+    vec3 offset = rgb - luma;
+    float offsetLen = length(offset);
+    offset = offsetLen > 1e-3
+        ? offset * ((offsetLen + addC * RIM_CHROMA_SCALE) / offsetLen)
+        : addC * RIM_NEUTRAL_WARM;
+    return clamp(min(luma + addL * 0.01, ceilL * 0.01) + offset, 0.0, 1.0);
 }
 
 // =======================================================
@@ -168,7 +139,7 @@ vec4 getClassicBorder(
 
 // =======================================================
 //  OPTICAL MODE: a specular rim over a soft side glow.
-//  Both layers brighten the edge in CIE Lab, keeping hue.
+//  Both layers brighten the edge, keeping hue.
 // =======================================================
 
 // How the public values read inside the rim: width 1, intensity 1 and
@@ -191,7 +162,7 @@ const float RIM_GLOW_SPREAD        = 0.5;
 // at full alpha, so the rim stays lighter than the body.
 const float RIM_TINT_SHARE = 0.625;
 
-// The rim body: the specular layer over the glow, both lifted in Lab.
+// The rim body: the specular layer over the glow, both lifted.
 vec4 getOpticalBorder(
     vec2 uvNorm, vec2 centerNorm, float signedEdgeOrthoDistPx,
     vec2 gradDistPx,
@@ -282,7 +253,7 @@ vec4 getOpticalBorder(
         // up to +20 L, weighted by its own ramp.
         vec3 glowBase = mix(vec3(1.0), tint.rgb, tintShare);
         float glowStrength = glowArc * glowRamp;
-        glowColor = labBoost(glowBase, 20.0 * glowStrength, 0.0, 100.0);
+        glowColor = rimLift(glowBase, 20.0 * glowStrength, 0.0, 100.0);
         glowWeight = clamp(glowStrength * 0.7 * RIM_WEIGHT_GAIN, 0.0, 1.0);
     }
 
@@ -297,8 +268,8 @@ vec4 getOpticalBorder(
             0.0, 1.0);
         vec3 specularBase = mix(backdropColor, tint.rgb, tintShare);
         float specularStrength = specularArc * specularRamp;
-        specularColor = labBoost(specularBase, 150.0 * specularStrength,
-                                 30.0 * specularStrength, 120.0);
+        specularColor = rimLift(specularBase, 150.0 * specularStrength,
+                                30.0 * specularStrength, 120.0);
         specularWeight = clamp(specularStrength * RIM_WEIGHT_GAIN, 0.0, 1.0);
     }
 
