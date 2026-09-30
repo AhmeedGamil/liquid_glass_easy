@@ -178,7 +178,7 @@ uniform vec4  u_borderColor;
 uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform vec4  u_lensColor;
-// The rim's material tint: the blended member colour (main's lensTint), or
+// The rim's tint: the blended member colour (lensTint), or
 // borderColor when set (its documented role is to replace the rim's colour).
 #define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : lensTint)
 // x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode

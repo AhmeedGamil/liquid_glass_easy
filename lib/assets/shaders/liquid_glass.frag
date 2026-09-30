@@ -367,7 +367,7 @@ void main() {
         u_magnification
     );
 
-    // The rim's material tint: the lens colour, so the rim lifts from the
+    // The rim's tint: the lens colour, so the rim lifts from the
     // tinted glass rather than the bare backdrop (a black backdrop under a
     // light tint would otherwise lift to a grey darker than the body).
     // borderColor, when set, replaces it: its documented role.
@@ -483,13 +483,13 @@ void main() {
         ? vec4(0.0)
         : finalSample(magPx, shapeMask, 0.0, xformed, preTintCol);
 
-        vec3 ambientCol = preTintCol;
+        vec3 backdropCol = preTintCol;
         vec4 borderPremul = getSweepBorder(
             uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
             u_borderWidth, u_borderSoftness, rimTint,
             u_lightColor, u_shadowColor,
             u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
-            ambientCol, u_ambientIntensity,
+            backdropCol, u_ambientIntensity,
             u_doubleSideLightIntensity,
             u_borderSaturation,
             u_borderSolidity,
@@ -571,13 +571,13 @@ void main() {
     float caShift = u_chromaticAberration * zoneT;
     vec4 base = finalSample(refrPx, shapeMask, caShift, xformed, preTintCol2);
 
-    vec3 ambientCol2 = preTintCol2;
+    vec3 backdropCol2 = preTintCol2;
     vec4 borderPremul = getSweepBorder(
         uvNorm, lensCenterNorm, shapeData.orthoDist,shapeData.grad,
         u_borderWidth, u_borderSoftness, rimTint,
         u_lightColor, u_shadowColor,
         u_lightIntensity, u_borderAlpha, u_lightDirection, u_oneSideLightIntensity,u_lightMode,
-        ambientCol2, u_ambientIntensity,
+        backdropCol2, u_ambientIntensity,
         u_doubleSideLightIntensity,
         u_borderSaturation,
         u_borderSolidity,

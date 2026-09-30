@@ -50,7 +50,7 @@ uniform vec4  u_lightColor;
 uniform vec4  u_shadowColor;
 uniform float u_lightDirection;
 uniform vec4  u_lensColor;
-// The rim's material tint: the lens colour, or borderColor when set (its
+// The rim's tint: the lens colour, or borderColor when set (its
 // documented role is to replace the rim's colour outright).
 #define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : u_lensColor)
 // x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode
@@ -125,7 +125,7 @@ vec3 applySaturation(vec3 color, float saturation) {
     return mix(vec3(luminance), color, saturation);
 }
 
-vec3 sampleAmbientColor(vec2 refractedPx) {
+vec3 sampleBackdropColor(vec2 refractedPx) {
     // Geometry ran in LENS space under an ancestor transform; the capture
     // lives in shader space, so map the sample position forward.
     bool xformed = any(notEqual(u_xformRow, vec4(1.0, 0.0, 0.0, 1.0))) ||
@@ -215,7 +215,7 @@ void main() {
     // =====================================================
     // Border (shared for both shapes)
     // =====================================================
-    vec3 ambientCol = vec3(0.0);
+    vec3 backdropCol = vec3(0.0);
 
     // Soft outer-edge mask. The Skia path got outer AA "for free"
     // from the drawRRect call wrapping the border painter; on
@@ -245,10 +245,10 @@ void main() {
     float zoneLimit = u_distortionThicknessPx;
     float zoneMask = step(distAbsPx, zoneLimit);
 
-    ambientCol = vec3(0.0);
+    backdropCol = vec3(0.0);
     if (zoneMask < 0.5) {
         if (u_enableBackgroundTransparency <= 0.5) {
-            ambientCol = sampleAmbientColor(magPx);
+            backdropCol = sampleBackdropColor(magPx);
         }
     } else {
         float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
@@ -300,7 +300,7 @@ void main() {
             );
         }
 
-        ambientCol = sampleAmbientColor(refrPx);
+        backdropCol = sampleBackdropColor(refrPx);
     }
 
     // The authored width, verbatim — each border mode expands it into its own
@@ -320,7 +320,7 @@ void main() {
         u_lightIntensity,
         u_borderAlpha,
         u_lightDirection, u_oneSideLightIntensity,u_lightMode,
-        ambientCol, u_ambientIntensity,
+        backdropCol, u_ambientIntensity,
         u_doubleSideLightIntensity,
         u_borderSaturation,
         u_borderSolidity,

@@ -43,46 +43,44 @@ const mat3 LAB_XYZ_TO_RGB = mat3(
     vec3( 0.0557101, -0.2040211,  1.0569959)
 );
 
-float borderLabF(float t) {
+float labCurve(float t) {
     return t > 0.00885645 ? pow(max(t, 1e-8), 1.0 / 3.0)
                           : 7.787037 * t + 0.13793103;
 }
 
-float borderLabFInv(float t) {
+float labCurveInv(float t) {
     return t > 0.206897 ? t * t * t : 0.12841855 * (t - 0.13793103);
 }
 
-// Adds `dL` lightness and `dC` chroma in Lab. The sRGB triple goes into the
-// matrix as-is (no transfer function); chroma scales a/b, so the hue holds.
-vec3 labBoost(vec3 srgb, float dL, float dC, float maxL) {
-    vec3 xyz = (srgb * LAB_RGB_TO_XYZ) / LAB_WHITE;
-    vec3 f = vec3(borderLabF(xyz.x), borderLabF(xyz.y), borderLabF(xyz.z));
-    vec3 lab = vec3(116.0 * f.y - 16.0,
-                    500.0 * (f.x - f.y),
-                    200.0 * (f.y - f.z));
+// Adds `addL` lightness and `addC` chroma in Lab. The sRGB triple goes into
+// the matrix as-is (no transfer function); a/b scale together, so hue holds.
+vec3 labBoost(vec3 rgb, float addL, float addC, float ceilL) {
+    vec3 xyzN = (rgb * LAB_RGB_TO_XYZ) / LAB_WHITE;
+    vec3 curved = vec3(labCurve(xyzN.x), labCurve(xyzN.y), labCurve(xyzN.z));
+    vec3 lab = vec3(116.0 * curved.y - 16.0,
+                    500.0 * (curved.x - curved.y),
+                    200.0 * (curved.y - curved.z));
 
     // A flat add along the existing hue; a neutral colour takes it on +b
     // (the yellow axis), so a black backdrop lifts warm-neutral, not pink.
-    float chroma = length(lab.yz);
-    lab.yz = chroma > 1e-4 ? lab.yz * ((chroma + dC) / chroma)
-                           : vec2(0.0, dC);
-    lab.x = clamp(lab.x + dL, 0.0, maxL);
+    float abLen = length(lab.yz);
+    lab.yz = abLen > 1e-4 ? lab.yz * ((abLen + addC) / abLen)
+                          : vec2(0.0, addC);
+    lab.x = clamp(lab.x + addL, 0.0, ceilL);
 
-    float y = (lab.x + 16.0) / 116.0;
-    vec3 outXyz = LAB_WHITE * vec3(borderLabFInv(y + lab.y / 500.0),
-                                   borderLabFInv(y),
-                                   borderLabFInv(y - lab.z / 200.0));
-    return clamp(outXyz * LAB_XYZ_TO_RGB, 0.0, 1.0);
+    float fy = (lab.x + 16.0) / 116.0;
+    vec3 xyzOut = LAB_WHITE * vec3(labCurveInv(fy + lab.y / 500.0),
+                                   labCurveInv(fy),
+                                   labCurveInv(fy - lab.z / 200.0));
+    return clamp(xyzOut * LAB_XYZ_TO_RGB, 0.0, 1.0);
 }
 
 // =======================================================
-//  Rim falloff — 1 on the outline, 0 at `rangePx` inside.
-//  The fifth power keeps the bright core hard against the
-//  outline and gives it a long, soft inward tail; it
-//  integrates to rangePx / 6.
+//  Rim ramp — 1 on the outline, 0 at `depthPx` inside.
+//  A fifth power: a hard core with a long, soft inward tail.
 // =======================================================
-float getRimFalloff(float sdPx, float rangePx) {
-    float t = max(1.0 + sdPx / max(rangePx, 1e-3), 0.0);
+float rimRamp(float sdPx, float depthPx) {
+    float t = max(1.0 + sdPx / max(depthPx, 1e-3), 0.0);
     float t2 = t * t;
     return clamp(t2 * t2 * t, 0.0, 1.0);
 }
@@ -169,35 +167,31 @@ vec4 getClassicBorder(
 }
 
 // =======================================================
-//  OPTICAL MODE: an all-round rim under a directional glare
-//  The border is not drawn as a stroke — it is what the
-//  glass edge does to the backdrop behind it. Both bands
-//  ramp in from the outline and brighten in CIE Lab, so a
-//  coloured backdrop keeps its hue as the rim goes hot.
+//  OPTICAL MODE: a specular rim over a soft side glow.
+//  Both layers brighten the edge in CIE Lab, keeping hue.
 // =======================================================
 
-// How the public values read inside the rim, so their usual ranges land on
-// the rim's own: width 1, intensity 1, solidity 0.5 = the rest look.
-const float RIM_RANGE_PER_WIDTH   = 5.4;   // ramp depth per unit of width
-const float RIM_INTENSITY_SCALE   = 0.1;   // lightIntensity 1 -> 0.1
-const float RIM_SHARPNESS_AT_ZERO = -0.6;  // solidity 0..1 -> shift -0.6..0.4
-// The silhouette's coverage ramp is centred this far INSIDE the outline (in
-// units of the AA band); the rim is measured from there so its core lands on it.
-const float RIM_OUTLINE_INSET     = 0.167;
+// How the public values read inside the rim: width 1, intensity 1 and
+// solidity 0.5 give the rest look.
+const float RIM_DEPTH_PER_WIDTH = 5.4;   // specular ramp depth per unit of width
+const float RIM_INTENSITY_SCALE = 0.1;   // lightIntensity 1 -> 0.1
+const float RIM_SHIFT_AT_ZERO   = -0.6;  // solidity 0..1 -> shift -0.6..0.4
+// The silhouette's AA ramp is centred this far inside the outline (in AA
+// bands); the rim is measured from there so its core lands on it.
+const float RIM_OUTLINE_INSET   = 0.167;
 
-// Rim constants: the values with no uniform of their own.
-const float RIM_EDGE_GAIN       = 6.0;   // weight scale of both bands
-const float RIM_OPPOSITE_BIAS   = 1.0;   // glare on the arc facing away
-const float RIM_FRESNEL_SHARPNESS = 0.0; // shift on the side rim's ramp
-// The side rim's depth, as a multiple of the glare's: (70 / 30)^2.
-const float RIM_FRESNEL_RANGE_RATIO = 5.4444444;
-// The side rim's arcs sit 90 degrees from the glare's, at this fixed spread.
-const float RIM_FRESNEL_SPREAD = 0.5;
-// Share of the tint's alpha the rim colours take. The body mixes at the
-// full alpha, which reads as 0.8 of the material amount; the rim wants 0.5.
+// Fixed shaping values with no uniform of their own.
+const float RIM_WEIGHT_GAIN        = 6.0;       // weight scale of both layers
+const float RIM_SPECULAR_BACK_GAIN = 1.0;       // specular on the arc facing away
+const float RIM_GLOW_SHIFT         = 0.0;       // shift on the glow's ramp
+const float RIM_GLOW_DEPTH_RATIO   = 5.4444444; // glow depth, in specular depths
+// The glow's arcs sit 90 degrees from the specular's, at this fixed spread.
+const float RIM_GLOW_SPREAD        = 0.5;
+// Share of the tint's alpha the rim colours take; the body mixes the tint
+// at full alpha, so the rim stays lighter than the body.
 const float RIM_TINT_SHARE = 0.625;
 
-// The rim body: the glare over the side rim, both boosted in Lab.
+// The rim body: the specular layer over the glow, both lifted in Lab.
 vec4 getOpticalBorder(
     vec2 uvNorm, vec2 centerNorm, float signedEdgeOrthoDistPx,
     vec2 gradDistPx,
@@ -205,7 +199,7 @@ vec4 getOpticalBorder(
     vec4 lightColor, float lightIntensity,
     float borderAlpha, float lightDirDeg,
     float lightMode,
-    vec3 ambientColor, float ambientIntensity,
+    vec3 backdropColor, float ambientIntensity,
     float borderSaturation,
     float borderSolidity,
     float lightSpread,
@@ -221,20 +215,21 @@ vec4 getOpticalBorder(
     // Distance from where the silhouette actually sits, not the outline.
     float sd = signedEdgeOrthoDistPx + RIM_OUTLINE_INSET * max(aaPx, 1.0);
 
-    // The glare ramp's depth follows the authored width; borderSolidity is
-    // the additive shift on it, read from its 0..1 range.
-    float rangePx = borderWidthPx * RIM_RANGE_PER_WIDTH;
-    float sharpness = RIM_SHARPNESS_AT_ZERO + clamp(borderSolidity, 0.0, 1.0);
-    float glareGeometry = getRimFalloff(sd + sharpness * rangePx, rangePx);
+    // The specular ramp's depth follows the authored width; borderSolidity
+    // shifts it, read from its 0..1 range.
+    float specularDepthPx = borderWidthPx * RIM_DEPTH_PER_WIDTH;
+    float specularShift = RIM_SHIFT_AT_ZERO + clamp(borderSolidity, 0.0, 1.0);
+    float specularRamp =
+        rimRamp(sd + specularShift * specularDepthPx, specularDepthPx);
 
-    float fresnelRangePx = rangePx * RIM_FRESNEL_RANGE_RATIO;
+    float glowDepthPx = specularDepthPx * RIM_GLOW_DEPTH_RATIO;
 
     // Past every live ramp's end the rim is exactly zero: skip the pow work.
-    // The side rim only reaches in when ambientIntensity lights it.
-    bool sideOn = ambientIntensity > 0.0;
-    float reachPx = (1.0 + sharpness) * rangePx;
-    if (sideOn) {
-        reachPx = max(reachPx, (1.0 + RIM_FRESNEL_SHARPNESS) * fresnelRangePx);
+    // The glow only reaches in when ambientIntensity lights it.
+    bool glowOn = ambientIntensity > 0.0;
+    float reachPx = (1.0 + specularShift) * specularDepthPx;
+    if (glowOn) {
+        reachPx = max(reachPx, (1.0 + RIM_GLOW_SHIFT) * glowDepthPx);
     }
     if (sd <= -reachPx) return vec4(0.0);
 
@@ -252,66 +247,66 @@ vec4 getOpticalBorder(
 
     // Angular response: two opposing arcs on the light axis, brightest where
     // the surface faces the light and dark at 90°.
-    float facing = ndl * ndl;
-    // The side rim's axis: the light turned 90°, so its arcs fill the gaps.
-    float ndlSide = dot(normal, vec2(-lightDirV.y, lightDirV.x));
-    float facingSide = ndlSide * ndlSide;
+    float specularFacing = ndl * ndl;
+    // The glow's axis: the light turned 90°, so its arcs fill the gaps.
+    float ndlGlow = dot(normal, vec2(-lightDirV.y, lightDirV.x));
+    float glowFacing = ndlGlow * ndlGlow;
 #ifdef LIQUID_GLASS_RIM_WRAP
     // A merged blob's concave neck faces sideways and would fall in the dark
     // band; wrap blends toward a half-Lambert response that keeps it lit.
-    facing = mix(facing, ndl * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
-    facingSide = mix(facingSide, ndlSide * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
+    specularFacing = mix(specularFacing, ndl * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
+    glowFacing = mix(glowFacing, ndlGlow * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
 #endif
-    float sideBias = ndl < 0.0 ? RIM_OPPOSITE_BIAS : 1.0;
+    float backGain = ndl < 0.0 ? RIM_SPECULAR_BACK_GAIN : 1.0;
 
-    // lightSpread is the inverse of convergence: 0 focuses the arcs on the
-    // light axis, 1 flattens the exponent so they wrap the perimeter.
-    float arcExponent = 0.1 + (1.0 - clamp(lightSpread, 0.0, 1.0)) * 2.0;
+    // lightSpread 0 focuses the arcs on the light axis; 1 flattens the
+    // power so they wrap the perimeter.
+    float specularArcPower = 0.1 + (1.0 - clamp(lightSpread, 0.0, 1.0)) * 2.0;
     // Both pow() bases below are floored: an exact zero base is undefined.
     float tintShare = clamp(tint.a, 0.0, 1.0) * RIM_TINT_SHARE;
 
-    // Side rim: the same two-arc response on the side axis, at a fixed
-    // spread, driven by ambientIntensity on the glare's intensity scale.
-    vec3 fresnelColor = vec3(0.0);
-    float fresnelWeight = 0.0;
-    float fresnelValue = sideOn ? getRimFalloff(
-        sd + RIM_FRESNEL_SHARPNESS * fresnelRangePx, fresnelRangePx) : 0.0;
-    if (fresnelValue > 0.0) {
-        float sideExponent = 0.1 + (1.0 - RIM_FRESNEL_SPREAD) * 2.0;
-        float angularSide = clamp(
-            pow(max(facingSide * 1.2 * ambientIntensity * RIM_INTENSITY_SCALE,
-                    1e-6), sideExponent),
+    // Glow: the same two-arc response on the side axis, at a fixed spread,
+    // driven by ambientIntensity on the specular's intensity scale.
+    vec3 glowColor = vec3(0.0);
+    float glowWeight = 0.0;
+    float glowRamp = glowOn
+        ? rimRamp(sd + RIM_GLOW_SHIFT * glowDepthPx, glowDepthPx) : 0.0;
+    if (glowRamp > 0.0) {
+        float glowArcPower = 0.1 + (1.0 - RIM_GLOW_SPREAD) * 2.0;
+        float glowArc = clamp(
+            pow(max(glowFacing * 1.2 * ambientIntensity * RIM_INTENSITY_SCALE,
+                    1e-6), glowArcPower),
             0.0, 1.0);
 
         // Its colour: white pulled toward the tint by its rim share, lifted
         // up to +20 L, weighted by its own ramp.
-        vec3 fresnelTint = mix(vec3(1.0), tint.rgb, tintShare);
-        float fresnelDrive = angularSide * fresnelValue;
-        fresnelColor = labBoost(fresnelTint, 20.0 * fresnelDrive, 0.0, 100.0);
-        fresnelWeight = clamp(fresnelDrive * 0.7 * RIM_EDGE_GAIN, 0.0, 1.0);
+        vec3 glowBase = mix(vec3(1.0), tint.rgb, tintShare);
+        float glowStrength = glowArc * glowRamp;
+        glowColor = labBoost(glowBase, 20.0 * glowStrength, 0.0, 100.0);
+        glowWeight = clamp(glowStrength * 0.7 * RIM_WEIGHT_GAIN, 0.0, 1.0);
     }
 
-    // Glare: the refracted backdrop with the tint at its rim share, lifted
+    // Specular: the refracted backdrop with the tint at its rim share, lifted
     // up to +150 L and +30 C by angle x depth. Past its ramp it is zero.
-    vec3 glareColor = vec3(0.0);
-    float glareWeight = 0.0;
-    if (glareGeometry > 0.0) {
-        float angular = clamp(
-            pow(max(facing * 1.2 * sideBias * lightIntensity * RIM_INTENSITY_SCALE,
-                    1e-6), arcExponent),
+    vec3 specularColor = vec3(0.0);
+    float specularWeight = 0.0;
+    if (specularRamp > 0.0) {
+        float specularArc = clamp(
+            pow(max(specularFacing * 1.2 * backGain * lightIntensity
+                        * RIM_INTENSITY_SCALE, 1e-6), specularArcPower),
             0.0, 1.0);
-        vec3 glareSource = mix(ambientColor, tint.rgb, tintShare);
-        float glareDrive = angular * glareGeometry;
-        glareColor = labBoost(glareSource, 150.0 * glareDrive,
-                              30.0 * glareDrive, 120.0);
-        glareWeight = clamp(glareDrive * RIM_EDGE_GAIN, 0.0, 1.0);
+        vec3 specularBase = mix(backdropColor, tint.rgb, tintShare);
+        float specularStrength = specularArc * specularRamp;
+        specularColor = labBoost(specularBase, 150.0 * specularStrength,
+                                 30.0 * specularStrength, 120.0);
+        specularWeight = clamp(specularStrength * RIM_WEIGHT_GAIN, 0.0, 1.0);
     }
 
-    // The side rim mixed in first and the glare over it, folded into one layer.
-    float rimWeight = 1.0 - (1.0 - fresnelWeight) * (1.0 - glareWeight);
+    // The glow mixed in first and the specular over it, folded into one layer.
+    float rimWeight = 1.0 - (1.0 - glowWeight) * (1.0 - specularWeight);
     if (rimWeight <= 0.001) return vec4(0.0);
-    vec3 rimPremul = fresnelColor * fresnelWeight * (1.0 - glareWeight)
-                   + glareColor * glareWeight;
+    vec3 rimPremul = glowColor * glowWeight * (1.0 - specularWeight)
+                   + specularColor * specularWeight;
 
     return vec4(rimPremul * borderAlpha, rimWeight * borderAlpha);
 }
@@ -326,7 +321,7 @@ vec4 getSweepBorder(
     vec4 lightColor, vec4 shadowColor, float lightIntensity,
     float borderAlpha, float lightDirDeg,
     float oneSideLightIntensity, float lightMode,
-    vec3 ambientColor, float ambientIntensity,
+    vec3 backdropColor, float ambientIntensity,
     float doubleSideLightIntensity,
     float borderSaturation,
     float borderSolidity,
@@ -346,7 +341,7 @@ vec4 getSweepBorder(
             lightColor, lightIntensity,
             borderAlpha, lightDirDeg,
             lightMode,
-            ambientColor, ambientIntensity,
+            backdropColor, ambientIntensity,
             borderSaturation,
             borderSolidity, lightSpread, aaPx
 #ifdef LIQUID_GLASS_RIM_WRAP
