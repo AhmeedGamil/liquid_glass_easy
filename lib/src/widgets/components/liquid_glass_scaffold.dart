@@ -160,7 +160,10 @@ class LiquidGlassScaffoldAdaptivity {
 ///
 /// Slots are composited bottom-to-top:
 /// `lenses` → `appBar` → `bottomNavigationBar` →
-/// `bottomNavigationBarAction` → `floatingActionButton` → `dialog`.
+/// `bottomNavigationBarAction` → `floatingActionButton`.
+///
+/// Dialogs and sheets are not slots: present them with
+/// `showLiquidGlassDialog` and `showLiquidGlassSheet`.
 ///
 /// With a glass-pill [LiquidGlassTabBar] the bar runs two views and places
 /// the slots by renderer. On Impeller they sit in its outer view, over the
@@ -170,8 +173,7 @@ class LiquidGlassScaffoldAdaptivity {
 /// pill and nothing else: that view captures the whole screen a second
 /// time, and keeping the chrome out of it is what lets the capture sleep
 /// whenever the pill is at rest. So on Skia the bar's cells and pill paint
-/// over a `lenses` entry that overlaps them, and the [dialog] barrier dims
-/// the body and the capsule but not the cells or the pill.
+/// over a `lenses` entry that overlaps them.
 class LiquidGlassScaffold extends StatefulWidget {
   /// Clearance assumed under the FAB for a bottom bar the scaffold cannot
   /// measure. Override it with [floatingActionButtonClearance].
@@ -188,8 +190,9 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// [LiquidGlassTabBar].
   final Widget? bottomNavigationBar;
 
-  /// A standalone glass action that floats at the bottom-right, the
-  /// common "tab bar + side action" pairing. Typically a
+  /// A standalone glass action that floats at the bottom-end corner —
+  /// bottom-right in LTR, bottom-left in RTL — the common "tab bar + side
+  /// action" pairing. Typically a
   /// [LiquidGlassTabBarAction].
   final Widget? bottomNavigationBarAction;
 
@@ -214,33 +217,6 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// Ignored unless the button is aligned toward the bottom.
   final double? floatingActionButtonClearance;
 
-  /// A glass panel laid over the page, inside this scaffold's own view.
-  ///
-  /// Unlike `showLiquidGlassDialog`, which pushes a route, this one is an
-  /// ordinary widget in the lens layer: it refracts the live [body] on
-  /// every backend, and can be merged with the other slots' glass by a
-  /// `LiquidGlassBlender`. What it gives up is the navigator — there is no
-  /// `Future` to await and no route on the stack, so you hold the open/
-  /// closed state yourself and set this back to `null` to close it.
-  ///
-  /// Typically a [LiquidGlassDialog] or [LiquidGlassAlertDialog].
-  final Widget? dialog;
-
-  /// Called when the [dialog] asks to close — a tap on the barrier or a
-  /// system back gesture. Clear [dialog] from here; the panel plays its
-  /// exit animation on the way out.
-  final VoidCallback? onDialogDismissed;
-
-  /// Scrim painted under [dialog] and over everything else. It fades with
-  /// the panel and swallows taps meant for the page beneath.
-  final Color dialogBarrierColor;
-
-  /// Whether tapping the barrier fires [onDialogDismissed].
-  final bool dialogBarrierDismissible;
-
-  /// How long [dialog] takes to appear and to leave.
-  final Duration dialogTransitionDuration;
-
   /// Extra free-floating glass widgets composited between the [body] and
   /// the bars. An escape hatch — position each with your own
   /// `Align`/`Positioned`.
@@ -259,8 +235,13 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// Extra space above the [appBar], in addition to the safe-area inset.
   final double appBarTopMargin;
 
-  /// Bottom-right padding applied to [bottomNavigationBarAction].
-  final double actionMargin;
+  /// Gap between [bottomNavigationBarAction] and the end edge of the
+  /// screen: the right edge in LTR, the left in RTL.
+  final double bottomNavigationBarActionMargin;
+
+  /// Space kept between [floatingActionButton] and every screen edge, on
+  /// top of the safe-area insets.
+  final double floatingActionButtonMargin;
 
   // ── Render pipeline (forwarded to the internal LiquidGlassView) ──
 
@@ -285,7 +266,7 @@ class LiquidGlassScaffold extends StatefulWidget {
 
   /// See [LiquidGlassView.batch]. `true` (the default) puts the glass in
   /// [body] on one shared read of the backdrop and the chrome — app bar,
-  /// action, FAB, [dialog], [lenses] — on another. It is the one chrome
+  /// action, FAB, [lenses] — on another. It is the one chrome
   /// batch on both tab bar paths, and the tab bar is never in it: on
   /// either path the bar's glass takes a read of its own. A
   /// `showLiquidGlassSheet` or a `showLiquidGlassDialog` opened from a
@@ -311,16 +292,12 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.floatingActionButton,
     this.floatingActionButtonAlignment = AlignmentDirectional.bottomEnd,
     this.floatingActionButtonClearance,
-    this.dialog,
-    this.onDialogDismissed,
-    this.dialogBarrierColor = const Color(0x80000000),
-    this.dialogBarrierDismissible = true,
-    this.dialogTransitionDuration = const Duration(milliseconds: 350),
     this.lenses = const [],
     this.backgroundColor,
     this.safeArea = true,
     this.appBarTopMargin = 0,
-    this.actionMargin = 16,
+    this.bottomNavigationBarActionMargin = 16,
+    this.floatingActionButtonMargin = 16,
     this.controller,
     this.pixelRatio = 1.0,
     this.realTimeCapture = true,
@@ -448,7 +425,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         body: Material(type: MaterialType.transparency, child: widget.body),
         backgroundColor: widget.backgroundColor,
         bottomInset: pad.bottom,
-        // Every slot, the dialog included, is handed over as the bar's
+        // Every slot is handed over as the bar's
         // chrome; the bar places it by renderer. On Impeller it paints
         // over the bar in the outer view, as it always has. On Skia it
         // rides the INNER view, refracting the body on the capture the bar
@@ -607,8 +584,11 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
     // Where the FAB actually lands, once RTL has had its say.
     // resolve() asserts on a null direction for the directional defaults,
     // and nothing guarantees a Directionality above a bare scaffold.
-    final Alignment fabAlignment = widget.floatingActionButtonAlignment
-        .resolve(Directionality.maybeOf(context) ?? TextDirection.ltr);
+    final TextDirection direction =
+        Directionality.maybeOf(context) ?? TextDirection.ltr;
+    final bool rtl = direction == TextDirection.rtl;
+    final Alignment fabAlignment =
+        widget.floatingActionButtonAlignment.resolve(direction);
 
     // Vertical room the FAB keeps clear above the bar: whatever the caller
     // set, else the tab bar's real height plus its bottom margin, else a
@@ -695,31 +675,26 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
               ),
             ),
           if (widget.bottomNavigationBarAction != null)
+            // The end side: right in LTR, left in RTL.
             Positioned(
               bottom: pad.bottom + navMargin.bottom,
-              right: widget.actionMargin,
+              left: rtl ? widget.bottomNavigationBarActionMargin : null,
+              right: rtl ? null : widget.bottomNavigationBarActionMargin,
               child: widget.bottomNavigationBarAction!,
             ),
           if (widget.floatingActionButton != null)
             Positioned(
-              top: pad.top + widget.actionMargin,
-              bottom: pad.bottom + widget.actionMargin + navClearance,
-              left: widget.actionMargin,
-              right: widget.actionMargin,
+              top: pad.top + widget.floatingActionButtonMargin,
+              bottom: pad.bottom +
+                  widget.floatingActionButtonMargin +
+                  navClearance,
+              left: widget.floatingActionButtonMargin,
+              right: widget.floatingActionButtonMargin,
               child: Align(
                 alignment: fabAlignment,
                 child: widget.floatingActionButton!,
               ),
             ),
-          // Last, so the barrier covers the other slots as a route's would.
-          _LiquidGlassScaffoldDialog(
-            dialog: widget.dialog,
-            barrierColor: widget.dialogBarrierColor,
-            barrierDismissible: widget.dialogBarrierDismissible,
-            onDismissed: widget.onDialogDismissed,
-            duration: widget.dialogTransitionDuration,
-            useSafeArea: widget.safeArea,
-          ),
         ],
       ),
     );
@@ -762,150 +737,6 @@ class _ChromeFollower extends StatelessWidget {
                 child: SizedBox.expand(),
               )
             : const SizedBox.expand(),
-      ),
-    );
-  }
-}
-
-/// Drives [LiquidGlassScaffold.dialog]: barrier, entrance, and the exit it
-/// has to finish painting after the caller has already let the widget go.
-class _LiquidGlassScaffoldDialog extends StatefulWidget {
-  final Widget? dialog;
-  final Color barrierColor;
-  final bool barrierDismissible;
-  final VoidCallback? onDismissed;
-  final Duration duration;
-  final bool useSafeArea;
-
-  const _LiquidGlassScaffoldDialog({
-    required this.dialog,
-    required this.barrierColor,
-    required this.barrierDismissible,
-    required this.onDismissed,
-    required this.duration,
-    required this.useSafeArea,
-  });
-
-  @override
-  State<_LiquidGlassScaffoldDialog> createState() =>
-      _LiquidGlassScaffoldDialogState();
-}
-
-class _LiquidGlassScaffoldDialogState extends State<_LiquidGlassScaffoldDialog>
-    with SingleTickerProviderStateMixin {
-  // Same shape as the route presenter's: a soft overshoot in, a sharp
-  // pull out.
-  static const Curve _in = Cubic(0.16, 1.0, 0.3, 1.0);
-  static const Curve _out = Cubic(0.7, 0.0, 0.84, 0.0);
-
-  late final AnimationController _controller;
-  late final CurvedAnimation _curve;
-
-  /// The last dialog handed to us. Outlives `widget.dialog` going null so
-  /// the panel can animate out instead of vanishing.
-  Widget? _outgoing;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = AnimationController(
-      vsync: this,
-      duration: widget.duration,
-      reverseDuration: widget.duration,
-      value: widget.dialog == null ? 0.0 : 1.0,
-    );
-    _curve = CurvedAnimation(
-      parent: _controller,
-      curve: _in,
-      reverseCurve: _out,
-    );
-    _outgoing = widget.dialog;
-    _controller.addStatusListener(_onStatus);
-  }
-
-  void _onStatus(AnimationStatus status) {
-    // Fully closed: drop the widget we were only holding on to for the
-    // exit, so its lens stops costing a capture.
-    if (status == AnimationStatus.dismissed && widget.dialog == null) {
-      setState(() => _outgoing = null);
-    }
-  }
-
-  @override
-  void didUpdateWidget(_LiquidGlassScaffoldDialog oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _controller.duration = widget.duration;
-    _controller.reverseDuration = widget.duration;
-    if (widget.dialog != null) {
-      _outgoing = widget.dialog;
-      _controller.forward();
-    } else if (oldWidget.dialog != null) {
-      _controller.reverse();
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.removeStatusListener(_onStatus);
-    _curve.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _dismiss() => widget.onDismissed?.call();
-
-  @override
-  Widget build(BuildContext context) {
-    final Widget? panel = widget.dialog ?? _outgoing;
-    if (panel == null) return const SizedBox.shrink();
-
-    // Open means "the caller still wants it". While closing we keep
-    // painting but stop taking input, and let a back gesture through
-    // rather than swallowing it to close something already on its way out.
-    final bool open = widget.dialog != null;
-
-    // No Center here: the dialog widgets align themselves, and the scale
-    // rides the full-screen box exactly as the route presenter's does.
-    Widget content = panel;
-    if (widget.useSafeArea) content = SafeArea(child: content);
-
-    return PopScope(
-      canPop: !open,
-      onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) _dismiss();
-      },
-      child: IgnorePointer(
-        ignoring: !open,
-        child: AnimatedBuilder(
-          animation: _controller,
-          // Handed through so the panel's own subtree is not rebuilt on
-          // every frame of the transition.
-          child: content,
-          builder: (context, child) {
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                // The scrim may fade freely — it is not glass. The panel
-                // itself never gets an opacity layer: that would isolate
-                // its lens from the page and drop the refraction
-                // mid-flight, which is the whole point of the glass.
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: widget.barrierDismissible ? _dismiss : null,
-                  child: ColoredBox(
-                    color: widget.barrierColor.withValues(
-                      alpha: widget.barrierColor.a * _controller.value,
-                    ),
-                  ),
-                ),
-                Transform.scale(
-                  scale: 0.84 + 0.16 * _curve.value,
-                  child: child,
-                ),
-              ],
-            );
-          },
-        ),
       ),
     );
   }
