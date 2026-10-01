@@ -255,16 +255,8 @@ class _LensRevealPageState extends State<LensRevealPage>
   LiquidGlassStyle get _style {
     const LiquidGlassShape shape = LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 40,
-      borderWidth: 1.5,
     );
-    const LiquidGlassRefraction refraction = LiquidGlassRefraction(
-      refractionType: OpticalRefraction(
-        refraction: 1.5,
-        refractionWidth: 24,
-        depth: 0.7,
-      ),
-    );
-    // The shadow rides the appearance, never a flat parameter — and it
+    // The shadow rides the style, never a flat parameter — and it
     // fades in with the morph exactly as the thumb's does, so at rest it
     // is absent from the tree rather than merely transparent.
     final LiquidGlassShadow? shadow = (!_shadow || _morph <= 0.001)
@@ -272,13 +264,14 @@ class _LensRevealPageState extends State<LensRevealPage>
         : LiquidGlassShadow(inset: 3, opacity: 0.28 * _morph);
     return LiquidGlassStyle(
       shape: shape,
-      appearance: LiquidGlassAppearance(
-        color: const Color(0x14FFFFFF),
-        saturation: 1.05,
-        blur: const LiquidGlassBlur(sigmaX: 1, sigmaY: 1),
-        shadow: shadow,
-      ),
-      refraction: refraction,
+      specular: const LiquidGlassLight.specular(),
+      glow: const LiquidGlassLight.glow(thickness: 1.5),
+      color: const Color(0x14FFFFFF),
+      saturation: 1.05,
+      blur: 1,
+      shadow: shadow,
+      refractionIndex: 1.22,
+      refractionWidth: 24,
     );
   }
 

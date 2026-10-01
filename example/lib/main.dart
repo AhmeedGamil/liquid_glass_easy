@@ -66,20 +66,14 @@ class _LensImagePageState extends State<LensImagePage> {
   static const _groupStyle = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 36,
-      borderWidth: 1.5,
     ),
-    appearance: LiquidGlassAppearance(
-      color: Color(0x14FFFFFF),
-      saturation: 1.05,
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      refractionType: OpticalRefraction(
-        refraction: 1.5,
-        refractionWidth: 24,
-        depth: 0.7,
-      ),
-    ),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.5),
+    color: Color(0x14FFFFFF),
+    saturation: 1.05,
+    blur: 3,
+    refractionIndex: 1.22,
+    refractionWidth: 24,
   );
 
   @override

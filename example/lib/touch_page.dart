@@ -96,9 +96,9 @@ class _TouchPageState extends State<TouchPage> {
                   style: const LiquidGlassStyle(
                     shape: LiquidGlassShape.continuousRoundedRectangle(
                       cornerRadius: 26,
-                      borderColor: _rim,
-                      lightDirection: 39,
                     ),
+                    specular: LiquidGlassLight.specular(angle: 39),
+                    glow: LiquidGlassLight.glow(angle: 129),
                   ),
                   child: Padding(
                     padding:
@@ -239,7 +239,6 @@ const Color _ink = Color(0xFF1B1B22);
 /// Both rims. On a flat page there is nothing for the glass to refract, so
 /// the outline is what draws the shape — a solid gray rather than the
 /// light/shadow pair the border would otherwise derive.
-const Color _rim = Color(0xFF8E8E99);
 
 /// One row inside the list lens. A plain widget: it is the lens's child, so
 /// the deformation carries it rather than it deforming on its own.

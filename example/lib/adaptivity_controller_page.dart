@@ -79,31 +79,18 @@ const double _headerTopMargin = 4;
 const LiquidGlassShape _navBarShape = LiquidGlassShape(
   cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
   cornerRadius: 50,
-  borderWidth: 0.8,
-  lightIntensity: 1.1,
-  lightDirection: 39,
-  lightColor: Colors.grey,
-  borderType: OpticalBorder(
-    borderSaturation: 1.2,
-    ambientIntensity: 1.0,
-    borderSolidity: 1,
-  ),
 );
+
+const LiquidGlassLight _navBarSpecular = LiquidGlassLight.specular(angle: 39, intensity: 1.1);
+const LiquidGlassLight _navBarGlow = LiquidGlassLight.glow(thickness: 0.8, angle: 129, intensity: 1.0);
 
 /// The moving glass pill's shape — continuous like the bar.
 const LiquidGlassShape _navPillShape = LiquidGlassShape(
   cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
   cornerRadius: 59,
-  borderWidth: 0.8,
-  lightIntensity: 1.1,
-  lightDirection: 39,
-  lightColor: Colors.grey,
-  borderType: OpticalBorder(
-    borderSaturation: 1.2,
-    ambientIntensity: 1.0,
-    borderSolidity: 1,
-  ),
 );
+const LiquidGlassLight _navPillSpecular = LiquidGlassLight.specular(angle: 39, intensity: 1.1);
+const LiquidGlassLight _navPillGlow = LiquidGlassLight.glow(thickness: 0.8, angle: 129, intensity: 1.0);
 
 class AdaptivityControllerPage extends StatefulWidget {
   const AdaptivityControllerPage({super.key});
@@ -197,15 +184,13 @@ class _AdaptivityControllerPageState extends State<AdaptivityControllerPage> {
 
   static const LiquidGlassStyle _barStyle = LiquidGlassStyle(
     shape: _navBarShape,
-    appearance: LiquidGlassAppearance(
-      color: Color(0x16FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 28,
-      chromaticAberration: 0.002,
-    ),
+    specular: _navBarSpecular,
+    glow: _navBarGlow,
+    color: Color(0x16FFFFFF),
+    blur: 3,
+    refractionIndex: 1.025,
+    refractionWidth: 28,
+    chromaticAberration: 0.002,
     // No adaptivity here on purpose: the bar inherits the scaffold's
     // palettes — controller included, so it holds and settles with
     // everything else — and resolves its own verdict from its capsule.
@@ -218,11 +203,11 @@ class _AdaptivityControllerPageState extends State<AdaptivityControllerPage> {
     animated: true,
     shape: _navPillShape,
     glassStyle: LiquidGlassStyle(
-      appearance: LiquidGlassAppearance(color: Colors.transparent),
-      refraction: LiquidGlassRefraction(
-        distortion: 0.05,
-        distortionWidth: 10,
-      ),
+      specular: _navPillSpecular,
+      glow: _navPillGlow,
+      color: Colors.transparent,
+      refractionIndex: 1.026,
+      refractionWidth: 10,
     ),
   );
 
@@ -412,26 +397,14 @@ class _TripHeader extends StatelessWidget {
                 size: _headerHeight,
                 onTap: onBack,
                 style: LiquidGlassStyle(
-                  refraction: LiquidGlassRefraction(
-                    distortion: 0.07,
-                    distortionWidth: 24,
-                    chromaticAberration: 0.002,
-                  ),
-                  appearance: LiquidGlassAppearance(
-                    saturation: 1.2,
-                    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-                  ),
-                  shape: LiquidGlassShape(
-                    lightColor: Colors.grey,
-                    borderWidth: 0.5,
-                    lightDirection: 100,
-                    lightIntensity: 1.5,
-                    borderType: OpticalBorder(
-                      ambientIntensity: 1.0,
-                      lightSpread: 0.4,
-                      borderSolidity: 0.5,
-                    ),
-                  ),
+                  refractionIndex: 1.025,
+                  refractionWidth: 24,
+                  chromaticAberration: 0.002,
+                  saturation: 1.2,
+                  blur: 3,
+                  shape: LiquidGlassShape(),
+                  specular: LiquidGlassLight.specular(angle: 100, intensity: 1.5),
+                  glow: LiquidGlassLight.glow(thickness: 0.5, angle: 190, intensity: 1.0),
                 ),
               ),
             ),
@@ -458,23 +431,14 @@ class _ChevronPill extends StatelessWidget {
     shape: LiquidGlassShape.continuousRoundedRectangle(
       clipQuality: LiquidGlassClipQuality.exact,
       cornerRadius: 24,
-      borderWidth: 0.5,
-      lightIntensity: 1.5,
-      lightDirection: 90,
-      lightColor: Colors.grey,
-      borderType: OpticalBorder(
-        borderSolidity: 0.5,
-      ),
     ),
-    appearance: LiquidGlassAppearance(
-      saturation: 1.2,
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 24,
-      chromaticAberration: 0.002,
-    ),
+    specular: LiquidGlassLight.specular(angle: 90, intensity: 1.5),
+    glow: LiquidGlassLight.glow(thickness: 0.5, angle: 180),
+    saturation: 1.2,
+    blur: 3,
+    refractionIndex: 1.025,
+    refractionWidth: 24,
+    chromaticAberration: 0.002,
   );
 
   Widget _tap(IconData icon, VoidCallback onTap) {

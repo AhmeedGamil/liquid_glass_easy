@@ -119,20 +119,13 @@ class _BatchPageState extends State<BatchPage>
   static const LiquidGlassStyle _cardStyle = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 26,
-      borderWidth: 1.2,
-      borderType: OpticalBorder(ambientIntensity: 1),
     ),
-    appearance: LiquidGlassAppearance(
-      color: Color(0x14FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 9, sigmaY: 9),
-    ),
-    refraction: LiquidGlassRefraction(
-      refractionType: OpticalRefraction(
-        refraction: 1.5,
-        refractionWidth: 20,
-        depth: 0.5,
-      ),
-    ),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.2, intensity: 1),
+    color: Color(0x14FFFFFF),
+    blur: 9,
+    refractionIndex: 1.117,
+    refractionWidth: 20,
   );
 
   @override

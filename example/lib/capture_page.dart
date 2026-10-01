@@ -111,12 +111,11 @@ class _CapturePageState extends State<CapturePage>
                     style: LiquidGlassStyle(
                       shape: LiquidGlassShape.continuousRoundedRectangle(
                         cornerRadius: 38,
-                        borderWidth: 1.4,
                       ),
-                      refraction: LiquidGlassRefraction(
-                        distortion: 0.13,
-                        distortionWidth: 34,
-                      ),
+                      specular: LiquidGlassLight.specular(),
+                      glow: LiquidGlassLight.glow(thickness: 1.4),
+                      refractionIndex: 1.021,
+                      refractionWidth: 34,
                     ),
                     child: Center(
                       child: Text(

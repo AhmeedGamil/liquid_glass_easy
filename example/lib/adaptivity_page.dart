@@ -493,26 +493,14 @@ class _TripHeader extends StatelessWidget {
                 onTap: onBack,
                 style: LiquidGlassStyle(
                   adaptivity: adaptivity,
-                  refraction: const LiquidGlassRefraction(
-                    distortion: 0.07,
-                    distortionWidth: 24,
-                    chromaticAberration: 0.002,
-                  ),
-                  appearance: const LiquidGlassAppearance(
-                    saturation: 1.2,
-                    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-                  ),
-                  shape: const LiquidGlassShape(
-                    lightColor: Colors.grey,
-                    borderWidth: 0.5,
-                    lightDirection: 100,
-                    lightIntensity: 1.5,
-                    borderType: OpticalBorder(
-                      ambientIntensity: 1.0,
-                      lightSpread: 0.4,
-                      borderSolidity: 0.5,
-                    ),
-                  ),
+                  refractionIndex: 1.025,
+                  refractionWidth: 24,
+                  chromaticAberration: 0.002,
+                  saturation: 1.2,
+                  blur: 3,
+                  shape: const LiquidGlassShape(),
+                  specular: LiquidGlassLight.specular(angle: 100, intensity: 1.5),
+                  glow: LiquidGlassLight.glow(thickness: 0.5, angle: 190, intensity: 1.0),
                 ),
               ),
             ),
@@ -548,28 +536,14 @@ class _ChevronPill extends StatelessWidget {
     shape: LiquidGlassShape.continuousRoundedRectangle(
       clipQuality: LiquidGlassClipQuality.exact,
       cornerRadius: 24,
-      borderWidth: 0.5,
-      lightIntensity: 1.5,
-      lightDirection: 90,
-        lightColor: Colors.grey,
-
-      borderType: OpticalBorder(
-        //borderSaturation: 1.2,
-        //ambientIntensity: 5.0,
-        //lightSpread: 0.5,
-        borderSolidity: 0.5,
-      ),
     ),
-    appearance: LiquidGlassAppearance(
-      //color: Color(0x14FFFFFF),
-      saturation: 1.2,
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 24,
-      chromaticAberration: 0.002,
-    ),
+    specular: LiquidGlassLight.specular(angle: 90, intensity: 1.5),
+    glow: LiquidGlassLight.glow(thickness: 0.5, angle: 180),
+    saturation: 1.2,
+    blur: 3,
+    refractionIndex: 1.025,
+    refractionWidth: 24,
+    chromaticAberration: 0.002,
   );
 
   Widget _tap(IconData icon, VoidCallback onTap) {

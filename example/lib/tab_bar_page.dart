@@ -57,15 +57,12 @@ LiquidGlassShape _glassShape(double cornerRadius) =>
     LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: cornerRadius,
       clipQuality: LiquidGlassClipQuality.exact,
-      borderWidth: 0.7,
-      lightIntensity: 0.9,
-      lightDirection: 62,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.1,
-        ambientIntensity: 0.85,
-        borderSolidity: 0.95,
-      ),
     );
+
+const LiquidGlassLight _rimSpecular = LiquidGlassLight.specular(
+    angle: 62, intensity: 0.9);
+const LiquidGlassLight _rimGlow =
+    LiquidGlassLight.glow(thickness: 0.7, angle: 152, intensity: 0.85);
 
 /// One tab: what the bar draws for it, and what the page behind it opens
 /// with. Both live on the same row so a fifth tab is one line, not four
@@ -187,17 +184,13 @@ class _TabBarPageState extends State<TabBarPage> {
         margin: const EdgeInsets.only(bottom: _bottom),
         style: LiquidGlassStyle(
           shape: _glassShape(_barHeight / 2),
-          appearance: const LiquidGlassAppearance(
-            color: Color(0x8FFFFFFF),
-            blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-            // The bar's contact shadow lives in the material, like any
-            // lens's: the capsule wraps itself in this ring.
-            shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
-          ),
-          refraction: const LiquidGlassRefraction(
-            distortion: 0.06,
-            distortionWidth: 26,
-          ),
+          specular: _rimSpecular,
+          glow: _rimGlow,
+          color: Color(0x8FFFFFFF),
+          blur: 5,
+          shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
+          refractionIndex: 1.025,
+          refractionWidth: 26,
         ),
         itemStyle: const LiquidGlassTabItemStyle(
           // The one place the selected look is decided — icon, bloom and
@@ -233,7 +226,7 @@ class _TabBarPageState extends State<TabBarPage> {
           // is selected — the red glyph is already saying it.
           rest: LiquidGlassStyle(
             shape: _glassShape(28),
-            appearance: const LiquidGlassAppearance(color: Color(0x2EAEAEB2)),
+            color: Color(0x2EAEAEB2),
           ),
         ),
       ),

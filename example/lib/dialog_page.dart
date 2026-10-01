@@ -58,20 +58,17 @@ class _DialogPageState extends State<DialogPage> {
   static final LiquidGlassStyle _button =
       LiquidGlassButton.defaultStyle.copyWith(
     liteGlass: _rim,
-    appearance: LiquidGlassButton.defaultStyle.appearance
-        .copyWith(blur: const LiquidGlassBlur()),
+    blur: 0,
   );
 
-  /// The dialog actions: the same button with a blue tint and no blur —
-  /// `copyWith(appearance:)` replaces the whole appearance, so the
-  /// default's blur goes with it.
+  /// The dialog actions: the same button with a blue tint.
   static final LiquidGlassStyle _accent = _button.copyWith(
-    appearance: const LiquidGlassAppearance(color: Color(0x660A84FF)),
+    color: Color(0x660A84FF),
   );
 
   /// The destructive action: same glass, red instead of blue.
   static final LiquidGlassStyle _danger = _button.copyWith(
-    appearance: const LiquidGlassAppearance(color: Color(0x80EF4444)),
+    color: Color(0x80EF4444),
   );
 
   Future<void> _open(

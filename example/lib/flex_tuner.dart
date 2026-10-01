@@ -477,12 +477,11 @@ class _Stage extends StatelessWidget {
             style: const LiquidGlassStyle(
               shape: LiquidGlassShape.continuousRoundedRectangle(
                 cornerRadius: 34,
-                borderWidth: 1.2,
               ),
-              appearance: LiquidGlassAppearance(
-                color: Color(0x1FFFFFFF),
-                blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-              ),
+              specular: LiquidGlassLight.specular(),
+              glow: LiquidGlassLight.glow(thickness: 1.2),
+              color: Color(0x1FFFFFFF),
+              blur: 2,
             ),
             child: const Center(
               child: Column(
@@ -518,11 +517,10 @@ class _Stage extends StatelessWidget {
                     // stays a capsule instead of self-intersecting.
                     shape: LiquidGlassShape.roundedRectangle(
                       cornerRadius: 999,
-                      borderWidth: 1,
                     ),
-                    appearance: LiquidGlassAppearance(
-                      color: Color(0x1AFFFFFF),
-                    ),
+                    specular: LiquidGlassLight.specular(),
+                    glow: LiquidGlassLight.glow(thickness: 1),
+                    color: Color(0x1AFFFFFF),
                   ),
                   child: const Center(
                     child: Text(
@@ -546,11 +544,10 @@ class _Stage extends StatelessWidget {
                 style: const LiquidGlassStyle(
                   shape: LiquidGlassShape.continuousRoundedRectangle(
                     cornerRadius: 24,
-                    borderWidth: 1,
                   ),
-                  appearance: LiquidGlassAppearance(
-                    color: Color(0x1AFFFFFF),
-                  ),
+                  specular: LiquidGlassLight.specular(),
+                  glow: LiquidGlassLight.glow(thickness: 1),
+                  color: Color(0x1AFFFFFF),
                 ),
                 child: const Center(
                   child: Icon(Icons.favorite_rounded,

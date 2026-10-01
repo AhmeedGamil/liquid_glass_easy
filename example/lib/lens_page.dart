@@ -50,7 +50,7 @@ class _LensPageState extends State<LensPage> {
   LiquidGlassCornerStyle _corner =
       LiquidGlassCornerStyle.continuousRoundedRectangle;
   double _blur = 0;
-  double _distortion = 0.11;
+  double _index = 1.022;
   double _width = 40;
 
   // Where the lens has been dragged to is NOT page state. A setState per
@@ -88,16 +88,13 @@ class _LensPageState extends State<LensPage> {
         shape: LiquidGlassShape(
           cornerStyle: _corner,
           cornerRadius: 44,
-          borderWidth: 1.4,
         ),
-        appearance: LiquidGlassAppearance(
-          blur: LiquidGlassBlur(sigmaX: _blur, sigmaY: _blur),
-          color: const Color(0x12FFFFFF),
-        ),
-        refraction: LiquidGlassRefraction(
-          distortion: _distortion,
-          distortionWidth: _width,
-        ),
+        specular: LiquidGlassLight.specular(),
+        glow: LiquidGlassLight.glow(thickness: 1.4),
+        blur: _blur,
+        color: const Color(0x12FFFFFF),
+        refractionIndex: _index,
+        refractionWidth: _width,
       );
 
   @override
@@ -152,15 +149,15 @@ class _LensPageState extends State<LensPage> {
                         onChanged: (double v) => setState(() => _blur = v),
                       ),
                       DemoSlider(
-                        label: 'distortion',
-                        value: _distortion,
-                        min: 0,
-                        max: 0.4,
-                        decimals: 2,
-                        onChanged: (double v) => setState(() => _distortion = v),
+                        label: 'refraction index',
+                        value: _index,
+                        min: 1,
+                        max: 1.2,
+                        decimals: 3,
+                        onChanged: (double v) => setState(() => _index = v),
                       ),
                       DemoSlider(
-                        label: 'distortion width',
+                        label: 'refraction width',
                         value: _width,
                         min: 6,
                         max: 90,

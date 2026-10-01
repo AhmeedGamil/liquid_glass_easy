@@ -40,8 +40,7 @@ final LiquidGlassStyle _sheetStyle =
 /// flat tinted plate.
 final LiquidGlassStyle _buttonStyle = LiquidGlassButton.defaultStyle.copyWith(
   liteGlass: _rim,
-  appearance: LiquidGlassButton.defaultStyle.appearance
-      .copyWith(blur: const LiquidGlassBlur()),
+  blur: 0,
 );
 
 class _SheetFieldApp extends StatelessWidget {
@@ -269,8 +268,7 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
                   child: LiquidGlassButton(
                     label: 'Remove',
                     style: _buttonStyle.copyWith(
-                      appearance:
-                          const LiquidGlassAppearance(color: Color(0x60FF3B30)),
+                      color: Color(0x60FF3B30),
                     ),
                     onPressed: () => Navigator.of(context).pop(true),
                   ),

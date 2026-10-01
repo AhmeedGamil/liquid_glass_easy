@@ -11,7 +11,7 @@ import 'demo_kit.dart';
 // The scaffold IS the glass pipeline: it owns the view, and everything it
 // places refracts its body. What it can place is a fixed set of slots —
 // appBar, bottomNavigationBar, its action, a floating action button, the
-// free-floating `lenses` list, and the dialog — and the chips at the top
+// and the free-floating `lenses` list — and the chips at the top
 // of the feed put exactly ONE of them on the page at a time.
 //
 // That is the whole page: the same scaffold, the same feed, one slot
@@ -46,27 +46,20 @@ LiquidGlassShape _frostShape(double cornerRadius) =>
     LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: cornerRadius,
       clipQuality: LiquidGlassClipQuality.exact,
-      borderWidth: 0.7,
-      lightIntensity: 0.9,
-      lightDirection: 62,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.1,
-        ambientIntensity: 0.85,
-        borderSolidity: 0.95,
-      ),
     );
+
+const LiquidGlassLight _rimSpecular = LiquidGlassLight.specular(angle: 62, intensity: 0.9);
+const LiquidGlassLight _rimGlow = LiquidGlassLight.glow(thickness: 0.7, angle: 152, intensity: 0.85);
 
 LiquidGlassStyle _frost(double cornerRadius) => LiquidGlassStyle(
       shape: _frostShape(cornerRadius),
-      appearance: const LiquidGlassAppearance(
-        color: Color(0x8FFFFFFF),
-        blur: LiquidGlassBlur(sigmaX: 5, sigmaY: 5),
-        shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
-      ),
-      refraction: const LiquidGlassRefraction(
-        distortion: 0.06,
-        distortionWidth: 26,
-      ),
+      specular: _rimSpecular,
+      glow: _rimGlow,
+      color: Color(0x8FFFFFFF),
+      blur: 5,
+      shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
+      refractionIndex: 1.025,
+      refractionWidth: 26,
     );
 
 class ScaffoldPage extends StatefulWidget {
@@ -84,12 +77,11 @@ enum _Slot {
   navBar('nav bar', 'bottomNavigationBar'),
   action('action', 'bottomNavigationBarAction'),
   fab('FAB', 'floatingActionButton'),
-  lenses('lenses', 'lenses'),
-  dialog('dialog', 'dialog + onDialogDismissed');
+  lenses('lenses', 'lenses');
 
   const _Slot(this.label, this.param);
 
-  /// What the chip says — short, because seven parameter names in a row
+  /// What the chip says — short, because six parameter names in a row
   /// would each be most of a phone's width.
   final String label;
 
@@ -115,6 +107,30 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
     for (final (IconData icon, String label, _) in _tabs)
       LiquidGlassTabBarItem(icon: icon, label: label),
   ];
+
+  /// A dialog is not a slot: it is presented over the scaffold, as a sheet
+  /// is, and `batch` puts it on the scaffold's chrome read. [context] has
+  /// to be one inside the scaffold, so the dialog refracts its body.
+  void _openDialog(BuildContext context) {
+    showLiquidGlassDialog<void>(
+      context: context,
+      batch: true,
+      builder: (BuildContext context) => LiquidGlassAlertDialog(
+        icon: const Icon(Icons.playlist_add_rounded, color: _kBrand),
+        title: const Text('New playlist'),
+        content: const Text(
+          'A dialog presented over the scaffold with showLiquidGlassDialog: '
+          'glass over the same feed the bars refract.',
+        ),
+        actions: <Widget>[
+          LiquidGlassButton(
+            label: 'Done',
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,8 +185,7 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
               pillStyle: LiquidGlassTabPillStyle(
                 rest: LiquidGlassStyle(
                   shape: _frostShape(28),
-                  appearance:
-                      const LiquidGlassAppearance(color: Color(0x2EAEAEB2)),
+                  color: Color(0x2EAEAEB2),
                 ),
               ),
             )
@@ -181,23 +196,27 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
       // it sits on the safe-area edge — which is the slot telling you it
       // is meant to be one of a pair.
       bottomNavigationBarAction: _slot == _Slot.action
-          ? LiquidGlassTabBarAction(
-              icon: Icons.add_rounded,
-              size: _barHeight,
-              foregroundColor: _kInk,
-              style: _frost(_barHeight / 2),
-              onTap: () => setState(() => _slot = _Slot.dialog),
+          ? Builder(
+              builder: (BuildContext context) => LiquidGlassTabBarAction(
+                icon: Icons.add_rounded,
+                size: _barHeight,
+                foregroundColor: _kInk,
+                style: _frost(_barHeight / 2),
+                onTap: () => _openDialog(context),
+              ),
             )
           : null,
 
       // The FAB slot, with its own alignment rather than the bar's column.
       floatingActionButton: _slot == _Slot.fab
-          ? LiquidGlassFab.extended(
-              label: const Text('Play all'),
-              icon: Icons.play_arrow_rounded,
-              foregroundColor: _kInk,
-              style: _frost(24),
-              onPressed: () => setState(() => _slot = _Slot.dialog),
+          ? Builder(
+              builder: (BuildContext context) => LiquidGlassFab.extended(
+                label: const Text('Play all'),
+                icon: Icons.play_arrow_rounded,
+                foregroundColor: _kInk,
+                style: _frost(24),
+                onPressed: () => _openDialog(context),
+              ),
             )
           : null,
       floatingActionButtonAlignment: Alignment.bottomRight,
@@ -236,27 +255,6 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
               ),
             ]
           : const <Widget>[],
-
-      // The dialog slot: a widget the scaffold animates in over its own
-      // barrier, cleared through onDialogDismissed.
-      dialog: _slot == _Slot.dialog
-          ? LiquidGlassAlertDialog(
-              icon: const Icon(Icons.playlist_add_rounded, color: _kBrand),
-              title: const Text('New playlist'),
-              content: const Text(
-                "The scaffold's own dialog slot: glass over the same feed "
-                'the bars refract, on a barrier it owns. Dismiss it and the '
-                'page goes back to no slot at all.',
-              ),
-              actions: <Widget>[
-                LiquidGlassButton(
-                  label: 'Done',
-                  onPressed: () => setState(() => _slot = _Slot.none),
-                ),
-              ],
-            )
-          : null,
-      onDialogDismissed: () => setState(() => _slot = _Slot.none),
     );
   }
 }

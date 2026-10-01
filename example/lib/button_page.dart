@@ -48,18 +48,23 @@ class _ButtonPageState extends State<ButtonPage> {
       LiquidGlassTouch.flexing(LiquidGlassFlex());
 
   static const LiquidGlassStyle _round = LiquidGlassStyle(
-    shape: LiquidGlassShape.roundedRectangle(cornerRadius: 44, borderWidth: 1.2),
-    appearance: LiquidGlassAppearance(color: Color(0x1AFFFFFF)),
-    refraction: LiquidGlassRefraction(distortion: 0.2, distortionWidth: 32),
+    shape: LiquidGlassShape.roundedRectangle(cornerRadius: 44),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.2),
+    color: Color(0x1AFFFFFF),
+    refractionIndex: 1.017,
+    refractionWidth: 32,
   );
 
   static const LiquidGlassStyle _wide = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 32,
-      borderWidth: 1.2,
     ),
-    appearance: LiquidGlassAppearance(color: Color(0x1AFFFFFF)),
-    refraction: LiquidGlassRefraction(distortion: 0.16, distortionWidth: 38),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.2),
+    color: Color(0x1AFFFFFF),
+    refractionIndex: 1.019,
+    refractionWidth: 38,
   );
 
   @override

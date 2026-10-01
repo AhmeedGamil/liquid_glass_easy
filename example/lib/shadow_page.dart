@@ -81,13 +81,13 @@ class _ShadowPageState extends State<ShadowPage> {
 
   LiquidGlassStyle _style(LiquidGlassShape shape) => LiquidGlassStyle(
         shape: shape,
-        appearance: LiquidGlassAppearance(
-          blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-          color: const Color(0x40FFFFFF),
-          shadow: _shadow,
-        ),
-        refraction:
-            const LiquidGlassRefraction(distortion: 0.1, distortionWidth: 30),
+        specular: const LiquidGlassLight.specular(),
+        glow: const LiquidGlassLight.glow(thickness: 1.2),
+        blur: 2,
+        color: const Color(0x40FFFFFF),
+        shadow: _shadow,
+        refractionIndex: 1.023,
+        refractionWidth: 30,
       );
 
   @override
@@ -112,7 +112,6 @@ class _ShadowPageState extends State<ShadowPage> {
                       style: _style(
                         const LiquidGlassShape.continuousRoundedRectangle(
                           cornerRadius: 34,
-                          borderWidth: 1.2,
                         ),
                       ),
                       child: const Padding(
@@ -154,7 +153,6 @@ class _ShadowPageState extends State<ShadowPage> {
                       style: _style(
                         const LiquidGlassShape.roundedRectangle(
                           cornerRadius: _button / 2,
-                          borderWidth: 1.2,
                         ),
                       ),
                       child: const Center(

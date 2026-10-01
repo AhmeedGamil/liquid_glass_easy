@@ -172,13 +172,13 @@ class DemoHeader extends StatelessWidget {
   static const LiquidGlassStyle _clear = LiquidGlassStyle(
     shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: height / 2,
-      borderWidth: 0.8,
     ),
-    appearance: LiquidGlassAppearance(
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-      color: Color(0x1AFFFFFF),
-    ),
-    refraction: LiquidGlassRefraction(distortion: 0.08, distortionWidth: 22),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 0.8),
+    blur: 3,
+    color: Color(0x1AFFFFFF),
+    refractionIndex: 1.024,
+    refractionWidth: 22,
   );
 
   @override

@@ -76,74 +76,86 @@ const double _kFrostAlpha = 0x6E / 255;
 Color _atOpacity(Color c, double opacity) =>
     c.withValues(alpha: (c.a * opacity / _kFrostAlpha).clamp(0.0, 1.0));
 
-/// Every optical border value and the glass opacity, live. The tuner in
+/// The refraction band the page was designed with — where the width slider
+/// starts, and what the tab bar pill's narrower band is scaled against.
+const double _kRefractionWidth = 24;
+
+/// The two lights, the refraction and the glass opacity, live. The tuner in
 /// the filter menu edits one of these, and every piece of glass on the page
 /// is cut with it.
 @immutable
 class _Rim {
   const _Rim({
     this.opacity = _kFrostAlpha,
-    this.width = 0.7,
-    this.intensity = 1,
-    this.direction = 39,
-    this.mode = LiquidGlassLightMode.edge,
-    this.spread = 0.9,
-    this.solidity = 1,
-    this.ambient = 1,
-    this.saturation = 1,
+    this.specular = const LiquidGlassLight.specular(angle: 39),
+    this.glow = const LiquidGlassLight.glow(angle: 129),
+    this.secondSpecular = const LiquidGlassLight.specular(
+      thickness: 0,
+      angle: 219,
+    ),
+    this.refractionIndex = 1.02,
+    this.refractionWidth = _kRefractionWidth,
+    this.blur = 4,
   });
 
   final double opacity;
-  final double width;
-  final double intensity;
-  final double direction;
-  final LiquidGlassLightMode mode;
-  final double spread;
-  final double solidity;
-  final double ambient;
-  final double saturation;
+  final LiquidGlassLight specular;
+  final LiquidGlassLight glow;
+
+  /// Off at thickness 0.
+  final LiquidGlassLight secondSpecular;
+  final double refractionIndex;
+  final double refractionWidth;
+  final double blur;
 
   _Rim copyWith({
     double? opacity,
-    double? width,
-    double? intensity,
-    double? direction,
-    LiquidGlassLightMode? mode,
-    double? spread,
-    double? solidity,
-    double? ambient,
-    double? saturation,
+    LiquidGlassLight? specular,
+    LiquidGlassLight? glow,
+    LiquidGlassLight? secondSpecular,
+    double? refractionIndex,
+    double? refractionWidth,
+    double? blur,
   }) =>
       _Rim(
         opacity: opacity ?? this.opacity,
-        width: width ?? this.width,
-        intensity: intensity ?? this.intensity,
-        direction: direction ?? this.direction,
-        mode: mode ?? this.mode,
-        spread: spread ?? this.spread,
-        solidity: solidity ?? this.solidity,
-        ambient: ambient ?? this.ambient,
-        saturation: saturation ?? this.saturation,
+        specular: specular ?? this.specular,
+        glow: glow ?? this.glow,
+        secondSpecular: secondSpecular ?? this.secondSpecular,
+        refractionIndex: refractionIndex ?? this.refractionIndex,
+        refractionWidth: refractionWidth ?? this.refractionWidth,
+        blur: blur ?? this.blur,
       );
 }
+
+/// [light] with its colour replaced, `null` included — which `copyWith`
+/// cannot do.
+LiquidGlassLight _withColor(LiquidGlassLight light, Color? color,
+        {required bool specular}) =>
+    specular
+        ? LiquidGlassLight.specular(
+            thickness: light.thickness,
+            sharpness: light.sharpness,
+            angle: light.angle,
+            spread: light.spread,
+            intensity: light.intensity,
+            color: color,
+          )
+        : LiquidGlassLight.glow(
+            thickness: light.thickness,
+            angle: light.angle,
+            spread: light.spread,
+            intensity: light.intensity,
+            color: color,
+          );
 
 /// The rim every piece of glass is cut with — a bright, tight optical
 /// border, which is what keeps a white-on-white control visible when a
 /// pale photo scrolls under it.
-LiquidGlassShape _frostShape(double cornerRadius, _Rim rim) =>
+LiquidGlassShape _frostShape(double cornerRadius) =>
     LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: cornerRadius,
       clipQuality: LiquidGlassClipQuality.exact,
-      borderWidth: rim.width,
-      lightIntensity: rim.intensity,
-      lightDirection: rim.direction,
-      lightMode: rim.mode,
-      borderType: OpticalBorder(
-        borderSaturation: rim.saturation,
-        ambientIntensity: rim.ambient,
-        borderSolidity: rim.solidity,
-        lightSpread: rim.spread,
-      ),
     );
 
 /// The shared material. The tint is heavy for glass on purpose: it is
@@ -159,18 +171,17 @@ LiquidGlassStyle _frost(double cornerRadius, _Rim rim,
         glassColorOnDark: _atOpacity(const Color(0x26000000), rim.opacity),
         glassColorOnLight: _atOpacity(const Color(0x3DFFFFFF), rim.opacity),
       ),
-      shape: _frostShape(cornerRadius, rim),
-      appearance: LiquidGlassAppearance(
-        color: _atOpacity(const Color(0x6EFFFFFF), rim.opacity),
-        blur: const LiquidGlassBlur(sigmaX: 4, sigmaY: 4),
-        saturation: 1.2,
-        shadow: shadow,
-      ),
-      refraction: const LiquidGlassRefraction(
-        distortion: 0.14,
-        distortionWidth: 24,
-        chromaticAberration: 0.002,
-      ),
+      shape: _frostShape(cornerRadius),
+      specular: rim.specular,
+      glow: rim.glow,
+      secondSpecular: rim.secondSpecular,
+      color: _atOpacity(const Color(0x6EFFFFFF), rim.opacity),
+      blur: rim.blur,
+      saturation: 1.2,
+      shadow: shadow,
+      refractionIndex: rim.refractionIndex,
+      refractionWidth: rim.refractionWidth,
+      chromaticAberration: 0.002,
     );
 
 /// What the frost does about the photograph under it. The material is
@@ -343,7 +354,7 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
         // pinned here, and the grid sits on paper in the light and on
         // near-black in the dark.
         backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        actionMargin: _edge,
+        bottomNavigationBarActionMargin: _edge,
         // Every glass slot below — header controls, the tab capsule,
         // the search circle — inherits these palettes and judges the
         // photographs behind ITSELF, so nothing here has to be told
@@ -435,7 +446,18 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
             mode: LiquidGlassPillMode.both,
             animated: true,
             growHeight: 7,
-            distortionWidth: 10,
+            // The pill wears the page's lights and bends with the same
+            // index; its band keeps its own narrower proportion of the
+            // slider's. Clear, unblurred, with the pill's own shadow.
+            glassStyle: LiquidGlassStyle(
+              specular: _rim.specular,
+              glow: _rim.glow,
+              secondSpecular: _rim.secondSpecular,
+              refractionIndex: _rim.refractionIndex,
+              refractionWidth: 10 * _rim.refractionWidth / _kRefractionWidth,
+              chromaticAberration: 0.002,
+              shadow: const LiquidGlassShadow(blur: 9, opacity: 0.3),
+            ),
             // Travelling, the pill carries almost no tint — over a
             // capsule this pale, a fill would only mud it. It is the
             // refraction of the bar's own frost that reads as movement.
@@ -443,10 +465,8 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
             // Where it lands: the lighter capsule of the reference, a
             // lift of white on white.
             rest: LiquidGlassStyle(
-              shape: _frostShape(50, _rim),
-              appearance: const LiquidGlassAppearance(
-                color: Color.fromARGB(40, 0, 0, 0),
-              ),
+              shape: _frostShape(50),
+              color: Color.fromARGB(40, 0, 0, 0),
             ),
           ),
         ),
@@ -830,8 +850,9 @@ class _FilterMenu extends StatelessWidget {
   }
 }
 
-/// Every optical border value as a live control. Each change goes up to
-/// the page, which recuts all the glass on it with the new rim.
+/// Every specular and glow value as a live control, plus the fill and the
+/// refraction. Each change goes up to the page, which recuts all the glass
+/// on it with the new rim.
 class _RimTuner extends StatelessWidget {
   const _RimTuner({
     required this.rim,
@@ -845,14 +866,28 @@ class _RimTuner extends StatelessWidget {
 
   static const double _headerHeight = 38;
   static const double _sliderHeight = 42;
-  static const int _sliders = 8;
+  static const double _sectionHeight = 28;
+  static const double _swatchHeight = 40;
 
-  /// Fixed, so the menu's height can be known before it is laid out.
-  static const double height =
-      _headerHeight + _sliders * _sliderHeight + 8;
+  /// The colours a light can be given; `null` is the picked-up colour.
+  static const List<Color?> _swatches = [
+    null,
+    Color(0xFFFFFFFF),
+    Color(0xFF000000),
+    _kTint,
+    Color(0xFFFF375F),
+    Color(0xFFFFD60A),
+  ];
+
+  /// Fixed, so the menu's height can be known before it is laid out. The
+  /// controls scroll inside it.
+  static const double height = _headerHeight + 9 * _sliderHeight;
 
   @override
   Widget build(BuildContext context) {
+    final LiquidGlassLight s = rim.specular;
+    final LiquidGlassLight g = rim.glow;
+    final LiquidGlassLight s2 = rim.secondSpecular;
     return SizedBox(
       height: height,
       child: DecoratedBox(
@@ -881,14 +916,6 @@ class _RimTuner extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    for (final LiquidGlassLightMode m
-                        in LiquidGlassLightMode.values)
-                      _ModeChip(
-                        label: m.name,
-                        on: rim.mode == m,
-                        ink: ink,
-                        onTap: () => onChanged(rim.copyWith(mode: m)),
-                      ),
                     const SizedBox(width: 4),
                     GestureDetector(
                       behavior: HitTestBehavior.opaque,
@@ -902,25 +929,154 @@ class _RimTuner extends StatelessWidget {
                 ),
               ),
             ),
-            _slider('Tint opacity', rim.opacity, 0, 1,
-                (v) => rim.copyWith(opacity: v),
-                digits: 0, unit: '%', display: 100),
-            _slider('Width', rim.width, 0, 4,
-                (v) => rim.copyWith(width: v)),
-            _slider('Light intensity', rim.intensity, 0, 3,
-                (v) => rim.copyWith(intensity: v)),
-            _slider('Light direction', rim.direction, 0, 360,
-                (v) => rim.copyWith(direction: v),
-                digits: 0, unit: '°'),
-            _slider('Light spread', rim.spread, 0, 1,
-                (v) => rim.copyWith(spread: v)),
-            _slider('Solidity', rim.solidity, 0, 1,
-                (v) => rim.copyWith(solidity: v)),
-            _slider('Ambient', rim.ambient, 0, 5,
-                (v) => rim.copyWith(ambient: v)),
-            _slider('Saturation', rim.saturation, 0, 3,
-                (v) => rim.copyWith(saturation: v)),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 8),
+                children: [
+                  _section('Specular'),
+                  _slider('Thickness', s.thickness, 0, 4,
+                      (v) => rim.copyWith(specular: s.copyWith(thickness: v))),
+                  _slider('Sharpness', s.sharpness, 0, 1,
+                      (v) => rim.copyWith(specular: s.copyWith(sharpness: v))),
+                  _slider('Angle', s.angle, 0, 360,
+                      (v) => rim.copyWith(specular: s.copyWith(angle: v)),
+                      digits: 0, unit: '°'),
+                  _slider('Spread', s.spread, 0, 1,
+                      (v) => rim.copyWith(specular: s.copyWith(spread: v))),
+                  _slider('Intensity', s.intensity, 0, 3,
+                      (v) => rim.copyWith(specular: s.copyWith(intensity: v))),
+                  ..._colour(s, (l) => rim.copyWith(specular: l),
+                      specular: true),
+                  _section('Specular 2'),
+                  _slider('Thickness', s2.thickness, 0, 4,
+                      (v) => rim.copyWith(secondSpecular: s2.copyWith(thickness: v))),
+                  _slider('Sharpness', s2.sharpness, 0, 1,
+                      (v) => rim.copyWith(secondSpecular: s2.copyWith(sharpness: v))),
+                  _slider('Angle', s2.angle, 0, 360,
+                      (v) => rim.copyWith(secondSpecular: s2.copyWith(angle: v)),
+                      digits: 0, unit: '°'),
+                  _slider('Spread', s2.spread, 0, 1,
+                      (v) => rim.copyWith(secondSpecular: s2.copyWith(spread: v))),
+                  _slider('Intensity', s2.intensity, 0, 3,
+                      (v) => rim.copyWith(secondSpecular: s2.copyWith(intensity: v))),
+                  ..._colour(s2, (l) => rim.copyWith(secondSpecular: l),
+                      specular: true),
+                  _section('Glow'),
+                  _slider('Thickness', g.thickness, 0, 4,
+                      (v) => rim.copyWith(glow: g.copyWith(thickness: v))),
+                  _slider('Angle', g.angle, 0, 360,
+                      (v) => rim.copyWith(glow: g.copyWith(angle: v)),
+                      digits: 0, unit: '°'),
+                  _slider('Spread', g.spread, 0, 1,
+                      (v) => rim.copyWith(glow: g.copyWith(spread: v))),
+                  _slider('Intensity', g.intensity, 0, 5,
+                      (v) => rim.copyWith(glow: g.copyWith(intensity: v))),
+                  ..._colour(g, (l) => rim.copyWith(glow: l),
+                      specular: false),
+                  _section('Glass'),
+                  _slider('Tint opacity', rim.opacity, 0, 1,
+                      (v) => rim.copyWith(opacity: v),
+                      digits: 0, unit: '%', display: 100),
+                  _slider('Refraction index', rim.refractionIndex, 1, 1.2,
+                      (v) => rim.copyWith(refractionIndex: v),
+                      digits: 3),
+                  _slider('Refraction width', rim.refractionWidth, 0, 60,
+                      (v) => rim.copyWith(refractionWidth: v),
+                      digits: 0),
+                  _slider('Blur', rim.blur, 0, 12,
+                      (v) => rim.copyWith(blur: v),
+                      digits: 1),
+                ],
+              ),
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// The colour swatches, and the colour's alpha once one is picked.
+  List<Widget> _colour(
+    LiquidGlassLight light,
+    _Rim Function(LiquidGlassLight) apply, {
+    required bool specular,
+  }) {
+    final Color? c = light.color;
+    return [
+      SizedBox(
+        height: _swatchHeight,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              const Text(
+                'Colour',
+                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final Color? swatch in _swatches)
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: () => onChanged(apply(_withColor(
+                            light,
+                            swatch?.withValues(alpha: c?.a ?? 1),
+                            specular: specular,
+                          ))),
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 6),
+                            child: _Swatch(
+                              color: swatch,
+                              on: swatch == null
+                                  ? c == null
+                                  : c != null && c.withValues(alpha: 1) == swatch,
+                              ink: ink,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      if (c != null)
+        _slider(
+          'Colour alpha',
+          c.a,
+          0,
+          1,
+          (v) => apply(
+            _withColor(light, c.withValues(alpha: v), specular: specular),
+          ),
+        ),
+    ];
+  }
+
+  Widget _section(String title) {
+    return SizedBox(
+      height: _sectionHeight,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: Text(
+            title.toUpperCase(),
+            style: TextStyle(
+              color: ink.withValues(alpha: ink.a * 0.55),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
+          ),
         ),
       ),
     );
@@ -990,40 +1146,40 @@ class _RimTuner extends StatelessWidget {
   }
 }
 
-class _ModeChip extends StatelessWidget {
-  const _ModeChip({
-    required this.label,
-    required this.on,
-    required this.ink,
-    required this.onTap,
-  });
+/// One colour choice in the tuner; a `null` colour is the picked-up colour,
+/// drawn as an outlined "A".
+class _Swatch extends StatelessWidget {
+  const _Swatch({required this.color, required this.on, required this.ink});
 
-  final String label;
+  final Color? color;
   final bool on;
   final Color ink;
-  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.only(left: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(
-          color: on ? _kTint : ink.withValues(alpha: ink.a * 0.08),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            color: on ? Colors.white : null,
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-          ),
+    final Color? c = color;
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: c,
+        border: Border.all(
+          color: on ? _kTint : ink.withValues(alpha: ink.a * 0.3),
+          width: on ? 2.2 : 1,
         ),
       ),
+      child: c == null
+          ? Text(
+              'A',
+              style: TextStyle(
+                color: ink,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            )
+          : null,
     );
   }
 }

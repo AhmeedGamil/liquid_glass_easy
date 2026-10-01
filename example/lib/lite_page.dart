@@ -47,7 +47,7 @@ class _LitePageState extends State<LitePage> {
   double _blur = 3;
   double _magnification = 1.0;
   int _tint = 1;
-  double _border = 1.5;
+  double _border = 1.0;
 
   /// The tints on offer. `null` is no tint at all.
   static const List<(String, Color?)> _tints = <(String, Color?)>[
@@ -75,14 +75,16 @@ class _LitePageState extends State<LitePage> {
 
   Color? get _color => _tints[_tint].$2;
 
-  LiquidGlassBlur get _frost => LiquidGlassBlur(sigmaX: _blur, sigmaY: _blur);
-
   LiquidGlassShape _shape(double radius) =>
       LiquidGlassShape.continuousRoundedRectangle(
         cornerRadius: radius,
-        borderWidth: _border,
-        lightDirection: 39,
       );
+
+  LiquidGlassLight get _specular =>
+      LiquidGlassLight.specular(thickness: _border, angle: 39);
+
+  LiquidGlassLight get _glow =>
+      LiquidGlassLight.glow(thickness: _border, angle: 129);
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +108,8 @@ class _LitePageState extends State<LitePage> {
                     child: LiquidGlassDraggable(
                       child: LiquidGlassLite(
                         shape: _shape(34),
-                        blur: _frost,
+                        specular: _specular,
+                        blur: _blur,
                         magnification: _magnification,
                         pickup: _pickup,
                         color: _color,
@@ -152,13 +155,11 @@ class _LitePageState extends State<LitePage> {
                         style: LiquidGlassStyle(
                           liteGlass: _pickup,
                           shape: _shape(_button / 2),
-                          appearance: LiquidGlassAppearance(
-                            color: _color ?? Colors.transparent,
-                            blur: _frost,
-                          ),
-                          refraction: LiquidGlassRefraction(
-                            magnification: _magnification,
-                          ),
+                          specular: _specular,
+                          glow: _glow,
+                          color: _color ?? Colors.transparent,
+                          blur: _blur,
+                          magnification: _magnification,
                         ),
                         child: const Center(
                           child: Icon(Icons.add_rounded,

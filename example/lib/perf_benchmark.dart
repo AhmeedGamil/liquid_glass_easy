@@ -177,19 +177,13 @@ class _PerfBenchmarkPageState extends State<PerfBenchmarkPage>
           style: const LiquidGlassStyle(
             shape: LiquidGlassShape.continuousRoundedRectangle(
               cornerRadius: 48,
-              lightIntensity: 3,
             ),
-            appearance: LiquidGlassAppearance(color: Color(0x14FFFFFF)),
-            refraction: LiquidGlassRefraction(
-              magnification: 1.15,
-              chromaticAberration: 0.02, // strong CA = extra texture taps
-              refractionMode: LiquidGlassRefractionMode.shapeRefraction,
-              refractionType: OpticalRefraction(
-                refraction: 1.6,
-                refractionWidth: 40, // wide band = more pixels on the hot path
-                depth: 1.0,
-              ),
-            ),
+            specular: LiquidGlassLight.specular(intensity: 3),
+            color: Color(0x14FFFFFF),
+            refractionIndex: 1.6,
+            refractionWidth: 40,
+            magnification: 1.15,
+            chromaticAberration: 0.02,
           ),
           child: const SizedBox.shrink(),
         ),

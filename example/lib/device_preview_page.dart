@@ -86,16 +86,13 @@ class _PreviewedHome extends StatelessWidget {
   static const LiquidGlassStyle _style = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 40,
-      borderWidth: 1.5,
     ),
-    appearance: LiquidGlassAppearance(
-      color: Color(0x14FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.11,
-      distortionWidth: 40,
-    ),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.5),
+    color: Color(0x14FFFFFF),
+    blur: 2,
+    refractionIndex: 1.022,
+    refractionWidth: 40,
   );
 
   void _push(BuildContext context, Widget page) {

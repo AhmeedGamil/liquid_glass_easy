@@ -54,19 +54,13 @@ class _MotionPillPageState extends State<MotionPillPage> {
   static const LiquidGlassStyle _glass = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: _restHeight / 2,
-      borderWidth: 1.2,
-      // Lit from just off the top-left, so the rim brightens along the
-      // capsule's leading shoulder rather than dead across its top.
-      lightDirection: 39,
     ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.2,
-      distortionWidth: 22,
-      magnification: 1.12,
-    ),
-    appearance: LiquidGlassAppearance(
-      shadow: LiquidGlassShadow(blur: 12, opacity: 0.2),
-    ),
+    specular: LiquidGlassLight.specular(angle: 39),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 129),
+    refractionIndex: 1.017,
+    refractionWidth: 22,
+    magnification: 1.12,
+    shadow: LiquidGlassShadow(blur: 12, opacity: 0.2),
   );
 
   void _moveTo(double x, double width) {

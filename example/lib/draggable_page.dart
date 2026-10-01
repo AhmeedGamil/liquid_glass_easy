@@ -50,15 +50,12 @@ class _DraggablePageState extends State<DraggablePage> {
   static const LiquidGlassStyle _clear = LiquidGlassStyle(
     shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: _size / 2,
-      borderWidth: 1.4,
     ),
-    // No magnification: the disc bends what is behind it without
-    // enlarging it, so the photograph lines up across its rim.
-    refraction: LiquidGlassRefraction(
-      distortion: 0.2,
-      distortionWidth: 30,
-      magnification: 1,
-    ),
+    specular: LiquidGlassLight.specular(),
+    glow: LiquidGlassLight.glow(thickness: 1.4),
+    refractionIndex: 1.017,
+    refractionWidth: 30,
+    magnification: 1,
   );
 
   @override

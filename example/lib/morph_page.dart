@@ -81,25 +81,17 @@ class _LiquidGlassMorphExamplePageState
             ? LiquidGlassCornerStyle.squircle
             : LiquidGlassCornerStyle.continuousRoundedRectangle,
         cornerRadius: _step == _Step.panel ? 30 : 28,
-        borderWidth: 1.4,
       );
 
   LiquidGlassStyle get _style => LiquidGlassStyle(
         shape: _shape,
-        appearance: LiquidGlassAppearance(
-          color: const Color(0x1FFFFFFF),
-          saturation: 1.06,
-          blur: LiquidGlassBlur(sigmaX: _morphBlur, sigmaY: _morphBlur),
-        ),
-        // Fixed, not a knob: the refraction is what the morph is tuned
-        // to wear, and the panel is about the shapes it takes.
-        refraction: const LiquidGlassRefraction(
-          refractionType: OpticalRefraction(
-            refraction: 1.5,
-            refractionWidth: 22,
-            depth: 0.5,
-          ),
-        ),
+        specular: const LiquidGlassLight.specular(),
+        glow: const LiquidGlassLight.glow(thickness: 1.4),
+        color: const Color(0x1FFFFFFF),
+        saturation: 1.06,
+        blur: _morphBlur,
+        refractionIndex: 1.117,
+        refractionWidth: 22,
       );
 
   /// The panel row last tapped, so a tap inside the panel visibly lands

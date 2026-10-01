@@ -109,25 +109,15 @@ class CcConnectivityState {
 LiquidGlassStyle _cardStyle() => LiquidGlassStyle(
       shape: const LiquidGlassShape.continuousRoundedRectangle(
         cornerRadius: 32,
-        borderWidth: 1.0,
-        lightIntensity: 1.1,
-        lightDirection: 39,
-        borderType: OpticalBorder(
-          borderSaturation: 0.8,
-          ambientIntensity: 5.0,
-          borderSolidity: 0.35,
-        ),
       ),
-      refraction: const LiquidGlassRefraction(
-        magnification: 1,
-        distortion: 0.15,
-        distortionWidth: 40,
-        chromaticAberration: 0,
-      ),
-      appearance: LiquidGlassAppearance(
-        saturation: 1.25,
-        color: Colors.white.withAlpha(50),
-      ),
+      specular: LiquidGlassLight.specular(angle: 39, intensity: 1.1),
+      glow: LiquidGlassLight.glow(thickness: 1.0, angle: 129, intensity: 5.0),
+      refractionIndex: 1.02,
+      refractionWidth: 40,
+      magnification: 1,
+      chromaticAberration: 0,
+      saturation: 1.25,
+      color: Colors.white.withAlpha(50),
     );
 
 class CcConnectivityCard extends StatelessWidget {
@@ -579,27 +569,17 @@ class CcRoundTile extends StatelessWidget {
       style: LiquidGlassStyle(
         shape: LiquidGlassShape.continuousRoundedRectangle(
           cornerRadius: size / 2,
-          borderWidth: 1.0,
-          lightIntensity: active ? 1.5 : 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 0.8,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.4,
-          ),
         ),
-        refraction: const LiquidGlassRefraction(
-          magnification: 1,
-          distortion: 0.1,
-          distortionWidth: 30,
-          chromaticAberration: 0,
-        ),
-        appearance: LiquidGlassAppearance(
-          saturation: 1.25,
-          color: active
+        specular: LiquidGlassLight.specular(angle: 80, intensity: active ? 1.5 : 1.1),
+        glow: const LiquidGlassLight.glow(thickness: 1.0, angle: 170, intensity: 1.0),
+        refractionIndex: 1.023,
+        refractionWidth: 30,
+        magnification: 1,
+        chromaticAberration: 0,
+        saturation: 1.25,
+        color: active
               ? activeColor.withAlpha(180)
               : Colors.white.withAlpha(50),
-        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -682,25 +662,15 @@ class CcVerticalSliderLens extends StatelessWidget {
       style: LiquidGlassStyle(
         shape: LiquidGlassShape.continuousRoundedRectangle(
           cornerRadius: width / 2,
-          borderWidth: 1.0,
-          lightIntensity: 1.2,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 0.8,
-            ambientIntensity: 4.0,
-            borderSolidity: 0.5,
-          ),
         ),
-        refraction: const LiquidGlassRefraction(
-          magnification: 1,
-          distortion: 0.1,
-          distortionWidth: 37,
-          chromaticAberration: 0,
-        ),
-        appearance: LiquidGlassAppearance(
-          saturation: 1.25,
-          color: Colors.white.withAlpha(50),
-        ),
+        specular: const LiquidGlassLight.specular(angle: 80, intensity: 1.2),
+        glow: const LiquidGlassLight.glow(thickness: 1.0, angle: 170, intensity: 4.0),
+        refractionIndex: 1.023,
+        refractionWidth: 37,
+        magnification: 1,
+        chromaticAberration: 0,
+        saturation: 1.25,
+        color: Colors.white.withAlpha(50),
       ),
       child: _VerticalSliderGestureChild(
         width: width,
@@ -760,24 +730,14 @@ class CcFocusPill extends StatelessWidget {
       style: LiquidGlassStyle(
         shape: LiquidGlassShape.continuousRoundedRectangle(
           cornerRadius: height / 2,
-          borderWidth: 1.0,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 0.8,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
         ),
-        refraction: const LiquidGlassRefraction(
-          distortion: 0.08,
-          distortionWidth: 32,
-          chromaticAberration: 0,
-        ),
-        appearance: LiquidGlassAppearance(
-          saturation: 1.25,
-          color: Colors.white.withAlpha(50),
-        ),
+        specular: const LiquidGlassLight.specular(angle: 80, intensity: 1.1),
+        glow: const LiquidGlassLight.glow(thickness: 1.0, angle: 170, intensity: 1.0),
+        refractionIndex: 1.024,
+        refractionWidth: 32,
+        chromaticAberration: 0,
+        saturation: 1.25,
+        color: Colors.white.withAlpha(50),
       ),
       child: Material(
         color: Colors.transparent,

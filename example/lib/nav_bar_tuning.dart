@@ -10,29 +10,30 @@ import 'tuning_store.dart';
 // =============================================================
 
 /// A continuous (Apple capsule-style) rounded-rectangle glass shape for the
-/// nav bar, with a tunable [lightDirection].
-LiquidGlassShape _navGlass(double cornerRadius, double lightDirection) =>
+/// nav bar.
+LiquidGlassShape _navGlass(double cornerRadius) =>
     LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: cornerRadius,
       clipQuality: LiquidGlassClipQuality.exact,
-      borderWidth: 0.8,
-      lightIntensity: 1.1,
-      lightDirection: lightDirection,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.2,
-        ambientIntensity: 1.0,
-        borderSolidity: 1,
-      ),
     );
+
+/// The nav bar's rim highlight, on a tunable [lightDirection].
+LiquidGlassLight _navSpecular(double lightDirection) =>
+    LiquidGlassLight.specular(
+        angle: lightDirection, intensity: 1.1);
+
+/// The nav bar's side glow, a quarter turn from the highlight.
+LiquidGlassLight _navGlow(double lightDirection) => LiquidGlassLight.glow(
+    thickness: 0.8, angle: lightDirection + 90, intensity: 1.0);
 
 /// The bar capsule's look for a given tuning — the tunable bits are the
 /// rim [NavTuning.lightDirection] and the frosted [NavTuning.background].
 LiquidGlassStyle navBarStyle(NavTuning n) => LiquidGlassStyle(
-      shape: _navGlass(50, n.lightDirection),
-      appearance: LiquidGlassAppearance(
-        color: n.background,
-        blur: const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-      ),
+      shape: _navGlass(50),
+      specular: _navSpecular(n.lightDirection),
+      glow: _navGlow(n.lightDirection),
+      color: n.background,
+      blur: 3,
     );
 
 /// The selection-pill style for a given tuning — motion + travel + grow.
@@ -42,13 +43,13 @@ LiquidGlassTabPillStyle navPillStyle(NavTuning n) => LiquidGlassTabPillStyle(
       growHeight: n.growHeight,
       travelStiffness: n.travelStiffness,
       travelDamping: n.travelDamping,
-      shape: _navGlass(59, n.lightDirection),
-      glassStyle: const LiquidGlassStyle(
-        appearance: LiquidGlassAppearance(color: Colors.transparent),
-        refraction: LiquidGlassRefraction(
-          distortion: 0.05,
-          distortionWidth: 10,
-        ),
+      shape: _navGlass(59),
+      glassStyle: LiquidGlassStyle(
+        specular: _navSpecular(n.lightDirection),
+        glow: _navGlow(n.lightDirection),
+        color: Colors.transparent,
+        refractionIndex: 1.026,
+        refractionWidth: 10,
       ),
       motion: n.motion,
     );
