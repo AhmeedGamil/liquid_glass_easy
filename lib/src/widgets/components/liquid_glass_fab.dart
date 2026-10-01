@@ -3,10 +3,8 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import 'liquid_glass_adaptive_area.dart';
-import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_shadow.dart';
 
@@ -125,24 +123,20 @@ class LiquidGlassFab extends StatelessWidget {
   /// Whether this is an extended FAB layout.
   final bool isExtended;
 
-  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
-    color: Color(0x1CFFFFFF), // white, alpha 28
-    blur: LiquidGlassBlur(sigmaX: 4, sigmaY: 4),
-    // The contact shadow rides the appearance, like every lens's; hand
-    // over an appearance carrying none to drop it.
-    shadow: LiquidGlassShadow(blur: 9, opacity: 0.25),
-  );
-
-  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.08,
-    distortionWidth: 28,
-    chromaticAberration: 0.002,
-  );
-
   /// The tuned default look for liquid glass FAB.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: _defaultAppearance,
-    refraction: _defaultRefraction,
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.4, angle: 80, intensity: 1.2),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    // white, alpha 28
+    color: Color(0x1CFFFFFF),
+    blur: 4,
+    // The contact shadow rides the style, like every lens's; hand over a
+    // style carrying none to drop it.
+    shadow: LiquidGlassShadow(blur: 9, opacity: 0.25),
+    refractionIndex: 1.024,
+    refractionWidth: 28,
+    chromaticAberration: 0.002,
   );
 
   @override
@@ -155,14 +149,6 @@ class LiquidGlassFab extends StatelessWidget {
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: effectiveHeight / 2,
-          borderWidth: 1.2,
-          lightIntensity: 1.2,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.3,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.4,
-          ),
         );
 
     // Adaptivity from this FAB's own style or an enclosing area
@@ -207,8 +193,17 @@ class LiquidGlassFab extends StatelessWidget {
       child: LiquidGlassLens(
         style: LiquidGlassStyle(
           shape: effectiveShape,
-          appearance: resolved.appearance,
-          refraction: resolved.refraction,
+          specular: resolved.specular,
+          glow: resolved.glow,
+          secondSpecular: resolved.secondSpecular,
+          saturation: resolved.saturation,
+          blur: resolved.blur,
+          color: resolved.color,
+          shadow: resolved.shadow,
+          refractionIndex: resolved.refractionIndex,
+          refractionWidth: resolved.refractionWidth,
+          magnification: resolved.magnification,
+          chromaticAberration: resolved.chromaticAberration,
           // Was dropped: a FAB styled with its own adaptivity never
           // reached the lens, so only an enclosing area could flip it.
           adaptivity: resolved.adaptivity,

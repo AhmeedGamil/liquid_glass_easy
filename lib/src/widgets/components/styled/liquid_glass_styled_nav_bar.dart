@@ -27,8 +27,7 @@ import 'package:flutter/scheduler.dart';
 import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../liquid_glass.dart';
 import '../../liquid_glass_view.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_border_mode.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../bottom_nav_bar/liquid_glass_nav_bar_layout.dart'
@@ -61,7 +60,7 @@ import 'liquid_glass_styles.dart';
 ///   selectedIndex: index,
 ///   onChanged: (i) => setState(() => index = i),
 ///   layout: LiquidGlassTabBarLayout(itemCount: items.length, width: 300),
-///   refraction: const LiquidGlassRefraction(distortion: 0.10), // override
+///   refraction: const LiquidGlassRefraction(refractionIndex: 1.02), // override
 ///   // appearance / shape left null -> bar defaults are used
 ///   itemStyle: const LiquidGlassNavBarItemStyle(),
 ///   motion: const LiquidGlassMotion(),
@@ -478,12 +477,10 @@ class _LiquidGlassStyledNavBarState extends State<LiquidGlassStyledNavBar>
                   parentWidth: parentWidth,
                   dx: dx,
                   blur: widget.pill.blur,
-                  distortion: widget.pill.distortion,
-                  distortionWidth: widget.pill.distortionWidth,
+                  refractionIndex: widget.pill.refractionIndex,
+                  refractionWidth: widget.pill.refractionWidth,
                   refraction: widget.pill.refraction,
                   magnification: widget.pill.magnification,
-                  enableInnerRadiusTransparent:
-                      widget.pill.enableInnerRadiusTransparent,
                   extraHeight: pillExtraH + tabStretchH,
                   extraWidth: (glassW - layout.pillWidth) + tabSqueezeW,
                 ),
@@ -616,27 +613,24 @@ LiquidGlass _buildStyledNavCapsule({
       height: layout.height,
     ),
     shape: shape ??
-        LiquidGlassShape.roundedRectangle(
+        LiquidGlassLitShape(
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: layout.height / 2,
-          borderWidth: 1.2,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
+          specular: const LiquidGlassLight.specular(
+              thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+          glow: const LiquidGlassLight.glow(
+              thickness: 1.2, angle: 170, intensity: 1.0),
         ),
     refraction: refraction ??
         const LiquidGlassRefraction(
-          distortion: 0.07,
-          distortionWidth: 28,
+          refractionIndex: 1.025,
+          refractionWidth: 28,
           chromaticAberration: 0.002,
         ),
     appearance: appearance ??
         const LiquidGlassAppearance(
           color: Color(0x16FFFFFF), // white, alpha 22
-          blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
+          blur: 2,
         ),
   );
 }
@@ -652,12 +646,11 @@ LiquidGlass _buildStyledNavPill({
   double? extraHeight,
   double extraWidth = 0,
   double dx = 0,
-  LiquidGlassBlur blur = const LiquidGlassBlur(),
-  double distortion = 0.06,
-  double distortionWidth = 10,
+  double blur = 0,
+  double refractionIndex = 1.025,
+  double refractionWidth = 10,
   LiquidGlassRefraction? refraction,
   double magnification = 1,
-  bool enableInnerRadiusTransparent = false,
 }) {
   final extra = extraHeight ?? layout.pillExtraHeight;
   final cellW = layout.cellWidth;
@@ -676,28 +669,24 @@ LiquidGlass _buildStyledNavPill({
       width: pillW,
       height: pillH,
     ),
-    shape: LiquidGlassShape.roundedRectangle(
+    shape: LiquidGlassLitShape(
+      cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
       cornerRadius: pillH / 2,
-      borderWidth: 1.0,
-      lightIntensity: 1.3,
-      lightDirection: 80,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.4,
-        ambientIntensity: 1.0,
-        borderSolidity: 0.5,
-      ),
+      specular: const LiquidGlassLight.specular(
+          thickness: 1.0, sharpness: 0.5, angle: 80, intensity: 1.3),
+      glow: const LiquidGlassLight.glow(
+          thickness: 1.0, angle: 170, intensity: 1.0),
     ),
     refraction: refraction ??
         LiquidGlassRefraction(
-          distortion: distortion,
-          distortionWidth: distortionWidth,
+          refractionIndex: refractionIndex,
+          refractionWidth: refractionWidth,
           magnification: magnification,
           chromaticAberration: 0.002,
         ),
     appearance: LiquidGlassAppearance(
       color: Colors.white.withAlpha(28),
       blur: blur,
-      enableInnerRadiusTransparent: enableInnerRadiusTransparent,
     ),
   );
 }

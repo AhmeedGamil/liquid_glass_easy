@@ -5,12 +5,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../../controllers/liquid_glass_view_controller.dart';
-import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../lens/liquid_glass_batch.dart';
 import '../../liquid_glass_view.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_border_mode.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_eager_pan.dart';
 import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_lens_motion.dart';
@@ -137,12 +135,11 @@ class LiquidGlassSlider extends StatefulWidget {
   /// Glass look of the expanded thumb, its contact shadow included;
   /// `null` keeps [defaultStyle]. To change one facet and keep the rest,
   /// compose from it:
-  /// `LiquidGlassSlider.defaultStyle.copyWith(refraction: …)`.
+  /// `LiquidGlassSlider.defaultStyle.copyWith(refractionIndex: …)`.
   ///
-  /// The shadow lives in `appearance.shadow` — retune it with
-  /// `defaultStyle.copyWith(appearance: defaultStyle.appearance.copyWith(
-  /// shadow: …))`, or drop it by handing over an appearance that carries
-  /// none.
+  /// The shadow lives in the style's `shadow` — retune it with
+  /// `defaultStyle.copyWith(shadow: …)`, or drop it by building a style
+  /// that names none.
   final LiquidGlassStyle? style;
 
   /// The tuned default thumb glass: a clear capsule — refraction and a
@@ -164,24 +161,15 @@ class LiquidGlassSlider extends StatefulWidget {
     // and squashes — it clamps to half the height.
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 100,
-      borderWidth: 0.4,
-      lightIntensity: 1,
-      lightDirection: 39,
-      // The rim's glint sits between gray and white rather than at pure
-      // white, which reads softer on pale backgrounds.
-      lightColor: Color(0xB2C8C8C8),
-      borderType: OpticalBorder(borderSolidity: 0.5),
     ),
-    appearance: LiquidGlassAppearance(
-      color: Colors.transparent,
-      blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
-      shadow: LiquidGlassShadow(inset: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 18,
-      chromaticAberration: 0.002,
-    ),
+    specular: LiquidGlassLight.specular(thickness: 0.4, angle: 39),
+    glow: LiquidGlassLight.glow(thickness: 0.4, angle: 129),
+    color: Colors.transparent,
+    blur: 0.5,
+    shadow: LiquidGlassShadow(inset: 3),
+    refractionIndex: 1.025,
+    refractionWidth: 18,
+    chromaticAberration: 0.002,
   );
 
   /// Capture resolution for the inner view.

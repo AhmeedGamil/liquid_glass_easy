@@ -6,7 +6,6 @@ import 'package:flutter/widgets.dart';
 
 import '../liquid_glass_config.dart';
 import 'liquid_glass_spring.dart';
-import 'liquid_glass_refraction_type.dart';
 
 /// Touch-driven **soft-body deformation** for a lens that does not move.
 ///
@@ -1088,11 +1087,6 @@ Widget liquidGlassFlexBox({
 /// lens centre. Only the first is on by default — magnification is not a
 /// refraction depth, and raising it reads as the content behind the glass
 /// sliding, i.e. a scale-up of the picture instead of the frame.
-///
-/// Which dial carries it depends on the configuration: the legacy `distortion`
-/// when no [LiquidGlassRefractionType] is set, otherwise the type's own
-/// strength via [LiquidGlassRefractionType.withEffectFactor], since a type
-/// overrides the legacy field entirely.
 LiquidGlassRefraction liquidGlassFlexRefraction(
   LiquidGlassRefraction refraction,
   LiquidGlassFlex spec,
@@ -1102,14 +1096,11 @@ LiquidGlassRefraction liquidGlassFlexRefraction(
   final double k = spec.refractionBoost * t;
   final double m = spec.magnificationBoost * t;
   if (k <= 0 && m <= 0) return refraction;
-  final LiquidGlassRefractionType? type = refraction.refractionType;
-  return refraction.copyWith(
-    // Legacy controls only when no type is configured; a type overrides them
-    // and carries its own strength, so scale that instead.
-    distortion: k > 0 && type == null ? refraction.distortion * (1 + k) : null,
-    refractionType: k > 0 ? type?.withEffectFactor(1 + k) : null,
-    // Null leaves it untouched, which is the default: magnificationBoost is 0
-    // unless a caller asks for the zoom.
+  final LiquidGlassRefraction pressed =
+      k > 0 ? refraction.withEffectFactor(1 + k) : refraction;
+  // Null leaves it untouched, which is the default: magnificationBoost is 0
+  // unless a caller asks for the zoom.
+  return pressed.copyWith(
     magnification: m > 0 ? refraction.magnification * (1 + m) : null,
   );
 }
@@ -1142,7 +1133,10 @@ LiquidGlass liquidGlassFlexConfig(
   return config.copyWith(
     geometry: config.geometry.copyWith(width: size.width, height: size.height),
     refraction: refraction,
-    style: config.style?.copyWith(refraction: refraction),
+    style: config.style?.copyWith(
+      refractionIndex: refraction.refractionIndex,
+      magnification: refraction.magnification,
+    ),
   );
 }
 

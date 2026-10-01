@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
-import 'liquid_glass_border_mode.dart';
-import 'liquid_glass_light_mode.dart';
+import 'liquid_glass_light.dart';
 
 /// The corner curve of a [LiquidGlassShape].
 ///
@@ -29,13 +28,13 @@ enum LiquidGlassCornerStyle {
   continuousRoundedRectangle,
 }
 
-/// The geometry, border and lighting of a liquid-glass lens.
+/// The outline of a liquid-glass surface: its corner curve and radius.
 ///
 /// One concrete class: the corner curve is chosen by [cornerStyle] (or one of
-/// the [LiquidGlassShape.rounded] / [LiquidGlassShape.squircle] /
-/// [LiquidGlassShape.continuous] convenience constructors). Border styling is
-/// shared across both classic and optical border modes; mode-specific
-/// parameters are encapsulated in [borderType].
+/// the [LiquidGlassShape.roundedRectangle] / [LiquidGlassShape.squircle] /
+/// [LiquidGlassShape.continuousRoundedRectangle] convenience constructors).
+/// The border lives on the style: see `LiquidGlassStyle.specular` and
+/// `LiquidGlassStyle.glow`.
 class LiquidGlassShape {
   /// The corner curve. See [LiquidGlassCornerStyle].
   final LiquidGlassCornerStyle cornerStyle;
@@ -49,76 +48,10 @@ class LiquidGlassShape {
   /// [LiquidGlassClipQuality.roundedRectangle].
   final LiquidGlassClipQuality clipQuality;
 
-  /// The thickness of the lens border in logical pixels.
-  ///
-  /// Increasing this value makes the border appear thicker
-  /// around the lens perimeter.
-  final double borderWidth;
-
-  /// The base color of the lens border.
-  ///
-  /// If not `null`, this will replace the light and shadow color. It's a solid color.
-  final Color? borderColor;
-
-  /// The brightness multiplier for lens lighting and reflections.
-  ///
-  /// Controls how strongly highlights and shadows appear on the border.
-  /// - Typical range: `0.0` (no lighting) → `1.0` (normal brightness) → `>1.0` (strong glow).
-  final double lightIntensity;
-
-  /// The primary highlight color applied to illuminated areas of the lens border.
-  ///
-  /// Used in classic mode (sweep gradient highlight). The optical rim takes
-  /// its colour from the backdrop and currently ignores this. Usually a
-  /// lighter tint such as white or pale yellow.
-  final Color lightColor;
-
-  /// The directional angle (in degrees) from which the simulated light hits the lens.
-  ///
-  /// - `0°` means light comes from the right.
-  /// - `90°` means light comes from the top.
-  /// - `180°` from the left, and `270°` from the bottom.
-  ///
-  /// Used to compute where highlights and shadows fall on the border.
-  ///
-  /// Defaults to `0`, which puts the optical rim's two arcs on the left
-  /// and right of the outline.
-  final double lightDirection;
-
-  /// Defines how lighting is calculated along the liquid glass border.
-  ///
-  /// • [LiquidGlassLightMode.edge] — Uses the shape's edge gradient
-  ///   as the surface normal, producing lighting that follows the
-  ///   contour of the glass border and the light to expand along
-  ///   straight edges. This results in more physically
-  ///   accurate edge highlights.
-  ///
-  /// • [LiquidGlassLightMode.radial] — Uses a radial direction from
-  ///   the center of the glass to each fragment, causing the light to expand naturally
-  ///   along curved edges creating a uniform,
-  ///   lens-like lighting sweep around the border.
-  final LiquidGlassLightMode lightMode;
-
-  /// Defines the rendering style and mode-specific parameters for the border.
-  ///
-  /// - [ClassicBorder] — Sweep gradient with light/shadow colors and softness.
-  /// - [OpticalBorder] — A directional highlight on the backdrop seen through
-  ///   the edge, with a fill light under it.
-  ///
-  /// Defaults to [OpticalBorder].
-  final LiquidGlassBorderType borderType;
-
   const LiquidGlassShape({
     this.cornerStyle = LiquidGlassCornerStyle.continuousRoundedRectangle,
     this.cornerRadius = 50.0,
     this.clipQuality = LiquidGlassClipQuality.roundedRectangle,
-    this.borderWidth = 1.0,
-    this.borderColor,
-    this.lightIntensity = 1.0,
-    this.lightColor = const Color(0xB2FFFFFF),
-    this.lightDirection = 0.0,
-    this.lightMode = LiquidGlassLightMode.edge,
-    this.borderType = const OpticalBorder(),
   });
 
   /// A plain **circular** rounded rectangle
@@ -127,24 +60,10 @@ class LiquidGlassShape {
     double cornerRadius = 50.0,
     LiquidGlassClipQuality clipQuality =
         LiquidGlassClipQuality.roundedRectangle,
-    double borderWidth = 1.0,
-    Color? borderColor,
-    double lightIntensity = 1.0,
-    Color lightColor = const Color(0xB2FFFFFF),
-    double lightDirection = 0.0,
-    LiquidGlassLightMode lightMode = LiquidGlassLightMode.edge,
-    LiquidGlassBorderType borderType = const OpticalBorder(),
   }) : this(
           cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: cornerRadius,
           clipQuality: clipQuality,
-          borderWidth: borderWidth,
-          borderColor: borderColor,
-          lightIntensity: lightIntensity,
-          lightColor: lightColor,
-          lightDirection: lightDirection,
-          lightMode: lightMode,
-          borderType: borderType,
         );
 
   /// An **L^n squircle** rounded rectangle ([LiquidGlassCornerStyle.squircle]) —
@@ -153,24 +72,10 @@ class LiquidGlassShape {
     double cornerRadius = 50.0,
     LiquidGlassClipQuality clipQuality =
         LiquidGlassClipQuality.roundedRectangle,
-    double borderWidth = 1.0,
-    Color? borderColor,
-    double lightIntensity = 1.0,
-    Color lightColor = const Color(0xB2FFFFFF),
-    double lightDirection = 0.0,
-    LiquidGlassLightMode lightMode = LiquidGlassLightMode.edge,
-    LiquidGlassBorderType borderType = const OpticalBorder(),
   }) : this(
           cornerStyle: LiquidGlassCornerStyle.squircle,
           cornerRadius: cornerRadius,
           clipQuality: clipQuality,
-          borderWidth: borderWidth,
-          borderColor: borderColor,
-          lightIntensity: lightIntensity,
-          lightColor: lightColor,
-          lightDirection: lightDirection,
-          lightMode: lightMode,
-          borderType: borderType,
         );
 
   /// An **Apple capsule-style** continuous rounded rectangle
@@ -179,102 +84,113 @@ class LiquidGlassShape {
     double cornerRadius = 50.0,
     LiquidGlassClipQuality clipQuality =
         LiquidGlassClipQuality.roundedRectangle,
-    double borderWidth = 1.0,
-    Color? borderColor,
-    double lightIntensity = 1.0,
-    Color lightColor = const Color(0xB2FFFFFF),
-    double lightDirection = 0.0,
-    LiquidGlassLightMode lightMode = LiquidGlassLightMode.edge,
-    LiquidGlassBorderType borderType = const OpticalBorder(),
   }) : this(
           cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
           cornerRadius: cornerRadius,
           clipQuality: clipQuality,
-          borderWidth: borderWidth,
-          borderColor: borderColor,
-          lightIntensity: lightIntensity,
-          lightColor: lightColor,
-          lightDirection: lightDirection,
-          lightMode: lightMode,
-          borderType: borderType,
         );
 
-  // ── Convenience getters for the painter to extract values ──
+  /// A copy with the given fields replaced.
+  LiquidGlassShape copyWith({
+    LiquidGlassCornerStyle? cornerStyle,
+    double? cornerRadius,
+    LiquidGlassClipQuality? clipQuality,
+  }) =>
+      LiquidGlassShape(
+        cornerStyle: cornerStyle ?? this.cornerStyle,
+        cornerRadius: cornerRadius ?? this.cornerRadius,
+        clipQuality: clipQuality ?? this.clipQuality,
+      );
 
-  /// The one-sided specular highlight intensity.
-  ///
-  /// Classic-only: returns the value from [ClassicBorder.oneSideLightIntensity]
-  /// in classic mode, and `0.0` for optical mode (which derives its rim from
-  /// the glass shape and does not use this specular term).
-  double get oneSideLightIntensity => switch (borderType) {
-        ClassicBorder(oneSideLightIntensity: final v) => v,
-        OpticalBorder() => 0.0,
-      };
-
-  /// The double-sided specular highlight intensity.
-  ///
-  /// Classic-only: returns the value from
-  /// [ClassicBorder.doubleSideLightIntensity] in classic mode, and `0.0` for
-  /// optical mode (which derives its rim from the glass shape and does not use
-  /// this specular term).
-  double get doubleSideLightIntensity => switch (borderType) {
-        ClassicBorder(doubleSideLightIntensity: final v) => v,
-        OpticalBorder() => 0.0,
-      };
-
-  /// The border softness (classic only, returns 1.0 for optical).
-  double get borderSoftness => switch (borderType) {
-        ClassicBorder(borderSoftness: final s) => s,
-        OpticalBorder() => 1.0,
-      };
-
-  /// The shadow color (classic only, returns transparent black for optical).
-  Color get shadowColor => switch (borderType) {
-        ClassicBorder(shadowColor: final c) => c,
-        OpticalBorder() => const Color(0x1A000000),
-      };
-
-  /// The ambient intensity used by the shader for the optical rim.
-  ///
-  /// Returns the user-configurable value from [OpticalBorder.ambientIntensity]
-  /// when in optical mode, and `0.0` for classic mode (which doesn't use
-  /// the ambient term).
-  double get ambientIntensity => switch (borderType) {
-        OpticalBorder(ambientIntensity: final a) => a,
-        ClassicBorder() => 0.0,
-      };
-
-  /// The border saturation (optical only, returns 1.0 for classic).
-  double get borderSaturation => switch (borderType) {
-        OpticalBorder(borderSaturation: final s) => s,
-        ClassicBorder() => 1.0,
-      };
-
-  /// The optical-mode rim solidity. `0.0` for classic mode (unused there).
-  double get borderSolidity => switch (borderType) {
-        OpticalBorder(borderSolidity: final s) => s,
-        ClassicBorder() => 0.0,
-      };
-
-  /// The optical-mode rim highlight spread. `0.5` (neutral) for classic mode,
-  /// which doesn't use the directional-rim term.
-  double get lightSpread => switch (borderType) {
-        OpticalBorder(lightSpread: final s) => s,
-        ClassicBorder() => 0.5,
-      };
-
-  /// Whether the border mode is optical.
-  bool get isOpticalBorder => borderType.isOptical;
-
-  /// The border mode as the enum value (for shader uniform).
-  LiquidGlassBorderMode get borderMode => borderType.isOptical
-      ? LiquidGlassBorderMode.optical
-      : LiquidGlassBorderMode.classic;
+  /// Whether two shapes draw the same outline.
+  @internal
+  static bool sameOutline(LiquidGlassShape a, LiquidGlassShape b) =>
+      a.cornerStyle == b.cornerStyle &&
+      a.cornerRadius == b.cornerRadius &&
+      a.clipQuality == b.clipQuality;
 }
 
-/// For backward compatibility — the enum is still used internally
-/// by the shader dispatch logic.
-enum LiquidGlassBorderMode { classic, optical }
+/// A shape together with the two lights of its border: what the renderers
+/// draw from. Built from a style's `shape`, `specular` and `glow`.
+@internal
+class LiquidGlassLitShape extends LiquidGlassShape {
+  /// The border's highlight.
+  final LiquidGlassLight specular;
+
+  /// The border's soft side light. Off by default: a zero thickness, which
+  /// the shaders skip entirely.
+  final LiquidGlassLight glow;
+
+  /// A second highlight drawn over the first, or `null` for none.
+  final LiquidGlassLight? secondSpecular;
+
+  /// The default glow: none.
+  static const LiquidGlassLight noGlow = LiquidGlassLight.glow(thickness: 0);
+
+  const LiquidGlassLitShape({
+    super.cornerStyle,
+    super.cornerRadius,
+    super.clipQuality,
+    this.specular = const LiquidGlassLight.specular(),
+    this.glow = noGlow,
+    this.secondSpecular,
+  });
+
+  /// [shape]'s outline with the given lights. A [shape] that is already lit
+  /// keeps its own lights where none are given.
+  factory LiquidGlassLitShape.of(
+    LiquidGlassShape shape, {
+    LiquidGlassLight? specular,
+    LiquidGlassLight? glow,
+    LiquidGlassLight? secondSpecular,
+  }) {
+    final LiquidGlassLitShape? lit =
+        shape is LiquidGlassLitShape ? shape : null;
+    return LiquidGlassLitShape(
+      cornerStyle: shape.cornerStyle,
+      cornerRadius: shape.cornerRadius,
+      clipQuality: shape.clipQuality,
+      specular: specular ?? lit?.specular ?? const LiquidGlassLight.specular(),
+      glow: glow ?? lit?.glow ?? noGlow,
+      secondSpecular: secondSpecular ?? lit?.secondSpecular,
+    );
+  }
+
+  /// The plain outline, without the lights.
+  LiquidGlassShape get outline => LiquidGlassShape(
+        cornerStyle: cornerStyle,
+        cornerRadius: cornerRadius,
+        clipQuality: clipQuality,
+      );
+
+  /// How far the border reaches in from the outline, in logical pixels: the
+  /// specular's thickness.
+  double get borderWidth => specular.thickness;
+
+  @override
+  LiquidGlassLitShape copyWith({
+    LiquidGlassCornerStyle? cornerStyle,
+    double? cornerRadius,
+    LiquidGlassClipQuality? clipQuality,
+    LiquidGlassLight? specular,
+    LiquidGlassLight? glow,
+    LiquidGlassLight? secondSpecular,
+  }) =>
+      LiquidGlassLitShape(
+        cornerStyle: cornerStyle ?? this.cornerStyle,
+        cornerRadius: cornerRadius ?? this.cornerRadius,
+        clipQuality: clipQuality ?? this.clipQuality,
+        specular: specular ?? this.specular,
+        glow: glow ?? this.glow,
+        secondSpecular: secondSpecular ?? this.secondSpecular,
+      );
+
+  /// Whether two shapes draw the same border.
+  static bool sameBorder(LiquidGlassLitShape a, LiquidGlassLitShape b) =>
+      a.specular == b.specular &&
+      a.glow == b.glow &&
+      a.secondSpecular == b.secondSpecular;
+}
 
 /// How a lens is **clipped** to its outline. Every [LiquidGlassShape] carries
 /// its own [LiquidGlassShape.clipQuality].

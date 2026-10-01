@@ -402,11 +402,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
         // The verdict lands on the GROUP's material: the merged pass
         // paints one tint for the whole sheet, so this is the only place
         // it can go. A member's own appearance is never read here.
-        widget.style.copyWith(
-          appearance: widget.style.appearance.copyWith(
-            color: _driver.glassColor(adaptivity),
-          ),
-        ),
+        widget.style.copyWith(color: _driver.glassColor(adaptivity)),
         _adaptContent(context, adaptivity, widget.child),
       ),
     );
@@ -490,15 +486,24 @@ class LiquidGlassBlenderScope extends InheritedWidget {
 
   /// The style a member should paint itself with when [canBlend] is false.
   ///
-  /// Shape from the MEMBER (it is what makes one blob differ from the next),
-  /// material from the GROUP (where a blend's tint is set). Neither direction
-  /// of [LiquidGlassStyle.merge] splits them this way — it moves shape and
-  /// appearance together — so build it explicitly.
+  /// Shape and border from the MEMBER (they are what makes one blob differ
+  /// from the next), material from the GROUP (where a blend's tint is set).
+  /// Neither direction of [LiquidGlassStyle.merge] splits them this way, so
+  /// build it explicitly.
   LiquidGlassStyle soloStyleFor(LiquidGlassStyle memberStyle) {
     return LiquidGlassStyle(
       shape: memberStyle.shape ?? style.shape,
-      appearance: style.appearance,
-      refraction: style.refraction,
+      specular: memberStyle.specular ?? style.specular,
+      glow: memberStyle.glow ?? style.glow,
+      secondSpecular: memberStyle.secondSpecular ?? style.secondSpecular,
+      refractionIndex: style.refractionIndex,
+      refractionWidth: style.refractionWidth,
+      magnification: style.magnification,
+      chromaticAberration: style.chromaticAberration,
+      saturation: style.saturation,
+      blur: style.blur,
+      color: style.color,
+      shadow: style.shadow,
     );
   }
 
@@ -1231,8 +1236,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     }
     if (union == null) return fullRect;
 
-    final shape =
-        _style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
+    final LiquidGlassLitShape shape = _style.litShape();
     // The 3-sigma term keeps the glass outline that far inside the blurred
     // region, so every visible pixel is averaged from real backdrop rather
     // than from the clip edge repeated. It does mean the costly pass grows
@@ -1245,7 +1249,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     // Restore by un-commenting the two lines.
     final double margin = shape.borderWidth * 2.0 + // rim
         // 3.0 * _blurSigma + // gaussian tail
-        // _style.refraction.effectiveDistortionWidth + // refraction band
+        // _style.refraction.refractionWidth + // refraction band
         _smoothnessOrZero * 0.5 + // smin bridge bulge
         2.0; // AA
     // Also clamped to the SCREEN. The engine-blur pass packs its geometry in
@@ -1290,8 +1294,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     Offset imageOffset = Offset.zero,
     Size? imageSize,
   }) {
-    final shape =
-        _style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
+    final LiquidGlassLitShape shape = _style.litShape();
     final appearance = _style.appearance;
     final refraction = _style.refraction;
 
@@ -1304,17 +1307,12 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       smoothness: _smoothnessOrZero,
       merge: _merge,
       magnification: refraction.magnification,
-      distortion: refraction.effectiveDistortion,
-      distortionWidth: refraction.effectiveDistortionWidth,
-      enableInnerRadiusTransparent: appearance.enableInnerRadiusTransparent,
-      diagonalFlip: refraction.diagonalFlip,
-      borderWidth: shape.borderWidth,
+      refractionIndex: refraction.refractionIndex,
+      refractionWidth: refraction.refractionWidth,
       borderAlpha: 1.0,
       chromaticAberration: refraction.chromaticAberration,
       saturation: appearance.saturation,
       blur: blur,
-      refractionMode: refraction.refractionMode,
-      refractionType: refraction.refractionType,
       lensColor: appearance.color,
       honorBackdropAlpha: false,
       imageOffset: imageOffset,
@@ -1322,8 +1320,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     );
   }
 
-  double get _blurSigma =>
-      math.max(_style.appearance.blur.sigmaX, _style.appearance.blur.sigmaY);
+  double get _blurSigma => _style.appearance.blur;
 }
 
 /// A zero-content probe layer for the merged surface.

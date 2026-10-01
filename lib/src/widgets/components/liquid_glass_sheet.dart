@@ -3,10 +3,8 @@ import 'package:flutter/rendering.dart';
 
 import '../lens/liquid_glass_batch.dart';
 import '../lens/liquid_glass_lens.dart';
-import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import '../utils/liquid_glass_touch.dart';
 import 'liquid_glass_scaffold.dart';
@@ -274,17 +272,6 @@ class LiquidGlassSheet extends StatelessWidget {
   /// `LiquidGlassFlex.subtle` if you enable it.
   final LiquidGlassTouch? touch;
 
-  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
-    color: Color(0x24FFFFFF), // white, alpha 36
-    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-  );
-
-  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.12,
-    distortionWidth: 40,
-    chromaticAberration: 0.002,
-  );
-
   /// The tuned default look — a frost heavier than the button's, because
   /// a sheet has to carry content over whatever it covers, over a wide,
   /// soft refraction. Its `shape` is `null`: the sheet derives a
@@ -292,22 +279,21 @@ class LiquidGlassSheet extends StatelessWidget {
   /// [style] supplies no shape. Compose with `copyWith` to tweak one
   /// facet, e.g. `style: LiquidGlassSheet.defaultStyle.copyWith(...)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: _defaultAppearance,
-    refraction: _defaultRefraction,
+    specular: LiquidGlassLight.specular(
+        thickness: 0.6, sharpness: 0.4, angle: 39, intensity: 1.2),
+    glow: LiquidGlassLight.glow(thickness: 0.6, angle: 129, intensity: 1.0),
+    // white, alpha 36
+    color: Color(0x24FFFFFF),
+    blur: 3,
+    refractionIndex: 1.021,
+    refractionWidth: 40,
+    chromaticAberration: 0.002,
   );
 
   /// The shape a sheet uses when its style names none.
   static LiquidGlassShape defaultShape() =>
       LiquidGlassShape.continuousRoundedRectangle(
         cornerRadius: 28,
-        borderWidth: 0.6,
-        lightIntensity: 1.2,
-        lightDirection: 39,
-        borderType: const OpticalBorder(
-          borderSaturation: 1.3,
-          ambientIntensity: 1.0,
-          borderSolidity: 0.4,
-        ),
       );
 
   /// The margin [anchor] implies when none is given.
@@ -345,8 +331,17 @@ class LiquidGlassSheet extends StatelessWidget {
           visibility: visibility,
           style: LiquidGlassStyle(
             shape: shape,
-            appearance: resolved.appearance,
-            refraction: resolved.refraction,
+            specular: resolved.specular,
+            glow: resolved.glow,
+            secondSpecular: resolved.secondSpecular,
+            saturation: resolved.saturation,
+            blur: resolved.blur,
+            color: resolved.color,
+            shadow: resolved.shadow,
+            refractionIndex: resolved.refractionIndex,
+            refractionWidth: resolved.refractionWidth,
+            magnification: resolved.magnification,
+            chromaticAberration: resolved.chromaticAberration,
             adaptivity: resolved.adaptivity,
             liteGlass: resolved.liteGlass,
           ),

@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_app_icon.dart';
@@ -87,27 +86,22 @@ class LiquidGlassDock extends StatelessWidget {
   /// Whether the dock is shown; toggling animates the glass in/out.
   final bool visibility;
 
-  static const LiquidGlassShape _defaultShape =
-      LiquidGlassShape.roundedRectangle(
+  static const LiquidGlassShape _defaultShape = LiquidGlassLitShape(
+    cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
     cornerRadius: 30,
-    borderWidth: 1.2,
-    lightIntensity: 1.2,
-    lightDirection: 70,
-    borderType: OpticalBorder(
-      borderSaturation: 1.3,
-      ambientIntensity: 1.0,
-      borderSolidity: 0.4,
-    ),
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.4, angle: 70, intensity: 1.2),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 160, intensity: 1.0),
   );
 
   static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
-    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+    blur: 3,
   );
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.08,
-    distortionWidth: 36,
+    refractionIndex: 1.024,
+    refractionWidth: 36,
     chromaticAberration: 0.002,
   );
 
@@ -122,7 +116,7 @@ class LiquidGlassDock extends StatelessWidget {
       width: width,
       height: height,
       child: LiquidGlassLens(
-        style: LiquidGlassStyle(
+        style: LiquidGlassStyle.groups(
           shape: shape ?? _defaultShape,
           appearance: appearance,
           refraction: refraction,

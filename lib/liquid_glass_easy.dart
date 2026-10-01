@@ -3,9 +3,6 @@ export 'package:liquid_glass_easy/src/widgets/liquid_glass_view.dart';
 // `LiquidGlassGeometry`, `LiquidGlassBehavior`) is intentionally NOT
 // exported: it is the package's internal engine. App developers use
 // `LiquidGlassLens` (the layout-driven lens-anywhere widget) instead.
-// Only the two look groups reused by `LiquidGlassStyle` stay public.
-export 'package:liquid_glass_easy/src/widgets/liquid_glass_config.dart'
-    show LiquidGlassRefraction, LiquidGlassAppearance;
 // The shared styling descriptor (shape + appearance + refraction) used
 // across the lens, the LiquidGlass config and the components.
 export 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart'
@@ -70,11 +67,13 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_adaptive_c
 // dimming variant of iOS 26's scroll edge effect).
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_scroll_edge.dart'
     show LiquidGlassScrollEdge, LiquidGlassEdge, LiquidGlassScrollEdgeStyle;
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 // The two clip helpers are shared between the widget-level clip and the
 // render object's own, so they are library-wide but not API.
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart'
-    hide liquidGlassOutlinePath, liquidGlassUsesExactClipPath;
+    hide
+        liquidGlassOutlinePath,
+        liquidGlassUsesExactClipPath,
+        LiquidGlassLitShape;
 // Custom glyphs: the builder every icon slot accepts (SVG, PNG,
 // CustomPaint) and the state it is handed — resolved color, box size,
 // and whether this layer draws the selected state.
@@ -85,10 +84,7 @@ export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_glyph.dart'
         LiquidGlassLabel,
         LiquidGlassLabelBuilder;
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_draggable.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light_mode.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_border_mode.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
-export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
+export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_light.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refresh_rate.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 export 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_spring.dart';

@@ -17,11 +17,10 @@ import '../../lens/liquid_glass_lens_scope.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_adaptivity_driver.dart';
 import '../../liquid_glass.dart';
-import '../../utils/liquid_glass_border_mode.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
-import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_refresh_rate.dart';
@@ -177,7 +176,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final LiquidGlassTabBarLayout layout;
 
   /// The host's chrome: a full-screen `Stack` of lens-anywhere widgets —
-  /// app bar, side action, floating button, extra lenses, dialog. The bar
+  /// app bar, side action, floating button, extra lenses. The bar
   /// places it by renderer. On Impeller it goes in the **outer** view's
   /// `child:` slot after the pill, over the bar's cells, as the outer slot
   /// always did. On Skia it goes in the **inner** view's `child:` slot,
@@ -204,6 +203,14 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// Overrides the bar-capsule glass shape.
   final LiquidGlassShape? barShape;
+
+  /// The bar capsule's border lights; `null` keeps [barShape]'s own, or the
+  /// tuned defaults.
+  final LiquidGlassLight? barSpecular;
+  final LiquidGlassLight? barGlow;
+
+  /// The bar capsule's second highlight; `null` draws none.
+  final LiquidGlassLight? barSecondSpecular;
 
   /// Refraction of the bar capsule.
   final LiquidGlassRefraction? barRefraction;
@@ -276,34 +283,39 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final LiquidGlassShadow? barShadow;
 
   /// Blur behind the moving glass pill. Defaults to none.
-  final LiquidGlassBlur pillBlur;
+  final double pillBlur;
 
   /// How much taller than the bar the glass pill stands while it is
   /// lifted — which is the whole travel, not a peak it passes through.
   final double pillGrowHeight;
 
   /// Refraction strength of the moving glass pill.
-  final double pillDistortion;
+  final double pillRefractionIndex;
 
   /// Width of the glass pill's refraction band.
-  final double pillDistortionWidth;
+  final double pillRefractionWidth;
 
   /// Complete refraction configuration for the moving pill. When set,
-  /// this supersedes [pillDistortion], [pillDistortionWidth] and
+  /// this supersedes [pillRefractionIndex], [pillRefractionWidth] and
   /// [pillMagnification].
   final LiquidGlassRefraction? pillRefraction;
 
   /// Magnification of the content seen through the glass pill.
   final double pillMagnification;
 
-  /// When `true`, the glass pill's inner area is transparent.
-  final bool pillEnableInnerRadiusTransparent;
-
   /// Overrides the moving glass pill's shape. When `null` the pill is an
   /// Apple capsule-style shape whose radius tracks the pill's ENVELOPE
   /// height — the size before the acceleration deformation, since the
   /// shader stretches the authored outline rather than re-rounding it.
   final LiquidGlassShape? pillShape;
+
+  /// The glass pill's border lights; `null` keeps [pillShape]'s own, or the
+  /// pill's defaults.
+  final LiquidGlassLight? pillSpecular;
+  final LiquidGlassLight? pillGlow;
+
+  /// The glass pill's second highlight; `null` draws none.
+  final LiquidGlassLight? pillSecondSpecular;
 
   /// Fill tint of the moving glass pill.
   final Color pillColor;
@@ -370,8 +382,8 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// See `LiquidGlassView.foregroundBatchId`, handed to both views: with it
   /// the [chromeChild] slots are one batch whichever view draws them — how
-  /// the scaffold puts its `dialog` slot and the sheets and dialogs it
-  /// presents when they ask for it on a single read. Library-internal.
+  /// the scaffold puts the sheets and dialogs presented over it, when they
+  /// ask for it, on a single read. Library-internal.
   final int? foregroundBatchId;
 
   /// Whether the **inner** view (body + bar capsule) captures every frame.
@@ -397,28 +409,31 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.backgroundColor,
     this.barPosition,
     this.barShape,
+    this.barSpecular,
+    this.barGlow,
+    this.barSecondSpecular,
     this.barRefraction,
     this.barAppearance,
     this.barShadow,
     this.pillShadow,
-    this.pillBlur = const LiquidGlassBlur(),
+    this.pillBlur = 0,
     this.pillGrowHeight = 12,
-    this.pillDistortion = 0.06,
-    this.pillDistortionWidth = 10,
+    this.pillRefractionIndex = 1.025,
+    this.pillRefractionWidth = 10,
     this.pillRefraction,
     this.pillMagnification = 1,
-    this.pillEnableInnerRadiusTransparent = false,
     this.pillShape,
+    this.pillSpecular,
+    this.pillGlow,
+    this.pillSecondSpecular,
     this.pillColor = const Color(0x1CFFFFFF),
     // Inert at rest: the moving pill hands over to a non-refracting
     // static pill, so any glass left here would pop off at the swap.
     this.restStyle = const LiquidGlassStyle(
-      appearance: LiquidGlassAppearance(color: Color(0x26FFFFFF)),
-      refraction: LiquidGlassRefraction(
-        distortion: 0,
-        distortionWidth: 0,
-        chromaticAberration: 0,
-      ),
+      color: Color(0x26FFFFFF),
+      refractionIndex: 1.0,
+      refractionWidth: 0,
+      chromaticAberration: 0,
     ),
     this.travelStiffness = 280,
     this.travelDamping = 31.4,
@@ -1372,21 +1387,23 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     final LiquidGlassRefraction refraction = widget.pillRefraction ??
         LiquidGlassRefraction(
           magnification: widget.pillMagnification,
-          distortion: widget.pillDistortion,
-          distortionWidth: widget.pillDistortionWidth,
+          refractionIndex: widget.pillRefractionIndex,
+          refractionWidth: widget.pillRefractionWidth,
           chromaticAberration: 0.002,
         );
     return LiquidGlassStyle(
       shape: widget.pillShape,
-      appearance: LiquidGlassAppearance(
-        color: widget.pillColor,
-        blur: widget.pillBlur,
-        enableInnerRadiusTransparent: widget.pillEnableInnerRadiusTransparent,
-      ),
+      specular: widget.pillSpecular,
+      glow: widget.pillGlow,
+      secondSpecular: widget.pillSecondSpecular,
+      color: widget.pillColor,
+      blur: widget.pillBlur,
+      refractionIndex: refraction.refractionIndex,
+      refractionWidth: refraction.refractionWidth,
       // On Impeller the under-pill magnifier lens owns the magnification;
       // the glass pill on top must not compound it (m² in the middle).
-      refraction:
-          _useImpeller ? refraction.copyWith(magnification: 1) : refraction,
+      magnification: _useImpeller ? 1 : refraction.magnification,
+      chromaticAberration: refraction.chromaticAberration,
     );
   }
 
@@ -1396,25 +1413,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// is the capsule radius used when the host authored no shape).
   LiquidGlassShape _magnifierShape(
       LiquidGlassShape? base, double fallbackRadius) {
-    final s = base;
-    if (s == null) {
-      return LiquidGlassShape(
-        cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
-        cornerRadius: fallbackRadius,
-        borderWidth: 0,
-        lightIntensity: 0,
-      );
-    }
-    return LiquidGlassShape(
-      cornerStyle: s.cornerStyle,
-      clipQuality: s.clipQuality,
-      lightMode: s.lightMode,
-      cornerRadius: s.cornerRadius,
-      borderWidth: 0,
-      lightIntensity: 0,
-      lightColor: s.lightColor,
-      lightDirection: s.lightDirection,
-      borderType: s.borderType,
+    final LiquidGlassLitShape lit = LiquidGlassLitShape.of(base ??
+        LiquidGlassShape.continuousRoundedRectangle(
+            cornerRadius: fallbackRadius));
+    return lit.copyWith(
+      specular: lit.specular.copyWith(thickness: 0, intensity: 0),
+      glow: lit.glow.copyWith(thickness: 0),
+      secondSpecular: lit.secondSpecular?.copyWith(thickness: 0),
     );
   }
 
@@ -1431,16 +1436,12 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   }) {
     return LiquidGlassStyle(
       shape: _magnifierShape(baseShape, fallbackRadius),
-      appearance: const LiquidGlassAppearance(
-        color: Color(0x00000000),
-        blur: LiquidGlassBlur(sigmaX: 0, sigmaY: 0),
-      ),
-      refraction: LiquidGlassRefraction(
-        distortion: 0,
-        distortionWidth: 0,
-        chromaticAberration: 0,
-        magnification: magnification,
-      ),
+      color: Color(0x00000000),
+      blur: 0,
+      refractionIndex: 1.0,
+      refractionWidth: 0,
+      magnification: magnification,
+      chromaticAberration: 0,
     );
   }
 
@@ -1486,10 +1487,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     return AnimatedBuilder(
       animation: _adaptDriver.listenable!,
       builder: (context, _) => child(
-        widget.restStyle.copyWith(
-          appearance: widget.restStyle.appearance
-              .copyWith(color: _adaptDriver.glassColor(palette)),
-        ),
+        widget.restStyle.copyWith(color: _adaptDriver.glassColor(palette)),
       ),
     );
   }
@@ -1562,7 +1560,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     LiquidGlassAppearance capsuleAppearance = widget.barAppearance ??
         LiquidGlassAppearance(
           color: Colors.white.withAlpha(22),
-          blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
+          blur: 2,
         );
     // Resolve the adaptive palette for this frame: the capsule tint
     // overrides the bar appearance's color, the content color reaches
@@ -1573,26 +1571,26 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       capsuleAppearance = capsuleAppearance.copyWith(
           color: _adaptDriver.glassColor(adaptivity));
     }
-    final LiquidGlassStyle capsuleStyle = LiquidGlassStyle(
+    final LiquidGlassStyle capsuleStyle = LiquidGlassStyle.groups(
       shape: widget.barShape ??
-          LiquidGlassShape.roundedRectangle(
+          LiquidGlassLitShape(
+            cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
             cornerRadius: 40,
-            borderWidth: 1.2,
-            lightIntensity: 1.1,
-            lightDirection: 80,
-            borderType: const OpticalBorder(
-              borderSaturation: 1.2,
-              ambientIntensity: 1.0,
-              borderSolidity: 0.35,
-            ),
+            specular: const LiquidGlassLight.specular(
+                thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+            glow: const LiquidGlassLight.glow(
+                thickness: 1.2, angle: 170, intensity: 1.0),
           ),
+      specular: widget.barSpecular,
+      glow: widget.barGlow,
+      secondSpecular: widget.barSecondSpecular,
       appearance: widget.barShadow == null
           ? capsuleAppearance
           : capsuleAppearance.copyWith(shadow: widget.barShadow),
       refraction: widget.barRefraction ??
           const LiquidGlassRefraction(
-            distortion: 0.07,
-            distortionWidth: 28,
+            refractionIndex: 1.025,
+            refractionWidth: 28,
             chromaticAberration: 0.002,
           ),
     );

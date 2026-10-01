@@ -109,7 +109,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required LiquidGlassLensRenderMode mode,
     required ui.FragmentShader mainShader,
     ui.FragmentShader? borderShader,
-    required LiquidGlassShape shape,
+    required LiquidGlassLitShape shape,
     Offset shapeScale = const Offset(1, 1),
     Offset clipScale = const Offset(1, 1),
     required LiquidGlassRefraction refraction,
@@ -209,8 +209,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
     markNeedsPaint();
   }
 
-  LiquidGlassShape _shape;
-  set shape(LiquidGlassShape value) {
+  LiquidGlassLitShape _shape;
+  set shape(LiquidGlassLitShape value) {
     if (identical(_shape, value)) return;
     _shape = value;
     markNeedsPaint();
@@ -243,7 +243,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   LiquidGlassAppearance _appearance;
   set appearance(LiquidGlassAppearance value) {
-    if (identical(_appearance, value)) return;
+    if (_appearance == value) return;
     _appearance = value;
     markNeedsPaint();
   }
@@ -420,7 +420,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
   }
 
   bool get _useBlur =>
-      _appearance.blur.sigmaX > 0 || _appearance.blur.sigmaY > 0;
+      _appearance.blur > 0;
 
   /// The batched pass's clip, in lens-local logical px, while the blur is
   /// composed into the shader — and `null` on every other path.
@@ -438,7 +438,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required Size resolution,
     required Offset lensPosition,
     required double scale,
-    required double borderWidth,
+    required bool drawBorder,
     required bool includeLensColor,
     bool includeShapeAa = true,
     // Lens-anywhere lenses never honor the captured backdrop's alpha: the
@@ -467,16 +467,12 @@ class RenderLiquidGlassLens extends RenderProxyBox
       lensWidth: size.width,
       lensHeight: size.height,
       magnification: _refraction.magnification,
-      distortion: _refraction.effectiveDistortion,
-      distortionWidth: _refraction.effectiveDistortionWidth,
-      enableInnerRadiusTransparent: _appearance.enableInnerRadiusTransparent,
-      diagonalFlip: _refraction.diagonalFlip,
-      borderWidth: borderWidth,
+      refractionIndex: _refraction.refractionIndex,
+      refractionWidth: _refraction.refractionWidth,
+      drawBorder: drawBorder,
       borderAlpha: _borderAlpha,
       chromaticAberration: _refraction.chromaticAberration,
       saturation: _appearance.saturation,
-      refractionMode: _refraction.refractionMode,
-      refractionType: _refraction.refractionType,
       includeLensColor: includeLensColor,
       lensColor: _appearance.color,
       includeShapeAa: includeShapeAa,
@@ -598,7 +594,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       scale: _devicePixelRatio,
       // The main shader draws its own border on this path: the blur
       // pass sits BELOW the shader pass, so the rim stays sharp.
-      borderWidth: _shape.borderWidth,
+      drawBorder: true,
       includeLensColor: true,
       // Impeller's live backdrop alpha is not a transparency signal
       // (reads 0 over dark regions); ignore it so the rim/body survive.
@@ -726,8 +722,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
       void paintBlur(PaintingContext context, Offset offset) {
         final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
         blurLayer.filter = ui.ImageFilter.blur(
-          sigmaX: _appearance.blur.sigmaX,
-          sigmaY: _appearance.blur.sigmaY,
+          sigmaX: _appearance.blur,
+          sigmaY: _appearance.blur,
         );
         context.pushLayer(
             blurLayer, (PaintingContext context, Offset offset) {}, offset);
@@ -842,13 +838,13 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
     // Room for everything that reaches past the lens box: the Gaussian tail,
     // the refraction band the shader samples across, and the rim.
-    final double reach = _refraction.effectiveDistortionWidth +
+    final double reach = _refraction.refractionWidth +
         _shape.borderWidth +
-        _shape.borderSoftness +
+        1.0 +
         _shaderClipPad;
     final Rect clip = _snappedShaderClip(
-      3.0 * _appearance.blur.sigmaX + reach,
-      3.0 * _appearance.blur.sigmaY + reach,
+      3.0 * _appearance.blur + reach,
+      3.0 * _appearance.blur + reach,
     );
     _batchClip = clip;
     _pushShaderPass(context, offset, clip);
@@ -932,8 +928,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
       // Sigma is LOGICAL px here, like every other blur the package hands the
       // engine — scaling it by dpr would over-blur by that factor.
       inner: ui.ImageFilter.blur(
-        sigmaX: _appearance.blur.sigmaX,
-        sigmaY: _appearance.blur.sigmaY,
+        sigmaX: _appearance.blur,
+        sigmaY: _appearance.blur,
       ),
     );
   }
@@ -987,7 +983,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       scale: 1.0,
       // Blur path: suppress the main-pass border; a sharp border pass
       // is drawn on top of the blur below (mirrors the legacy painter).
-      borderWidth: useBlur ? 0.0 : _shape.borderWidth,
+      drawBorder: !useBlur,
       includeLensColor: true,
       honorBackdropAlpha: _honorBackdropAlpha,
       xformA: linearXform ? s[0] : 1,
@@ -1022,8 +1018,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
       void paintBlur(PaintingContext context, Offset offset) {
         final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
         blurLayer.filter = ui.ImageFilter.blur(
-          sigmaX: _appearance.blur.sigmaX,
-          sigmaY: _appearance.blur.sigmaY,
+          sigmaX: _appearance.blur,
+          sigmaY: _appearance.blur,
         );
         context.pushLayer(
             blurLayer, (PaintingContext context, Offset offset) {}, offset);
@@ -1059,7 +1055,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
           resolution: viewSize,
           lensPosition: shaderOrigin,
           scale: 1.0,
-          borderWidth: _shape.borderWidth,
+          drawBorder: true,
           includeLensColor: true,
           // The border shader stops short of the two main-only uniforms.
           includeShapeAa: false,

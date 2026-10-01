@@ -357,7 +357,7 @@ Brightness liquidGlassFallbackBrightness(
 ///    or the platform's.
 ///
 /// **What gets tinted.** The glass fill uses the active `glassColorOn*`
-/// (overriding `appearance.color` while adaptivity is enabled). The
+/// (overriding the style's `color` while adaptivity is enabled). The
 /// [child] is wrapped in `IconTheme` + `DefaultTextStyle` carrying the
 /// active `contentColorOn*`, so any `Icon` or `Text` that doesn't
 /// hardcode its own color adapts automatically. Both animate together

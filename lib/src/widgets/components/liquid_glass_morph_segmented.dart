@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../liquid_glass.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_position.dart';
 import '../utils/liquid_glass_shape.dart';
 
@@ -144,25 +143,22 @@ LiquidGlass buildLiquidGlassMorphSegmentedCapsule({
       width: layout.width,
       height: layout.height,
     ),
-    shape: LiquidGlassShape.roundedRectangle(
+    shape: LiquidGlassLitShape(
+      cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
       cornerRadius: layout.height / 2,
-      borderWidth: 1.0,
-      lightIntensity: 1.0,
-      lightDirection: 80,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.1,
-        ambientIntensity: 1.0,
-        borderSolidity: 0.25,
-      ),
+      specular: const LiquidGlassLight.specular(
+          thickness: 1.0, sharpness: 0.25, angle: 80, intensity: 1.0),
+      glow: const LiquidGlassLight.glow(
+          thickness: 1.0, angle: 170, intensity: 1.0),
     ),
     refraction: const LiquidGlassRefraction(
-      distortion: 0.06,
-      distortionWidth: 22,
+      refractionIndex: 1.025,
+      refractionWidth: 22,
       chromaticAberration: 0.002,
     ),
     appearance: LiquidGlassAppearance(
       color: Colors.white.withAlpha(20),
-      blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
+      blur: 2,
     ),
   );
 }
@@ -219,25 +215,22 @@ LiquidGlass buildLiquidGlassMorphSegmentedPill({
       width: pillW,
       height: pillH,
     ),
-    shape: LiquidGlassShape.roundedRectangle(
+    shape: LiquidGlassLitShape(
+      cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
       cornerRadius: pillH / 2,
-      borderWidth: 1.0,
-      lightIntensity: 1.3,
-      lightDirection: 80,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.4,
-        ambientIntensity: 1.0,
-        borderSolidity: 0.5,
-      ),
+      specular: const LiquidGlassLight.specular(
+          thickness: 1.0, sharpness: 0.5, angle: 80, intensity: 1.3),
+      glow: const LiquidGlassLight.glow(
+          thickness: 1.0, angle: 170, intensity: 1.0),
     ),
     refraction: const LiquidGlassRefraction(
-      distortion: 0.06,
-      distortionWidth: 10,
+      refractionIndex: 1.025,
+      refractionWidth: 10,
       chromaticAberration: 0.002,
     ),
     appearance: LiquidGlassAppearance(
       color: Colors.white.withAlpha(28),
-      blur: const LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
+      blur: 1.5,
     ),
   );
 }

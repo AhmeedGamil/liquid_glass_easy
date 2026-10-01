@@ -190,9 +190,8 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
 
   // Resolved look: read straight from the style; a null shape falls back
   // to the default continuous rounded rectangle (with the cheap circular
-  // rounded-rectangle clip).
-  LiquidGlassShape get _shape =>
-      widget.style.shape ?? const LiquidGlassShape.continuousRoundedRectangle();
+  // rounded-rectangle clip), and null lights to their own defaults.
+  LiquidGlassLitShape get _shape => widget.style.litShape();
   LiquidGlassAppearance get _appearance =>
       _adaptAppearance(widget.style.appearance);
   LiquidGlassRefraction get _refraction => widget.style.refraction;
@@ -497,7 +496,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         // along for the solo fallback.
         style: _activeAdaptivity == null
             ? widget.style
-            : widget.style.copyWith(appearance: _appearance),
+            : widget.style.copyWith(color: _appearance.color),
         // This member's OWN verdict, judged over its own box — the merged
         // pass gives each member its own tint and crosses between them
         // across the bridge. Null where this lens is not adaptive: it then
@@ -544,9 +543,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // The shape is passed through untouched. The shader evaluates it at REST
     // size in a domain divided by `shapeScale`, so the whole outline stretches
     // -- a circle becomes an ellipse rather than a stadium with flat runs.
-    final LiquidGlassShape shape = style == null
-        ? _shape
-        : (style.shape ?? const LiquidGlassShape.continuousRoundedRectangle());
+    final LiquidGlassLitShape shape = style == null ? _shape : style.litShape();
     final Offset shapeScale =
         deformed ? deform.scaleFrom(restSize) : const Offset(1, 1);
     // Clips can be pinned circular independently, to reproduce the state where
@@ -714,7 +711,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final LiquidGlassLensRenderMode mode;
   final ui.FragmentShader mainShader;
   final ui.FragmentShader? borderShader;
-  final LiquidGlassShape shape;
+  final LiquidGlassLitShape shape;
   final Offset shapeScale;
   final Offset clipScale;
   final LiquidGlassRefraction refraction;
@@ -805,7 +802,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
 /// the `LiquidGlassEngine` switches and `LiquidGlassStyle.liteGlass`, with
 /// no view on Skia, and while the shaders load.
 class _LiteGlassFallback extends StatelessWidget {
-  final LiquidGlassShape shape;
+  final LiquidGlassLitShape shape;
   final LiquidGlassAppearance appearance;
   final LiquidGlassRefraction refraction;
   final bool visible;

@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_lens.dart';
-import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_adaptivity.dart';
-import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_glyph.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_adaptive_area.dart';
 
@@ -190,24 +188,19 @@ class LiquidGlassTabBarAction extends StatelessWidget {
   /// [LiquidGlassTouch]; `null` (the default) disables it entirely.
   final LiquidGlassTouch? touch;
 
-  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
-    // Transparent body — let the refraction speak for itself.
-    blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-  );
-
-  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.07,
-    distortionWidth: 28,
-    chromaticAberration: 0.002,
-  );
-
   /// The tuned default look — a transparent body over a soft optical
   /// refraction. Its `shape` is `null`: the action derives a circular pill
   /// when [style] supplies no shape. Compose with `copyWith` to tweak one
   /// facet, e.g. `style: LiquidGlassTabBarAction.defaultStyle.copyWith(...)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: _defaultAppearance,
-    refraction: _defaultRefraction,
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    // Transparent body — let the refraction speak for itself.
+    blur: 2,
+    refractionIndex: 1.025,
+    refractionWidth: 28,
+    chromaticAberration: 0.002,
   );
 
   @override
@@ -228,14 +221,6 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: size / 2,
-          borderWidth: 1.2,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
         );
 
     return SizedBox(
@@ -244,8 +229,17 @@ class LiquidGlassTabBarAction extends StatelessWidget {
       child: LiquidGlassLens(
         style: LiquidGlassStyle(
           shape: effectiveShape,
-          appearance: resolved.appearance,
-          refraction: resolved.refraction,
+          specular: resolved.specular,
+          glow: resolved.glow,
+          secondSpecular: resolved.secondSpecular,
+          saturation: resolved.saturation,
+          blur: resolved.blur,
+          color: resolved.color,
+          shadow: resolved.shadow,
+          refractionIndex: resolved.refractionIndex,
+          refractionWidth: resolved.refractionWidth,
+          magnification: resolved.magnification,
+          chromaticAberration: resolved.chromaticAberration,
           adaptivity: resolved.adaptivity,
           liteGlass: resolved.liteGlass,
         ),

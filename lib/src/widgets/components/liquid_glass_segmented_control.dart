@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// A segmented control rendered on top of liquid glass.
@@ -101,35 +100,32 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
 
   static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x14FFFFFF), // white, alpha 20
-    blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+    blur: 3,
   );
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.06,
-    distortionWidth: 22,
+    refractionIndex: 1.025,
+    refractionWidth: 22,
     chromaticAberration: 0.002,
   );
 
   @override
   Widget build(BuildContext context) {
     final LiquidGlassShape effectiveShape = shape ??
-        LiquidGlassShape.roundedRectangle(
+        LiquidGlassLitShape(
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: height / 2,
-          borderWidth: 1.0,
-          lightIntensity: 1.0,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.1,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.25,
-          ),
+          specular: const LiquidGlassLight.specular(
+              thickness: 1.0, sharpness: 0.25, angle: 80, intensity: 1.0),
+          glow: const LiquidGlassLight.glow(
+              thickness: 1.0, angle: 170, intensity: 1.0),
         );
 
     return SizedBox(
       width: width,
       height: height,
       child: LiquidGlassLens(
-        style: LiquidGlassStyle(
+        style: LiquidGlassStyle.groups(
           shape: effectiveShape,
           appearance: appearance,
           refraction: refraction,

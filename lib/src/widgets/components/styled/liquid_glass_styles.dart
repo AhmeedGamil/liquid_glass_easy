@@ -19,7 +19,6 @@
 import 'package:flutter/material.dart';
 
 import '../../liquid_glass_config.dart';
-import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_refresh_rate.dart';
 
 // The capsule's glass look is configured by the package's EXISTING config
@@ -112,56 +111,49 @@ class LiquidGlassNavBarItemStyle {
 /// shipping bar's pill.
 class LiquidGlassTabPillStyle {
   /// Blur behind the moving glass pill.
-  final LiquidGlassBlur blur;
+  final double blur;
 
   /// How much **taller** the pill grows than the bar at peak travel — the
   /// pill's size knob. Peak height is `barHeight + growHeight`.
   final double growHeight;
 
   /// Refraction strength of the pill's glass.
-  final double distortion;
+  final double refractionIndex;
 
   /// Width of the pill's refraction band, in px.
-  final double distortionWidth;
+  final double refractionWidth;
 
   /// Complete refraction configuration for the moving pill. When set, this
-  /// supersedes [distortion], [distortionWidth], and [magnification].
+  /// supersedes [refractionIndex], [refractionWidth], and [magnification].
   final LiquidGlassRefraction? refraction;
 
   /// Magnification of the content seen through the pill (`1` = none).
   final double magnification;
 
-  /// When `true`, the pill's inner area is transparent.
-  final bool enableInnerRadiusTransparent;
-
   const LiquidGlassTabPillStyle({
-    this.blur = const LiquidGlassBlur(),
+    this.blur = 0,
     this.growHeight = 16,
-    this.distortion = 0.06,
-    this.distortionWidth = 10,
+    this.refractionIndex = 1.025,
+    this.refractionWidth = 10,
     this.refraction,
     this.magnification = 1,
-    this.enableInnerRadiusTransparent = false,
   });
 
   LiquidGlassTabPillStyle copyWith({
-    LiquidGlassBlur? blur,
+    double? blur,
     double? growHeight,
-    double? distortion,
-    double? distortionWidth,
+    double? refractionIndex,
+    double? refractionWidth,
     LiquidGlassRefraction? refraction,
     double? magnification,
-    bool? enableInnerRadiusTransparent,
   }) {
     return LiquidGlassTabPillStyle(
       blur: blur ?? this.blur,
       growHeight: growHeight ?? this.growHeight,
-      distortion: distortion ?? this.distortion,
-      distortionWidth: distortionWidth ?? this.distortionWidth,
+      refractionIndex: refractionIndex ?? this.refractionIndex,
+      refractionWidth: refractionWidth ?? this.refractionWidth,
       refraction: refraction ?? this.refraction,
       magnification: magnification ?? this.magnification,
-      enableInnerRadiusTransparent:
-          enableInnerRadiusTransparent ?? this.enableInnerRadiusTransparent,
     );
   }
 }

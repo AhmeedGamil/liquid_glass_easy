@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
-import '../../utils/liquid_glass_blur.dart';
 import '../../utils/liquid_glass_lens_motion.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_shadow.dart';
 
@@ -180,7 +180,7 @@ class LiquidGlassTabMagnifierPillStyle {
 /// The three tiers, all configured here:
 ///  • glass-refracting morphing pill — **the default** ([mode]
 ///    [LiquidGlassPillMode.both]): the dual-pipeline pill that refracts
-///    the bar itself. The `distortion`/`growHeight`/… knobs below apply
+///    the bar itself. The `refractionIndex`/`growHeight`/… knobs below apply
 ///    to this tier only. A settled bar costs no shader pass, no clip
 ///    and no capture, on either backend.
 ///  • sliding highlight — [mode] none + [animated] true: the pill
@@ -210,7 +210,7 @@ class LiquidGlassTabPillStyle {
   final Curve animationCurve;
 
   /// Blur behind the moving **glass** pill (glass [mode]s only).
-  final LiquidGlassBlur blur;
+  final double blur;
 
   /// How much taller than the bar the glass pill stands while it is
   /// lifted (glass [mode]s only) — the pill's main size knob.
@@ -220,19 +220,15 @@ class LiquidGlassTabPillStyle {
   final double growHeight;
 
   /// Refraction strength of the moving glass pill (glass [mode]s only).
-  final double distortion;
+  final double refractionIndex;
 
   /// Width of the glass pill's refraction band in logical pixels
   /// (glass [mode]s only).
-  final double distortionWidth;
+  final double refractionWidth;
 
   /// Magnification of the content seen through the glass pill (glass
   /// [mode]s only). `1` = none.
   final double magnification;
-
-  /// When `true`, the glass pill's inner area is transparent (glass
-  /// [mode]s only).
-  final bool enableInnerRadiusTransparent;
 
   /// Shape of the moving **glass** pill (glass [mode]s only). When
   /// `null` (the default) the pill is an Apple capsule-style
@@ -250,17 +246,16 @@ class LiquidGlassTabPillStyle {
 
   /// The **moving glass pill**'s full look as one [LiquidGlassStyle]
   /// (shape + fill/blur + refraction). When non-null it supersedes the
-  /// individual glass-pill fields ([shape], [blur], [distortion],
-  /// [distortionWidth], [magnification], [enableInnerRadiusTransparent]);
+  /// individual glass-pill fields ([shape], [blur], [refractionIndex],
+  /// [refractionWidth], [magnification]);
   /// a `null` shape inside it falls back to [shape]. Glass [mode]s only.
   final LiquidGlassStyle? glassStyle;
 
   /// The **static rest pill**'s look as one [LiquidGlassStyle] — the
   /// non-refracting highlight shown when the glass pill is not moving
-  /// (and the fill of the non-glass tiers). Its `appearance.color` is the
-  /// pill's background, its `shape` the corners (falls back to [shape]),
-  /// and a border is drawn **only when** the shape sets a `borderColor`
-  /// (default: no border). Refraction is ignored.
+  /// (and the fill of the non-glass tiers). Its `color` is the
+  /// pill's background and its `shape` the corners (falls back to
+  /// [shape]). It draws no border; refraction is ignored.
   final LiquidGlassStyle? rest;
 
   /// Stiffness of the spring that carries the glass pill between tabs
@@ -299,12 +294,11 @@ class LiquidGlassTabPillStyle {
     this.animated = false,
     this.animationDuration = const Duration(milliseconds: 320),
     this.animationCurve = Curves.easeOutCubic,
-    this.blur = const LiquidGlassBlur(),
+    this.blur = 0,
     this.growHeight = 9,
-    this.distortion = 0.04,
-    this.distortionWidth = 12,
+    this.refractionIndex = 1.025,
+    this.refractionWidth = 12,
     this.magnification = 1,
-    this.enableInnerRadiusTransparent = false,
     this.shape,
     this.glassStyle,
     this.rest,
@@ -324,9 +318,9 @@ class LiquidGlassTabPillStyle {
   /// The tuned default contact shadow of the moving glass pill — a soft
   /// ring that spreads past the rim (no inset tuck, a wider blur), so
   /// the pill reads as floating over the bar. It rides the default-built
-  /// appearance in [effectiveGlass], the same place every lens carries
-  /// its shadow; author [glassStyle] with its own `appearance.shadow` to
-  /// replace it, or with an appearance carrying none to drop it.
+  /// style in [effectiveGlass], the same place every lens carries its
+  /// shadow; author [glassStyle] with its own `shadow` to replace it, or
+  /// with none to drop it.
   static const LiquidGlassShadow _defaultShadow =
       LiquidGlassShadow(blur: 9, opacity: 0.3, inset: 0);
 
@@ -337,12 +331,11 @@ class LiquidGlassTabPillStyle {
     bool? animated,
     Duration? animationDuration,
     Curve? animationCurve,
-    LiquidGlassBlur? blur,
+    double? blur,
     double? growHeight,
-    double? distortion,
-    double? distortionWidth,
+    double? refractionIndex,
+    double? refractionWidth,
     double? magnification,
-    bool? enableInnerRadiusTransparent,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
     LiquidGlassStyle? rest,
@@ -360,11 +353,9 @@ class LiquidGlassTabPillStyle {
       animationCurve: animationCurve ?? this.animationCurve,
       blur: blur ?? this.blur,
       growHeight: growHeight ?? this.growHeight,
-      distortion: distortion ?? this.distortion,
-      distortionWidth: distortionWidth ?? this.distortionWidth,
+      refractionIndex: refractionIndex ?? this.refractionIndex,
+      refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
-      enableInnerRadiusTransparent:
-          enableInnerRadiusTransparent ?? this.enableInnerRadiusTransparent,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
       rest: rest ?? this.rest,
@@ -382,19 +373,21 @@ class LiquidGlassTabPillStyle {
   /// capsule shape and the flat refraction knobs).
   LiquidGlassStyle get effectiveGlass {
     final g = glassStyle;
-    return LiquidGlassStyle(
-      shape: g?.shape ?? shape ?? const LiquidGlassShape(borderWidth: 0.5),
+    return LiquidGlassStyle.groups(
+      shape: g?.shape ?? shape ?? const LiquidGlassShape(),
+      specular: g?.specular ?? const LiquidGlassLight.specular(thickness: 0.5),
+      glow: g?.glow ?? const LiquidGlassLight.glow(thickness: 0.5),
+      secondSpecular: g?.secondSpecular,
       appearance: g?.appearance ??
           LiquidGlassAppearance(
             color: Colors.transparent,
             blur: blur,
-            enableInnerRadiusTransparent: enableInnerRadiusTransparent,
             shadow: _defaultShadow,
           ),
       refraction: g?.refraction ??
           LiquidGlassRefraction(
-            distortion: distortion,
-            distortionWidth: distortionWidth,
+            refractionIndex: refractionIndex,
+            refractionWidth: refractionWidth,
             magnification: magnification,
             chromaticAberration: 0.002,
           ),
@@ -404,8 +397,7 @@ class LiquidGlassTabPillStyle {
 
   /// The static rest pill's resolved look: [rest] when set, otherwise a
   /// borderless highlight filled with [color] (the shipped ~15% white),
-  /// with corners from [shape]. A border appears only when the resolved
-  /// shape carries a `borderColor`.
+  /// with corners from [shape].
   /// The palette the static pill flips on whenever the bar adapts and
   /// [rest] names no palette of its own.
   ///
@@ -433,8 +425,11 @@ class LiquidGlassTabPillStyle {
 
   LiquidGlassStyle get effectiveRest {
     final r = rest;
-    return LiquidGlassStyle(
+    return LiquidGlassStyle.groups(
       shape: r?.shape ?? shape,
+      specular: r?.specular,
+      glow: r?.glow,
+      secondSpecular: r?.secondSpecular,
       appearance: r?.appearance ?? LiquidGlassAppearance(color: color),
       // Carried, not dropped: the static pill resolves it against the
       // BAR's verdict, so the pill flips with the bar rather than
@@ -445,12 +440,12 @@ class LiquidGlassTabPillStyle {
       // Explicitly inert, not merely "ignored". The static pill never
       // reads this, but the moving pill interpolates FROM it, and
       // `LiquidGlassStyle`'s default refraction is the full-strength one
-      // (distortion 0.1 over a 30 px band) — stronger than most lifted
+      // (index 1.02 over a 30 px band) — stronger than most lifted
       // pills, which inverted the lerp and left the glass still bending
       // the bar at the instant the static pill took over.
       refraction: const LiquidGlassRefraction(
-        distortion: 0,
-        distortionWidth: 0,
+        refractionIndex: 1.0,
+        refractionWidth: 0,
         chromaticAberration: 0,
       ),
     );

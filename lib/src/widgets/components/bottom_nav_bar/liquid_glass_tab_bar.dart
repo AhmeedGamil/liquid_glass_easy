@@ -3,10 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../../lens/liquid_glass_lens.dart';
-import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_border_mode.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_shape.dart';
@@ -174,15 +172,14 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// the rest of the tuned look, e.g.
   /// `style: LiquidGlassTabBar.defaultStyle.copyWith(shape: …)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      color: Color(0x16FFFFFF), // white, alpha 22
-      blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.07,
-      distortionWidth: 28,
-      chromaticAberration: 0.002,
-    ),
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    color: Color(0x16FFFFFF),
+    blur: 2,
+    refractionIndex: 1.025,
+    refractionWidth: 28,
+    chromaticAberration: 0.002,
   );
 
   /// Which renderer(s) use the glass-refracting morphing pill.
@@ -219,7 +216,7 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// check [resolveGlassPill] and call this, passing their slots through.
   ///
   /// [body] is the page content captured behind the glass. [chromeChild]
-  /// is the host's chrome (app bar, side action, extra lenses, dialog) — a
+  /// is the host's chrome (app bar, side action, extra lenses) — a
   /// full-screen `Stack` of lens-anywhere widgets — which the bar places
   /// by renderer: in the outer view over the bar and the pill on Impeller,
   /// in the inner view under the bar's cells on Skia, where the outer
@@ -275,6 +272,9 @@ class LiquidGlassTabBar extends StatelessWidget {
       outerChild: outerChild,
       backgroundColor: backgroundColor,
       barShape: barStyle.shape,
+      barSpecular: barStyle.specular,
+      barGlow: barStyle.glow,
+      barSecondSpecular: barStyle.secondSpecular,
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
       // The bar capsule's contact shadow rides its style's appearance —
@@ -284,9 +284,10 @@ class LiquidGlassTabBar extends StatelessWidget {
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
       pillRefraction: glassStyle.refraction,
-      pillEnableInnerRadiusTransparent:
-          glassStyle.appearance.enableInnerRadiusTransparent,
       pillShape: glassStyle.shape,
+      pillSpecular: glassStyle.specular,
+      pillGlow: glassStyle.glow,
+      pillSecondSpecular: glassStyle.secondSpecular,
       pillShadow: glassStyle.appearance.shadow,
       restStyle: restStyle,
       travelStiffness: pillStyle.travelStiffness,
@@ -391,14 +392,6 @@ class LiquidGlassTabBar extends StatelessWidget {
     final LiquidGlassShape effectiveShape = barStyle.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: height / 2,
-          borderWidth: 1.2,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
         );
 
     // The non-glass tiers share the rest pill's look (fill + corners +
@@ -458,8 +451,17 @@ class LiquidGlassTabBar extends StatelessWidget {
       child: LiquidGlassLens(
         style: LiquidGlassStyle(
           shape: effectiveShape,
-          appearance: barStyle.appearance,
-          refraction: barStyle.refraction,
+          specular: barStyle.specular,
+          glow: barStyle.glow,
+          secondSpecular: barStyle.secondSpecular,
+          saturation: barStyle.saturation,
+          blur: barStyle.blur,
+          color: barStyle.color,
+          shadow: barStyle.shadow,
+          refractionIndex: barStyle.refractionIndex,
+          refractionWidth: barStyle.refractionWidth,
+          magnification: barStyle.magnification,
+          chromaticAberration: barStyle.chromaticAberration,
           adaptivity: barStyle.adaptivity,
           liteGlass: barStyle.liteGlass,
         ),

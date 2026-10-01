@@ -110,8 +110,7 @@ class SkiaLiquidGlassLens extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool useBlur = config.effectiveAppearance.blur.sigmaX > 0 ||
-        config.effectiveAppearance.blur.sigmaY > 0;
+    final bool useBlur = config.effectiveAppearance.blur > 0;
 
     // `config` already carries the deformed size; shifting the lens origin
     // here keeps the shader, blur, rim and content on one deformed rect.
@@ -139,16 +138,12 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       magnification: (animValue) +
                           (config.effectiveRefraction.magnification *
                               (1 - animValue)),
-                      distortion:
-                          config.effectiveRefraction.effectiveDistortion,
-                      distortionWidth:
-                          (config.effectiveRefraction.effectiveDistortionWidth -
+                      refractionIndex:
+                          config.effectiveRefraction.refractionIndex,
+                      refractionWidth:
+                          (config.effectiveRefraction.refractionWidth -
                               animValue *
-                                  config.effectiveRefraction
-                                      .effectiveDistortionWidth),
-                      diagonalFlip: config.effectiveRefraction.diagonalFlip,
-                      enableInnerRadiusTransparent: config
-                          .effectiveAppearance.enableInnerRadiusTransparent,
+                                  config.effectiveRefraction.refractionWidth),
                       draggable: config.behavior.draggable,
                       parentSize: parentSize,
                       border: config.effectiveShape,
@@ -165,8 +160,6 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       saturation: (animValue) +
                           (config.effectiveAppearance.saturation *
                               (1 - animValue)),
-                      refractionMode: config.effectiveRefraction.refractionMode,
-                      refractionType: config.effectiveRefraction.refractionType,
                       imageOffset: imageRegion?.topLeft,
                       imageSize: imageRegion?.size,
                       honorBackdropAlpha: honorBackdropAlpha,
@@ -191,10 +184,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
               shapeScale: flexDeform.clipScaleFrom(flexRestSize),
               child: BackdropFilter(
                 filter: ui.ImageFilter.blur(
-                  sigmaX:
-                      config.effectiveAppearance.blur.sigmaX * (1 - animValue),
-                  sigmaY:
-                      config.effectiveAppearance.blur.sigmaY * (1 - animValue),
+                  sigmaX: config.effectiveAppearance.blur * (1 - animValue),
+                  sigmaY: config.effectiveAppearance.blur * (1 - animValue),
                 ),
                 child: Container(),
               ),
@@ -218,21 +209,14 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                 magnification: (animValue) +
                     (config.effectiveRefraction.magnification *
                         (1 - animValue)),
-                distortion: config.effectiveRefraction.effectiveDistortion,
-                distortionWidth: (config
-                        .effectiveRefraction.effectiveDistortionWidth -
-                    animValue *
-                        config.effectiveRefraction.effectiveDistortionWidth),
-                diagonalFlip: config.effectiveRefraction.diagonalFlip,
-                enableInnerRadiusTransparent:
-                    config.effectiveAppearance.enableInnerRadiusTransparent,
+                refractionIndex: config.effectiveRefraction.refractionIndex,
+                refractionWidth: (config.effectiveRefraction.refractionWidth -
+                    animValue * config.effectiveRefraction.refractionWidth),
                 chromaticAberration:
                     config.effectiveRefraction.chromaticAberration *
                         (1 - animValue),
                 saturation: (animValue) +
                     (config.effectiveAppearance.saturation * (1 - animValue)),
-                refractionMode: config.effectiveRefraction.refractionMode,
-                refractionType: config.effectiveRefraction.refractionType,
                 border: config.effectiveShape,
                 borderAlpha: (1 - animValue),
                 lensColor: config.effectiveAppearance.color,

@@ -10,12 +10,10 @@ import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
 import '../../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
-import '../../liquid_glass.dart'
-    show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
-import '../../utils/liquid_glass_blur.dart' show LiquidGlassBlur;
 import '../../utils/liquid_glass_eager_pan.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_morph_pill.dart';
@@ -150,12 +148,11 @@ class LiquidGlassSwitch extends StatefulWidget {
   /// Glass look of the expanded thumb, its contact shadow included;
   /// `null` keeps [defaultStyle]. To change one facet and keep the rest,
   /// compose from it:
-  /// `LiquidGlassSwitch.defaultStyle.copyWith(refraction: …)`.
+  /// `LiquidGlassSwitch.defaultStyle.copyWith(refractionIndex: …)`.
   ///
-  /// The shadow lives in `appearance.shadow` — retune it with
-  /// `defaultStyle.copyWith(appearance: defaultStyle.appearance.copyWith(
-  /// shadow: …))`, or drop it by handing over an appearance that carries
-  /// none.
+  /// The shadow lives in the style's `shadow` — retune it with
+  /// `defaultStyle.copyWith(shadow: …)`, or drop it by building a style
+  /// that names none.
   final LiquidGlassStyle? style;
 
   /// Whether to claim layout space for the thumb's swell.
@@ -203,22 +200,15 @@ class LiquidGlassSwitch extends StatefulWidget {
   /// as the thumb becomes a glass pill under your finger. It is painted
   /// beneath the thumb, so the glass sits over its own shadow.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    shape: LiquidGlassShape.continuousRoundedRectangle(
-      lightDirection: 39,
-      // The rim's glint sits between gray and white rather than at pure
-      // white, which reads softer on pale backgrounds.
-      lightColor: Color(0xB2C8C8C8),
-    ),
-    appearance: LiquidGlassAppearance(
-      color: Color(0x00FFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 0.5, sigmaY: 0.5),
-      shadow: LiquidGlassShadow(inset: 3),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.12,
-      distortionWidth: 13,
-      chromaticAberration: 0.002,
-    ),
+    shape: LiquidGlassShape.continuousRoundedRectangle(),
+    specular: LiquidGlassLight.specular(angle: 39),
+    glow: LiquidGlassLight.glow(angle: 129),
+    color: Color(0x00FFFFFF),
+    blur: 0.5,
+    shadow: LiquidGlassShadow(inset: 3),
+    refractionIndex: 1.021,
+    refractionWidth: 13,
+    chromaticAberration: 0.002,
   );
 
   @override
@@ -227,16 +217,21 @@ class LiquidGlassSwitch extends StatefulWidget {
 
 /// [base] wearing [shadow] — including `null`, which `copyWith` cannot
 /// express (it reads a null argument as "keep the old one").
-LiquidGlassAppearance _withShadow(
-  LiquidGlassAppearance base,
-  LiquidGlassShadow? shadow,
-) {
-  return LiquidGlassAppearance(
+LiquidGlassStyle _withShadow(LiquidGlassStyle base, LiquidGlassShadow? shadow) {
+  return LiquidGlassStyle(
+    shape: base.shape,
+    specular: base.specular,
+    glow: base.glow,
+    secondSpecular: base.secondSpecular,
+    refractionIndex: base.refractionIndex,
+    refractionWidth: base.refractionWidth,
+    magnification: base.magnification,
+    chromaticAberration: base.chromaticAberration,
     saturation: base.saturation,
     blur: base.blur,
     color: base.color,
-    enableInnerRadiusTransparent: base.enableInnerRadiusTransparent,
     shadow: shadow,
+    liteGlass: base.liteGlass,
   );
 }
 
@@ -763,12 +758,7 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                                 visible: shadow.visible,
                                 insideGlass: shadow.insideGlass,
                               );
-                    return LiquidGlassStyle(
-                      shape: resolved.shape,
-                      appearance: _withShadow(resolved.appearance, atMorph),
-                      refraction: resolved.refraction,
-                      liteGlass: resolved.liteGlass,
-                    );
+                    return _withShadow(resolved, atMorph);
                   }(),
                 ),
               ),

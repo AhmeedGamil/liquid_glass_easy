@@ -8,11 +8,8 @@ import 'package:flutter/scheduler.dart';
 import '../../lens/liquid_glass_blender.dart';
 import '../../lens/liquid_glass_lens.dart';
 import '../../liquid_glass_engine.dart';
-import '../../liquid_glass_config.dart';
 import '../../liquid_glass_style.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_refraction_type.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../../utils/liquid_glass_spring.dart';
 import 'liquid_glass_morph_motion.dart';
@@ -487,15 +484,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   static bool _sameShape(LiquidGlassShape? a, LiquidGlassShape? b) {
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
-    return a.cornerStyle == b.cornerStyle &&
-        a.cornerRadius == b.cornerRadius &&
-        a.clipQuality == b.clipQuality &&
-        a.borderWidth == b.borderWidth &&
-        a.borderColor == b.borderColor &&
-        a.lightIntensity == b.lightIntensity &&
-        a.lightColor == b.lightColor &&
-        a.lightDirection == b.lightDirection &&
-        a.lightMode == b.lightMode;
+    return LiquidGlassShape.sameOutline(a, b);
   }
 
   Size? get _targetSize {
@@ -808,32 +797,13 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     final LiquidGlassStyle s = widget.style;
     if (f <= 0 || (a.thickenBlur <= 0 && a.thickenRefraction <= 0)) return s;
 
-    final LiquidGlassBlur blur = s.appearance.blur;
     final double bm = 1 + a.thickenBlur * f;
-    LiquidGlassRefraction refraction = s.refraction;
-    final LiquidGlassRefractionType? type = refraction.refractionType;
-    if (type is OpticalRefraction && a.thickenRefraction > 0) {
-      final double rm = 1 + a.thickenRefraction * f;
-      refraction = LiquidGlassRefraction(
-        distortion: refraction.distortion,
-        distortionWidth: refraction.distortionWidth,
-        magnification: refraction.magnification,
-        chromaticAberration: refraction.chromaticAberration,
-        refractionMode: refraction.refractionMode,
-        diagonalFlip: refraction.diagonalFlip,
-        refractionType: OpticalRefraction(
-          refraction: type.refraction,
-          refractionWidth: type.refractionWidth * rm,
-          depth: (type.depth * rm).clamp(0.0, 1.0),
-        ),
-      );
-    }
+    final double rm =
+        a.thickenRefraction > 0 ? 1 + a.thickenRefraction * f : 1.0;
     return s.copyWith(
-      appearance: s.appearance.copyWith(
-        blur:
-            LiquidGlassBlur(sigmaX: blur.sigmaX * bm, sigmaY: blur.sigmaY * bm),
-      ),
-      refraction: refraction,
+      blur: s.blur * bm,
+      refractionIndex: 1.0 + (s.refractionIndex - 1.0) * rm,
+      refractionWidth: s.refractionWidth * rm,
     );
   }
 
@@ -985,17 +955,8 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   LiquidGlassShape _shapeFor(_Blob b, Rect r) {
     final LiquidGlassShape s = b.shape ?? const LiquidGlassShape();
     final double half = math.min(r.width, r.height) / 2;
-    return LiquidGlassShape(
-      cornerStyle: s.cornerStyle,
+    return s.copyWith(
       cornerRadius: b.shape == null ? half : math.min(s.cornerRadius, half),
-      clipQuality: s.clipQuality,
-      borderWidth: s.borderWidth,
-      borderColor: s.borderColor,
-      lightIntensity: s.lightIntensity,
-      lightColor: s.lightColor,
-      lightDirection: s.lightDirection,
-      lightMode: s.lightMode,
-      borderType: s.borderType,
     );
   }
 

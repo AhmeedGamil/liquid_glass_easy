@@ -5,10 +5,8 @@ import 'package:flutter/widgets.dart';
 import '../lens/liquid_glass_blender.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../lens/liquid_glass_shaders.dart';
-import '../liquid_glass_config.dart' show LiquidGlassAppearance;
 import '../liquid_glass_style.dart';
 import '../liquid_glass_view.dart';
-import 'liquid_glass_blur.dart';
 
 /// Compiles the glass GPU programs during launch, so the first page that
 /// shows glass does not pay for them.
@@ -167,11 +165,7 @@ const double _panelHeight = 90;
 class _WarmGlass extends StatelessWidget {
   const _WarmGlass();
 
-  static const LiquidGlassStyle _style = LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      blur: LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
-    ),
-  );
+  static const LiquidGlassStyle _style = LiquidGlassStyle(blur: 3);
 
   @override
   Widget build(BuildContext context) {

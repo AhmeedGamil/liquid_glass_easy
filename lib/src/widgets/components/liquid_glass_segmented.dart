@@ -6,8 +6,7 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// **Label** group for [LiquidGlassSegmented]: how each segment's text
@@ -100,7 +99,7 @@ class LiquidGlassSegmentedPillStyle {
   final LiquidGlassStyle? glassStyle;
 
   /// The **rest pill**'s look — the non-refracting tinted highlight. Its
-  /// `appearance.color` is the fill and its `shape` the corners (falls
+  /// `color` is the fill and its `shape` the corners (falls
   /// back to a height-tracking capsule). This is what's drawn when [glass]
   /// is `false`; with [glass] `true` it is unused.
   final LiquidGlassStyle? restStyle;
@@ -141,17 +140,20 @@ class LiquidGlassSegmentedPillStyle {
   /// tint over a tight refraction band and a bright optical rim.
   LiquidGlassStyle resolveGlass(double radius) {
     final g = glassStyle;
-    return LiquidGlassStyle(
+    return LiquidGlassStyle.groups(
       shape: g?.shape ?? _capsule(radius, solidity: 0.5, light: 1.3, sat: 1.4),
+      specular: g?.specular,
+      glow: g?.glow,
+      secondSpecular: g?.secondSpecular,
       appearance: g?.appearance ??
           const LiquidGlassAppearance(
             color: Color(0x1CFFFFFF), // white, alpha 28
-            blur: LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
+            blur: 1.5,
           ),
       refraction: g?.refraction ??
           const LiquidGlassRefraction(
-            distortion: 0.06,
-            distortionWidth: 10,
+            refractionIndex: 1.025,
+            refractionWidth: 10,
             chromaticAberration: 0.002,
           ),
       liteGlass: g?.liteGlass,
@@ -161,8 +163,11 @@ class LiquidGlassSegmentedPillStyle {
   /// The rest pill's resolved fill + corners for a pill of [radius].
   LiquidGlassStyle resolveRest(double radius) {
     final r = restStyle;
-    return LiquidGlassStyle(
+    return LiquidGlassStyle.groups(
       shape: r?.shape ?? _capsule(radius, solidity: 0, light: 1, sat: 1),
+      specular: r?.specular,
+      glow: r?.glow,
+      secondSpecular: r?.secondSpecular,
       appearance: r?.appearance ??
           const LiquidGlassAppearance(color: Color(0x3CFFFFFF)), // white, a60
       liteGlass: r?.liteGlass,
@@ -476,15 +481,11 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
   LiquidGlassStyle _capsuleStyle() {
     final base = LiquidGlassStyle(
       shape: _capsule(widget.height / 2, solidity: 0.25, light: 1, sat: 1.1),
-      appearance: const LiquidGlassAppearance(
-        color: Color(0x14FFFFFF), // white, alpha 20
-        blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
-      ),
-      refraction: const LiquidGlassRefraction(
-        distortion: 0.06,
-        distortionWidth: 22,
-        chromaticAberration: 0.002,
-      ),
+      color: Color(0x14FFFFFF),
+      blur: 2,
+      refractionIndex: 1.025,
+      refractionWidth: 22,
+      chromaticAberration: 0.002,
     );
     return base.merge(widget.style);
   }
@@ -496,35 +497,34 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
   /// lens's backdrop sampling intact on Impeller.
   LiquidGlassStyle _fadeStyle(LiquidGlassStyle style, double f) {
     if (f >= 0.999) return style;
-    final shape = style.shape;
-    final color = style.appearance.color;
-    final blur = style.appearance.blur;
-    final refractionType = style.refraction.refractionType;
+    // The lights as the style resolves them, so a fallback shape's own
+    // rim fades too.
+    final LiquidGlassShape? shape = style.shape;
+    final LiquidGlassLitShape? lit = shape == null ? null : style.litShape();
+    final LiquidGlassLight? specular = lit?.specular ?? style.specular;
+    final LiquidGlassLight? glow = lit?.glow ?? style.glow;
+    final LiquidGlassLight? second =
+        lit?.secondSpecular ?? style.secondSpecular;
+    final color = style.color;
     return LiquidGlassStyle(
-      shape: shape == null
-          ? null
-          : LiquidGlassShape(
-              cornerStyle: shape.cornerStyle,
-              cornerRadius: shape.cornerRadius,
-              clipQuality: shape.clipQuality,
-              borderWidth: shape.borderWidth * f,
-              borderColor: shape.borderColor,
-              lightIntensity: shape.lightIntensity * f,
-              lightColor: shape.lightColor,
-              lightDirection: shape.lightDirection,
-              lightMode: shape.lightMode,
-              borderType: shape.borderType,
-            ),
-      appearance: style.appearance.copyWith(
-        color: color.withValues(alpha: color.a * f),
-        blur: LiquidGlassBlur(sigmaX: blur.sigmaX * f, sigmaY: blur.sigmaY * f),
+      shape: lit?.outline,
+      specular: specular?.copyWith(
+        thickness: specular.thickness * f,
+        intensity: specular.intensity * f,
       ),
-      refraction: style.refraction.copyWith(
-        distortion:
-            refractionType == null ? style.refraction.distortion * f : null,
-        refractionType: refractionType?.withEffectFactor(f),
-        chromaticAberration: style.refraction.chromaticAberration * f,
+      glow: glow?.copyWith(thickness: glow.thickness * f),
+      secondSpecular: second?.copyWith(
+        thickness: second.thickness * f,
+        intensity: second.intensity * f,
       ),
+      saturation: style.saturation,
+      shadow: style.shadow,
+      color: color.withValues(alpha: color.a * f),
+      blur: style.blur * f,
+      refractionIndex: 1.0 + (style.refractionIndex - 1.0) * f,
+      refractionWidth: style.refractionWidth,
+      magnification: style.magnification,
+      chromaticAberration: style.chromaticAberration * f,
       liteGlass: style.liteGlass,
     );
   }
@@ -552,15 +552,11 @@ LiquidGlassShape _capsule(
   required double light,
   required double sat,
 }) {
-  return LiquidGlassShape.roundedRectangle(
+  return LiquidGlassLitShape(
+    cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
     cornerRadius: radius,
-    borderWidth: 1,
-    lightIntensity: light,
-    lightDirection: 80,
-    borderType: OpticalBorder(
-      borderSaturation: sat,
-      ambientIntensity: 1.0,
-      borderSolidity: solidity,
-    ),
+    specular: LiquidGlassLight.specular(
+        thickness: 1, sharpness: solidity, angle: 80, intensity: light),
+    glow: LiquidGlassLight.glow(thickness: 1, angle: 170, intensity: 1.0),
   );
 }

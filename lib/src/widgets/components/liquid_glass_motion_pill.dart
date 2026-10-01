@@ -7,11 +7,8 @@ import 'package:flutter/scheduler.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../lens/liquid_glass_lens_scope.dart';
 import '../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
-import '../liquid_glass_config.dart'
-    show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart' show OpticalBorder;
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
 import '../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../utils/liquid_glass_lens_motion.dart';
@@ -105,7 +102,7 @@ class LiquidGlassMotionPill extends StatefulWidget {
   /// the rim and pools underneath.
   ///
   /// Normally left `null`: the shadow travels with the rest of the look,
-  /// in `style.appearance.shadow`, and this is the override for a caller
+  /// in `style.shadow`, and this is the override for a caller
   /// that has to state it apart from the style. `null` on both draws
   /// none.
   ///
@@ -113,7 +110,7 @@ class LiquidGlassMotionPill extends StatefulWidget {
   /// half that falls BELOW the pill survives instead of being clipped
   /// away; the pill also hands it the current outline stretch so the ring
   /// tracks an elliptical cap while the glass is squashed. That wrap is
-  /// why the style's shadow is lifted out of the appearance before the
+  /// why the style's shadow is lifted out of the style before the
   /// lens sees it. See [LiquidGlassShadow].
   ///
   /// It paints behind the glass, so an opaque [cover] at rest covers the
@@ -412,18 +409,7 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
   LiquidGlassStyle _resolveStyle(double morphH, double stretchX) {
     final LiquidGlassStyle base = widget.style ?? _defaultStyle;
     final LiquidGlassShape shape = base.shape ??
-        LiquidGlassShape(
-          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
-          cornerRadius: morphH / 2,
-          borderWidth: 0.6,
-          lightIntensity: 1.3,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.4,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.5,
-          ),
-        );
+        LiquidGlassShape.roundedRectangle(cornerRadius: morphH / 2);
     final double bandScale =
         (morphH / widget.activeSize.height).clamp(0.0, 1.0);
     // The band lives in REST space, so the outline stretch multiplies
@@ -432,33 +418,28 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
     final double comp = stretchX > 0 ? 1.0 / stretchX : 1.0;
     return LiquidGlassStyle(
       shape: shape,
-      // Everything the appearance carries EXCEPT its shadow: that one is
-      // pulled out and wrapped around the lens in build(), so leaving it
-      // here would draw the ring a second time — clipped to the outline,
-      // and without the stretch that keeps it on the rim.
-      appearance: LiquidGlassAppearance(
-        saturation: base.appearance.saturation,
-        blur: base.appearance.blur,
-        color: base.appearance.color,
-        enableInnerRadiusTransparent:
-            base.appearance.enableInnerRadiusTransparent,
-      ),
-      refraction: base.refraction.copyWith(
-        distortionWidth: base.refraction.distortionWidth * bandScale * comp,
-      ),
+      // A thin bright rim unless the caller's style names its own lights.
+      specular: base.specular ??
+          const LiquidGlassLight.specular(
+              thickness: 0.6, sharpness: 0.5, angle: 80, intensity: 1.3),
+      glow:
+          base.glow ?? const LiquidGlassLight.glow(thickness: 0.6, angle: 170),
+      saturation: base.saturation,
+      blur: base.blur,
+      color: base.color,
+      refractionIndex: base.refractionIndex,
+      refractionWidth: base.refractionWidth * bandScale * comp,
+      magnification: base.magnification,
+      chromaticAberration: base.chromaticAberration,
       liteGlass: base.liteGlass,
     );
   }
 
   /// The tuned default glass carried over from the stretch slider.
   static const LiquidGlassStyle _defaultStyle = LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      color: Color(0x1CFFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.12,
-      distortionWidth: 18,
-    ),
+    color: Color(0x1CFFFFFF),
+    blur: 1.5,
+    refractionIndex: 1.021,
+    refractionWidth: 18,
   );
 }

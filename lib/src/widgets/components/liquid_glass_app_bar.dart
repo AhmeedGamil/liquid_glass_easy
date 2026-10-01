@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_lens.dart';
-import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_adaptivity.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import '../utils/liquid_glass_touch.dart';
 import 'liquid_glass_adaptive_area.dart';
@@ -119,25 +117,21 @@ class LiquidGlassAppBar extends StatelessWidget {
   /// Font size of the [title] when it is a plain [Text].
   final double fontSize;
 
-  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
-    color: Color(0x1CFFFFFF), // white, alpha 28
-    blur: LiquidGlassBlur(sigmaX: 4, sigmaY: 4),
-  );
-
-  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.07,
-    distortionWidth: 28,
-    chromaticAberration: 0.002,
-  );
-
   /// The tuned default look — a faint white frost over a soft optical
   /// refraction. Its `shape` is `null`: the bar derives a height-tracking
   /// full pill with an optical border when [style] supplies no shape.
   /// Compose with `copyWith` to tweak one facet, e.g.
   /// `style: LiquidGlassAppBar.defaultStyle.copyWith(...)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: _defaultAppearance,
-    refraction: _defaultRefraction,
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    // white, alpha 28
+    color: Color(0x1CFFFFFF),
+    blur: 4,
+    refractionIndex: 1.025,
+    refractionWidth: 28,
+    chromaticAberration: 0.002,
   );
 
   @override
@@ -158,14 +152,6 @@ class LiquidGlassAppBar extends StatelessWidget {
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: height / 2,
-          borderWidth: 1.2,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
         );
 
     return SizedBox(
@@ -175,8 +161,17 @@ class LiquidGlassAppBar extends StatelessWidget {
         touch: touch,
         style: LiquidGlassStyle(
           shape: effectiveShape,
-          appearance: resolved.appearance,
-          refraction: resolved.refraction,
+          specular: resolved.specular,
+          glow: resolved.glow,
+          secondSpecular: resolved.secondSpecular,
+          saturation: resolved.saturation,
+          blur: resolved.blur,
+          color: resolved.color,
+          shadow: resolved.shadow,
+          refractionIndex: resolved.refractionIndex,
+          refractionWidth: resolved.refractionWidth,
+          magnification: resolved.magnification,
+          chromaticAberration: resolved.chromaticAberration,
           adaptivity: resolved.adaptivity,
           liteGlass: resolved.liteGlass,
         ),

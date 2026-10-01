@@ -1,51 +1,107 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart' show Color;
 
 import 'components/liquid_glass_lite.dart';
+import 'components/liquid_glass_shadow.dart';
 import 'liquid_glass_config.dart';
 import 'utils/liquid_glass_adaptivity.dart';
+import 'utils/liquid_glass_light.dart';
 import 'utils/liquid_glass_shape.dart';
 
 /// The **look** of a liquid-glass surface, bundled into one reusable
-/// descriptor: its [shape] (corners + border), its [appearance] (fill
-/// tint, blur, saturation, inner transparency) and its [refraction]
-/// (how it bends the content behind it).
+/// descriptor: its [shape], the two lights of its border ([specular] and
+/// [glow]), its fill ([color], [blur], [saturation], [shadow]) and how it
+/// bends the content behind it ([refractionIndex], [refractionWidth],
+/// [magnification], [chromaticAberration]).
 ///
 /// This is the single styling vocabulary shared across the library —
-/// `LiquidGlassLens`, the internal lens config, and the components
-/// (buttons, bars, the nav pill, …) all describe their glass with the
-/// same object. A surface is fully `geometry` (where + how big) +
-/// **style** (how it looks) + behavior (how it acts).
-///
-/// Non-refracting consumers — e.g. the static (non-glass) selection pill
-/// or the frosted fallback — read the subset they can render ([shape] +
-/// [appearance]) and simply ignore [refraction].
+/// `LiquidGlassLens` and the components (buttons, bars, the nav pill, …) all
+/// describe their glass with the same object. Change one facet with
+/// [copyWith]:
 ///
 /// ```dart
 /// const LiquidGlassStyle(
 ///   shape: LiquidGlassShape.continuousRoundedRectangle(cornerRadius: 24),
-///   appearance: LiquidGlassAppearance(color: Color(0x22FFFFFF)),
-///   refraction: LiquidGlassRefraction(distortion: 0.08),
+///   specular: LiquidGlassLight.specular(thickness: 1, angle: 39),
+///   glow: LiquidGlassLight.glow(angle: 129),
+///   refractionIndex: 1.02,
+///   refractionWidth: 24,
+///   color: Color(0x22FFFFFF),
+///   blur: 3,
 /// );
 /// ```
+///
+/// Non-refracting consumers — e.g. the static (non-glass) selection pill
+/// or the frosted fallback — read the subset they can render and simply
+/// ignore the refraction fields.
 @immutable
 class LiquidGlassStyle {
-  /// Corners + border of the surface. When `null`, the consumer picks a
-  /// sensible default (e.g. the nav pill falls back to a height-tracking
-  /// capsule), so a style can describe appearance/refraction without
-  /// pinning the shape.
+  /// The outline of the surface. When `null`, the consumer picks a sensible
+  /// default (e.g. the nav pill falls back to a height-tracking capsule), so
+  /// a style can describe the material without pinning the shape.
   final LiquidGlassShape? shape;
 
-  /// Fill tint, blur, saturation and inner transparency.
-  final LiquidGlassAppearance appearance;
+  /// The border's highlight: the backdrop seen through the edge, brightened
+  /// along the light's axis. When `null`, the consumer's own default is used
+  /// (`LiquidGlassLight.specular()` on a plain lens).
+  final LiquidGlassLight? specular;
 
-  /// How the glass bends the content behind it. Ignored by
-  /// non-refracting consumers.
-  final LiquidGlassRefraction refraction;
+  /// The border's soft side light: a wider, gentler band in the specular's
+  /// picked-up colour. When `null`, the consumer's own default is
+  /// used (no glow on a plain lens, which the shader then skips).
+  final LiquidGlassLight? glow;
+
+  /// A second highlight, drawn over [specular] with its own thickness,
+  /// sharpness, angle, spread, intensity and colour — build it with
+  /// `LiquidGlassLight.specular(...)`. `null` (the default) draws none and
+  /// costs nothing in the shader.
+  final LiquidGlassLight? secondSpecular;
+
+  /// How hard the edge bends the content behind it. `1.0` is no bending;
+  /// the bend builds quickly, so `1.02` is already a clear lens edge and
+  /// `1.5` a very strong one.
+  final double refractionIndex;
+
+  /// Width of the bending band along the edge, in logical pixels. The
+  /// distance the content is displaced scales with it.
+  final double refractionWidth;
+
+  /// Magnification of the content seen through the glass (`1.0` = none).
+  final double magnification;
+
+  /// Strength of the colour fringing in the bending band; `0.0` disables it.
+  final double chromaticAberration;
+
+  /// Color saturation of the output (`1.0` = unchanged, `0.0` = grayscale).
+  final double saturation;
+
+  /// Blur applied to the content beneath the glass, as a Gaussian sigma in
+  /// logical pixels. `0` (the default) is no blur.
+  final double blur;
+
+  /// Base color tint of the glass (often semi-transparent).
+  final Color color;
+
+  /// Contact shadow around the glass — the soft dark band that hugs its
+  /// rim and pools underneath, so the glass reads as sitting in the page
+  /// rather than floating on it. `null` (the default) draws none.
+  ///
+  /// Honored by `LiquidGlassLens`: the lens wraps itself in the
+  /// [LiquidGlassShadow] this describes (its `child` is ignored), with
+  /// the ring's corner defaulting to the lens shape's own radius. The
+  /// wrap lives *inside* the flex deformation's box, so on a lens given a
+  /// `touch` the ring swells, leans and springs back with the body
+  /// instead of staying frozen on the rest silhouette.
+  /// Its `visible` flag composes with the lens's own `visibility`.
+  ///
+  /// Not supported inside a `LiquidGlassBlender`: a merged metaball
+  /// silhouette has no single ring to cast.
+  final LiquidGlassShadow? shadow;
 
   /// iOS-style adaptivity: glass tint + content color flip between two
   /// palettes based on the background behind the lens. `null` (default)
   /// disables the feature entirely. Honored by `LiquidGlassLens`; while
-  /// active, its glass color overrides [appearance]'s `color`.
+  /// active, its glass color overrides [color].
   final LiquidGlassAdaptivity? adaptivity;
 
   /// Draw this surface as `LiquidGlassLite` — frost, tint and a lit rim, no
@@ -62,40 +118,150 @@ class LiquidGlassStyle {
 
   const LiquidGlassStyle({
     this.shape,
-    this.appearance = const LiquidGlassAppearance(),
-    this.refraction = const LiquidGlassRefraction(),
+    this.specular,
+    this.glow,
+    this.secondSpecular,
+    this.refractionIndex = 1.02,
+    this.refractionWidth = 30.0,
+    this.magnification = 1.0,
+    this.chromaticAberration = 0.003,
+    this.saturation = 1.0,
+    this.blur = 0.0,
+    this.color = const Color(0x00000000),
+    this.shadow,
     this.adaptivity,
     this.liteGlass,
   });
 
-  /// Returns a copy with the given fields replaced.
+  /// Builds a style from the renderers' own groups: a shape that may carry
+  /// its lights, and a material group. [specular] and [glow], when given,
+  /// win over the shape's own.
+  @internal
+  factory LiquidGlassStyle.groups({
+    LiquidGlassShape? shape,
+    LiquidGlassLight? specular,
+    LiquidGlassLight? glow,
+    LiquidGlassLight? secondSpecular,
+    LiquidGlassAppearance appearance = const LiquidGlassAppearance(),
+    LiquidGlassRefraction refraction = const LiquidGlassRefraction(),
+    LiquidGlassAdaptivity? adaptivity,
+    LiquidGlassLitePickup? liteGlass,
+  }) {
+    // A lit shape stays whole in `shape`, so it keeps its lights wherever
+    // the style's shape is handed on; [litShape] resolves the two.
+    return LiquidGlassStyle(
+      shape: shape,
+      specular: specular,
+      glow: glow,
+      secondSpecular: secondSpecular,
+      refractionIndex: refraction.refractionIndex,
+      refractionWidth: refraction.refractionWidth,
+      magnification: refraction.magnification,
+      chromaticAberration: refraction.chromaticAberration,
+      saturation: appearance.saturation,
+      blur: appearance.blur,
+      color: appearance.color,
+      shadow: appearance.shadow,
+      adaptivity: adaptivity,
+      liteGlass: liteGlass,
+    );
+  }
+
+  /// The material group the renderers read: tint, blur, saturation, shadow.
+  @internal
+  LiquidGlassAppearance get appearance => LiquidGlassAppearance(
+        saturation: saturation,
+        blur: blur,
+        color: color,
+        shadow: shadow,
+      );
+
+  /// The refraction group the renderers read.
+  @internal
+  LiquidGlassRefraction get refraction => LiquidGlassRefraction(
+        refractionIndex: refractionIndex,
+        refractionWidth: refractionWidth,
+        magnification: magnification,
+        chromaticAberration: chromaticAberration,
+      );
+
+  /// The outline with this style's lights, as the renderers draw it.
+  /// [fallback] is the outline used when [shape] is `null`; a `null`
+  /// [specular] or [glow] takes [fallbackSpecular] / [fallbackGlow], or the
+  /// light's own defaults.
+  @internal
+  LiquidGlassLitShape litShape({
+    LiquidGlassShape fallback =
+        const LiquidGlassShape.continuousRoundedRectangle(),
+    LiquidGlassLight? fallbackSpecular,
+    LiquidGlassLight? fallbackGlow,
+  }) =>
+      LiquidGlassLitShape.of(
+        shape ?? fallback,
+        specular: specular ?? fallbackSpecular,
+        glow: glow ?? fallbackGlow,
+        secondSpecular: secondSpecular,
+      );
+
+  /// Returns a copy with the given fields replaced. A `null` argument keeps
+  /// the current value, so [shape], [specular], [glow], [secondSpecular],
+  /// [shadow], [adaptivity] and [liteGlass] cannot be cleared here.
   LiquidGlassStyle copyWith({
     LiquidGlassShape? shape,
-    LiquidGlassAppearance? appearance,
-    LiquidGlassRefraction? refraction,
+    LiquidGlassLight? specular,
+    LiquidGlassLight? glow,
+    LiquidGlassLight? secondSpecular,
+    double? refractionIndex,
+    double? refractionWidth,
+    double? magnification,
+    double? chromaticAberration,
+    double? saturation,
+    double? blur,
+    Color? color,
+    LiquidGlassShadow? shadow,
     LiquidGlassAdaptivity? adaptivity,
     LiquidGlassLitePickup? liteGlass,
   }) {
     return LiquidGlassStyle(
       shape: shape ?? this.shape,
-      appearance: appearance ?? this.appearance,
-      refraction: refraction ?? this.refraction,
+      specular: specular ?? this.specular,
+      glow: glow ?? this.glow,
+      secondSpecular: secondSpecular ?? this.secondSpecular,
+      refractionIndex: refractionIndex ?? this.refractionIndex,
+      refractionWidth: refractionWidth ?? this.refractionWidth,
+      magnification: magnification ?? this.magnification,
+      chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+      saturation: saturation ?? this.saturation,
+      blur: blur ?? this.blur,
+      color: color ?? this.color,
+      shadow: shadow ?? this.shadow,
       adaptivity: adaptivity ?? this.adaptivity,
       liteGlass: liteGlass ?? this.liteGlass,
     );
   }
 
-  /// Overlays [other] on top of this style: [other]'s [appearance] and
-  /// [refraction] replace this one's, and its [shape], [adaptivity] and
-  /// [liteGlass] win when set (falling back to this style's when `null`).
-  /// Returns this style unchanged when [other] is `null`. Useful for a
-  /// base/theme style with per-surface overrides.
+  /// Overlays [other] on top of this style: [other]'s material ([color],
+  /// [blur], [saturation], [shadow]) and refraction fields replace this one's,
+  /// and its [shape], [specular], [glow], [secondSpecular], [adaptivity] and
+  /// [liteGlass] win
+  /// when set (falling back to this style's when `null`). Returns this style
+  /// unchanged when [other] is `null`. Useful for a base/theme style with
+  /// per-surface overrides.
   LiquidGlassStyle merge(LiquidGlassStyle? other) {
     if (other == null) return this;
     return LiquidGlassStyle(
       shape: other.shape ?? shape,
-      appearance: other.appearance,
-      refraction: other.refraction,
+      specular: other.specular ?? specular,
+      glow: other.glow ?? glow,
+      secondSpecular: other.secondSpecular ?? secondSpecular,
+      refractionIndex: other.refractionIndex,
+      refractionWidth: other.refractionWidth,
+      magnification: other.magnification,
+      chromaticAberration: other.chromaticAberration,
+      saturation: other.saturation,
+      blur: other.blur,
+      color: other.color,
+      shadow: other.shadow,
       adaptivity: other.adaptivity ?? adaptivity,
       liteGlass: other.liteGlass ?? liteGlass,
     );

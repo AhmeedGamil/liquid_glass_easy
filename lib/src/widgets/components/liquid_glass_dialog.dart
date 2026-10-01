@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_batch.dart';
 import '../lens/liquid_glass_lens.dart';
-import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_scaffold.dart';
 
@@ -28,7 +26,7 @@ import 'liquid_glass_scaffold.dart';
 ///       LiquidGlassButton(
 ///         label: 'Delete',
 ///         style: LiquidGlassButton.defaultStyle.copyWith(
-///           appearance: const LiquidGlassAppearance(color: Color(0x60FF3B30)),
+///           color: const Color(0x60FF3B30),
 ///         ),
 ///         onPressed: () => Navigator.of(context).pop(true),
 ///       ),
@@ -142,21 +140,17 @@ class LiquidGlassDialog extends StatelessWidget {
   /// Alignment of the dialog on screen.
   final AlignmentGeometry alignment;
 
-  static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
-    color: Color(0x28FFFFFF), // white frost, alpha 40
-    blur: LiquidGlassBlur(sigmaX: 8, sigmaY: 8),
-  );
-
-  static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.08,
-    distortionWidth: 36,
-    chromaticAberration: 0.002,
-  );
-
   /// Default glass look for dialogs.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    appearance: _defaultAppearance,
-    refraction: _defaultRefraction,
+    specular: LiquidGlassLight.specular(
+        thickness: 1.2, sharpness: 0.4, angle: 80, intensity: 1.2),
+    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    // white frost, alpha 40
+    color: Color(0x28FFFFFF),
+    blur: 8,
+    refractionIndex: 1.024,
+    refractionWidth: 36,
+    chromaticAberration: 0.002,
   );
 
   const LiquidGlassDialog({
@@ -175,14 +169,6 @@ class LiquidGlassDialog extends StatelessWidget {
     final LiquidGlassShape effectiveShape = resolved.shape ??
         LiquidGlassShape.roundedRectangle(
           cornerRadius: 28,
-          borderWidth: 1.2,
-          lightIntensity: 1.2,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.3,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.4,
-          ),
         );
 
     return Align(
@@ -192,8 +178,17 @@ class LiquidGlassDialog extends StatelessWidget {
         child: LiquidGlassLens(
           style: LiquidGlassStyle(
             shape: effectiveShape,
-            appearance: resolved.appearance,
-            refraction: resolved.refraction,
+            specular: resolved.specular,
+            glow: resolved.glow,
+            secondSpecular: resolved.secondSpecular,
+            saturation: resolved.saturation,
+            blur: resolved.blur,
+            color: resolved.color,
+            shadow: resolved.shadow,
+            refractionIndex: resolved.refractionIndex,
+            refractionWidth: resolved.refractionWidth,
+            magnification: resolved.magnification,
+            chromaticAberration: resolved.chromaticAberration,
             liteGlass: resolved.liteGlass,
           ),
           visibility: visibility,

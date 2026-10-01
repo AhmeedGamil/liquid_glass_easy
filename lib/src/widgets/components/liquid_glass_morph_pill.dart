@@ -4,10 +4,9 @@ import 'package:flutter/material.dart';
 
 import '../liquid_glass.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
 import '../utils/liquid_glass_position.dart';
 import '../utils/liquid_glass_shape.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 
 /// Layout description shared between the static "rest" pill and the
 /// animated liquid-glass pill that grows out of it during a morph
@@ -119,11 +118,6 @@ LiquidGlass buildLiquidGlassMorphPill({
   /// and swallow the whole surface. Feeding the pill's current size ratio
   /// here keeps the band proportional throughout, arriving at the
   /// authored value once the pill is full size.
-  ///
-  /// Applies to whichever width is in play: the legacy
-  /// [LiquidGlassRefraction.distortionWidth], or the width inside a
-  /// [LiquidGlassRefractionType] when one is set (including
-  /// [OpticalRefraction.refractionWidth]).
   double refractionWidthScale = 1.0,
 
   /// Optional content rendered INSIDE the lens, on top of the glass
@@ -150,7 +144,7 @@ LiquidGlass buildLiquidGlassMorphPill({
       width: spec.width,
       height: h,
     ),
-    shape: resolved.shape!,
+    shape: resolved.litShape(),
     refraction: resolved.refraction,
     appearance: resolved.appearance,
   );
@@ -171,44 +165,35 @@ LiquidGlassStyle resolveLiquidGlassMorphPillStyle({
   // The pill morphs as it grows, so without an explicit shape it stays a
   // height-tracking capsule. A caller-supplied style.shape is honored.
   final LiquidGlassShape shape = style?.shape ??
-      LiquidGlassShape(
+      LiquidGlassLitShape(
         cornerStyle: defaultCornerStyle,
         cornerRadius: height / 2,
-        borderWidth: defaultBorderWidth,
-        lightIntensity: 1.3,
-        lightDirection: 80,
-        borderType: const OpticalBorder(
-          borderSaturation: 1.4,
-          ambientIntensity: 1.0,
-          borderSolidity: 0.5,
-        ),
+        specular: LiquidGlassLight.specular(
+            thickness: defaultBorderWidth,
+            sharpness: 0.5,
+            angle: 80,
+            intensity: 1.3),
+        glow: LiquidGlassLight.glow(thickness: defaultBorderWidth, angle: 170),
       );
   final LiquidGlassRefraction authoredRefraction = style?.refraction ??
       const LiquidGlassRefraction(
-        distortion: 0.12,
-        distortionWidth: 18,
+        refractionIndex: 1.021,
+        refractionWidth: 18,
       );
-  // Keep the band proportional to the pill. A configured
-  // LiquidGlassRefractionType owns its own width, so scale it there;
-  // otherwise scale the legacy distortionWidth the shader falls back to.
+  // Keep the band proportional to the pill.
   final LiquidGlassRefraction refraction = refractionWidthScale == 1.0
       ? authoredRefraction
-      : (authoredRefraction.refractionType != null
-          ? authoredRefraction.copyWith(
-              refractionType: authoredRefraction.refractionType!
-                  .withWidthFactor(refractionWidthScale),
-            )
-          : authoredRefraction.copyWith(
-              distortionWidth:
-                  authoredRefraction.distortionWidth * refractionWidthScale,
-            ));
+      : authoredRefraction.withWidthFactor(refractionWidthScale);
   final LiquidGlassAppearance appearance = style?.appearance ??
       LiquidGlassAppearance(
         color: Colors.white.withAlpha(28),
-        blur: const LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
+        blur: 1.5,
       );
-  return LiquidGlassStyle(
+  return LiquidGlassStyle.groups(
     shape: shape,
+    specular: style?.specular,
+    glow: style?.glow,
+    secondSpecular: style?.secondSpecular,
     appearance: appearance,
     refraction: refraction,
   );

@@ -421,109 +421,21 @@ ShapeData evaluateContinuousRoundedRect(
 }
 
 /* ===========================
-   SHARED CORE: REFRACTION FROM ANCHOR
-   =========================== */
-vec2 refractFromAnchorPx(
-    vec2 frag,
-    vec2 anchor,
-    float df,
-    float mag,
-    float flip,
-    float t
-){
-    vec2 v = frag - anchor;
-    float s = max(df, EPS);
-    vec2 refr = anchor + v / s;
-
-    float k = smoothstep(1.0 - flip, 1.0, t);
-    vec2 flipped = anchor - (refr - anchor);
-
-    return mix(refr, flipped, k);
-}
-
-/* ===========================
-   Unified Anchor Helper
-   =========================== */
-vec2 computeInsetAnchor(vec2 fragPx, vec2 normal, float sdf, float insetPx){
-    return fragPx - normal * (sdf + insetPx);
-}
-
-/* ===========================
-   DISTORTION FACTOR
-   =========================== */
-float computeDistortionFactor(float u_distortion, float t){
-    float d = clamp(u_distortion,0.0,1.0) * 100.0;
-    return 1.0 + d * pow(t, d);
-}
-//float computeDistortionFactor(float u_distortion, float zoneT) {
-//    // clamp distortion input
-//    float distortionClamped = clamp(u_distortion, 0.0, 1.0);
-//    float distortionStrength = distortionClamped * 100.0;
-//
-//
-//    // --- stronger curve (outer edge emphasis)
-//    //float edgeFactorStrongCurve = pow(zoneT, distortionStrength) * 0.5;
-//    float edgeFactorStrongCurve = pow(zoneT, distortionStrength);
-//
-//    float distortionStrong = 1.0 + distortionStrength * edgeFactorStrongCurve;
-//
-//    // --- softer curve (inner falloff)
-//    float edgeFactorSoftCurve = pow(zoneT, 5.0) * 0.08;
-//    float distortionSoft = 1.0 + distortionStrength * edgeFactorSoftCurve;
-//
-//    // --- combined result
-//    float distortionFactor = distortionStrong + (distortionSoft - 1.0);
-//    //float distortionFactor = distortionStrong;
-//
-//    return distortionFactor;
-//}
-
-/* ===========================
-   FINAL UNIFIED REFRACTION (PX)
-   =========================== */
-vec2 computeShapeRefraction(
-    vec2 fragPx,
-    vec2 normal,
-    float sdf,
-    float insetPx,
-    float distortionFactor,
-    float magnification,
-    float diagonalFlip,
-    float zoneT
-){
-    vec2 anchor = computeInsetAnchor(fragPx, normal, sdf, insetPx);
-    return refractFromAnchorPx(
-        fragPx,
-        anchor,
-        distortionFactor,
-        magnification,
-        diagonalFlip,
-        zoneT
-    );
-}
-
-/* ===========================
-   PHYSICAL REFRACTION (Snell's law via a 3D surface normal)
+   REFRACTION (Snell's law via a 3D surface normal)
    ---------------------------------------------------------
    Lifts the 2D SDF gradient into a 3D normal that faces the viewer
    deep inside the glass and tilts outward at the edge, then bends the
    incident ray with refract() and displaces the sample by its
    screen-space part.
 
-   Three independent controls:
-     • refractiveIndex (IOR) — the bending ANGLE. Snell's law saturates,
-       so its useful range is ~1.0–2.0; beyond that the ray is already
-       fully bent and higher values barely change the look.
-     • thickness        — the WIDTH of the beveled edge band (the `h` ramp).
-     • strength         — HOW MUCH the sample is displaced (the public lens
-       `distortion` dial, 0..1). This is the magnitude knob; without it the
-       displacement is welded to `thickness` and the index becomes the only
-       (saturating) control.
-   REFRACTION_DEPTH_SCALE is an extra global multiplier (1.0).
+   Two controls:
+     • refractiveIndex — how hard the ray bends. 1.0 is no bending; the
+       bend saturates, so small steps above 1.0 already move a lot.
+     • thickness       — the WIDTH of the beveled edge band (the `h` ramp),
+       which the travel distance scales with.
    =========================== */
-#ifndef REFRACTION_DEPTH_SCALE
-#define REFRACTION_DEPTH_SCALE 1.0
-#endif
+// How far the bent ray travels, in band widths.
+const float REFRACTION_TRAVEL = 5.0;
 
 vec2 computeRefractedPosition(
     vec2 fragPx,
@@ -531,7 +443,6 @@ vec2 computeRefractedPosition(
     float sdf,
     float thickness,
     float refractiveIndex,
-    float strength,
     float zoneT
 ){
     // 2D gradient -> 3D surface normal.
@@ -545,11 +456,10 @@ vec2 computeRefractedPosition(
 
     vec3 refr = refract(I, normal3D, eta);
 
-    // Displace by the refracted ray's screen-space (xy) component. The
-    // `strength` dial scales the travel distance independently of the band
-    // width; the 5.0 matches the original optical tuning.
-    float depth = thickness * strength * 5.0 * REFRACTION_DEPTH_SCALE * zoneT;
-    return fragPx + refr.xy * depth;
+    // Displace by the refracted ray's screen-space (xy) component, fading to
+    // nothing at the band's inner end.
+    float travel = thickness * REFRACTION_TRAVEL * zoneT;
+    return fragPx + refr.xy * travel;
 }
 
 vec2 applyLensMagnification(

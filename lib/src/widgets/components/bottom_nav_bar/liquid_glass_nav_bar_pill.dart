@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../../liquid_glass.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_border_mode.dart';
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_shape.dart';
 import 'liquid_glass_nav_bar_layout.dart';
@@ -50,17 +49,17 @@ LiquidGlass buildLiquidGlassBottomNavPill({
   double dx = 0,
 
   /// Blur behind the moving pill. Defaults to **none** so the glass
-  /// reads crisp; pass a [LiquidGlassBlur] to soften it.
-  LiquidGlassBlur blur = const LiquidGlassBlur(),
+  /// reads crisp; pass a [double] to soften it.
+  double blur = 0,
 
   /// Refraction strength of the pill's glass. Higher = more bending.
-  double distortion = 0.06,
+  double refractionIndex = 1.025,
 
   /// Width of the pill's refraction band, in logical pixels.
-  double distortionWidth = 10,
+  double refractionWidth = 10,
 
   /// Complete refraction configuration. When set, this supersedes
-  /// [distortion], [distortionWidth], and [magnification].
+  /// [refractionIndex], [refractionWidth], and [magnification].
   LiquidGlassRefraction? refraction,
 
   /// Magnification of the content seen through the pill (`1` = none).
@@ -68,7 +67,6 @@ LiquidGlass buildLiquidGlassBottomNavPill({
 
   /// When `true`, the pill's inner (non-distorted) area is transparent,
   /// revealing the background directly through the center.
-  bool enableInnerRadiusTransparent = false,
 
   /// Overrides the pill's glass shape. When `null` the default
   /// **Apple capsule-style** [LiquidGlassShape] is used,
@@ -117,28 +115,23 @@ LiquidGlass buildLiquidGlassBottomNavPill({
       outOfBoundaries: true,
     ),
     shape: shape ??
-        LiquidGlassShape.continuousRoundedRectangle(
+        LiquidGlassLitShape(
           cornerRadius: pillH / 2,
-          borderWidth: 1.0,
-          lightIntensity: 1.3,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.4,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.5,
-          ),
+          specular: const LiquidGlassLight.specular(
+              thickness: 1.0, sharpness: 0.5, angle: 80, intensity: 1.3),
+          glow: const LiquidGlassLight.glow(
+              thickness: 1.0, angle: 170, intensity: 1.0),
         ),
     refraction: refraction ??
         LiquidGlassRefraction(
           magnification: magnification,
-          distortion: distortion,
-          distortionWidth: distortionWidth,
+          refractionIndex: refractionIndex,
+          refractionWidth: refractionWidth,
           chromaticAberration: 0.002,
         ),
     appearance: LiquidGlassAppearance(
       color: color ?? Colors.white.withAlpha(28),
       blur: blur,
-      enableInnerRadiusTransparent: enableInnerRadiusTransparent,
     ),
     opacity: opacity,
   );
@@ -182,27 +175,24 @@ LiquidGlass buildLiquidGlassBottomNavCapsule({
       height: layout.height,
     ),
     shape: shape ??
-        LiquidGlassShape.roundedRectangle(
+        LiquidGlassLitShape(
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: 40,
-          borderWidth: 1.2,
-          lightIntensity: 1.1,
-          lightDirection: 80,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
+          specular: const LiquidGlassLight.specular(
+              thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
+          glow: const LiquidGlassLight.glow(
+              thickness: 1.2, angle: 170, intensity: 1.0),
         ),
     refraction: refraction ??
         const LiquidGlassRefraction(
-          distortion: 0.07,
-          distortionWidth: 28,
+          refractionIndex: 1.025,
+          refractionWidth: 28,
           chromaticAberration: 0.002,
         ),
     appearance: appearance ??
         LiquidGlassAppearance(
           color: Colors.white.withAlpha(22),
-          blur: const LiquidGlassBlur(sigmaX: 2, sigmaY: 2),
+          blur: 2,
         ),
   );
 }
@@ -210,8 +200,7 @@ LiquidGlass buildLiquidGlassBottomNavCapsule({
 /// Plain (non-shader) version of the selection pill, used while the
 /// pill is at rest. Mirrors the moving glass pill's silhouette (corner
 /// [shape]) and fill ([color]) so swapping between the two is
-/// unnoticeable. A rim is drawn **only when** [shape] sets a
-/// `borderColor` (default: a borderless soft highlight) — there is no
+/// unnoticeable. It is a borderless soft highlight — no rim and no
 /// drop shadow, so the rest and moving pills read identically.
 class LiquidGlassBottomNavPillStatic extends StatelessWidget {
   final double width;
@@ -220,10 +209,9 @@ class LiquidGlassBottomNavPillStatic extends StatelessWidget {
   /// Fill of the rest highlight.
   final Color color;
 
-  /// Corner shape (and optional border) of the rest highlight. When
-  /// `null` a plain capsule is used. Only the corner family + radius and
-  /// the `borderColor`/`borderWidth` are honored — the optical/refractive
-  /// fields don't apply to this non-shader pill.
+  /// Corner shape of the rest highlight. When `null` a plain capsule is
+  /// used. Only the corner family + radius are honored — the border and
+  /// refractive fields don't apply to this non-shader pill.
   final LiquidGlassShape? shape;
 
   const LiquidGlassBottomNavPillStatic({

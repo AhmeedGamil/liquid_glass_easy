@@ -1,12 +1,9 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_light_mode.dart';
 import '../utils/liquid_glass_position.dart';
-import '../utils/liquid_glass_refraction_mode.dart';
-import '../utils/liquid_glass_refraction_type.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_uniforms.dart';
 
 class LiquidGlassPainter extends CustomPainter {
   final LiquidGlassPosition position;
@@ -14,19 +11,15 @@ class LiquidGlassPainter extends CustomPainter {
   final double lensWidth;
   final double lensHeight;
   final double magnification;
-  final double distortion;
-  final double distortionWidth;
-  final double diagonalFlip;
-  final bool enableInnerRadiusTransparent;
+  final double refractionIndex;
+  final double refractionWidth;
   final bool draggable;
   final Size parentSize;
-  final LiquidGlassShape? border;
+  final LiquidGlassLitShape? border;
   final double borderAlpha;
-  final LiquidGlassBlur blur;
+  final double blur;
   final double chromaticAberration;
   final double saturation;
-  final LiquidGlassRefractionMode? refractionMode;
-  final LiquidGlassRefractionType? refractionType;
   final Color color;
   final ui.FragmentShader shader;
   final ui.FragmentShader? borderShader;
@@ -71,10 +64,8 @@ class LiquidGlassPainter extends CustomPainter {
     required this.lensWidth,
     required this.lensHeight,
     required this.magnification,
-    required this.distortion,
-    required this.distortionWidth,
-    required this.diagonalFlip,
-    required this.enableInnerRadiusTransparent,
+    required this.refractionIndex,
+    required this.refractionWidth,
     required this.draggable,
     required this.parentSize,
     required this.border,
@@ -85,8 +76,6 @@ class LiquidGlassPainter extends CustomPainter {
     this.borderShader,
     required this.chromaticAberration,
     required this.saturation,
-    required this.refractionMode,
-    required this.refractionType,
     required this.image,
     this.imageFallback,
     this.shapeScale = const Offset(1, 1),
@@ -100,20 +89,8 @@ class LiquidGlassPainter extends CustomPainter {
     final ui.Image? sampledImage = image ?? imageFallback?.call();
     if (sampledImage == null) return;
 
-    final bool useBlur = blur.sigmaX > 0 || blur.sigmaY > 0;
+    final bool useBlur = blur > 0;
     final lensPosition = dragOffset!;
-    final double selectedLightMode =
-        (border!.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
-    final double selectedRefractionMode =
-        (refractionMode == LiquidGlassRefractionMode.shapeRefraction) ? 0 : 1;
-    final double selectedRefractionType =
-        (refractionType?.isOptical ?? false) ? 1 : 0;
-    final double refractionIndex = switch (refractionType) {
-      OpticalRefraction(:final refraction) => refraction,
-      _ => 1.0,
-    };
-    final double selectedBorderMode =
-        (border!.borderMode == LiquidGlassBorderMode.classic) ? 0 : 1;
 
     int index = 0;
     // Pass shader parameters (uniforms) for the GLSL shader
@@ -130,63 +107,43 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(
         index++, border != null ? liquidGlassCornerStyle(border!) : 0);
 
+    // u_warp = (magnification, refractionIndex, refractionWidthPx,
+    // chromaticAberration)
     shader.setFloat(index++, magnification);
-    shader.setFloat(index++, distortion);
-    shader.setFloat(index++, distortionWidth);
+    shader.setFloat(index++, refractionIndex);
+    shader.setFloat(index++, refractionWidth);
+    shader.setFloat(index++, chromaticAberration);
 
-    shader.setFloat(index++, enableInnerRadiusTransparent ? 1.0 : 0.0);
-    shader.setFloat(index++, diagonalFlip);
-
-    // The authored border width in logical px, verbatim — each border mode
-    // expands it into its own band in the shader.
+    // The authored border width in logical px, verbatim — the shader
+    // expands it into the border's own band.
     // Blur path: suppress the border in the main shader so the
     // second-pass painter draws it sharp on top of the blur.
-    shader.setFloat(index++, (!useBlur) ? border!.borderWidth : 0);
-    shader.setFloat(index++, border!.borderSoftness);
-
-    shader.setFloat(index++, border!.borderColor?.r ?? 0);
-    shader.setFloat(index++, border!.borderColor?.g ?? 0);
-    shader.setFloat(index++, border!.borderColor?.b ?? 0);
-    shader.setFloat(index++, border!.borderColor?.a ?? 0);
+    shader.setFloat(index++, (!useBlur) ? border!.specular.thickness : 0);
+    // u_borderAlpha
     shader.setFloat(index++, borderAlpha);
 
-    shader.setFloat(index++, border!.lightIntensity);
+    // u_specularColor, u_glowColor
+    index = packLiquidGlassLightColor(shader, index, border!.specular.color);
+    index = packLiquidGlassLightColor(shader, index, border!.glow.color);
 
-    shader.setFloat(index++, border!.lightColor.r);
-    shader.setFloat(index++, border!.lightColor.g);
-    shader.setFloat(index++, border!.lightColor.b);
-    shader.setFloat(index++, border!.lightColor.a);
-
-    shader.setFloat(index++, border!.shadowColor.r);
-    shader.setFloat(index++, border!.shadowColor.g);
-    shader.setFloat(index++, border!.shadowColor.b);
-    shader.setFloat(index++, border!.shadowColor.a);
-
-    shader.setFloat(index++, border!.lightDirection);
+    // u_lensColor
     shader.setFloat(index++, color.r);
     shader.setFloat(index++, color.g);
     shader.setFloat(index++, color.b);
     shader.setFloat(index++, color.a);
-    // One-side / double-side specular highlights are classic-only:
-    // in optical mode the directional term saturates the internal
-    // brightness cap so these contributions become invisible. Zero
-    // them on the wire to keep behavior consistent with the UI.
-    shader.setFloat(
-        index++, border!.isOpticalBorder ? 0.0 : border!.oneSideLightIntensity);
-    shader.setFloat(index++, chromaticAberration);
+    // u_packA = (specularIntensity, saturation, glowIntensity, glowThickness)
+    shader.setFloat(index++, border!.specular.intensity);
     shader.setFloat(index++, saturation);
-    shader.setFloat(index++, selectedLightMode);
-    shader.setFloat(index++, selectedRefractionMode);
-    shader.setFloat(index++, selectedRefractionType);
-    shader.setFloat(index++, refractionIndex);
-    shader.setFloat(index++, border!.ambientIntensity);
-    shader.setFloat(index++,
-        border!.isOpticalBorder ? 0.0 : border!.doubleSideLightIntensity);
-    shader.setFloat(index++, border!.borderSaturation);
-    shader.setFloat(index++, border!.borderSolidity);
-    shader.setFloat(index++, selectedBorderMode);
-    // u_lightSpread — optical-rim angular spread.
-    shader.setFloat(index++, border!.lightSpread);
+    shader.setFloat(index++, border!.glow.intensity);
+    shader.setFloat(index++, (!useBlur) ? border!.glow.thickness : 0);
+    // u_packB = (specularAngle, specularSpread, borderSharpness, glowAngle)
+    shader.setFloat(index++, border!.specular.angle);
+    shader.setFloat(index++, border!.specular.spread);
+    shader.setFloat(index++, border!.specular.sharpness);
+    shader.setFloat(index++, border!.glow.angle);
+    // u_packC, u_specular2, u_specular2Color
+    index = packLiquidGlassSecondSpecular(shader, index, border!,
+        scale: 1, drawBorder: !useBlur);
 
     // u_imageOffset / u_imageSize — map the bound texture to a parent-space
     // rect. Full-frame default: offset (0,0), size == resolution (`size`),
@@ -261,21 +218,15 @@ class LiquidGlassPainter extends CustomPainter {
         oldDelegate.lensWidth != lensWidth ||
         oldDelegate.lensHeight != lensHeight ||
         oldDelegate.magnification != magnification ||
-        oldDelegate.distortion != distortion ||
-        oldDelegate.distortionWidth != distortionWidth ||
-        oldDelegate.diagonalFlip != diagonalFlip ||
-        oldDelegate.enableInnerRadiusTransparent !=
-            enableInnerRadiusTransparent ||
+        oldDelegate.refractionIndex != refractionIndex ||
+        oldDelegate.refractionWidth != refractionWidth ||
         oldDelegate.parentSize != parentSize ||
         !_shapeEquals(oldDelegate.border, border) ||
         oldDelegate.borderAlpha != borderAlpha ||
-        oldDelegate.blur.sigmaX != blur.sigmaX ||
-        oldDelegate.blur.sigmaY != blur.sigmaY ||
+        oldDelegate.blur != blur ||
         oldDelegate.color != color ||
         oldDelegate.chromaticAberration != chromaticAberration ||
         oldDelegate.saturation != saturation ||
-        oldDelegate.refractionMode != refractionMode ||
-        oldDelegate.refractionType != refractionType ||
         oldDelegate.shader != shader ||
         oldDelegate.borderShader != borderShader ||
         oldDelegate.imageOffset != imageOffset ||
@@ -283,27 +234,11 @@ class LiquidGlassPainter extends CustomPainter {
         oldDelegate.honorBackdropAlpha != honorBackdropAlpha;
   }
 
-  bool _shapeEquals(LiquidGlassShape? a, LiquidGlassShape? b) {
+  bool _shapeEquals(LiquidGlassLitShape? a, LiquidGlassLitShape? b) {
     if (identical(a, b)) return true;
     if (a == null || b == null) return false;
     if (a.runtimeType != b.runtimeType) return false;
-    if (a.borderWidth != b.borderWidth) return false;
-    if (a.borderSoftness != b.borderSoftness) return false;
-    if (a.borderColor != b.borderColor) return false;
-    if (a.lightIntensity != b.lightIntensity) return false;
-    if (a.lightColor != b.lightColor) return false;
-    if (a.shadowColor != b.shadowColor) return false;
-    if (a.lightDirection != b.lightDirection) return false;
-    if (a.oneSideLightIntensity != b.oneSideLightIntensity) return false;
-    if (a.lightMode != b.lightMode) return false;
-    // Optical-border fields (present on this build): compare them too so
-    // a change in optical rim styling triggers a repaint.
-    if (a.ambientIntensity != b.ambientIntensity) return false;
-    if (a.doubleSideLightIntensity != b.doubleSideLightIntensity) return false;
-    if (a.borderSaturation != b.borderSaturation) return false;
-    if (a.borderSolidity != b.borderSolidity) return false;
-    if (a.lightSpread != b.lightSpread) return false;
-    if (a.borderMode != b.borderMode) return false;
+    if (!LiquidGlassLitShape.sameBorder(a, b)) return false;
     return a.cornerStyle == b.cornerStyle &&
         a.cornerRadius == b.cornerRadius &&
         a.clipQuality == b.clipQuality;
@@ -316,15 +251,11 @@ class LiquidGlassBorderPainter extends CustomPainter {
   final double lensWidth;
   final double lensHeight;
   final double magnification;
-  final double distortion;
-  final double distortionWidth;
-  final double diagonalFlip;
-  final bool enableInnerRadiusTransparent;
+  final double refractionIndex;
+  final double refractionWidth;
   final double chromaticAberration;
   final double saturation;
-  final LiquidGlassRefractionMode refractionMode;
-  final LiquidGlassRefractionType? refractionType;
-  final LiquidGlassShape border;
+  final LiquidGlassLitShape border;
   final double borderAlpha;
   /// The lens's material colour. The rim lifts from the tinted glass, so
   /// the border shader needs it as much as the main pass does.
@@ -352,14 +283,10 @@ class LiquidGlassBorderPainter extends CustomPainter {
     required this.lensWidth,
     required this.lensHeight,
     required this.magnification,
-    required this.distortion,
-    required this.distortionWidth,
-    required this.diagonalFlip,
-    required this.enableInnerRadiusTransparent,
+    required this.refractionIndex,
+    required this.refractionWidth,
     required this.chromaticAberration,
     required this.saturation,
-    required this.refractionMode,
-    required this.refractionType,
     required this.border,
     required this.borderAlpha,
     required this.image,
@@ -375,18 +302,6 @@ class LiquidGlassBorderPainter extends CustomPainter {
     final ui.Image? sampledImage = image ?? imageFallback?.call();
     if (sampledImage == null) return;
 
-    final double selectedLightMode =
-        (border.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
-    final double selectedBorderMode =
-        (border.borderMode == LiquidGlassBorderMode.classic) ? 0 : 1;
-    final double selectedRefractionMode =
-        (refractionMode == LiquidGlassRefractionMode.shapeRefraction) ? 0 : 1;
-    final double selectedRefractionType =
-        (refractionType?.isOptical ?? false) ? 1 : 0;
-    final double refractionIndex = switch (refractionType) {
-      OpticalRefraction(:final refraction) => refraction,
-      _ => 1.0,
-    };
 
     final rect = Rect.fromLTWH(
       lensPosition.dx,
@@ -412,51 +327,39 @@ class LiquidGlassBorderPainter extends CustomPainter {
       ..setFloat(index++, border.cornerRadius)
       // u_cornerStyle: 2 = continuous (capsule), 1 = squircle, 0 = circular
       ..setFloat(index++, liquidGlassCornerStyle(border))
+      // u_warp = (magnification, refractionIndex, refractionWidthPx,
+      // chromaticAberration)
       ..setFloat(index++, magnification)
-      ..setFloat(index++, distortion)
-      ..setFloat(index++, distortionWidth)
-      ..setFloat(index++, enableInnerRadiusTransparent ? 1.0 : 0.0)
-      ..setFloat(index++, diagonalFlip)
+      ..setFloat(index++, refractionIndex)
+      ..setFloat(index++, refractionWidth)
+      ..setFloat(index++, chromaticAberration)
       // The authored border width in logical px, as the main pass and the
       // Impeller path pass it.
-      ..setFloat(index++, border.borderWidth)
-      ..setFloat(index++, border.borderSoftness)
-      ..setFloat(index++, border.borderColor?.r ?? 0)
-      ..setFloat(index++, border.borderColor?.g ?? 0)
-      ..setFloat(index++, border.borderColor?.b ?? 0)
-      ..setFloat(index++, border.borderColor?.a ?? 0)
-      ..setFloat(index++, borderAlpha)
-      ..setFloat(index++, border.lightIntensity)
-      ..setFloat(index++, border.lightColor.r)
-      ..setFloat(index++, border.lightColor.g)
-      ..setFloat(index++, border.lightColor.b)
-      ..setFloat(index++, border.lightColor.a)
-      ..setFloat(index++, border.shadowColor.r)
-      ..setFloat(index++, border.shadowColor.g)
-      ..setFloat(index++, border.shadowColor.b)
-      ..setFloat(index++, border.shadowColor.a)
-      ..setFloat(index++, border.lightDirection)
+      ..setFloat(index++, border.specular.thickness)
+      // u_borderAlpha
+      ..setFloat(index++, borderAlpha);
+    // u_specularColor, u_glowColor
+    index = packLiquidGlassLightColor(borderShader, index, border.specular.color);
+    index = packLiquidGlassLightColor(borderShader, index, border.glow.color);
+    borderShader
       // u_lensColor — the same slot as the main shader.
       ..setFloat(index++, lensColor.r)
       ..setFloat(index++, lensColor.g)
       ..setFloat(index++, lensColor.b)
       ..setFloat(index++, lensColor.a)
-      ..setFloat(
-          index++, border.isOpticalBorder ? 0.0 : border.oneSideLightIntensity)
-      ..setFloat(index++, chromaticAberration)
+      // u_packA = (specularIntensity, saturation, glowIntensity, glowThickness)
+      ..setFloat(index++, border.specular.intensity)
       ..setFloat(index++, saturation)
-      ..setFloat(index++, selectedLightMode)
-      ..setFloat(index++, selectedRefractionMode)
-      ..setFloat(index++, selectedRefractionType)
-      ..setFloat(index++, refractionIndex)
-      ..setFloat(index++, border.ambientIntensity)
-      ..setFloat(index++,
-          border.isOpticalBorder ? 0.0 : border.doubleSideLightIntensity)
-      ..setFloat(index++, border.borderSaturation)
-      ..setFloat(index++, border.borderSolidity)
-      ..setFloat(index++, selectedBorderMode)
-      // u_lightSpread — optical-rim angular spread.
-      ..setFloat(index++, border.lightSpread);
+      ..setFloat(index++, border.glow.intensity)
+      ..setFloat(index++, border.glow.thickness)
+      // u_packB = (specularAngle, specularSpread, borderSharpness, glowAngle)
+      ..setFloat(index++, border.specular.angle)
+      ..setFloat(index++, border.specular.spread)
+      ..setFloat(index++, border.specular.sharpness)
+      ..setFloat(index++, border.glow.angle);
+    // u_packC, u_specular2, u_specular2Color
+    index = packLiquidGlassSecondSpecular(borderShader, index, border,
+        scale: 1, drawBorder: true);
 
     // u_imageOffset / u_imageSize — full-frame default: (0,0) / size.
     final Offset imgOffset = imageOffset ?? Offset.zero;
@@ -487,15 +390,10 @@ class LiquidGlassBorderPainter extends CustomPainter {
         oldDelegate.lensWidth != lensWidth ||
         oldDelegate.lensHeight != lensHeight ||
         oldDelegate.magnification != magnification ||
-        oldDelegate.distortion != distortion ||
-        oldDelegate.distortionWidth != distortionWidth ||
-        oldDelegate.diagonalFlip != diagonalFlip ||
-        oldDelegate.enableInnerRadiusTransparent !=
-            enableInnerRadiusTransparent ||
+        oldDelegate.refractionIndex != refractionIndex ||
+        oldDelegate.refractionWidth != refractionWidth ||
         oldDelegate.chromaticAberration != chromaticAberration ||
         oldDelegate.saturation != saturation ||
-        oldDelegate.refractionMode != refractionMode ||
-        oldDelegate.refractionType != refractionType ||
         oldDelegate.borderAlpha != borderAlpha ||
         oldDelegate.lensColor != lensColor ||
         oldDelegate.borderShader != borderShader ||
@@ -504,24 +402,10 @@ class LiquidGlassBorderPainter extends CustomPainter {
         !_shapeEquals(oldDelegate.border, border);
   }
 
-  bool _shapeEquals(LiquidGlassShape a, LiquidGlassShape b) {
+  bool _shapeEquals(LiquidGlassLitShape a, LiquidGlassLitShape b) {
     if (identical(a, b)) return true;
     if (a.runtimeType != b.runtimeType) return false;
-    if (a.borderWidth != b.borderWidth) return false;
-    if (a.borderSoftness != b.borderSoftness) return false;
-    if (a.borderColor != b.borderColor) return false;
-    if (a.lightIntensity != b.lightIntensity) return false;
-    if (a.lightColor != b.lightColor) return false;
-    if (a.shadowColor != b.shadowColor) return false;
-    if (a.lightDirection != b.lightDirection) return false;
-    if (a.oneSideLightIntensity != b.oneSideLightIntensity) return false;
-    if (a.lightMode != b.lightMode) return false;
-    if (a.ambientIntensity != b.ambientIntensity) return false;
-    if (a.doubleSideLightIntensity != b.doubleSideLightIntensity) return false;
-    if (a.borderSaturation != b.borderSaturation) return false;
-    if (a.borderSolidity != b.borderSolidity) return false;
-    if (a.lightSpread != b.lightSpread) return false;
-    if (a.borderMode != b.borderMode) return false;
+    if (!LiquidGlassLitShape.sameBorder(a, b)) return false;
     return a.cornerStyle == b.cornerStyle &&
         a.cornerRadius == b.cornerRadius &&
         a.clipQuality == b.clipQuality;

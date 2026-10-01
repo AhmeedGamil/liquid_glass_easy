@@ -3,8 +3,7 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_config.dart';
 import '../liquid_glass_style.dart';
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_shape.dart';
 
@@ -84,38 +83,38 @@ class LiquidGlassControlTile extends StatelessWidget {
   final bool visibility;
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    distortion: 0.08,
-    distortionWidth: 30,
+    refractionIndex: 1.024,
+    refractionWidth: 30,
     chromaticAberration: 0.002,
   );
 
   @override
   Widget build(BuildContext context) {
     final LiquidGlassShape effectiveShape = shape ??
-        LiquidGlassShape.roundedRectangle(
+        LiquidGlassLitShape(
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: size * 0.32,
-          borderWidth: 1.2,
-          lightIntensity: active ? 1.6 : 1.1,
-          lightDirection: 60,
-          borderType: const OpticalBorder(
-            borderSaturation: 1.2,
-            ambientIntensity: 1.0,
-            borderSolidity: 0.35,
-          ),
+          specular: LiquidGlassLight.specular(
+              thickness: 1.2,
+              sharpness: 0.35,
+              angle: 60,
+              intensity: active ? 1.6 : 1.1),
+          glow: const LiquidGlassLight.glow(
+              thickness: 1.2, angle: 150, intensity: 1.0),
         );
 
     final LiquidGlassAppearance effectiveAppearance = appearance ??
         LiquidGlassAppearance(
           color:
               active ? activeColor.withAlpha(180) : Colors.white.withAlpha(30),
-          blur: const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+          blur: 3,
         );
 
     return SizedBox(
       width: size,
       height: size,
       child: LiquidGlassLens(
-        style: LiquidGlassStyle(
+        style: LiquidGlassStyle.groups(
           shape: effectiveShape,
           appearance: effectiveAppearance,
           refraction: refraction,

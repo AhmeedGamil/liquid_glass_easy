@@ -1,15 +1,13 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
-import '../utils/liquid_glass_light_mode.dart';
-import '../utils/liquid_glass_refraction_mode.dart';
-import '../utils/liquid_glass_refraction_type.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Single source of truth for the liquid-glass fragment-shader uniform
 /// block.
 ///
-/// The same ~38-uniform layout is shared by **three** call sites that
+/// The same uniform layout is shared by **three** call sites that
 /// previously each hand-copied the `setFloat(i++, ...)` sequence in the
 /// exact order the `.frag` declares its uniforms:
 ///
@@ -45,29 +43,26 @@ import '../utils/liquid_glass_shape.dart';
 /// caller owns that decision.
 void packLiquidGlassUniforms(
   ui.FragmentShader shader, {
-  required LiquidGlassShape shape,
+  required LiquidGlassLitShape shape,
   required double scale,
   required Size resolution,
   required Offset lensPosition,
   required double lensWidth,
   required double lensHeight,
   required double magnification,
-  required double distortion,
 
-  /// Effective (anim-adjusted) distortion band thickness, in logical px.
-  required double distortionWidth,
-  required bool enableInnerRadiusTransparent,
-  required double diagonalFlip,
+  /// How hard the edge bends the backdrop (`1.0` = no bending).
+  required double refractionIndex,
 
-  /// The authored border width in logical px, verbatim — each border mode
-  /// expands it into its own band in the shader. Callers pass `0` only to
-  /// suppress the border, as the blur path does for the main pass.
-  required double borderWidth,
+  /// Effective (anim-adjusted) bending band width, in logical px.
+  required double refractionWidth,
+
+  /// Whether this pass draws the border. `false` sends both lights'
+  /// thicknesses as zero, as the blur path does for the main pass.
+  required bool drawBorder,
   required double borderAlpha,
   required double chromaticAberration,
   required double saturation,
-  required LiquidGlassRefractionMode? refractionMode,
-  required LiquidGlassRefractionType? refractionType,
 
   /// Whether to emit the four `u_lensColor` floats. `true` for the main
   /// shader and the border shader alike; `false` only for a shader that has
@@ -114,19 +109,6 @@ void packLiquidGlassUniforms(
   double xformD = 1,
   Offset xformOffset = Offset.zero,
 }) {
-  final double selectedLightMode =
-      (shape.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
-  final double selectedRefractionMode =
-      (refractionMode == LiquidGlassRefractionMode.shapeRefraction) ? 0 : 1;
-  final double selectedRefractionType =
-      (refractionType?.isOptical ?? false) ? 1 : 0;
-  final double refractionIndex = switch (refractionType) {
-    OpticalRefraction(:final refraction) => refraction,
-    _ => 1.0,
-  };
-  final double selectedBorderMode =
-      (shape.borderMode == LiquidGlassBorderMode.classic) ? 0 : 1;
-
   final double cornerRadius = shape.cornerRadius;
   // The shape type alone selects the corner SDF in the shader:
   // 2 = continuous (capsule), 1 = squircle (full smoothing), 0 = circular.
@@ -148,39 +130,27 @@ void packLiquidGlassUniforms(
   // u_cornerStyle (0 = circular, 1 = squircle, 2 = continuous — never scaled)
   shader.setFloat(i++, cornerStyle);
 
+  // u_warp = (magnification, refractionIndex, refractionWidthPx,
+  // chromaticAberration)
   shader.setFloat(i++, magnification);
-  shader.setFloat(i++, distortion);
-  // u_distortionThicknessPx
-  shader.setFloat(i++, distortionWidth * scale);
+  shader.setFloat(i++, refractionIndex);
+  shader.setFloat(i++, refractionWidth * scale);
+  shader.setFloat(i++, chromaticAberration);
 
-  shader.setFloat(i++, enableInnerRadiusTransparent ? 1.0 : 0.0);
-  shader.setFloat(i++, diagonalFlip);
-
-  // u_borderWidth
-  shader.setFloat(i++, borderWidth * scale);
-  shader.setFloat(i++, shape.borderSoftness);
-
-  shader.setFloat(i++, shape.borderColor?.r ?? 0);
-  shader.setFloat(i++, shape.borderColor?.g ?? 0);
-  shader.setFloat(i++, shape.borderColor?.b ?? 0);
-  shader.setFloat(i++, shape.borderColor?.a ?? 0);
+  // Both thicknesses are logical px, sent verbatim: the shader expands each
+  // into its light's own band.
+  final double specularThickness = drawBorder ? shape.specular.thickness : 0;
+  final double glowThickness = drawBorder ? shape.glow.thickness : 0;
+  // u_borderWidth — the specular's thickness.
+  shader.setFloat(i++, specularThickness * scale);
+  // u_borderAlpha
   shader.setFloat(i++, borderAlpha);
 
-  shader.setFloat(i++, shape.lightIntensity);
+  // u_specularColor, u_glowColor
+  i = packLiquidGlassLightColor(shader, i, shape.specular.color);
+  i = packLiquidGlassLightColor(shader, i, shape.glow.color);
 
-  shader.setFloat(i++, shape.lightColor.r);
-  shader.setFloat(i++, shape.lightColor.g);
-  shader.setFloat(i++, shape.lightColor.b);
-  shader.setFloat(i++, shape.lightColor.a);
-
-  shader.setFloat(i++, shape.shadowColor.r);
-  shader.setFloat(i++, shape.shadowColor.g);
-  shader.setFloat(i++, shape.shadowColor.b);
-  shader.setFloat(i++, shape.shadowColor.a);
-
-  shader.setFloat(i++, shape.lightDirection);
-
-  // u_lensColor — present only on the main shader.
+  // u_lensColor
   if (includeLensColor) {
     shader.setFloat(i++, lensColor.r);
     shader.setFloat(i++, lensColor.g);
@@ -188,28 +158,21 @@ void packLiquidGlassUniforms(
     shader.setFloat(i++, lensColor.a);
   }
 
-  // One-/double-side specular highlights are classic-only: in optical
-  // mode the directional term saturates the brightness cap so these
-  // contributions become invisible. Zero them on the wire to keep
-  // behavior consistent with the UI.
-  shader.setFloat(
-      i++, shape.isOpticalBorder ? 0.0 : shape.oneSideLightIntensity);
-  shader.setFloat(i++, chromaticAberration);
+  // u_packA = (specularIntensity, saturation, glowIntensity, glowThickness)
+  shader.setFloat(i++, shape.specular.intensity);
   shader.setFloat(i++, saturation);
-  shader.setFloat(i++, selectedLightMode);
-  shader.setFloat(i++, selectedRefractionMode);
-  shader.setFloat(i++, selectedRefractionType);
-  shader.setFloat(i++, refractionIndex);
-  shader.setFloat(i++, shape.ambientIntensity);
-  shader.setFloat(
-      i++, shape.isOpticalBorder ? 0.0 : shape.doubleSideLightIntensity);
-  shader.setFloat(i++, shape.borderSaturation);
-  shader.setFloat(i++, shape.borderSolidity);
-  shader.setFloat(i++, selectedBorderMode);
+  shader.setFloat(i++, shape.glow.intensity);
+  shader.setFloat(i++, glowThickness * scale);
+  // u_packB = (specularAngle, specularSpread, borderSharpness, glowAngle)
+  shader.setFloat(i++, shape.specular.angle);
+  shader.setFloat(i++, shape.specular.spread);
+  shader.setFloat(i++, shape.specular.sharpness);
+  shader.setFloat(i++, shape.glow.angle);
 
-  // u_lightSpread — optical-rim angular spread. Present on both the main and
-  // border shaders (a loose float right after u_packC, before the image rect).
-  shader.setFloat(i++, shape.lightSpread);
+  // u_packC, u_specular2, u_specular2Color — on both the main and border
+  // shaders, right after u_packB, before the image rect.
+  i = packLiquidGlassSecondSpecular(shader, i, shape,
+      scale: scale, drawBorder: drawBorder);
 
   // u_imageOffset / u_imageSize — present on BOTH shaders, so always
   // written. Scaled like the other spatial uniforms.
@@ -245,6 +208,43 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, xformD);
   shader.setFloat(i++, xformOffset.dx * scale);
   shader.setFloat(i++, xformOffset.dy * scale);
+}
+
+/// Writes one light's own colour as four straight-alpha floats starting at
+/// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0), `u_specular2`
+/// (thickness, sharpness, angle, spread) and `u_specular2Color` from [shape]
+/// at [index], and returns the next free index. No second specular, or
+/// [drawBorder] false, writes a zero thickness, which the shader skips.
+int packLiquidGlassSecondSpecular(
+  ui.FragmentShader shader,
+  int index,
+  LiquidGlassLitShape shape, {
+  required double scale,
+  required bool drawBorder,
+}) {
+  final LiquidGlassLight? second = shape.secondSpecular;
+  shader.setFloat(index++, shape.glow.spread);
+  shader.setFloat(index++, second?.intensity ?? 0);
+  shader.setFloat(index++, 0);
+  shader.setFloat(index++, 0);
+  shader.setFloat(
+      index++, drawBorder && second != null ? second.thickness * scale : 0);
+  shader.setFloat(index++, second?.sharpness ?? 0);
+  shader.setFloat(index++, second?.angle ?? 0);
+  shader.setFloat(index++, second?.spread ?? 0);
+  return packLiquidGlassLightColor(shader, index, second?.color);
+}
+
+/// Writes one light's colour as a straight-alpha vec4 (r, g, b, a) at
+/// [index], and returns the next free index. A `null` colour is all zero:
+/// alpha 0 is how the shader reads "keep the picked-up colour".
+int packLiquidGlassLightColor(
+    ui.FragmentShader shader, int index, Color? color) {
+  shader.setFloat(index++, color?.r ?? 0);
+  shader.setFloat(index++, color?.g ?? 0);
+  shader.setFloat(index++, color?.b ?? 0);
+  shader.setFloat(index++, color?.a ?? 0);
+  return index;
 }
 
 /// One lens's contribution to the metaball field, in the SAME logical-pixel
@@ -337,7 +337,7 @@ const int _kMetaballFloatsPerLens = 8;
 /// The image sampler (`u_texture_input`) is bound by the caller.
 void packMetaballGlassUniforms(
   ui.FragmentShader shader, {
-  required LiquidGlassShape shape,
+  required LiquidGlassLitShape shape,
   required double scale,
   required Size resolution,
   required List<MetaballLensUniform> lenses,
@@ -350,35 +350,21 @@ void packMetaballGlassUniforms(
   /// gradient blend entirely. [smoothness] is then unused.
   required bool merge,
   required double magnification,
-  required double distortion,
-  required double distortionWidth,
-  required bool enableInnerRadiusTransparent,
-  required double diagonalFlip,
-  required double borderWidth,
+  required double refractionIndex,
+  required double refractionWidth,
+
+  /// Whether this pass draws the border; `false` sends both lights'
+  /// thicknesses as zero.
+  bool drawBorder = true,
   required double borderAlpha,
   required double chromaticAberration,
   required double saturation,
   required double blur,
-  required LiquidGlassRefractionMode? refractionMode,
-  required LiquidGlassRefractionType? refractionType,
   Color lensColor = const Color(0x00000000),
   bool honorBackdropAlpha = false,
   Offset imageOffset = Offset.zero,
   Size? imageSize,
 }) {
-  final double selectedLightMode =
-      (shape.lightMode == LiquidGlassLightMode.edge) ? 0 : 1;
-  final double selectedRefractionMode =
-      (refractionMode == LiquidGlassRefractionMode.shapeRefraction) ? 0 : 1;
-  final double selectedRefractionType =
-      (refractionType?.isOptical ?? false) ? 1 : 0;
-  final double refractionIndex = switch (refractionType) {
-    OpticalRefraction(:final refraction) => refraction,
-    _ => 1.0,
-  };
-  final double selectedBorderMode =
-      (shape.borderMode == LiquidGlassBorderMode.classic) ? 0 : 1;
-
   int i = 0;
 
   // u_resolution
@@ -434,44 +420,34 @@ void packMetaballGlassUniforms(
   }
 
   // ── Shared glass block (every loose scalar packed into a vec4) ───────────
-  // u_warp = (magnification, distortion, distortionThicknessPx, enableBgTransp).
+  // u_warp = (magnification, refractionIndex, refractionWidthPx,
+  // chromaticAberration).
   shader.setFloat(i++, magnification);
-  shader.setFloat(i++, distortion);
-  shader.setFloat(i++, distortionWidth * scale);
-  shader.setFloat(i++, enableInnerRadiusTransparent ? 1.0 : 0.0);
-  // u_warpB = (smoothness, diagonalFlip, borderWidth, borderSoftness).
+  shader.setFloat(i++, refractionIndex);
+  shader.setFloat(i++, refractionWidth * scale);
+  shader.setFloat(i++, chromaticAberration);
+  // Both thicknesses are logical px, sent verbatim.
+  final double specularThickness = drawBorder ? shape.specular.thickness : 0;
+  final double glowThickness = drawBorder ? shape.glow.thickness : 0;
+  // u_warpB = (smoothness, saturation, specularThickness, glowThickness).
   shader.setFloat(i++, smoothness * scale);
-  shader.setFloat(i++, diagonalFlip);
-  shader.setFloat(i++, borderWidth * scale);
-  shader.setFloat(i++, shape.borderSoftness);
-  // u_warpC = (borderAlpha, lightIntensity, lightDirection, honorBackdropAlpha).
+  shader.setFloat(i++, saturation);
+  shader.setFloat(i++, specularThickness * scale);
+  shader.setFloat(i++, glowThickness * scale);
+  // u_warpC = (borderAlpha, specularIntensity, specularAngle, honorBackdropAlpha).
   shader.setFloat(i++, borderAlpha);
-  shader.setFloat(i++, shape.lightIntensity);
-  shader.setFloat(i++, shape.lightDirection);
+  shader.setFloat(i++, shape.specular.intensity);
+  shader.setFloat(i++, shape.specular.angle);
   shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
-  // u_warpD = (blur, shapeAaPx, lightSpread, mergeEnabled).
+  // u_warpD = (blur, shapeAaPx, specularSpread, mergeEnabled).
   shader.setFloat(i++, blur * scale);
   shader.setFloat(i++, scale);
-  shader.setFloat(i++, shape.lightSpread);
+  shader.setFloat(i++, shape.specular.spread);
   shader.setFloat(i++, merge ? 1.0 : 0.0);
 
-  // u_borderColor
-  shader.setFloat(i++, shape.borderColor?.r ?? 0);
-  shader.setFloat(i++, shape.borderColor?.g ?? 0);
-  shader.setFloat(i++, shape.borderColor?.b ?? 0);
-  shader.setFloat(i++, shape.borderColor?.a ?? 0);
-
-  // u_lightColor
-  shader.setFloat(i++, shape.lightColor.r);
-  shader.setFloat(i++, shape.lightColor.g);
-  shader.setFloat(i++, shape.lightColor.b);
-  shader.setFloat(i++, shape.lightColor.a);
-
-  // u_shadowColor
-  shader.setFloat(i++, shape.shadowColor.r);
-  shader.setFloat(i++, shape.shadowColor.g);
-  shader.setFloat(i++, shape.shadowColor.b);
-  shader.setFloat(i++, shape.shadowColor.a);
+  // u_specularColor, u_glowColor
+  i = packLiquidGlassLightColor(shader, i, shape.specular.color);
+  i = packLiquidGlassLightColor(shader, i, shape.glow.color);
 
   // u_lensColor
   shader.setFloat(i++, lensColor.r);
@@ -479,23 +455,22 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, lensColor.b);
   shader.setFloat(i++, lensColor.a);
 
-  // u_packA = (oneSideLightIntensity, chromaticAberration, saturation, lightMode)
+  // u_packA = (glowAngle, glowSpread, borderSharpness, glowIntensity)
+  shader.setFloat(i++, shape.glow.angle);
+  shader.setFloat(i++, shape.glow.spread);
+  shader.setFloat(i++, shape.specular.sharpness);
+  shader.setFloat(i++, shape.glow.intensity);
+
+  // u_specular2 = (thickness, sharpness, angle, spread), u_specular2Color,
+  // u_specular2Intensity. A zero thickness turns it off.
+  final LiquidGlassLight? second = shape.secondSpecular;
   shader.setFloat(
-      i++, shape.isOpticalBorder ? 0.0 : shape.oneSideLightIntensity);
-  shader.setFloat(i++, chromaticAberration);
-  shader.setFloat(i++, saturation);
-  shader.setFloat(i++, selectedLightMode);
-  // u_packB = (refractionMode, refractionType, refractionIndex, ambientIntensity)
-  shader.setFloat(i++, selectedRefractionMode);
-  shader.setFloat(i++, selectedRefractionType);
-  shader.setFloat(i++, refractionIndex);
-  shader.setFloat(i++, shape.ambientIntensity);
-  // u_packC = (doubleSideLightIntensity, borderSaturation, borderSolidity, borderMode)
-  shader.setFloat(
-      i++, shape.isOpticalBorder ? 0.0 : shape.doubleSideLightIntensity);
-  shader.setFloat(i++, shape.borderSaturation);
-  shader.setFloat(i++, shape.borderSolidity);
-  shader.setFloat(i++, selectedBorderMode);
+      i++, drawBorder && second != null ? second.thickness * scale : 0);
+  shader.setFloat(i++, second?.sharpness ?? 0);
+  shader.setFloat(i++, second?.angle ?? 0);
+  shader.setFloat(i++, second?.spread ?? 0);
+  i = packLiquidGlassLightColor(shader, i, second?.color);
+  shader.setFloat(i++, second?.intensity ?? 0);
 
   // u_imageRegion = (offset.xy, size.xy) — the captured/backdrop sub-rect.
   final Size imgSize = imageSize ?? resolution;

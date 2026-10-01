@@ -38,9 +38,8 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
   final Duration duration;
   final Curve curve;
 
-  /// Corner shape (and optional border) of the sliding selection pill —
-  /// drives the pill fill, its rim (via the shape's `borderColor`), and
-  /// the icon-reveal clip. When `null`, a plain capsule is used.
+  /// Corner shape of the sliding selection pill — drives the pill fill
+  /// and the icon-reveal clip. When `null`, a plain capsule is used.
   final LiquidGlassShape? pillShape;
 
   /// Unselected cells follow the ambient adaptive content color
@@ -150,8 +149,7 @@ class _AnimatedBottomNavBarContentState
               return Stack(
                 children: [
                   // Moving selection pill — slides behind the icons.
-                  // A soft fill; any rim comes from the pill shape's
-                  // `borderColor` (no fake drop shadow).
+                  // A soft fill, with no rim and no drop shadow.
                   if (widget.showSelectionPill)
                     Positioned.fromRect(
                       rect: pillRect,

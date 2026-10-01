@@ -5,9 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
-import '../utils/liquid_glass_blur.dart';
-import '../utils/liquid_glass_border_mode.dart';
-import '../utils/liquid_glass_light_mode.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
 /// Where a painted rim gets its colour — and what that costs.
@@ -24,9 +22,8 @@ enum LiquidGlassLitePickup {
 
   /// The rim's light is **blended** into what is under it instead of covering
   /// it, so the colour underneath comes through the highlight — and then the
-  /// rim's own colour is multiplied in over that, so the shape's `lightColor`
-  /// and `borderColor` show the way they do on a lens: a grey light is a grey
-  /// rim over white, a tint is a tinted rim. The cheap way to look read.
+  /// rim's own colour is multiplied in over that, so the specular's `color`
+  /// shows: a grey light is a grey rim over white. The cheap way to look read.
   ///
   /// Nothing is read back: it is [surface]'s overlay and floor, plus one more
   /// pass over the same mesh in `multiply`. The pass is skipped when the rim's
@@ -40,14 +37,13 @@ enum LiquidGlassLitePickup {
   ///
   /// This is the close one, and the expensive one — it reads the backdrop, the
   /// same cost a lens pays, plus two layers. Drop to [blend] or [none] when a
-  /// screen has many of them. Two things still part company
-  /// with the shader: the colour transform is a matrix, so it cannot
-  /// renormalise a *dark* background the way the shader's divide-by-luma does
-  /// (over near black the rim reads grey where the shader reads white), and
-  /// [LiquidGlassLite.ambientColor] is not read — the background is the
-  /// ambient. `lightColor` scales the rim as it does in the shader, so a grey
-  /// light is a grey rim over white; `borderColor` scales it too, rather than
-  /// replacing it. `borderSaturation` rides in the colour matrix for free.
+  /// screen has many of them. The lift is the shader's: the same lightness
+  /// added to the background, by the rim's strength at each point. One thing
+  /// parts company with it: the colour transform is a matrix, so it scales
+  /// the background's saturation where the shader adds to it, and a neutral
+  /// background is not warmed. [LiquidGlassLite.ambientColor] is not read —
+  /// the background is the ambient. The specular's `color` replaces the
+  /// picked-up colour by its alpha, as on a lens.
   ///
   /// It reads the **background** — the frosted, magnified backdrop and nothing
   /// else, as the shader samples its rim colour before the tint goes on. The
@@ -78,30 +74,27 @@ enum LiquidGlassLitePickup {
 /// half that needs a shader, and keeps the half that does not: the frost, the
 /// rim, and the colour the rim takes off the background.
 ///
-/// The rim is the same lighting model, evaluated on the Dart side: the outline
-/// is sampled into a ring of points, each point's outward normal is run
-/// through the shader's own formulas, and the result is one `drawVertices`
-/// call — a triangle mesh whose vertex colors carry the light around the
-/// perimeter and whose alpha carries the falloff across its width. [blur] is
-/// the glass itself; the rim is its edge. No shader asset, no
-/// `FragmentProgram`, nothing to warm up.
+/// The rim is a lens' specular, evaluated on the Dart side: the outline is
+/// sampled into a ring of points, each point's outward normal is run through
+/// the shader's own formulas — the same ramp across the edge, the same pair
+/// of arcs on the light's axis, the same lift of the colour under it — and
+/// the result is one `drawVertices` call. [blur] is the glass itself; the
+/// rim is its edge. No shader asset, no `FragmentProgram`, nothing to warm
+/// up.
 ///
 /// ```dart
 /// LiquidGlassLite(
 ///   shape: const LiquidGlassShape(
 ///     cornerRadius: 22,
-///     borderWidth: 1.5,
-///     lightDirection: 90,
 ///   ),
+///   specular: const LiquidGlassLight.specular(thickness: 1.5, angle: 90),
 ///   child: const Text('on the glass'),
 /// )
 /// ```
 ///
-/// It takes the ordinary [LiquidGlassShape], so [LiquidGlassShape.borderWidth],
-/// [LiquidGlassShape.lightColor], [LiquidGlassShape.lightDirection],
-/// [LiquidGlassShape.lightIntensity], [LiquidGlassShape.lightMode] and the
-/// [OpticalBorder] / [ClassicBorder] parameters mean exactly what they mean on
-/// a real lens, at the same numbers. The silhouette comes from the same
+/// It takes the ordinary [LiquidGlassShape] and one light, the [specular],
+/// which draws the same rim here as it does on a lens. A glow and a second
+/// specular are not drawn. The silhouette comes from the same
 /// outline a lens clips to, so all three corner styles — circular, squircle,
 /// and the continuous capsule corner — are reproduced exactly.
 ///
@@ -153,7 +146,7 @@ enum LiquidGlassLitePickup {
 ///
 /// ```dart
 /// LiquidGlassLite(
-///   blur: const LiquidGlassBlur(),
+///   blur: 0,
 ///   pickup: LiquidGlassLitePickup.surface,
 ///   shape: shape,
 ///   child: child,
@@ -164,8 +157,9 @@ class LiquidGlassLite extends StatelessWidget {
   const LiquidGlassLite({
     super.key,
     this.shape = const LiquidGlassShape(),
+    this.specular,
     this.borderAlpha = 1.0,
-    this.blur = const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+    this.blur = 3.0,
     this.magnification = 1.0,
     this.pickup = LiquidGlassLitePickup.backdrop,
     this.color,
@@ -175,22 +169,31 @@ class LiquidGlassLite extends StatelessWidget {
     this.child,
   });
 
-  /// The geometry and lighting to draw, read exactly as a lens reads it.
+  /// The outline to draw, read exactly as a lens reads it.
   final LiquidGlassShape shape;
+
+  /// The rim's one light; `null` is `LiquidGlassLight.specular()`. It is read
+  /// as a lens reads its specular: thickness, sharpness, angle, spread,
+  /// intensity and colour.
+  final LiquidGlassLight? specular;
+
+  /// The outline with its light, as the painters read it.
+  LiquidGlassLitShape get _lit =>
+      LiquidGlassLitShape.of(shape, specular: specular);
 
   /// How much the surface frosts what is behind it, inside its own outline.
   ///
   /// This is the glass itself rather than its edge: a backdrop blur clipped to
   /// the shape, painted under [child], the same thing a lens' appearance blur
-  /// does. It defaults to a light `3` — pass `const LiquidGlassBlur()` for a
+  /// does. A Gaussian sigma; it defaults to a light `3` — pass `0` for a
   /// bare rim over whatever is already there.
   ///
   /// It costs a backdrop read, and with [LiquidGlassLitePickup.backdrop] the
   /// rim's own read comes on top of it: two reads for a surface that carries
   /// both. That is what a blurred lens costs too, so a screen with many of
-  /// them wants `LiquidGlassBlur()` here, or [LiquidGlassLitePickup.surface]
+  /// them wants `0` here, or [LiquidGlassLitePickup.surface]
   /// there, or both.
-  final LiquidGlassBlur blur;
+  final double blur;
 
   /// How much the surface magnifies what is behind it: the backdrop scaled
   /// about the shape's centre, evenly, across the whole surface. This is the
@@ -203,7 +206,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// See [LiquidGlassLitePickup].
   final LiquidGlassLitePickup pickup;
 
-  /// The glass's own tint, `LiquidGlassAppearance.color`'s counterpart: a
+  /// The glass's own tint, `LiquidGlassStyle.color`'s counterpart: a
   /// flat fill of the shape between the frost and [child].
   ///
   /// Under [LiquidGlassLitePickup.backdrop] and [LiquidGlassLitePickup.blend] the rim
@@ -251,7 +254,7 @@ class LiquidGlassLite extends StatelessWidget {
   ///
   /// The shader samples this per pixel from the refracted backdrop; here it is
   /// one color for the whole rim. Null keeps the shader's untinted behavior —
-  /// a white highlight scaled by [LiquidGlassShape.lightColor].
+  /// a white highlight scaled by the specular's colour.
   final Color? ambientColor;
 
   /// The deformation applied to the outline, matching a lens' shape scale: the
@@ -266,8 +269,7 @@ class LiquidGlassLite extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final double zoom = magnification;
-    final bool frosted =
-        blur.sigmaX > 0.0 || blur.sigmaY > 0.0 || (zoom != 1.0 && zoom > 0.0);
+    final bool frosted = blur > 0.0 || (zoom != 1.0 && zoom > 0.0);
     final bool fromBackdrop = pickup == LiquidGlassLitePickup.backdrop;
     final bool picksUp = fromBackdrop;
     final bool overSurface = pickup == LiquidGlassLitePickup.surface;
@@ -315,7 +317,7 @@ class LiquidGlassLite extends StatelessWidget {
 
   /// A flat fill of [tint], cut to the outline like the frost is.
   Widget _fill(Color tint) => liquidGlassClip(
-        shape: shape,
+        shape: _lit,
         shapeScale: shapeScale,
         child: ColoredBox(color: tint),
       );
@@ -349,7 +351,7 @@ class LiquidGlassLite extends StatelessWidget {
                   child: IgnorePointer(
                     child: CustomPaint(
                       painter: _TintAroundRimPainter(
-                        shape: shape,
+                        shape: _lit,
                         borderAlpha: borderAlpha,
                         shapeScale: shapeScale,
                         tint: tint,
@@ -364,7 +366,7 @@ class LiquidGlassLite extends StatelessWidget {
   }
 
   LiquidGlassLitePainter _painter() => LiquidGlassLitePainter(
-        shape: shape,
+        shape: _lit,
         borderAlpha: borderAlpha,
         ambientColor: ambientColor,
         shapeScale: shapeScale,
@@ -380,7 +382,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// The glass itself: the backdrop, magnified and blurred, cut to the
   /// outline. Both go through one filter, so they share one read.
   Widget _frost() => liquidGlassClip(
-        shape: shape,
+        shape: _lit,
         shapeScale: shapeScale,
         child: _GlassBackdrop(
           blur: blur,
@@ -393,10 +395,10 @@ class LiquidGlassLite extends StatelessWidget {
   /// the same layer, so it lands over the frost without entering the read.
   Widget _rimPickup(Color? under) => ClipRect(
         child: BackdropFilter(
-          filter: _highlightFilter(shape.borderSaturation),
+          filter: _highlightFilter(_lit.specular, under),
           child: CustomPaint(
             painter: _RimMaskPainter(
-              shape: shape,
+              shape: _lit,
               borderAlpha: borderAlpha,
               shapeScale: shapeScale,
               under: under,
@@ -421,7 +423,7 @@ class _GlassBackdrop extends SingleChildRenderObjectWidget {
     required Widget super.child,
   });
 
-  final LiquidGlassBlur blur;
+  final double blur;
   final double magnification;
 
   @override
@@ -444,14 +446,14 @@ class _GlassBackdrop extends SingleChildRenderObjectWidget {
 
 class _RenderGlassBackdrop extends RenderProxyBox {
   _RenderGlassBackdrop({
-    required LiquidGlassBlur blur,
+    required double blur,
     required double magnification,
   })  : _blur = blur,
         _magnification = magnification;
 
-  LiquidGlassBlur _blur;
-  set blur(LiquidGlassBlur value) {
-    if (_blur.sigmaX == value.sigmaX && _blur.sigmaY == value.sigmaY) return;
+  double _blur;
+  set blur(double value) {
+    if (_blur == value) return;
     _blur = value;
     markNeedsPaint();
   }
@@ -483,14 +485,13 @@ class _RenderGlassBackdrop extends RenderProxyBox {
   }
 
   ui.ImageFilter? _filterAt(Offset offset) {
-    final bool blurs = _blur.sigmaX > 0.0 || _blur.sigmaY > 0.0;
+    final bool blurs = _blur > 0.0;
     final double z = _magnification;
     final bool bends = z != 1.0 && z > 0.0;
     if (!blurs && !bends) return null;
 
-    final ui.ImageFilter? blur = blurs
-        ? ui.ImageFilter.blur(sigmaX: _blur.sigmaX, sigmaY: _blur.sigmaY)
-        : null;
+    final ui.ImageFilter? blur =
+        blurs ? ui.ImageFilter.blur(sigmaX: _blur, sigmaY: _blur) : null;
     if (!bends) return blur;
 
     // Scale about this box's centre, written straight into the matrix rather
@@ -519,30 +520,33 @@ class _RenderGlassBackdrop extends RenderProxyBox {
   }
 }
 
-/// Saturates the background, lifts it hard toward white, and keeps a floor
-/// under it so the rim does not vanish over black. It stands in for the
-/// shader's `getHighlightColor`, which divides by luma — a colour matrix
-/// cannot divide, and that is the one place this parts company with it.
-///
-/// [saturation] is the shape's `borderSaturation`, riding on top of the boost
-/// the mode carries anyway, so `1.0` is the look this mode has always had.
-/// Saturating here costs nothing: it is the same matrix, with different
-/// numbers in it.
-ColorFilter _highlightFilter(double saturation) {
-  const double gain = 2.0;
-  const double floor = 96.0;
-  const double base = 1.5;
-  final double s = base * saturation.clamp(0.0, 4.0);
+/// The rim's lift as a colour matrix, at [light]'s peak strength: the
+/// background mixed with the rim's share of [tint], its chroma stretched and
+/// the peak's lightness added. The mask's alpha scales that down to each
+/// pixel's own strength.
+ColorFilter _highlightFilter(LiquidGlassLight light, Color? tint) {
+  final double peak = _rimPeak(light);
+  final double lift = _kRimLift * peak;
+  // A matrix scales chroma where the shader adds to it; the two agree on a
+  // colour of middling saturation.
+  final double s = 1.0 + _kRimChroma * peak / 0.25;
   final double d = 1.0 - s;
+  final double share = (tint?.a ?? 0.0).clamp(0.0, 1.0) * _kRimTintShare;
+  final double keep = 1.0 - share;
+  final double tintLuma = tint == null
+      ? 0.0
+      : tint.r * _kLumaR + tint.g * _kLumaG + tint.b * _kLumaB;
   double cell(double luma, {required bool own}) =>
-      gain * (luma * d + (own ? s : 0.0));
+      keep * (luma * d + (own ? s : 0.0));
+  double offset(double channel) =>
+      255.0 * (share * (tintLuma * d + channel * s) + lift);
   return ColorFilter.matrix(<double>[
     cell(_kLumaR, own: true), cell(_kLumaG, own: false),
-    cell(_kLumaB, own: false), 0, floor, //
+    cell(_kLumaB, own: false), 0, offset(tint?.r ?? 0.0), //
     cell(_kLumaR, own: false), cell(_kLumaG, own: true),
-    cell(_kLumaB, own: false), 0, floor, //
+    cell(_kLumaB, own: false), 0, offset(tint?.g ?? 0.0), //
     cell(_kLumaR, own: false), cell(_kLumaG, own: false),
-    cell(_kLumaB, own: true), 0, floor, //
+    cell(_kLumaB, own: true), 0, offset(tint?.b ?? 0.0), //
     0, 0, 0, 1, 0, //
   ]);
 }
@@ -561,7 +565,7 @@ class _TintAroundRimPainter extends CustomPainter {
     required this.tint,
   });
 
-  final LiquidGlassShape shape;
+  final LiquidGlassLitShape shape;
   final double borderAlpha;
   final Offset shapeScale;
   final Color tint;
@@ -615,7 +619,7 @@ class _RimMaskPainter extends CustomPainter {
     this.under,
   });
 
-  final LiquidGlassShape shape;
+  final LiquidGlassLitShape shape;
   final double borderAlpha;
   final Offset shapeScale;
 
@@ -628,9 +632,7 @@ class _RimMaskPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     // The layer has to span everything the filter painted, or whatever falls
     // outside these bounds keeps the background unmasked. `modulate` keeps
-    // the highlight where the mesh has alpha AND multiplies the mesh's
-    // colour into it — the shape's `lightColor` — after the layer clamped
-    // the highlight to white, which is the order the shader does it in.
+    // the lifted background where the mesh has alpha, at the mesh's alpha.
     canvas.saveLayer(
         Offset.zero & size, Paint()..blendMode = BlendMode.modulate);
     final _RimOutline? outline = _outlineFor(shape, size, shapeScale);
@@ -641,6 +643,7 @@ class _RimMaskPainter extends CustomPainter {
         size: size,
         borderAlpha: borderAlpha,
         ambientColor: null,
+        role: _RimRole.pickup,
       );
       if (mesh != null) {
         canvas.clipPath(outline.path);
@@ -648,19 +651,32 @@ class _RimMaskPainter extends CustomPainter {
       }
     }
     canvas.restore();
+    if (outline == null) return;
 
+    canvas.save();
+    canvas.clipPath(outline.path);
+    // The light's own colour replaces the lifted one, by its alpha.
+    final ui.Vertices? light = _buildRimMesh(
+      outline: outline,
+      shape: shape,
+      size: size,
+      borderAlpha: borderAlpha,
+      ambientColor: null,
+      role: _RimRole.light,
+    );
+    if (light != null) {
+      canvas.drawVertices(light, BlendMode.modulate, _rimPaint);
+    }
     final Color? fill = under;
-    if (fill != null && outline != null) {
-      canvas.save();
-      canvas.clipPath(outline.path);
+    if (fill != null) {
       canvas.drawRect(
         Offset.zero & size,
         Paint()
           ..color = fill
           ..blendMode = BlendMode.dstOver,
       );
-      canvas.restore();
     }
+    canvas.restore();
   }
 
   @override
@@ -688,7 +704,7 @@ class LiquidGlassLitePainter extends CustomPainter {
   });
 
   /// The geometry and lighting to draw. See [LiquidGlassLite.shape].
-  final LiquidGlassShape shape;
+  final LiquidGlassLitShape shape;
 
   /// How the rim lands on what is already painted. `BlendMode.overlay` is what
   /// [LiquidGlassLitePickup.blend] and [LiquidGlassLitePickup.surface] use: the rim's
@@ -696,7 +712,7 @@ class LiquidGlassLitePainter extends CustomPainter {
   final BlendMode blendMode;
 
   /// After a blending [blendMode], multiply the rim's own colour in — the
-  /// shape's `lightColor`, `borderColor` and saturation — so they show over
+  /// specular's colour — so it shows over
   /// white, which overlay alone leaves untouched. What [LiquidGlassLitePickup.blend]
   /// and [LiquidGlassLitePickup.surface] do. Skipped when that colour is plain
   /// white. Ignored under `BlendMode.srcOver`, whose rim carries it already.
@@ -802,31 +818,22 @@ class LiquidGlassLitePainter extends CustomPainter {
 final Paint _rimPaint = Paint()..color = const Color(0xFFFFFFFF);
 
 /// Whether the rim mesh's colour is plain white everywhere, so multiplying it
-/// in would change nothing. Only an optical rim has one colour; a classic
-/// sweep always carries a shadow tone somewhere along it.
-bool _rimIsWhite(LiquidGlassShape shape, Color? ambientColor) =>
-    shape.isOpticalBorder && _opticalRimRgb(shape, ambientColor) == 0x00ffffff;
+/// in would change nothing.
+bool _rimIsWhite(LiquidGlassLitShape shape, Color? ambientColor) {
+  if (ambientColor != null) return false;
+  final Color? light = shape.specular.color;
+  return light == null ||
+      light.a <= 0.0 ||
+      (light.r >= 1.0 && light.g >= 1.0 && light.b >= 1.0);
+}
 
-/// Whether two shapes would draw the same rim.
-bool _sameBorderLook(LiquidGlassShape a, LiquidGlassShape b) {
+/// Whether two shapes would draw the same rim: the specular is the only
+/// light drawn here.
+bool _sameBorderLook(LiquidGlassLitShape a, LiquidGlassLitShape b) {
   if (identical(a, b)) return true;
   return a.cornerStyle == b.cornerStyle &&
       a.cornerRadius == b.cornerRadius &&
-      a.borderWidth == b.borderWidth &&
-      a.borderColor == b.borderColor &&
-      a.lightIntensity == b.lightIntensity &&
-      a.lightColor == b.lightColor &&
-      a.lightDirection == b.lightDirection &&
-      a.lightMode == b.lightMode &&
-      a.isOpticalBorder == b.isOpticalBorder &&
-      a.borderSoftness == b.borderSoftness &&
-      a.shadowColor == b.shadowColor &&
-      a.oneSideLightIntensity == b.oneSideLightIntensity &&
-      a.doubleSideLightIntensity == b.doubleSideLightIntensity &&
-      a.ambientIntensity == b.ambientIntensity &&
-      a.borderSaturation == b.borderSaturation &&
-      a.borderSolidity == b.borderSolidity &&
-      a.lightSpread == b.lightSpread;
+      a.specular == b.specular;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -854,58 +861,64 @@ const double _kLumaB = 0.0722;
 /// to draw.
 ///
 /// The mesh is a set of concentric rings, offset along the outline's normals.
-/// Around a ring the vertex color carries the angular light response; across
-/// the rings its alpha carries the rim's radial profile. Both come from the
-/// shader's own formulas. The outermost and innermost rings are pinned to
-/// alpha zero, so the mesh fades out into its own boundary rather than needing
-/// anti-aliased triangle edges, which `drawVertices` does not have.
+/// Around a ring the vertex alpha carries the light's arc; across the rings
+/// it carries the rim's ramp. Both come from the shader's own formulas. The
+/// innermost ring is where the ramp reaches zero, and the outermost sits past
+/// the outline, where the caller's clip cuts it — so the mesh never shows an
+/// edge of its own, which `drawVertices` could not anti-alias.
 ui.Vertices? _buildRimMesh({
   required _RimOutline outline,
-  required LiquidGlassShape shape,
+  required LiquidGlassLitShape shape,
   required Size size,
   required double borderAlpha,
   required Color? ambientColor,
+  _RimRole role = _RimRole.painted,
 }) {
   if (borderAlpha <= 0.0) return null;
   if (!size.width.isFinite || !size.height.isFinite) return null;
   if (size.width <= 0.0 || size.height <= 0.0) return null;
-  if (shape.borderWidth <= 0.0) return null;
+  final LiquidGlassLight light = shape.specular;
+  if (light.thickness <= 0.0 || light.intensity <= 0.0) return null;
 
-  final bool optical = shape.isOpticalBorder;
-  // The renderers hand the shader `borderWidth * 2`, plus a 2px bump in
-  // optical mode, both in logical px. Matching it keeps a given borderWidth
-  // reading as the same thickness here as it does on a lens.
-  final double width = shape.borderWidth * 2.0 + (optical ? 2.0 : 0.0);
-  final double softness = math.max(shape.borderSoftness, 0.0);
+  // How much of the rim is the light's own colour instead of a lifted one.
+  final Color? lightColor = light.color;
+  final double own = lightColor == null ? 0.0 : lightColor.a.clamp(0.0, 1.0);
+  if (role == _RimRole.pickup && own >= 1.0) return null;
+  if (role == _RimRole.light && own <= 0.0) return null;
 
-  // Under 2px of width the optical rim is scaled away entirely.
-  final double thicknessFactor =
-      optical ? ((width - 2.0) * 0.5).clamp(0.0, 1.0) : 1.0;
-  if (thicknessFactor <= 0.0) return null;
+  // The ramp's depth follows the thickness; sharpness slides the ramp.
+  final double depth = light.thickness * _kRimDepthPerThickness;
+  final double shift = _kRimShiftAtZero + light.sharpness.clamp(0.0, 1.0);
 
   // Offsetting inward past the shape's inradius would fold the inner rings
   // through each other, so the rim's reach is capped short of it.
   final double maxInward = 0.45 * math.min(size.width, size.height);
-  final List<double> rings = optical
-      ? _opticalRings(width, softness, maxInward)
-      : _classicRings(width, softness, maxInward);
+  final List<double> rings = _rimRings(depth, shift);
   final int ringCount = rings.length;
-
-  final List<double> profile = <double>[
-    for (final double sd in rings)
-      optical
-          ? _opticalProfile(sd, width, softness)
-          : _classicProfile(sd, width, softness),
+  final List<double> ramp = <double>[
+    for (final double sd in rings) _rimRamp(sd, depth, shift),
   ];
-  profile[0] = 0.0;
-  profile[ringCount - 1] = 0.0;
 
-  final double lightRad = shape.lightDirection * math.pi / 180.0;
+  final double lightRad = light.angle * math.pi / 180.0;
   final double lx = math.cos(lightRad);
   final double ly = math.sin(lightRad);
-  final bool radial = shape.lightMode == LiquidGlassLightMode.radial;
-  final double cx = size.width / 2.0;
-  final double cy = size.height / 2.0;
+  final double arcGain = 1.2 * light.intensity * _kRimIntensityScale;
+  final double arcPower = _rimArcPower(light.spread);
+  final double peak = _rimPeak(light);
+  final double alphaScale = borderAlpha.clamp(0.0, 1.0);
+
+  // The lifted colour turns with the strength only over a colour to lift;
+  // over white, or under a light that replaces it whole, it is one tone.
+  final bool lifts =
+      role == _RimRole.painted && ambientColor != null && own < 1.0;
+  final int flatRgb = switch (role) {
+    _RimRole.pickup => 0x00ffffff,
+    _RimRole.light => _packRgb(lightColor!.r, lightColor.g, lightColor.b),
+    _RimRole.painted => _rimRgb(1.0, 1.0, 1.0, 0.0, lightColor, own),
+  };
+  final double baseR = ambientColor?.r ?? 1.0;
+  final double baseG = ambientColor?.g ?? 1.0;
+  final double baseB = ambientColor?.b ?? 1.0;
 
   int vertexCount = 0;
   int indexCount = 0;
@@ -919,14 +932,7 @@ ui.Vertices? _buildRimMesh({
   final Int32List colors = Int32List(vertexCount);
   final Uint16List indices = Uint16List(indexCount);
 
-  // The optical rim is one tone for the whole shape — only its strength turns
-  // with the normal — so the color is resolved once, up front.
-  final int opticalRgb = optical ? _opticalRimRgb(shape, ambientColor) : 0;
-  final _ClassicSweep? sweep =
-      optical ? null : _ClassicSweep(shape, lightRad, lx, ly);
-
-  final Float64List sampleAlpha = Float64List(_kMaxSamples);
-  final Int32List sampleRgb = Int32List(_kMaxSamples);
+  final Float64List sampleArc = Float64List(_kMaxSamples);
 
   int vi = 0;
   int ii = 0;
@@ -935,39 +941,37 @@ ui.Vertices? _buildRimMesh({
   for (final _RimContour contour in outline.contours) {
     final int m = contour.count;
 
-    // Per-sample tone — the part of the rim that depends on the normal alone.
+    // Per-sample arc — the part of the rim that depends on the normal alone:
+    // two opposing arcs on the light's axis, dark at 90 degrees to it.
     for (int i = 0; i < m; i++) {
-      double nx = contour.nx[i];
-      double ny = contour.ny[i];
-      if (radial) {
-        double rx = contour.px[i] - cx;
-        double ry = contour.py[i] - cy;
-        final double rl = math.sqrt(rx * rx + ry * ry);
-        if (rl > 1e-6) {
-          nx = rx / rl;
-          ny = ry / rl;
-        }
-      }
-      if (optical) {
-        sampleAlpha[i] = borderAlpha *
-            thicknessFactor *
-            _opticalLight(shape, nx, ny, lx, ly);
-        sampleRgb[i] = opticalRgb;
-      } else {
-        final int tone = sweep!.toneAt(nx, ny);
-        sampleRgb[i] = tone & 0x00ffffff;
-        sampleAlpha[i] = borderAlpha * ((tone >> 24) & 0xff) / 255.0;
-      }
+      final double ndl = contour.nx[i] * lx + contour.ny[i] * ly;
+      sampleArc[i] = math
+          .pow(math.max(ndl * ndl * arcGain, 1e-6), arcPower)
+          .toDouble()
+          .clamp(0.0, 1.0);
     }
 
     for (int k = 0; k < ringCount; k++) {
-      final double sd = rings[k];
-      final double p = profile[k];
+      final double sd = math.max(rings[k], -maxInward);
+      final double p = ramp[k];
       for (int i = 0; i < m; i++) {
         positions[vi * 2] = contour.px[i] + contour.nx[i] * sd;
         positions[vi * 2 + 1] = contour.py[i] + contour.ny[i] * sd;
-        final double a = (sampleAlpha[i] * p).clamp(0.0, 1.0);
-        colors[vi] = ((a * 255.0).round() << 24) | sampleRgb[i];
+        final double strength = sampleArc[i] * p;
+        final double weight =
+            (strength * _kRimWeightGain).clamp(0.0, 1.0) * alphaScale;
+        final double a = switch (role) {
+          _RimRole.painted => weight,
+          _RimRole.light => weight * own,
+          // The read is lifted by the peak, so the strength's share of it
+          // is the lift; the light's pass over it takes the rest.
+          _RimRole.pickup =>
+            (1.0 - own) * weight * (strength / peak) / (1.0 - weight * own),
+        };
+        final int rgb = lifts
+            ? _rimRgb(baseR, baseG, baseB, strength, lightColor, own)
+            : flatRgb;
+        colors[vi] = ((a.clamp(0.0, 1.0) * 255.0).round() << 24) | rgb;
         vi++;
       }
     }
@@ -998,264 +1002,140 @@ ui.Vertices? _buildRimMesh({
 }
 
 // ─────────────────────────────────────────────────────────────
-//  Radial profile — where the rim sits across the edge
+//  The rim — the shader's specular layer, evaluated per vertex
 // ─────────────────────────────────────────────────────────────
 
-/// Signed distances (positive = outside the shape) of the optical mode's
-/// rings, placed where the profile bends: it is brightest at the edge and
-/// collapses within the first fifth of its depth.
-List<double> _opticalRings(double width, double softness, double maxInward) {
-  final double outer = math.max(softness, 1.0);
-  final double depth = math.min(width, maxInward);
+/// What a rim mesh is drawn as, which sets what its vertices carry.
+enum _RimRole {
+  /// The whole rim: its colour, at its weight.
+  painted,
+
+  /// The mask a backdrop read is cut by: white, at the lift's share.
+  pickup,
+
+  /// The light's own colour, laid over a [pickup] rim.
+  light,
+}
+
+// How a light's values read inside the rim: thickness 1, intensity 1 and
+// sharpness 0.5 give the rest look. The shader's own constants.
+const double _kRimDepthPerThickness = 5.4; // ramp depth per unit of thickness
+const double _kRimIntensityScale = 0.1; // intensity 1 -> 0.1
+const double _kRimShiftAtZero = -0.6; // sharpness 0..1 -> shift -0.6..0.4
+const double _kRimWeightGain = 6.0; // strength -> coverage
+
+/// How far inside the outline the rim is measured from, in logical px.
+const double _kRimOutlineInset = 0.167;
+
+/// Lightness and chroma the rim adds per unit of strength, in sRGB.
+const double _kRimLift = 1.5;
+const double _kRimChroma = 30.0 * 0.00724;
+
+/// Share of the tint's alpha the rim's colour takes; the body takes it all,
+/// so the rim stays lighter than the body.
+const double _kRimTintShare = 0.625;
+
+/// Where the rings sit along the ramp, as fractions of its top. The ramp is
+/// a fifth power, so most of them crowd the outline.
+const List<double> _kRimRingSteps = <double>[
+  0.94,
+  0.87,
+  0.79,
+  0.70,
+  0.58,
+  0.42,
+  0.0,
+];
+
+/// Signed distances (positive = outside the shape) of the rim's rings. The
+/// first is past the outline, for the clip to cut; the last is where the
+/// ramp reaches zero.
+List<double> _rimRings(double depth, double shift) {
+  double sdAt(double t) => (t - 1.0 - shift) * depth - _kRimOutlineInset;
+  final double top = math.min(1.0 + shift + _kRimOutlineInset / depth, 1.0);
   return <double>[
-    outer,
+    1.0,
     0.0,
-    -0.05 * depth,
-    -0.12 * depth,
-    -0.22 * depth,
-    -0.38 * depth,
-    -0.62 * depth,
-    -depth,
+    // Where a sharp ramp stops being full.
+    if (sdAt(1.0) < 0.0) sdAt(1.0),
+    for (final double f in _kRimRingSteps) sdAt(top * f),
   ];
 }
 
-/// Signed distances of the classic mode's rings: a band centered on the edge,
-/// solid out to half the width and feathered inward by the softness.
-List<double> _classicRings(double width, double softness, double maxInward) {
-  final double half = math.min(width * 0.5, maxInward);
-  final double soft = math.min(math.max(softness, 1e-3), maxInward - half);
-  return <double>[
-    // The shader cuts the outer side hard; half a pixel of ramp is all that
-    // stands in for the anti-aliasing a mesh cannot do.
-    half + 0.5,
-    half,
-    0.0,
-    -half,
-    -half - soft * 0.3,
-    -half - soft * 0.65,
-    -half - soft,
-  ];
+/// The rim's ramp at signed distance [sd]: 1 on the outline, 0 at [depth]
+/// inside, slid by [shift]. A fifth power: a hard core with a long, soft
+/// inward tail.
+double _rimRamp(double sd, double depth, double shift) {
+  final double t =
+      math.max(1.0 + shift + (sd + _kRimOutlineInset) / depth, 0.0);
+  final double t2 = t * t;
+  return (t2 * t2 * t).clamp(0.0, 1.0);
 }
 
-/// The optical rim's spatial mask at signed distance [sd] — the shader's
-/// rational falloff, its inner and outer fades, and the lens height profile.
-double _opticalProfile(double sd, double width, double softness) {
-  final double rimWidth = math.max(width, 1.0);
-  final double x = sd / rimWidth;
-  double f = 1.0 / (1.0 + 0.89 * x * x);
-  f *= 1.0 - _smoothstep(width * 1.5, width * 3.0, math.max(-sd, 0.0));
-  f *= 1.0 - _smoothstep(0.0, math.max(softness, 1.0), math.max(sd, 0.0));
-  if (f <= 0.0) return 0.0;
+/// A light's arc power: spread 0 focuses the arcs on the light's axis; 1
+/// flattens the power so they wrap the perimeter.
+double _rimArcPower(double spread) =>
+    0.1 + (1.0 - spread.clamp(0.0, 1.0)) * 2.0;
 
-  // Circular cross-section: height 0 at the edge, full at depth `width`.
-  double height;
-  if (sd >= 0.0) {
-    height = 0.0;
-  } else if (sd < -width) {
-    height = width;
-  } else {
-    final double t = width + sd;
-    height = math.sqrt(math.max(0.0, width * width - t * t));
-  }
-  final double normalized = width > 0.0 ? height / width : 0.0;
-  return f * ((1.0 - normalized) * 1.111).clamp(0.0, 1.0);
+/// The most strength [light]'s rim reaches anywhere: on its axis, at the
+/// outline. Zero for a light that draws nothing.
+double _rimPeak(LiquidGlassLight light) {
+  if (light.thickness <= 0.0 || light.intensity <= 0.0) return 0.0;
+  final double arc = math
+      .pow(math.max(1.2 * light.intensity * _kRimIntensityScale, 1e-6),
+          _rimArcPower(light.spread))
+      .toDouble()
+      .clamp(0.0, 1.0);
+  return arc *
+      _rimRamp(
+        1.0,
+        light.thickness * _kRimDepthPerThickness,
+        _kRimShiftAtZero + light.sharpness.clamp(0.0, 1.0),
+      );
 }
 
-/// The classic rim's mask at signed distance [sd] — solid across the width,
-/// feathered by the softness, and cut off outside.
-double _classicProfile(double sd, double width, double softness) {
-  final double half = width * 0.5;
-  if (sd > half) return 0.0;
-  return 1.0 - _smoothstep(half, half + math.max(softness, 1e-3), sd.abs());
-}
-
-double _smoothstep(double edge0, double edge1, double x) {
-  if (edge1 <= edge0) return x < edge0 ? 0.0 : 1.0;
-  final double t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
-  return t * t * (3.0 - 2.0 * t);
-}
-
-// ─────────────────────────────────────────────────────────────
-//  Angular response — how bright the rim is at a given normal
-// ─────────────────────────────────────────────────────────────
-
-/// The optical rim's light strength for the normal (nx, ny): two lobes, one
-/// facing the light and one facing away, widened or tightened by the spread,
-/// with the ambient term on top.
-double _opticalLight(
-  LiquidGlassShape shape,
-  double nx,
-  double ny,
-  double lx,
-  double ly,
+/// The rim's colour at [strength] over the colour (r, g, b), packed as
+/// 0x00RRGGBB: lightness added straight to luma, the colour offset
+/// lengthened so hue holds, then [light] mixed in by [own].
+int _rimRgb(
+  double r,
+  double g,
+  double b,
+  double strength,
+  Color? light,
+  double own,
 ) {
-  final double spread = shape.lightSpread.clamp(0.0, 1.0);
-  final double spreadExp = 2.5 + (0.5 - 2.5) * spread;
-  // Below the midpoint the exponent alone cannot shrink the bright core, so
-  // each lobe's angular window narrows too.
-  final double lobeCut = (0.5 - math.min(spread, 0.5)) * 1.7;
-  final double span = 1.0 - lobeCut;
-
-  final double ndl = nx * lx + ny * ly;
-  final double front = ((math.max(ndl, 0.0) - lobeCut) / span).clamp(0.0, 1.0);
-  final double back = ((math.max(-ndl, 0.0) - lobeCut) / span).clamp(0.0, 1.0);
-
-  final double directional =
-      math.pow(front + back, spreadExp).toDouble() * shape.lightIntensity * 3.0;
-  final double strength = directional + shape.ambientIntensity * 0.1;
-
-  // The cap is what decouples thickness from intensity: without it a bright
-  // light would drag the rim's soft tail up to opaque and visually fatten it.
-  // Solidity lifts the cap back off.
-  final double capped = strength.clamp(0.0, 1.0);
-  return capped + (strength - capped) * shape.borderSolidity.clamp(0.0, 1.0);
+  final double luma = r * _kLumaR + g * _kLumaG + b * _kLumaB;
+  double or = r - luma;
+  double og = g - luma;
+  double ob = b - luma;
+  final double chroma = _kRimChroma * strength;
+  final double length = math.sqrt(or * or + og * og + ob * ob);
+  if (length > 1e-3) {
+    final double k = (length + chroma) / length;
+    or *= k;
+    og *= k;
+    ob *= k;
+  } else {
+    // A neutral has no hue to keep: it goes warm, not pink.
+    or = chroma * 0.359;
+    og = chroma * -0.028;
+    ob = chroma * -0.829;
+  }
+  final double lifted = math.min(luma + _kRimLift * strength, 1.2);
+  double outR = (lifted + or).clamp(0.0, 1.0);
+  double outG = (lifted + og).clamp(0.0, 1.0);
+  double outB = (lifted + ob).clamp(0.0, 1.0);
+  if (light != null && own > 0.0) {
+    outR += (light.r - outR) * own;
+    outG += (light.g - outG) * own;
+    outB += (light.b - outB) * own;
+  }
+  return _packRgb(outR, outG, outB);
 }
 
-/// The optical rim's color, packed as 0x00RRGGBB. It is the same for every
-/// pixel of the rim, so it is resolved once per paint.
-int _opticalRimRgb(LiquidGlassShape shape, Color? ambientColor) {
-  double r = 1.0;
-  double g = 1.0;
-  double b = 1.0;
-
-  final Color? ambient = ambientColor;
-  if (ambient != null) {
-    final double ar = ambient.r;
-    final double ag = ambient.g;
-    final double ab = ambient.b;
-    if (ar * ar + ag * ag + ab * ab > 1e-5) {
-      // The shader's highlight: pull the background toward its own hue, then
-      // blend that into white by how colorful it is.
-      final double luminance = ar * _kLumaR + ag * _kLumaG + ab * _kLumaB;
-      final double inv = 1.0 / math.max(luminance, 0.001);
-      double sr = ar + (ar * inv - ar) * 0.8;
-      double sg = ag + (ag * inv - ag) * 0.8;
-      double sb = ab + (ab * inv - ab) * 0.8;
-      final double dr = ar - luminance;
-      final double dg = ag - luminance;
-      final double db = ab - luminance;
-      final double colorfulness = math.sqrt(dr * dr + dg * dg + db * db);
-      final double mix = (colorfulness + 0.5).clamp(0.5, 1.0);
-      r = (1.0 + (sr - 1.0) * mix).clamp(0.0, 1.0);
-      g = (1.0 + (sg - 1.0) * mix).clamp(0.0, 1.0);
-      b = (1.0 + (sb - 1.0) * mix).clamp(0.0, 1.0);
-    }
-  }
-
-  final Color light = shape.lightColor;
-  r *= light.r;
-  g *= light.g;
-  b *= light.b;
-
-  final Color? tint = shape.borderColor;
-  if (tint != null && tint.a > 0.0) {
-    final double t = tint.a.clamp(0.0, 1.0);
-    r += (tint.r - r) * t;
-    g += (tint.g - g) * t;
-    b += (tint.b - b) * t;
-  }
-
-  final double saturation = shape.borderSaturation;
-  if (saturation != 1.0) {
-    final double luma = r * _kLumaR + g * _kLumaG + b * _kLumaB;
-    r = luma + (r - luma) * saturation;
-    g = luma + (g - luma) * saturation;
-    b = luma + (b - luma) * saturation;
-  }
-
-  return (_channel(r) << 16) | (_channel(g) << 8) | _channel(b);
-}
-
-/// The classic mode's sweep: two colors traded four times around the shape,
-/// plus the specular lobes, resolved per normal.
-class _ClassicSweep {
-  _ClassicSweep(this.shape, this.lightRad, this.lx, this.ly)
-      : lightR = shape.lightColor.r,
-        lightG = shape.lightColor.g,
-        lightB = shape.lightColor.b {
-    final Color? tint = shape.borderColor;
-    final bool tinted = tint != null && tint.a > 0.0;
-    final Color c0 = tinted ? tint : shape.lightColor;
-    final Color c1 = tinted ? tint : shape.shadowColor;
-    r0 = c0.r;
-    g0 = c0.g;
-    b0 = c0.b;
-    a0 = c0.a;
-    r1 = c1.r;
-    g1 = c1.g;
-    b1 = c1.b;
-    a1 = c1.a;
-  }
-
-  final LiquidGlassShape shape;
-  final double lightRad;
-  final double lx;
-  final double ly;
-  final double lightR;
-  final double lightG;
-  final double lightB;
-  late final double r0, g0, b0, a0;
-  late final double r1, g1, b1, a1;
-
-  /// The unpremultiplied ARGB tone at the normal (nx, ny).
-  int toneAt(double nx, double ny) {
-    // Where this normal falls in the sweep, measured from the light.
-    double angle = math.atan2(ny, nx) - lightRad;
-    angle %= 2.0 * math.pi;
-    final double t = angle / (2.0 * math.pi);
-
-    final double u;
-    final bool forward;
-    if (t <= 0.25) {
-      u = t / 0.25;
-      forward = true;
-    } else if (t <= 0.5) {
-      u = (t - 0.25) / 0.25;
-      forward = false;
-    } else if (t <= 0.75) {
-      u = (t - 0.5) / 0.25;
-      forward = true;
-    } else {
-      u = (t - 0.75) / 0.25;
-      forward = false;
-    }
-
-    double r = forward ? r0 + (r1 - r0) * u : r1 + (r0 - r1) * u;
-    double g = forward ? g0 + (g1 - g0) * u : g1 + (g0 - g1) * u;
-    double b = forward ? b0 + (b1 - b0) * u : b1 + (b0 - b1) * u;
-    final double a = forward ? a0 + (a1 - a0) * u : a1 + (a0 - a1) * u;
-
-    final double intensity = shape.lightIntensity;
-    final double oneSide = shape.oneSideLightIntensity;
-    if (oneSide > 0.0) {
-      final double spec =
-          math.pow(math.max(nx * lx + ny * ly, 0.0), 8.0).toDouble();
-      final double k = spec * intensity * 0.8 * oneSide;
-      r += lightR * k;
-      g += lightG * k;
-      b += lightB * k;
-    }
-    final double bothSides = shape.doubleSideLightIntensity;
-    if (bothSides > 0.0) {
-      final double ndl = nx * lx + ny * ly;
-      final double front = math.pow(math.max(ndl, 0.0), 8.0).toDouble();
-      final double back = math.pow(math.max(-ndl, 0.0), 8.0).toDouble();
-      final double k = (front + back) * intensity * 0.8 * bothSides;
-      r += lightR * k;
-      g += lightG * k;
-      b += lightB * k;
-    }
-
-    r *= intensity;
-    g *= intensity;
-    b *= intensity;
-
-    return (_channel(a) << 24) |
-        (_channel(r) << 16) |
-        (_channel(g) << 8) |
-        _channel(b);
-  }
-}
+int _packRgb(double r, double g, double b) =>
+    (_channel(r) << 16) | (_channel(g) << 8) | _channel(b);
 
 int _channel(double v) => (v.clamp(0.0, 1.0) * 255.0).round();
 
@@ -1324,7 +1204,7 @@ class _OutlineKey {
 final Map<_OutlineKey, _RimOutline> _outlineCache =
     <_OutlineKey, _RimOutline>{};
 
-_RimOutline? _outlineFor(LiquidGlassShape shape, Size size, Offset scale) {
+_RimOutline? _outlineFor(LiquidGlassLitShape shape, Size size, Offset scale) {
   final _OutlineKey key = _OutlineKey(
     shape.cornerStyle,
     shape.cornerRadius,
@@ -1354,7 +1234,8 @@ _RimOutline? _outlineFor(LiquidGlassShape shape, Size size, Offset scale) {
 /// from the path's own tangent: the squircle and continuous corners are
 /// polylines, so their tangents are piecewise constant and would step the
 /// light around a corner instead of sweeping it.
-_RimOutline? _sampleOutline(LiquidGlassShape shape, Size size, Offset scale) {
+_RimOutline? _sampleOutline(
+    LiquidGlassLitShape shape, Size size, Offset scale) {
   final Path path = liquidGlassOutlinePath(shape, size, scale);
   final double cx = size.width / 2.0;
   final double cy = size.height / 2.0;

@@ -8,13 +8,10 @@ import '../../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
 import '../../liquid_glass_config.dart'
     show LiquidGlassAppearance, LiquidGlassRefraction;
 import '../../liquid_glass_style.dart';
-import '../../utils/liquid_glass_blur.dart';
-import '../../utils/liquid_glass_border_mode.dart'
-    show ClassicBorder, LiquidGlassBorderType, OpticalBorder;
+import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_flex.dart' show LiquidGlassFlexDeform;
 import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_lens_motion.dart';
-import '../../utils/liquid_glass_refraction_type.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_shadow.dart';
 
@@ -490,44 +487,39 @@ class _LiquidGlassNavBarMotionPillState
     final double t = progress.clamp(0.0, 1.0);
     final LiquidGlassStyle active = widget.style ?? _defaultStyle;
     final LiquidGlassStyle rest = widget.restStyle;
-    final LiquidGlassShape activeShape =
-        active.shape ?? _defaultShape(widget.activeSize.height / 2);
-    final LiquidGlassShape restShape = _withoutRim(
-      rest.shape ?? _defaultShape(widget.restSize.height / 2),
-    );
+    final LiquidGlassLitShape activeShape =
+        _lit(active, widget.activeSize.height / 2);
+    final LiquidGlassLitShape restShape =
+        _withoutRim(_lit(rest, widget.restSize.height / 2));
     final double widthCompensation = stretchX > 0 ? 1 / stretchX : 1;
 
-    return LiquidGlassStyle(
+    return LiquidGlassStyle.groups(
       // The rim rides `rim` on top of the lift, so it can be retired while
       // the pill is still large and still deformed.
       shape: _scaleRim(_lerpShape(restShape, activeShape, t), rim),
       appearance: _lerpAppearance(rest.appearance, active.appearance, t),
       // Refraction leaves on `presence`: the band narrows to nothing, so
       // what is behind the pill straightens out rather than snapping.
-      refraction: _compensateRefractionWidth(
-        _lerpRefraction(rest.refraction, active.refraction, t),
-        widthCompensation * presence,
-      ),
+      refraction:
+          LiquidGlassRefraction.lerp(rest.refraction, active.refraction, t)
+              .withWidthFactor(widthCompensation * presence),
       liteGlass: active.liteGlass ?? rest.liteGlass,
     );
   }
 
-  /// The same rim at a fraction of its width. `0` retires it outright —
-  /// with it the optical border's own extra width, which is only added
-  /// while `borderWidth > 0`.
-  static LiquidGlassShape _scaleRim(LiquidGlassShape s, double factor) {
-    if (factor >= 1.0 || s.borderWidth == 0) return s;
-    return LiquidGlassShape(
-      cornerStyle: s.cornerStyle,
-      clipQuality: s.clipQuality,
-      lightMode: s.lightMode,
-      cornerRadius: s.cornerRadius,
-      borderWidth: s.borderWidth * factor,
-      borderColor: s.borderColor,
-      lightIntensity: s.lightIntensity,
-      lightColor: s.lightColor,
-      lightDirection: s.lightDirection,
-      borderType: s.borderType,
+  /// The same rim at a fraction of its thickness. `0` retires it outright.
+  static LiquidGlassLitShape _scaleRim(LiquidGlassLitShape s, double factor) {
+    if (factor >= 1.0) return s;
+    if (s.specular.thickness == 0 &&
+        s.glow.thickness == 0 &&
+        (s.secondSpecular?.thickness ?? 0) == 0) {
+      return s;
+    }
+    return s.copyWith(
+      specular: s.specular.copyWith(thickness: s.specular.thickness * factor),
+      glow: s.glow.copyWith(thickness: s.glow.thickness * factor),
+      secondSpecular: s.secondSpecular?.copyWith(
+          thickness: s.secondSpecular!.thickness * factor),
     );
   }
 
@@ -538,128 +530,69 @@ class _LiquidGlassNavBarMotionPillState
   /// fill and nothing else. Anything the glass still carries at that
   /// moment has nowhere to go and pops off in a single frame. The
   /// refraction already interpolates to zero; the rim does not, because
-  /// it lives on the shape the host authored for the pill's corners. So
-  /// the corner geometry is kept and only `borderWidth` (with it, the
-  /// optical rim's own extra width) is retired.
+  /// it is authored on the style beside the pill's corners. So the corner
+  /// geometry is kept and only the two lights' thickness is retired.
   ///
   /// Only the REST end is stripped: the lifted pill keeps the full rim it
   /// was given, and the lerp between them is the fade.
-  static LiquidGlassShape _withoutRim(LiquidGlassShape s) {
-    if (s.borderWidth == 0) return s;
-    return LiquidGlassShape(
-      cornerStyle: s.cornerStyle,
-      clipQuality: s.clipQuality,
-      lightMode: s.lightMode,
-      cornerRadius: s.cornerRadius,
-      borderWidth: 0,
-      borderColor: s.borderColor,
-      lightIntensity: s.lightIntensity,
-      lightColor: s.lightColor,
-      lightDirection: s.lightDirection,
-      borderType: s.borderType,
+  static LiquidGlassLitShape _withoutRim(LiquidGlassLitShape s) {
+    if (s.specular.thickness == 0 &&
+        s.glow.thickness == 0 &&
+        (s.secondSpecular?.thickness ?? 0) == 0) {
+      return s;
+    }
+    return s.copyWith(
+      specular: s.specular.copyWith(thickness: 0),
+      glow: s.glow.copyWith(thickness: 0),
+      secondSpecular: s.secondSpecular?.copyWith(thickness: 0),
     );
   }
 
-  static LiquidGlassShape _defaultShape(double cornerRadius) {
-    return LiquidGlassShape(
-      cornerStyle: LiquidGlassCornerStyle.continuousRoundedRectangle,
-      cornerRadius: cornerRadius,
-      borderWidth: 0.6,
-      lightIntensity: 1.3,
-      lightDirection: 80,
-      borderType: const OpticalBorder(
-        borderSaturation: 1.4,
-        ambientIntensity: 1.0,
-        borderSolidity: 0.5,
-      ),
+  static const LiquidGlassLight _defaultSpecular = LiquidGlassLight.specular(
+      thickness: 0.6, sharpness: 0.5, angle: 80, intensity: 1.3);
+  static const LiquidGlassLight _defaultGlow =
+      LiquidGlassLight.glow(thickness: 0.6, angle: 170);
+
+  /// [style]'s outline and lights, with the pill's own defaults where the
+  /// style names none: a capsule of [cornerRadius] and a thin bright rim.
+  static LiquidGlassLitShape _lit(LiquidGlassStyle style, double cornerRadius) {
+    return style.litShape(
+      fallback: LiquidGlassShape.continuousRoundedRectangle(
+          cornerRadius: cornerRadius),
+      fallbackSpecular: _defaultSpecular,
+      fallbackGlow: _defaultGlow,
     );
   }
 
   static double _lerpDouble(double from, double to, double t) =>
       from + (to - from) * t;
 
-  static LiquidGlassShape _lerpShape(
-    LiquidGlassShape from,
-    LiquidGlassShape to,
+  static LiquidGlassLitShape _lerpShape(
+    LiquidGlassLitShape from,
+    LiquidGlassLitShape to,
     double t,
   ) {
-    final Color? borderColor =
-        from.borderColor == null && to.borderColor == null
-            ? null
-            : Color.lerp(
-                from.borderColor ?? Colors.transparent,
-                to.borderColor ?? Colors.transparent,
-                t,
-              );
-    return LiquidGlassShape(
+    return LiquidGlassLitShape(
       // Discrete shape modes stay stable for the lifetime of the one lens.
       cornerStyle: from.cornerStyle,
       clipQuality: from.clipQuality,
-      lightMode: from.lightMode,
       cornerRadius: _lerpDouble(from.cornerRadius, to.cornerRadius, t),
-      borderWidth: _lerpDouble(from.borderWidth, to.borderWidth, t),
-      borderColor: borderColor,
-      lightIntensity: _lerpDouble(
-        from.lightIntensity,
-        to.lightIntensity,
-        t,
-      ),
-      lightColor: Color.lerp(from.lightColor, to.lightColor, t)!,
-      lightDirection: _lerpDouble(
-        from.lightDirection,
-        to.lightDirection,
-        t,
-      ),
-      borderType: _lerpBorder(from.borderType, to.borderType, t),
+      specular: LiquidGlassLight.lerp(from.specular, to.specular, t),
+      glow: LiquidGlassLight.lerp(from.glow, to.glow, t),
+      secondSpecular: _lerpLight(from.secondSpecular, to.secondSpecular, t),
     );
   }
 
-  static LiquidGlassBorderType _lerpBorder(
-    LiquidGlassBorderType from,
-    LiquidGlassBorderType to,
-    double t,
-  ) {
-    if (from is OpticalBorder && to is OpticalBorder) {
-      return OpticalBorder(
-        borderSaturation: _lerpDouble(
-          from.borderSaturation,
-          to.borderSaturation,
-          t,
-        ),
-        ambientIntensity: _lerpDouble(
-          from.ambientIntensity,
-          to.ambientIntensity,
-          t,
-        ),
-        borderSolidity: _lerpDouble(
-          from.borderSolidity,
-          to.borderSolidity,
-          t,
-        ),
-        lightSpread: _lerpDouble(from.lightSpread, to.lightSpread, t),
-      );
-    }
-    if (from is ClassicBorder && to is ClassicBorder) {
-      return ClassicBorder(
-        borderSoftness: _lerpDouble(
-          from.borderSoftness,
-          to.borderSoftness,
-          t,
-        ),
-        shadowColor: Color.lerp(from.shadowColor, to.shadowColor, t)!,
-        oneSideLightIntensity: _lerpDouble(
-          from.oneSideLightIntensity,
-          to.oneSideLightIntensity,
-          t,
-        ),
-        doubleSideLightIntensity: _lerpDouble(
-          from.doubleSideLightIntensity,
-          to.doubleSideLightIntensity,
-          t,
-        ),
-      );
-    }
-    return from;
+  /// A light that may be missing at either end fades in from, or out to,
+  /// the other end's light at zero thickness.
+  static LiquidGlassLight? _lerpLight(
+      LiquidGlassLight? a, LiquidGlassLight? b, double t) {
+    if (a == null && b == null) return null;
+    return LiquidGlassLight.lerp(
+      a ?? b!.copyWith(thickness: 0),
+      b ?? a!.copyWith(thickness: 0),
+      t,
+    );
   }
 
   static LiquidGlassAppearance _lerpAppearance(
@@ -669,112 +602,20 @@ class _LiquidGlassNavBarMotionPillState
   ) {
     return LiquidGlassAppearance(
       saturation: _lerpDouble(from.saturation, to.saturation, t),
-      blur: LiquidGlassBlur(
-        sigmaX: _lerpDouble(from.blur.sigmaX, to.blur.sigmaX, t),
-        sigmaY: _lerpDouble(from.blur.sigmaY, to.blur.sigmaY, t),
-      ),
+      blur: _lerpDouble(from.blur, to.blur, t),
       color: Color.lerp(from.color, to.color, t)!,
-      enableInnerRadiusTransparent: t < 0.5
-          ? from.enableInnerRadiusTransparent
-          : to.enableInnerRadiusTransparent,
       // Deliberately NO shadow: the pill draws its own tracked ring
       // (scaled with the outline, faded with the rim), and the bar
-      // hoists an appearance-authored shadow into that path — leaving
-      // it here would have the inner lens wrap a second, frozen ring.
-    );
-  }
-
-  static LiquidGlassRefraction _lerpRefraction(
-    LiquidGlassRefraction from,
-    LiquidGlassRefraction to,
-    double t,
-  ) {
-    return LiquidGlassRefraction(
-      distortion: _lerpDouble(from.distortion, to.distortion, t),
-      distortionWidth: _lerpDouble(
-        from.distortionWidth,
-        to.distortionWidth,
-        t,
-      ),
-      magnification: _lerpDouble(
-        from.magnification,
-        to.magnification,
-        t,
-      ),
-      chromaticAberration: _lerpDouble(
-        from.chromaticAberration,
-        to.chromaticAberration,
-        t,
-      ),
-      refractionMode: from.refractionMode,
-      refractionType: _lerpRefractionType(
-        from.refractionType,
-        to.refractionType,
-        t,
-      ),
-      diagonalFlip: _lerpDouble(from.diagonalFlip, to.diagonalFlip, t),
-    );
-  }
-
-  static LiquidGlassRefractionType? _lerpRefractionType(
-    LiquidGlassRefractionType? from,
-    LiquidGlassRefractionType? to,
-    double t,
-  ) {
-    if (from == null && to == null) return null;
-    if (from is StandardRefraction && to is StandardRefraction) {
-      return StandardRefraction(
-        distortion: _lerpDouble(from.distortion, to.distortion, t),
-        distortionWidth: _lerpDouble(
-          from.distortionWidth,
-          to.distortionWidth,
-          t,
-        ),
-      );
-    }
-    if (from is OpticalRefraction && to is OpticalRefraction) {
-      return OpticalRefraction(
-        refraction: _lerpDouble(from.refraction, to.refraction, t),
-        refractionWidth: _lerpDouble(
-          from.refractionWidth,
-          to.refractionWidth,
-          t,
-        ),
-        depth: _lerpDouble(from.depth, to.depth, t),
-      );
-    }
-    // One end has no type at all. The calculation itself can't be
-    // interpolated, but its WIDTH can — a zero-width band bends nothing,
-    // which is precisely what the absent end means. Without this the
-    // surviving type stayed at full strength for every `t`, so a pill
-    // whose lifted glass names a refraction type went on refracting right
-    // through its own rest state.
-    if (from == null && to != null) return to.withWidthFactor(t);
-    if (to == null && from != null) return from.withWidthFactor(1 - t);
-    // Two different calculations: keep one stable rather than swapping
-    // shader surfaces mid-travel.
-    return to ?? from;
-  }
-
-  static LiquidGlassRefraction _compensateRefractionWidth(
-    LiquidGlassRefraction refraction,
-    double factor,
-  ) {
-    return refraction.copyWith(
-      distortionWidth: refraction.distortionWidth * factor,
-      refractionType: refraction.refractionType?.withWidthFactor(factor),
+      // hoists a style-authored shadow into that path — leaving it here
+      // would have the inner lens wrap a second, frozen ring.
     );
   }
 
   /// The tuned default glass.
   static const LiquidGlassStyle _defaultStyle = LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      color: Color(0x1CFFFFFF),
-      blur: LiquidGlassBlur(sigmaX: 1.5, sigmaY: 1.5),
-    ),
-    refraction: LiquidGlassRefraction(
-      distortion: 0.12,
-      distortionWidth: 18,
-    ),
+    color: Color(0x1CFFFFFF),
+    blur: 1.5,
+    refractionIndex: 1.021,
+    refractionWidth: 18,
   );
 }

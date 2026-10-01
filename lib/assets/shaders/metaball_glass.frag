@@ -164,29 +164,31 @@ vec4 memberTint(int k) {
 // All loose scalars are merged into vec4s to cut bindings; the #define block
 // below restores their original names. The float-offset ORDER here is the exact
 // order packMetaballGlassUniforms writes with setFloat(i++,…) — keep in lockstep.
-// x=magnification  y=distortion  z=distortionThicknessPx  w=enableBackgroundTransparency
+// x=magnification  y=refractionIndex  z=refractionWidthPx  w=chromaticAberration
 uniform vec4 u_warp;
-// x=smoothness (the metaball "gooeyness", px)  y=diagonalFlip  z=borderWidth  w=borderSoftness
+// x=smoothness (the metaball "gooeyness", px)  y=saturation  z=specularThickness  w=glowThickness
 uniform vec4 u_warpB;
-// x=borderAlpha  y=lightIntensity  z=lightDirection  w=honorBackdropAlpha
+// x=borderAlpha  y=specularIntensity  z=specularAngle  w=honorBackdropAlpha
 uniform vec4 u_warpC;
 // x=blur (in-shader blur radius, fragment px)  y=shapeAaPx (edge-AA band)
-// z=lightSpread (optical-rim angular spread)  w=mergeEnabled (0 = hard union)
+// z=specularSpread  w=mergeEnabled (0 = hard union)
 uniform vec4 u_warpD;
 
-uniform vec4  u_borderColor;
-uniform vec4  u_lightColor;
-uniform vec4  u_shadowColor;
+// Each light's own colour, straight alpha: alpha 0 keeps the picked-up
+// colour, 1 draws the light in this colour as given.
+uniform vec4  u_specularColor;
+uniform vec4  u_glowColor;
 uniform vec4  u_lensColor;
-// The rim's tint: the blended member colour (lensTint), or
-// borderColor when set (its documented role is to replace the rim's colour).
-#define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : lensTint)
-// x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode
+// The rim's tint: the blended member colour (lensTint).
+#define rimTint lensTint
+// x=glowAngle  y=glowSpread  z=borderSharpness  w=glowIntensity
 uniform vec4 u_packA;
-// x=refractionMode  y=refractionType  z=refractionIndex  w=ambientIntensity
-uniform vec4 u_packB;
-// x=doubleSideLightIntensity  y=borderSaturation  z=borderSolidity  w=borderMode
-uniform vec4 u_packC;
+// The second specular: x=thicknessPx  y=sharpness  z=angle  w=spread.
+// A zero thickness turns it off.
+uniform vec4 u_specular2;
+// The second specular's own colour, as u_specularColor.
+uniform vec4 u_specular2Color;
+uniform float u_specular2Intensity;
 
 // Capture-region mapping (see liquid_glass.frag): xy=offset, zw=size. Full-frame
 // capture = offset (0,0), size u_resolution. MUST be the last uniform — see
@@ -197,44 +199,35 @@ uniform vec4 u_imageRegion;
 // u_lensN / u_lensMetaN are real individual uniforms, so they need no aliases;
 // only the scalar vec4 packs are aliased back to their original names below.
 #define u_magnification                u_warp.x
-#define u_distortion                   u_warp.y
-#define u_distortionThicknessPx        u_warp.z
-#define u_enableBackgroundTransparency u_warp.w
+#define u_refractionIndex              u_warp.y
+#define u_refractionWidthPx            u_warp.z
+#define u_chromaticAberration          u_warp.w
+#define u_saturation                   u_warpB.y
+#define u_glowThickness                u_warpB.w
 #define u_smoothness                   u_warpB.x
-#define u_diagonalFlip                 u_warpB.y
 #define u_borderWidth                  u_warpB.z
-#define u_borderSoftness               u_warpB.w
 #define u_borderAlpha                  u_warpC.x
-#define u_lightIntensity               u_warpC.y
-#define u_lightDirection               u_warpC.z
+#define u_specularIntensity            u_warpC.y
+#define u_specularAngle                u_warpC.z
 #define u_honorBackdropAlpha           u_warpC.w
 #define u_blur                         u_warpD.x
 #define u_shapeAaPx                    u_warpD.y
-#define u_lightSpread                  u_warpD.z
+#define u_specularSpread               u_warpD.z
 // 0 = the metaball is OFF: members are unioned hard, nearest wins outright,
 // and none of the smin / influence-weight machinery runs. See nearestMember.
 #define u_mergeEnabled                 u_warpD.w
 #define u_imageOffset                  u_imageRegion.xy
 #define u_imageSize                    u_imageRegion.zw
-#define u_oneSideLightIntensity        u_packA.x
-#define u_chromaticAberration          u_packA.y
-#define u_saturation                   u_packA.z
-#define u_lightMode                    u_packA.w
-#define u_refractionMode               u_packB.x
-#define u_refractionType               u_packB.y
-#define u_refractionIndex              u_packB.z
-#define u_ambientIntensity             u_packB.w
-#define u_doubleSideLightIntensity     u_packC.x
-#define u_borderSaturation             u_packC.y
-#define u_borderSolidity               u_packC.z
-#define u_borderMode                   u_packC.w
+#define u_glowAngle                    u_packA.x
+#define u_glowSpread                   u_packA.y
+#define u_borderSharpness              u_packA.z
+#define u_glowIntensity                u_packA.w
+// Each light as the border reads it: (angle in degrees, spread, intensity).
+#define u_specular vec3(u_specularAngle, u_specularSpread, u_specularIntensity)
+#define u_glow     vec3(u_glowAngle, u_glowSpread, u_glowIntensity)
 
 out vec4 frag_color;
 
-#define REFRACTION_SHAPE    0
-#define REFRACTION_RADIAL   1
-#define REFRACTION_STANDARD 0
-#define REFRACTION_OPTICAL  1
 
 // Rim angular response for the MERGED shape. 0 = the production hard rim
 // (front/back of the light axis, zero at 90°); 1 = half-Lambert wrap (0.5
@@ -904,7 +897,7 @@ void main() {
 #endif
 
     float distAbsPx = abs(shapeDistPx);
-    float zoneLimit = u_distortionThicknessPx;
+    float zoneLimit = u_refractionWidthPx;
     float zoneMask  = step(distAbsPx, zoneLimit);
 
     vec2 magPx = applyLensMagnification(fragPx, anchorPx, u_magnification);
@@ -915,37 +908,14 @@ void main() {
     vec2 samplePx = magPx;
     float caShift = 0.0;
     bool drawBase = true;
-    if (zoneMask < 0.5) {
-        drawBase = u_enableBackgroundTransparency <= 0.5;
-    } else {
+    if (zoneMask >= 0.5) {
         float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
 
         vec2 refrPx;
-        if (u_refractionType == REFRACTION_OPTICAL) {
-            vec2 opticalNormal = shapeData.normal;
-            if (u_refractionMode == REFRACTION_RADIAL) {
-                vec2 radial = magPx - anchorPx;
-                float radialLength = length(radial);
-                if (radialLength > EPS) opticalNormal = radial / radialLength;
-            }
-            refrPx = computeRefractedPosition(
-                magPx, opticalNormal, shapeData.sdf,
-                u_distortionThicknessPx, u_refractionIndex, u_distortion, zoneT
-            );
-        } else if (u_refractionMode == REFRACTION_SHAPE) {
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = computeShapeRefraction(
-                magPx, shapeData.normal, shapeData.sdf,
-                u_distortionThicknessPx, distortionFactor,
-                u_magnification, u_diagonalFlip, zoneT
-            );
-        } else {
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = refractFromAnchorPx(
-                magPx, anchorPx, distortionFactor,
-                u_magnification, u_diagonalFlip, zoneT
-            );
-        }
+        refrPx = computeRefractedPosition(
+            magPx, shapeData.normal, shapeData.sdf,
+            u_refractionWidthPx, u_refractionIndex, zoneT
+        );
         samplePx = refrPx;
         caShift = u_chromaticAberration * zoneT;
     }
@@ -956,88 +926,62 @@ void main() {
         base = finalSample(samplePx, shapeMask, caShift, lensTint, preTintCol);
     }
 
-    vec4 borderPremul = getSweepBorder(
-        uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-        u_borderWidth, u_borderSoftness, rimTint,
-        u_lightColor, u_shadowColor,
-        u_lightIntensity, u_borderAlpha, u_lightDirection,
-        u_oneSideLightIntensity, u_lightMode,
-        preTintCol, u_ambientIntensity,
-        u_doubleSideLightIntensity,
-        u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
+    vec4 borderPremul = getBorder(
+        shapeData.orthoDist, shapeData.grad,
+        rimTint, u_borderAlpha,
+        preTintCol,
+        u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
+        u_glowThickness, u_glow, u_glowColor,
+        u_specular2, u_specular2Intensity, u_specular2Color,
+        u_shapeAaPx,
         rimWrap
     );
 
-    frag_color = overlayPremul(base, borderPremul, u_borderMode);
+    frag_color = overlayPremul(base, borderPremul);
 #else
     if (zoneMask < 0.5) {
         // Outside the distortion band — straight magnified sample + border.
         vec3 preTintCol = vec3(0.0);
-        vec4 base = (u_enableBackgroundTransparency > 0.5)
-            ? vec4(0.0)
-            : finalSample(magPx, shapeMask, 0.0, lensTint, preTintCol);
+        vec4 base = finalSample(magPx, shapeMask, 0.0, lensTint, preTintCol);
 
-        vec4 borderPremul = getSweepBorder(
-            uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-            u_borderWidth, u_borderSoftness, rimTint,
-            u_lightColor, u_shadowColor,
-            u_lightIntensity, u_borderAlpha, u_lightDirection,
-            u_oneSideLightIntensity, u_lightMode,
-            preTintCol, u_ambientIntensity,
-            u_doubleSideLightIntensity,
-            u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
+        vec4 borderPremul = getBorder(
+            shapeData.orthoDist, shapeData.grad,
+            rimTint, u_borderAlpha,
+            preTintCol,
+            u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
+            u_glowThickness, u_glow, u_glowColor,
+            u_specular2, u_specular2Intensity, u_specular2Color,
+            u_shapeAaPx,
             rimWrap
         );
 
-        frag_color = overlayPremul(base, borderPremul, u_borderMode);
+        frag_color = overlayPremul(base, borderPremul);
         return;
     }
 
     float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
 
     vec2 refrPx;
-    if (u_refractionType == REFRACTION_OPTICAL) {
-        vec2 opticalNormal = shapeData.normal;
-        if (u_refractionMode == REFRACTION_RADIAL) {
-            vec2 radial = magPx - anchorPx;
-            float radialLength = length(radial);
-            if (radialLength > EPS) opticalNormal = radial / radialLength;
-        }
-        refrPx = computeRefractedPosition(
-            magPx, opticalNormal, shapeData.sdf,
-            u_distortionThicknessPx, u_refractionIndex, u_distortion, zoneT
-        );
-    } else if (u_refractionMode == REFRACTION_SHAPE) {
-        float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-        refrPx = computeShapeRefraction(
-            magPx, shapeData.normal, shapeData.sdf,
-            u_distortionThicknessPx, distortionFactor,
-            u_magnification, u_diagonalFlip, zoneT
-        );
-    } else {
-        float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-        refrPx = refractFromAnchorPx(
-            magPx, anchorPx, distortionFactor,
-            u_magnification, u_diagonalFlip, zoneT
-        );
-    }
+    refrPx = computeRefractedPosition(
+        magPx, shapeData.normal, shapeData.sdf,
+        u_refractionWidthPx, u_refractionIndex, zoneT
+    );
 
     vec3 preTintCol2 = vec3(0.0);
     float caShift = u_chromaticAberration * zoneT;
     vec4 base = finalSample(refrPx, shapeMask, caShift, lensTint, preTintCol2);
 
-    vec4 borderPremul = getSweepBorder(
-        uvNorm, anchorNorm, shapeData.orthoDist, shapeData.grad,
-        u_borderWidth, u_borderSoftness, rimTint,
-        u_lightColor, u_shadowColor,
-        u_lightIntensity, u_borderAlpha, u_lightDirection,
-        u_oneSideLightIntensity, u_lightMode,
-        preTintCol2, u_ambientIntensity,
-        u_doubleSideLightIntensity,
-        u_borderSaturation, u_borderSolidity, u_lightSpread, u_shapeAaPx, u_borderMode,
+    vec4 borderPremul = getBorder(
+        shapeData.orthoDist, shapeData.grad,
+        rimTint, u_borderAlpha,
+        preTintCol2,
+        u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
+        u_glowThickness, u_glow, u_glowColor,
+        u_specular2, u_specular2Intensity, u_specular2Color,
+        u_shapeAaPx,
         rimWrap
     );
 
-    frag_color = overlayPremul(base, borderPremul, u_borderMode);
+    frag_color = overlayPremul(base, borderPremul);
 #endif
 }

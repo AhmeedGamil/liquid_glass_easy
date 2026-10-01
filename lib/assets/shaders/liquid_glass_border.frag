@@ -34,33 +34,32 @@ uniform sampler2D u_texture_input;
 //   cornerStyle: 0 = circular, 1 = squircle (full smoothing),
 //   2 = continuous (Apple capsule-style). Mirrors liquid_glass.frag.
 uniform vec4 u_lensGeom;
-// x=magnification  y=distortion  z=distortionThicknessPx
-// w=enableBackgroundTransparency
+// x=magnification  y=refractionIndex  z=refractionWidthPx
+// w=chromaticAberration
 uniform vec4 u_warp;
 
-uniform float u_diagonalFlip;
-
 // Border controls
+// The specular's thickness, in fragment px.
 uniform float u_borderWidth;
-uniform float u_borderSoftness;
-uniform vec4  u_borderColor;
 uniform float u_borderAlpha;
-uniform float u_lightIntensity;
-uniform vec4  u_lightColor;
-uniform vec4  u_shadowColor;
-uniform float u_lightDirection;
+// Each light's own colour, straight alpha: alpha 0 keeps the picked-up
+// colour, 1 draws the light in this colour as given.
+uniform vec4  u_specularColor;
+uniform vec4  u_glowColor;
 uniform vec4  u_lensColor;
-// The rim's tint: the lens colour, or borderColor when set (its
-// documented role is to replace the rim's colour outright).
-#define rimTint ((u_borderColor.a > 0.0) ? u_borderColor : u_lensColor)
-// x=oneSideLightIntensity  y=chromaticAberration  z=saturation  w=lightMode
+// The rim's tint: the lens colour.
+#define rimTint u_lensColor
+// x=specularIntensity  y=saturation  z=glowIntensity  w=glowThickness
 uniform vec4 u_packA;
-// x=refractionMode  y=refractionType  z=refractionIndex  w=ambientIntensity
+// x=specularAngle  y=specularSpread  z=borderSharpness  w=glowAngle
 uniform vec4 u_packB;
-// x=doubleSideLightIntensity  y=borderSaturation  z=borderSolidity  w=borderMode
+// x=glowSpread  y=specular2Intensity  zw unused
 uniform vec4 u_packC;
-// Optical-rim angular spread (higher = highlight wraps further around).
-uniform float u_lightSpread;
+// The second specular: x=thicknessPx  y=sharpness  z=angle  w=spread.
+// A zero thickness turns it off.
+uniform vec4 u_specular2;
+// The second specular's own colour, as u_specularColor.
+uniform vec4 u_specular2Color;
 
 // Restore the original scalar names (plain float aliases, no swizzle chain).
 #define u_lensWidth                    u_lensGeom.x
@@ -68,21 +67,22 @@ uniform float u_lightSpread;
 #define u_cornerRadius                 u_lensGeom.z
 #define u_cornerStyle                  u_lensGeom.w
 #define u_magnification                u_warp.x
-#define u_distortion                   u_warp.y
-#define u_distortionThicknessPx        u_warp.z
-#define u_enableBackgroundTransparency u_warp.w
-#define u_oneSideLightIntensity        u_packA.x
-#define u_chromaticAberration          u_packA.y
-#define u_saturation                   u_packA.z
-#define u_lightMode                    u_packA.w
-#define u_refractionMode               u_packB.x
-#define u_refractionType               u_packB.y
-#define u_refractionIndex              u_packB.z
-#define u_ambientIntensity             u_packB.w
-#define u_doubleSideLightIntensity     u_packC.x
-#define u_borderSaturation             u_packC.y
-#define u_borderSolidity               u_packC.z
-#define u_borderMode                   u_packC.w
+#define u_refractionIndex              u_warp.y
+#define u_refractionWidthPx            u_warp.z
+#define u_chromaticAberration          u_warp.w
+#define u_specularIntensity            u_packA.x
+#define u_saturation                   u_packA.y
+#define u_glowIntensity                u_packA.z
+#define u_glowThickness                u_packA.w
+#define u_specularAngle                u_packB.x
+#define u_specularSpread               u_packB.y
+#define u_borderSharpness              u_packB.z
+#define u_glowAngle                    u_packB.w
+#define u_glowSpread                   u_packC.x
+#define u_specular2Intensity           u_packC.y
+// Each light as the border reads it: (angle in degrees, spread, intensity).
+#define u_specular vec3(u_specularAngle, u_specularSpread, u_specularIntensity)
+#define u_glow     vec3(u_glowAngle, u_glowSpread, u_glowIntensity)
 
 // Capture-region mapping — see liquid_glass.frag. The bound texture
 // covers parent rect [u_imageOffset, u_imageOffset + u_imageSize].
@@ -101,10 +101,6 @@ uniform vec2 u_xformOff;
 
 out vec4 frag_color;
 
-#define REFRACTION_SHAPE    0
-#define REFRACTION_RADIAL   1
-#define REFRACTION_STANDARD 0
-#define REFRACTION_OPTICAL  1
 
 vec3 applyChromaticAberration(vec2 uv, float shift) {
     vec3 color = texture(u_texture_input, uv).rgb;
@@ -242,91 +238,36 @@ void main() {
         u_magnification
     );
     float distAbsPx = abs(shapeData.orthoDist);
-    float zoneLimit = u_distortionThicknessPx;
+    float zoneLimit = u_refractionWidthPx;
     float zoneMask = step(distAbsPx, zoneLimit);
 
     backdropCol = vec3(0.0);
     if (zoneMask < 0.5) {
-        if (u_enableBackgroundTransparency <= 0.5) {
-            backdropCol = sampleBackdropColor(magPx);
-        }
+        backdropCol = sampleBackdropColor(magPx);
     } else {
         float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
         vec2 refrPx;
 
-        if (u_refractionType == REFRACTION_OPTICAL) {
-            // Match the main shader's optical sample for both geometries.
-            vec2 opticalNormal = shapeData.normal;
-            if (u_refractionMode == REFRACTION_RADIAL) {
-                vec2 radial = magPx - lensCenterPx;
-                float radialLength = length(radial);
-                if (radialLength > EPS) {
-                    opticalNormal = radial / radialLength;
-                }
-            }
-            refrPx = computeRefractedPosition(
-                magPx,
-                opticalNormal,
-                refrDistPx,
-                u_distortionThicknessPx,
-                u_refractionIndex,
-                u_distortion,
-                zoneT
-            );
-        } else if (u_refractionMode == REFRACTION_SHAPE) {
-            // Stable shape refraction (inset-anchor based) — keep in
-            // sync with liquid_glass.frag.
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = computeShapeRefraction(
-                magPx,
-                shapeData.normal,
-                refrDistPx,
-                u_distortionThicknessPx,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT
-            );
-
-        } else {
-            float distortionFactor = computeDistortionFactor(u_distortion, zoneT);
-            refrPx = refractFromAnchorPx(
-                magPx,
-                lensCenterPx,
-                distortionFactor,
-                u_magnification,
-                u_diagonalFlip,
-                zoneT
-            );
-        }
+        refrPx = computeRefractedPosition(
+            magPx, shapeData.normal, refrDistPx,
+            u_refractionWidthPx, u_refractionIndex, zoneT
+        );
 
         backdropCol = sampleBackdropColor(refrPx);
     }
 
-    // The authored width, verbatim — each border mode expands it into its own
+    // The authored width, verbatim — the border expands it into its own
     // band. Kept as a named local for readability.
     float effectiveBorderWidth = u_borderWidth;
 
-    vec4 borderPremul = getSweepBorder(
-        uvNorm,
-        lensCenterNorm,
-        shapeData.orthoDist,
-    shapeData.grad,// unified signed-distance value
-        effectiveBorderWidth,
-        u_borderSoftness,
-        rimTint,
-        u_lightColor,
-        u_shadowColor,
-        u_lightIntensity,
-        u_borderAlpha,
-        u_lightDirection, u_oneSideLightIntensity,u_lightMode,
-        backdropCol, u_ambientIntensity,
-        u_doubleSideLightIntensity,
-        u_borderSaturation,
-        u_borderSolidity,
-        u_lightSpread,
-        outerAa,
-        u_borderMode
+    vec4 borderPremul = getBorder(
+        shapeData.orthoDist, shapeData.grad,
+        rimTint, u_borderAlpha,
+        backdropCol,
+        effectiveBorderWidth, u_borderSharpness, u_specular, u_specularColor,
+        u_glowThickness, u_glow, u_glowColor,
+        u_specular2, u_specular2Intensity, u_specular2Color,
+        outerAa
     );
     // Apply the soft outer-edge mask so the rounded corners fade
     // out smoothly on Impeller (where there's no surrounding draw

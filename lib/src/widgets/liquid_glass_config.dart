@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
-import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_blur.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_position.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_touch.dart';
 import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_shape.dart';
-import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_mode.dart';
-import 'package:liquid_glass_easy/src/widgets/utils/liquid_glass_refraction_type.dart';
 import 'package:liquid_glass_easy/src/widgets/components/liquid_glass_shadow.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart';
 
@@ -14,8 +11,8 @@ import 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart';
 /// through four grouped objects:
 ///
 ///  • [LiquidGlassGeometry]   — size, shape, placement (required).
-///  • [LiquidGlassRefraction] — how the glass bends light (distortion,
-///    magnification, chromatic aberration, refraction mode).
+///  • [LiquidGlassRefraction] — how the glass bends light (refraction
+///    index and width, magnification, chromatic aberration).
 ///  • [LiquidGlassAppearance] — tint, blur, saturation.
 ///  • [LiquidGlassBehavior]   — interaction & lifecycle.
 ///
@@ -27,10 +24,10 @@ import 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart';
 ///     shape: const LiquidGlassShape.roundedRectangle(cornerRadius: 36),
 ///   ),
 ///   refraction: const LiquidGlassRefraction(
-///     distortion: 0.12, distortionWidth: 28,
+///     refractionIndex: 1.02, refractionWidth: 28,
 ///   ),
 ///   appearance: const LiquidGlassAppearance(
-///     blur: LiquidGlassBlur(sigmaX: 2, sigmaY: 2), color: Color(0x16FFFFFF),
+///     blur: 2, color: Color(0x16FFFFFF),
 ///   ),
 ///   behavior: const LiquidGlassBehavior(draggable: true),
 ///   child: const Center(child: Text('drag me')),
@@ -102,8 +99,18 @@ class LiquidGlass {
     this.opacity = 1.0,
   });
 
-  /// Shape after applying [style]: `style.shape` when set, else [shape].
-  LiquidGlassShape get effectiveShape => style?.shape ?? shape;
+  /// Outline and border lights after applying [style]: the style's own
+  /// where set, else [shape]'s.
+  LiquidGlassLitShape get effectiveShape {
+    final LiquidGlassLitShape base = LiquidGlassLitShape.of(shape);
+    final LiquidGlassStyle? s = style;
+    if (s == null) return base;
+    return s.litShape(
+      fallback: base,
+      fallbackSpecular: base.specular,
+      fallbackGlow: base.glow,
+    );
+  }
 
   /// Appearance after applying [style]: `style.appearance` when a [style]
   /// is set, else the [appearance] group.
@@ -193,20 +200,16 @@ class LiquidGlassGeometry {
   }
 }
 
-/// **Refraction** group: how the glass bends light — the optical
-/// distortion of the content behind the lens.
-///
-/// One of the groups a [LiquidGlassStyle] is made of.
+/// The renderers' own carrier for what a [LiquidGlassStyle] holds flat:
+/// `refractionIndex`, `refractionWidth`, `magnification` and
+/// `chromaticAberration`.
+@internal
 class LiquidGlassRefraction {
-  /// Legacy/default standard distortion strength (`0.0`–`1.0`).
-  ///
-  /// Used only when [refractionType] is `null`.
-  final double distortion;
+  /// How hard the edge bends what is behind it (`1.0` = no bending).
+  final double refractionIndex;
 
-  /// Legacy/default standard distortion-band width, in logical pixels.
-  ///
-  /// Used only when [refractionType] is `null`.
-  final double distortionWidth;
+  /// Width of the bending band along the edge, in logical pixels.
+  final double refractionWidth;
 
   /// Magnification of the content seen through the lens (`1.0` = none).
   final double magnification;
@@ -214,72 +217,58 @@ class LiquidGlassRefraction {
   /// Strength of the chromatic aberration (color-channel separation).
   final double chromaticAberration;
 
-  /// Geometry used to direct the refraction (shape vs. radial).
-  final LiquidGlassRefractionMode refractionMode;
-
-  /// Optional calculation-specific controls.
-  ///
-  /// When `null`, [distortion] and [distortionWidth] select the standard
-  /// calculation for backward compatibility. When non-null, those legacy
-  /// fields are ignored and this object's values are used instead.
-  final LiquidGlassRefractionType? refractionType;
-
-  /// Diagonal mirroring/flip of the refraction direction.
-  final double diagonalFlip;
-
   const LiquidGlassRefraction({
-    this.distortion = 0.1,
-    this.distortionWidth = 30,
+    this.refractionIndex = 1.02,
+    this.refractionWidth = 30,
     this.magnification = 1,
     this.chromaticAberration = 0.003,
-    this.refractionMode = LiquidGlassRefractionMode.shapeRefraction,
-    this.refractionType,
-    this.diagonalFlip = 0,
   });
 
-  /// Strength fed to the shader's `u_distortion` uniform.
-  ///
-  /// For [StandardRefraction] this is the legacy distortion. For
-  /// [OpticalRefraction] it carries [OpticalRefraction.depth] — the
-  /// optical displacement strength rides the same wire, so the shader's
-  /// physical path scales its travel distance by it.
-  double get effectiveDistortion => switch (refractionType) {
-        StandardRefraction(:final distortion) => distortion,
-        OpticalRefraction(:final depth) => depth,
-        null => distortion,
-      };
+  /// The same refraction with its bend scaled by [factor] (`1` = as
+  /// authored, `0` = none). The band keeps its width.
+  LiquidGlassRefraction withEffectFactor(double factor) =>
+      copyWith(refractionIndex: 1.0 + (refractionIndex - 1.0) * factor);
 
-  /// Refractive index for the optical calculation (`1.0` = no bending).
-  double get effectiveRefractionIndex => switch (refractionType) {
-        OpticalRefraction(:final refraction) => refraction,
-        _ => 1.0,
-      };
+  /// The same refraction with its band [factor] times as wide.
+  LiquidGlassRefraction withWidthFactor(double factor) =>
+      copyWith(refractionWidth: refractionWidth * factor);
 
-  /// Width resolved from [refractionType], or the legacy [distortionWidth].
-  double get effectiveDistortionWidth =>
-      refractionType?.width ?? distortionWidth;
+  /// Linearly interpolates between two refractions.
+  static LiquidGlassRefraction lerp(
+      LiquidGlassRefraction a, LiquidGlassRefraction b, double t) {
+    double mix(double x, double y) => x + (y - x) * t;
+    return LiquidGlassRefraction(
+      refractionIndex: mix(a.refractionIndex, b.refractionIndex),
+      refractionWidth: mix(a.refractionWidth, b.refractionWidth),
+      magnification: mix(a.magnification, b.magnification),
+      chromaticAberration: mix(a.chromaticAberration, b.chromaticAberration),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LiquidGlassRefraction &&
+          other.refractionIndex == refractionIndex &&
+          other.refractionWidth == refractionWidth &&
+          other.magnification == magnification &&
+          other.chromaticAberration == chromaticAberration;
+
+  @override
+  int get hashCode => Object.hash(
+      refractionIndex, refractionWidth, magnification, chromaticAberration);
 
   LiquidGlassRefraction copyWith({
-    double? distortion,
-    double? distortionWidth,
+    double? refractionIndex,
+    double? refractionWidth,
     double? magnification,
     double? chromaticAberration,
-    LiquidGlassRefractionMode? refractionMode,
-    LiquidGlassRefractionType? refractionType,
-
-    /// Clears a configured type and restores the legacy standard controls.
-    bool clearRefractionType = false,
-    double? diagonalFlip,
   }) {
     return LiquidGlassRefraction(
-      distortion: distortion ?? this.distortion,
-      distortionWidth: distortionWidth ?? this.distortionWidth,
+      refractionIndex: refractionIndex ?? this.refractionIndex,
+      refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
       chromaticAberration: chromaticAberration ?? this.chromaticAberration,
-      refractionMode: refractionMode ?? this.refractionMode,
-      refractionType:
-          clearRefractionType ? null : refractionType ?? this.refractionType,
-      diagonalFlip: diagonalFlip ?? this.diagonalFlip,
     );
   }
 }
@@ -287,57 +276,51 @@ class LiquidGlassRefraction {
 /// **Material** group: the lens's appearance — tint, blur, saturation and
 /// inner transparency (everything visual that isn't optical refraction).
 ///
-/// One of the groups a [LiquidGlassStyle] is made of.
+/// The renderers' own carrier for what a [LiquidGlassStyle] holds flat:
+/// `color`, `blur`, `saturation` and `shadow`.
+@internal
 class LiquidGlassAppearance {
   /// Color saturation of the output (`1.0` = unchanged, `0.0` = grayscale).
   final double saturation;
 
-  /// Blur applied to the content beneath the glass.
-  final LiquidGlassBlur blur;
+  /// Blur applied to the content beneath the glass, as a Gaussian sigma.
+  final double blur;
 
   /// Base color tint of the lens (often semi-transparent).
   final Color color;
 
-  /// Whether the inner, non-distorted region is transparent.
-  final bool enableInnerRadiusTransparent;
-
-  /// Contact shadow around the lens — the soft dark band that hugs its
-  /// rim and pools underneath, so the glass reads as sitting in the page
-  /// rather than floating on it. `null` (the default) draws none.
-  ///
-  /// Honored by [LiquidGlassLens]: the lens wraps itself in the
-  /// [LiquidGlassShadow] this describes (its `child` is ignored), with
-  /// the ring's corner defaulting to the lens shape's own radius. The
-  /// wrap lives *inside* the flex deformation's box, so on a lens given a
-  /// `touch` the ring swells, leans and springs back with the body
-  /// instead of staying frozen on the rest silhouette.
-  /// Its `visible` flag composes with the lens's own `visibility`.
-  ///
-  /// Not supported inside a [LiquidGlassBlender]: a merged metaball
-  /// silhouette has no single ring to cast.
+  /// Contact shadow around the lens. See [LiquidGlassStyle.shadow].
   final LiquidGlassShadow? shadow;
 
   const LiquidGlassAppearance({
     this.saturation = 1.0,
-    this.blur = const LiquidGlassBlur(),
+    this.blur = 0.0,
     this.color = Colors.transparent,
-    this.enableInnerRadiusTransparent = false,
     this.shadow,
   });
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LiquidGlassAppearance &&
+          other.saturation == saturation &&
+          other.blur == blur &&
+          other.color == color &&
+          other.shadow == shadow;
+
+  @override
+  int get hashCode => Object.hash(saturation, blur, color, shadow);
+
   LiquidGlassAppearance copyWith({
     double? saturation,
-    LiquidGlassBlur? blur,
+    double? blur,
     Color? color,
-    bool? enableInnerRadiusTransparent,
     LiquidGlassShadow? shadow,
   }) {
     return LiquidGlassAppearance(
       saturation: saturation ?? this.saturation,
       blur: blur ?? this.blur,
       color: color ?? this.color,
-      enableInnerRadiusTransparent:
-          enableInnerRadiusTransparent ?? this.enableInnerRadiusTransparent,
       shadow: shadow ?? this.shadow,
     );
   }
