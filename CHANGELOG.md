@@ -1,3 +1,39 @@
+## 5.0.0
+- **Breaking — `LiquidGlassStyle` is flat.** Everything sits directly on the style: `shape`, `specular`, `glow`, `refractionIndex`, `refractionWidth`, `magnification`, `chromaticAberration`, `saturation`, `blur`, `color`, `shadow`, `adaptivity` and `liteGlass`. Changing one facet is `style.copyWith(color: …)`. `LiquidGlassAppearance` and `LiquidGlassRefraction` are no longer public, and `blur` is one `double` (a Gaussian sigma).
+- **Breaking — one refraction, two numbers.** The edge bends what is behind it by `refractionIndex` over a band `refractionWidth` wide. `1.0` is no bending, and the bend builds quickly: `1.02` (the default) is a clear lens edge. The older standard distortion, the optical `depth` dial, the radial mode and `diagonalFlip` are gone.
+- **Breaking — one border, two lights, on the style.** `LiquidGlassStyle` carries `specular` and `glow`, each a `LiquidGlassLight`: `LiquidGlassLight.specular(thickness, sharpness, angle, spread, intensity, color)` is the highlight that takes the colour of the backdrop seen through the edge, and `LiquidGlassLight.glow(thickness, angle, spread, intensity, color)` is the softer side band. The defaults draw the same border as 4.3.4. Both are `null` by default, which gives a lens the light's own defaults and gives a component its tuned rim.
+- **`LiquidGlassShape` is the outline only:** `cornerStyle`, `cornerRadius` and `clipQuality`, plus a new `copyWith`.
+- **The glow has its own thickness, angle and spread.** It used to follow the border width, sit at 90° from the light and use a fixed spread. Its angle is now absolute: turning the specular no longer turns the glow, so set `glow.angle` to `specular.angle + 90` to keep the old arrangement.
+- **A light can have its own colour.** `color` is `null` by default, which keeps the picked-up colour as before. When set, the light is drawn in that colour as given, and the colour's alpha is how much of it replaces the picked-up colour.
+- **Removed:** `LiquidGlassAppearance`, `LiquidGlassRefraction`, `LiquidGlassRefractionType`, `StandardRefraction`, `OpticalRefraction`, `LiquidGlassRefractionMode`, `LiquidGlassBlur`, `LiquidGlassLightMode` (the border always follows the outline), `ClassicBorder` (deprecated since 4.3.0), `OpticalBorder`, `LiquidGlassBorderType`, `LiquidGlassBorderMode`, `enableInnerRadiusTransparent`, and from `LiquidGlassShape`: `borderType`, `borderWidth`, `borderColor`, `lightColor`, `lightIntensity`, `lightDirection`, `lightMode`. The border always takes its tint from the glass colour.
+- **`LiquidGlassLite` takes one `specular`** beside its `shape`, and its `blur` is a `double`. Its rim is the lens' specular drawn without the shader: the same band, arcs and colour lift from the same values. A glow and a second specular are not drawn on lite glass.
+- **Breaking — `LiquidGlassScaffold` has no dialog slot.** `dialog`, `onDialogDismissed`, `dialogBarrierColor`, `dialogBarrierDismissible` and `dialogTransitionDuration` are removed. Present a dialog with `showLiquidGlassDialog`, as a sheet is presented with `showLiquidGlassSheet`; `batch: true` puts it on the scaffold's chrome read.
+- **Breaking — `LiquidGlassScaffold.actionMargin` is split in two:** `bottomNavigationBarActionMargin` for the side action and `floatingActionButtonMargin` for the FAB. Both default to `16`, as `actionMargin` did.
+- **`LiquidGlassScaffold.bottomNavigationBarAction` follows the text direction:** it sits at the end side, on the left in RTL.
+- **The tab bar's pill style** names its refraction `refractionIndex` / `refractionWidth` (were `distortion` / `distortionWidth`), and its `blur` is a `double`.
+- **Fewer shader uniforms.** The lens shader declares 20 uniforms (was 26), the border pass 18 and the blender 17 (was 20).
+
+  Migration:
+
+  | 4.x | 5.0.0 |
+  |-----|-------|
+  | `appearance: LiquidGlassAppearance(color: c, saturation: s, shadow: h)` | `color: c, saturation: s, shadow: h` on the style |
+  | `appearance: LiquidGlassAppearance(blur: LiquidGlassBlur(sigmaX: b, sigmaY: b))` | `blur: b` on the style |
+  | `style.copyWith(appearance: style.appearance.copyWith(color: c))` | `style.copyWith(color: c)` |
+  | `style.appearance.color` | `style.color` |
+  | `refraction: LiquidGlassRefraction(magnification: m, chromaticAberration: c)` | `magnification: m, chromaticAberration: c` on the style |
+  | `LiquidGlassRefraction(distortion: d, distortionWidth: w)` | `refractionIndex: i, refractionWidth: w`. The two models bend differently, so re-pick `i` by eye; typical old values (`distortion` 0.05–0.14) land near `1.02`–`1.025` |
+  | `OpticalRefraction(refraction: n, refractionWidth: w, depth: d)` | `refractionIndex: i, refractionWidth: w`, where `depth: 1` keeps `i = n` and a smaller depth needs a smaller index (`n` 1.5 at `depth` 0.1 is about `1.009`) |
+  | `refractionMode`, `diagonalFlip`, `enableInnerRadiusTransparent` | removed |
+  | `LiquidGlassShape(borderWidth: w)` | `specular: LiquidGlassLight.specular(thickness: w)` and `glow: LiquidGlassLight.glow(thickness: w)` on the style |
+  | `lightIntensity: x` | `specular: LiquidGlassLight.specular(intensity: x)` |
+  | `lightDirection: d` | `specular: LiquidGlassLight.specular(angle: d)`, and `glow: LiquidGlassLight.glow(angle: d + 90)` to keep the glow where it was |
+  | `OpticalBorder(lightSpread: s)` | `specular: LiquidGlassLight.specular(spread: s)` |
+  | `OpticalBorder(ambientIntensity: a)` | `glow: LiquidGlassLight.glow(intensity: a)` |
+  | `OpticalBorder(borderSolidity: s)` | `specular: LiquidGlassLight.specular(sharpness: s)` |
+  | `lightColor` | `specular: LiquidGlassLight.specular(color: …)` (it had no effect on the optical border in 4.x) |
+  | `lightMode`, `borderColor`, `OpticalBorder(borderSaturation: …)`, `ClassicBorder(...)` | removed |
+
 ## 4.3.4
 - **The contact shadow slides with the glass on desktop.** A blurred path is rasterised on the pixel grid, so a moving shadow ring stepped a whole pixel at a time: invisible at a phone's pixel ratio, a visible jerk at a desktop's `1` under the tab bar's pill, the slider's thumb and the switch's thumb. On Windows, Linux and macOS the ring is now drawn from two blurred rounded rects, which are blurred at their exact sub-pixel position, and their difference becomes the shadow's alpha in one layer: the same coverage as before, so the look is unchanged. `insideGlass: false` clips the same way. Mobile and web keep the path.
 

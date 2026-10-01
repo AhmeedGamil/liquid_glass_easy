@@ -48,14 +48,14 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 
 | Block | API | What it does |
 |---|---|---|
-| **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with `LiquidGlassStyle`: shape, appearance, refraction. |
+| **Glass** | `LiquidGlassLens` | The surface itself. Layout-driven — drop it anywhere and it refracts what's behind it. Styled with one flat `LiquidGlassStyle`: shape, border lights, tint, blur, refraction. |
 | **Touch** | `LiquidGlassTouch` | How glass answers a finger. Carries `LiquidGlassFlex`: press and it swells, drag and it deforms, release and it springs back. |
 | **Motion** | `LiquidGlassLensMotionSpec` | Acceleration-driven deformation for moving glass — it stretches as it launches, squashes as it brakes, and rides undeformed at constant speed. The physics behind the slider thumb and the tab bar's pill (`motion:` on both). |
 | **Blend** | `LiquidGlassBlender` | Merges **2–8** lenses into one surface, joined by a smooth metaball bridge. `smoothness: 0` turns the bridge off and keeps the one shared surface — one backdrop read and one material for the whole set, far cheaper than the same lenses standing alone. |
 | **Group** | `LiquidGlassGroup` | *Deprecated in 4.3.0* — it is `LiquidGlassBlender(smoothness: 0)` under another name, and it still works. [Docs →](ADAPTIVITY.md#liquidglassgroup--many-lenses-one-surface) |
 | **Morph** | `LiquidGlassMorph` | Glass that fits whatever you put in it: swap the child and the surface flows to the new size, as two blobs of one liquid with a neck between them. Motion is a preset. |
 | **Lite** | `LiquidGlassLite`, `LiquidGlassEngine`, `LiquidGlassStyle.liteGlass` | The material without the shader: frost, tint and a lit rim, no refraction. Flip one lens, or the whole app per engine — nothing to compile, no capture on Skia, no slot in the lens budget. |
-| **Shadow** | `LiquidGlassShadow` | The contact shadow that sets glass *into* the page: a soft ring hugging the rim and pooling beneath, multiplied over whatever is under it. Authored on `appearance.shadow`, where the lens wraps itself in it; usable on its own around anything. |
+| **Shadow** | `LiquidGlassShadow` | The contact shadow that sets glass *into* the page: a soft ring hugging the rim and pooling beneath, multiplied over whatever is under it. Authored on the style's `shadow`, where the lens wraps itself in it; usable on its own around anything. |
 | **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). |
 | **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
 | **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
@@ -104,8 +104,9 @@ LiquidGlassLens(
 
 // The widget itself, on a surface that was never a lens.
 LiquidGlassLite(
-  shape: const LiquidGlassShape(cornerRadius: 22, borderWidth: 1.5),
-  blur: const LiquidGlassBlur(sigmaX: 3, sigmaY: 3),
+  shape: const LiquidGlassShape(cornerRadius: 22),
+  specular: const LiquidGlassLight.specular(thickness: 1.5),
+  blur: 3,
   color: const Color(0x33FFFFFF),
   child: child,
 )
@@ -124,7 +125,7 @@ drawn, not what the tree around it does:
 | | Under lite glass |
 |---|---|
 | Every component | Works the same, with no refraction. The tab bar's `pillStyle.mode: both` is fine on Skia here — there is no capture to double. |
-| `touch`, `adaptivity`, `appearance.shadow`, `LiquidGlassScrollEdge` | Work. The adaptive sampler is not a glass capture and keeps running. |
+| `touch`, `adaptivity`, the style's `shadow`, `LiquidGlassScrollEdge` | Work. The adaptive sampler is not a glass capture and keeps running. |
 | `LiquidGlassMorph` | Runs as `plain`: one lens, one spring, no second blob. |
 | `LiquidGlassBlender` | Does not blend — every member paints solo as its own lite surface. |
 | `LiquidGlassBatch` | Inert — there is no shader pass to share. |
@@ -302,7 +303,7 @@ LiquidGlassLens(
 ```
 
 Two things flip together, both animated over `duration`: the **glass tint**
-(overriding `appearance.color`) and the **content colour**, installed over the
+(overriding the style's `color`) and the **content colour**, installed over the
 child as an `IconTheme` + `DefaultTextStyle` — so any `Icon` or `Text` that
 doesn't hardcode a colour follows automatically.
 
@@ -388,7 +389,7 @@ share:
 - **True liquid glass visuals** — real-glass look and physics with fluid transparency, soft highlights, and light-bending refraction.
 - **Real-time rendering** — distortion, blur, tint, and refraction react instantly as content moves behind the glass.
 - **Custom shapes** — circular rounded rectangles, iOS-style squircles, or Apple-style continuous-corner capsules.
-- **Two border modes** — background-tinted `OpticalBorder` (default) or the stylized `ClassicBorder` (deprecated in 4.3.0).
+- **A two-light border** — a `specular` highlight that takes the colour of the backdrop and a soft side `glow`, each with its own thickness, angle, spread, intensity and optional colour.
 - **Lite glass** — the same material with no shader at all, per lens or per engine, for pages with more glass than the shader budget allows.
 - **Shader-driven, GPU-accelerated** — smooth, high-FPS performance.
 - **Cross-platform** — Android, iOS, Web, macOS, and Windows.
@@ -399,7 +400,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^4.3.4
+  liquid_glass_easy: ^5.0.0
 ```
 
 ```bash
@@ -448,10 +449,8 @@ class DemoGlass extends StatelessWidget {
               child: LiquidGlassLens(
                 style: const LiquidGlassStyle(
                   shape: LiquidGlassShape.squircle(cornerRadius: 44),
-                  refraction: LiquidGlassRefraction(
-                    distortion: 0.13,
-                    distortionWidth: 34,
-                  ),
+                  refractionIndex: 1.021,
+                  refractionWidth: 34,
                 ),
                 child: const Center(child: Text('Liquid Glass')),
               ),
@@ -479,7 +478,8 @@ LiquidGlassView(
       child: LiquidGlassLens(
         style: const LiquidGlassStyle(
           shape: LiquidGlassShape.squircle(cornerRadius: 40),
-          refraction: LiquidGlassRefraction(distortion: 0.12, distortionWidth: 30),
+          refractionIndex: 1.021,
+          refractionWidth: 30,
         ),
         child: const Center(child: Text('refracts the captured background')),
       ),
@@ -518,33 +518,42 @@ size it). The `child` is always clipped to the full lens shape; add your own
 
 ```dart
 LiquidGlassStyle({
-  LiquidGlassShape? shape,                // null → default continuous rounded rect
-  LiquidGlassAppearance appearance = const LiquidGlassAppearance(),
-  LiquidGlassRefraction refraction = const LiquidGlassRefraction(),
+  LiquidGlassShape? shape,        // null → default continuous rounded rect
+  LiquidGlassLight? specular,     // null → LiquidGlassLight.specular()
+  LiquidGlassLight? glow,         // null → LiquidGlassLight.glow()
+  double refractionIndex = 1.02,
+  double refractionWidth = 30,
+  double magnification = 1.0,
+  double chromaticAberration = 0.003,
+  double saturation = 1.0,
+  double blur = 0.0,
+  Color color = Colors.transparent,
+  LiquidGlassShadow? shadow,
+  LiquidGlassAdaptivity? adaptivity,
+  LiquidGlassLitePickup? liteGlass,
 })
 ```
 
-`copyWith(...)` and `merge(other)` are provided for theme/override patterns.
-
-#### `LiquidGlassRefraction`
-
-| Property | Default | Description |
-|----------|---------|-------------|
-| `distortion` | `0.1` | Bending strength of the distortion (`0.0`–`1.0`). |
-| `distortionWidth` | `30` | Thickness of the distortion band around the perimeter, in px. |
-| `magnification` | `1.0` | Magnification of content seen through the lens (`1.0` = none). |
-| `chromaticAberration` | `0.003` | Color-channel separation; `0.0` disables it. |
-| `refractionMode` | `shapeRefraction` | `shapeRefraction` (follows shape contours) or `radialRefraction` (circular pattern). |
-
-#### `LiquidGlassAppearance`
+The style is flat: change one facet with `copyWith`, for example
+`style.copyWith(color: Colors.blue.withAlpha(60))`. `merge(other)` is provided
+for theme/override patterns. A component uses its own tuned default wherever
+`shape`, `specular` or `glow` is `null`.
 
 | Property | Default | Description |
 |----------|---------|-------------|
-| `color` | `transparent` | Base tint of the lens (often semi-transparent). |
-| `blur` | `LiquidGlassBlur()` | Blur applied to content beneath the glass. |
+| `shape` | `null` | The outline. See `LiquidGlassShape`. |
+| `specular` | `null` | The border's highlight. See [The Border](#the-border). |
+| `glow` | `null` | The border's soft side light. See [The Border](#the-border). |
+| `refractionIndex` | `1.02` | How hard the edge bends what is behind it. `1.0` is no bending; the bend builds quickly, so `1.02` is already a clear lens edge and `1.5` a very strong one. |
+| `refractionWidth` | `30` | Width of the bending band along the edge, in logical pixels. The distance the content is displaced scales with it. |
+| `magnification` | `1.0` | Magnification of content seen through the glass (`1.0` = none). |
+| `chromaticAberration` | `0.003` | Colour fringing in the bending band; `0.0` disables it. |
+| `color` | `transparent` | Base tint of the glass (often semi-transparent). |
+| `blur` | `0.0` | Blur applied to content beneath the glass, as a Gaussian sigma. |
 | `saturation` | `1.0` | `1.0` = unchanged, `0.0` = grayscale. |
-| `enableInnerRadiusTransparent` | `false` | Whether the inner, non-distorted region is transparent. |
-| `shadow` | `null` | Contact shadow (`LiquidGlassShadow`) the lens wraps itself in — part of the material, so it travels wherever the style goes. Components take their shadow from here, never as a separate parameter. |
+| `shadow` | `null` | Contact shadow (`LiquidGlassShadow`) the lens wraps itself in — part of the style, so it travels wherever the style goes. Components take their shadow from here, never as a separate parameter. |
+| `adaptivity` | `null` | Glass tint and content colour that flip with the background. See [ADAPTIVITY.md](ADAPTIVITY.md). |
+| `liteGlass` | `null` | Draw this surface as lite glass, with the rim pickup named here. |
 
 #### `LiquidGlassShape`
 
@@ -556,8 +565,7 @@ Pick a corner curve via a convenience constructor:
 | `LiquidGlassShape.squircle(...)` | **L^n squircle** — iOS-style continuous curvature. |
 | `LiquidGlassShape.continuousRoundedRectangle(...)` | **Apple capsule-style** continuous corners (**default**; collapses to a clean capsule at full radius). |
 
-Common parameters: `cornerRadius`, `borderWidth`, `borderColor`, `lightColor`,
-`lightIntensity`, `lightDirection`, `borderType`, and `clipQuality`
+Parameters: `cornerRadius` and `clipQuality`
 (`roundedRectangle` = cheap circular clip, `exact` = shape-matched `ClipPath`).
 
 > **Tip — choosing `clipQuality`:**
@@ -593,58 +601,49 @@ LiquidGlassView({
 
 ---
 
-## Border Modes
+## The Border
 
-Every shape renders its border in one of two styles through `borderType`.
-
-| Mode | Description |
-|------|-------------|
-| `ClassicBorder` | *Deprecated in 4.3.0.* Light/shadow colors sweep around the shape based on the angle between the surface normal and the light direction. Clean, stylized, direct color control. Still works; shape the optical rim with `borderSaturation`, `ambientIntensity`, `borderSolidity` and `lightSpread` instead. |
-| `OpticalBorder` | **(default)** An Apple-style, SDF-based rim light that emerges as an optical consequence of the glass shape — background-tinted highlights, dual-sided specular reflections, and a lens height profile. The rim color adapts to whatever sits behind the lens. |
-
-### Optical Border
+Every glass surface draws one border, made of two lights on the outline. Each
+is a `LiquidGlassLight` on the style: a band along the edge, lit as a pair of
+opposing arcs.
 
 ```dart
 LiquidGlassLens(
   style: const LiquidGlassStyle(
-    shape: LiquidGlassShape.squircle(
-      cornerRadius: 36,
-      borderType: OpticalBorder(
-        borderSaturation: 1.5,
-        ambientIntensity: 1.0,
-        borderSolidity: 0.0,
-      ),
-    ),
+    shape: LiquidGlassShape.squircle(cornerRadius: 36),
+    specular: LiquidGlassLight.specular(
+        thickness: 1, sharpness: 0.5, angle: 0, spread: 0.9, intensity: 1.0),
+    glow: LiquidGlassLight.glow(
+        thickness: 1, angle: 90, spread: 0.5, intensity: 1.0),
   ),
 )
 ```
 
+- **`specular`** is the highlight: the backdrop seen through the edge,
+  brightened along the light's axis.
+- **`glow`** is the soft side light: a wider, gentler band, white pulled toward
+  the glass colour.
+
 | Property | Description |
 |----------|-------------|
-| `borderSaturation` | Saturation of the border color. `0.0` grayscale, `1.0` unchanged (default), `>1.0` more vivid. Range `0.0`–`3.0`. |
-| `ambientIntensity` | Ambient rim contribution, keeping it visible on the shadow side. `1.0` default. Range `0.0`–`5.0`. |
-| `borderSolidity` | How far `lightIntensity` can push the rim toward opaque. `0.0` translucent (default) → `1.0` solid. |
+| `thickness` | How deep the light's band reaches in from the outline, in logical pixels. `0` draws nothing. Defaults to `1.0`. At the same thickness a glow reaches several times deeper than a specular. |
+| `sharpness` | Specular only. How solid the band reads across its depth: `0.0` a faint hairline, `0.5` a crisp thin band (default), `1.0` solid before it falls. |
+| `angle` | The axis the two arcs sit on, in degrees. `0` = left and right, `90` = top and bottom. Defaults to `0` for the specular and `90` for the glow. |
+| `spread` | How far the arcs wrap around the outline. `0.0` tight, `1.0` almost all the way around. Defaults to `0.9` for the specular and `0.5` for the glow. |
+| `intensity` | Strength of the light. `0.0` turns it off. Range `0.0`–`3.0`. |
+| `color` | `null` (default) keeps the colour the glass picks up: the backdrop for the specular, white pulled toward the glass colour for the glow. When set, the light is drawn in this colour as given; its alpha is how much of it replaces the picked-up colour. |
 
-### Classic Border
+The glow's angle is its own: turning the specular does not turn the glow. To
+keep the glow filling the sides the specular leaves dark, set it `90` degrees
+from the specular.
 
 ```dart
-LiquidGlassLens(
-  style: const LiquidGlassStyle(
-    shape: LiquidGlassShape.roundedRectangle(
-      lightColor: Color(0xB2FFFFFF),
-      borderType: ClassicBorder(
-        borderSoftness: 2.5,
-        shadowColor: Color(0x1A000000),
-      ),
-    ),
-  ),
+// A red highlight on the top and bottom, no glow.
+const LiquidGlassStyle(
+  specular: LiquidGlassLight.specular(angle: 90, color: Color(0xFFFF3B30)),
+  glow: LiquidGlassLight.glow(intensity: 0),
 )
 ```
-
-| Property | Description |
-|----------|-------------|
-| `borderSoftness` | Feathered edge transition. Higher = softer. Defaults to `1.0`. |
-| `shadowColor` | Shadow color on the opposite side of the border for depth. Defaults to `Color(0x1A000000)`. |
 
 ---
 
@@ -660,7 +659,9 @@ LiquidGlassDraggable(
     child: LiquidGlassLens(
       style: const LiquidGlassStyle(
         shape: LiquidGlassShape.roundedRectangle(cornerRadius: 100),
-        refraction: LiquidGlassRefraction(distortion: 0.2, magnification: 1.1),
+        refractionIndex: 1.017,
+        refractionWidth: 30,
+        magnification: 1.1,
       ),
       child: const Center(child: Text('drag me')),
     ),
@@ -741,10 +742,10 @@ thumb's resting and lifted sizes, the track thickness, the end icons).
 Both also ship the tuned look out of the box, exposed as
 `LiquidGlassSlider.defaultStyle` / `LiquidGlassSwitch.defaultStyle`: a
 **clear** thumb — refraction and a soft rim, no tint — with a tucked-in
-contact shadow riding `defaultStyle.appearance.shadow`. Change one facet
+contact shadow riding `defaultStyle.shadow`. Change one facet
 without retyping the rest
-(`style: LiquidGlassSlider.defaultStyle.copyWith(refraction: …)`), or
-hand over an appearance carrying no shadow to drop the shadow.
+(`style: LiquidGlassSlider.defaultStyle.copyWith(refractionIndex: …)`), or
+build a style that names no shadow to drop the shadow.
 
 Each component is self-contained and styled through the same
 `LiquidGlassStyle` vocabulary. Other components: `LiquidGlassButton`,
@@ -764,21 +765,19 @@ both the inner rim contact and the drop below while the middle of the glass
 stays clear. It composites with `multiply`, darkening the glass inside and
 the page outside instead of laying grey over both.
 
-The place to author it is the style — `appearance.shadow` — and every lens
+The place to author it is the style's `shadow`, and every lens
 and component takes it from there, never as a separate parameter:
 
 ```dart
 LiquidGlassLens(
   style: const LiquidGlassStyle(
-    appearance: LiquidGlassAppearance(
-      shadow: LiquidGlassShadow(blur: 3.5, opacity: 0.2),
-    ),
+    shadow: LiquidGlassShadow(blur: 3.5, opacity: 0.2),
   ),
   child: child,
 )
 
 // The slider's and the switch's tuned shadow lives on their defaultStyle;
-// hand over an appearance carrying no shadow to drop it.
+// build a style that names no shadow to drop it.
 ```
 
 On its own it is a plain **parent** widget — `LiquidGlassShadow(child: …)`
@@ -809,7 +808,7 @@ showLiquidGlassSheet<String>(
     child: Text('Share', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700)),
   ),
   style: LiquidGlassSheet.defaultStyle.copyWith(
-    appearance: const LiquidGlassAppearance(color: Color(0x30FFFFFF)),
+    color: const Color(0x30FFFFFF),
   ),
   builder: (context) => Column(
     mainAxisSize: MainAxisSize.min,
@@ -932,8 +931,7 @@ bar's own capsule as it passes. A settled bar costs no shader pass at
 all. The tier is chosen by `LiquidGlassTabPillStyle.mode` (`both` /
 `impellerOnly` / `none`), and the pill's look, motion and contact shadow
 are tuned defaults — the shadow authored, like every lens's, on its glass
-style's `appearance.shadow` (the bar capsule's likewise on the bar
-`style`'s appearance).
+style's `shadow` (the bar capsule's likewise on the bar `style`).
 
 > **`both` on Skia.** With the shader, the pill on Skia captures the page a
 > second time on top of the bar's own capture — heavy over anything that

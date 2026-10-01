@@ -16,7 +16,7 @@ LiquidGlassLens(
 )
 ```
 
-Two things flip together: the **glass tint** (overriding `appearance.color` while adaptivity is on) and the **content colour**, installed over the child as an `IconTheme` + `DefaultTextStyle`. Any `Icon` or `Text` that doesn't hardcode a colour follows automatically. Both animate over `duration` on every flip.
+Two things flip together: the **glass tint** (overriding the style's `color` while adaptivity is on) and the **content colour**, installed over the child as an `IconTheme` + `DefaultTextStyle`. Any `Icon` or `Text` that doesn't hardcode a colour follows automatically. Both animate over `duration` on every flip.
 
 ---
 
@@ -123,7 +123,7 @@ Three of those look similar and are not:
 
 > **Outside a `MaterialApp`, use `.platform`.** `Theme` has no `maybeOf`, so with no `Theme` ancestor `Theme.of` silently returns Flutter's fallback theme and `appTheme` reads light instead of following the device.
 
-Separately, `LiquidGlassAdaptivity.none` opts a surface **out entirely** — it keeps its plain `appearance.color` and no palette is installed, even inside an area. That is different from pinning: `permanentBrightness` still uses the palettes, just on one side.
+Separately, `LiquidGlassAdaptivity.none` opts a surface **out entirely** — it keeps its plain `color` and no palette is installed, even inside an area. That is different from pinning: `permanentBrightness` still uses the palettes, just on one side.
 
 ---
 
