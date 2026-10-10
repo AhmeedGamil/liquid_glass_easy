@@ -12,7 +12,7 @@ import 'package:liquid_glass_easy/src/widgets/liquid_glass_style.dart';
 ///
 ///  • [LiquidGlassGeometry]   — size, shape, placement (required).
 ///  • [LiquidGlassRefraction] — how the glass bends light (refraction
-///    index and width, magnification, chromatic aberration).
+///    index and width, magnification, dispersion).
 ///  • [LiquidGlassAppearance] — tint, blur, saturation.
 ///  • [LiquidGlassBehavior]   — interaction & lifecycle.
 ///
@@ -202,7 +202,7 @@ class LiquidGlassGeometry {
 
 /// The renderers' own carrier for what a [LiquidGlassStyle] holds flat:
 /// `refractionIndex`, `refractionWidth`, `magnification` and
-/// `chromaticAberration`.
+/// `dispersion`.
 @internal
 class LiquidGlassRefraction {
   /// How hard the edge bends what is behind it (`1.0` = no bending).
@@ -214,14 +214,14 @@ class LiquidGlassRefraction {
   /// Magnification of the content seen through the lens (`1.0` = none).
   final double magnification;
 
-  /// Strength of the chromatic aberration (color-channel separation).
-  final double chromaticAberration;
+  /// Colour fringe in the bending band; see `LiquidGlassStyle.dispersion`.
+  final double dispersion;
 
   const LiquidGlassRefraction({
-    this.refractionIndex = 1.02,
-    this.refractionWidth = 30,
+    this.refractionIndex = 1.1,
+    this.refractionWidth = 12,
     this.magnification = 1,
-    this.chromaticAberration = 0.003,
+    this.dispersion = 0,
   });
 
   /// The same refraction with its bend scaled by [factor] (`1` = as
@@ -241,7 +241,7 @@ class LiquidGlassRefraction {
       refractionIndex: mix(a.refractionIndex, b.refractionIndex),
       refractionWidth: mix(a.refractionWidth, b.refractionWidth),
       magnification: mix(a.magnification, b.magnification),
-      chromaticAberration: mix(a.chromaticAberration, b.chromaticAberration),
+      dispersion: mix(a.dispersion, b.dispersion),
     );
   }
 
@@ -252,23 +252,24 @@ class LiquidGlassRefraction {
           other.refractionIndex == refractionIndex &&
           other.refractionWidth == refractionWidth &&
           other.magnification == magnification &&
-          other.chromaticAberration == chromaticAberration;
+          other.dispersion == dispersion;
 
   @override
   int get hashCode => Object.hash(
-      refractionIndex, refractionWidth, magnification, chromaticAberration);
+      refractionIndex, refractionWidth, magnification,
+      dispersion);
 
   LiquidGlassRefraction copyWith({
     double? refractionIndex,
     double? refractionWidth,
     double? magnification,
-    double? chromaticAberration,
+    double? dispersion,
   }) {
     return LiquidGlassRefraction(
       refractionIndex: refractionIndex ?? this.refractionIndex,
       refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
-      chromaticAberration: chromaticAberration ?? this.chromaticAberration,
+      dispersion: dispersion ?? this.dispersion,
     );
   }
 }

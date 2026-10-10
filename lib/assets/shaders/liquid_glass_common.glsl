@@ -15,6 +15,17 @@
 precision GLASS_FLOAT_PRECISION float;
 #define PI 3.14159265
 
+// How far the bent ray travels, in logical px; the same for every lens size.
+#define REFRACTION_DEPTH_LOGICAL_PX 70.0
+
+// Below this many logical px the fringe is invisible: one read, no split.
+#define DISPERSION_MIN_LOGICAL_PX 0.66
+
+// Dispersion's UV offset: `shift` is in logical px, so every pass size fringes the same.
+vec2 dispersionOffsetUv(float shift, float luma, vec2 texSizePx, float pxPerLogical) {
+    return vec2(shift * luma * pxPerLogical) / max(texSizePx, vec2(1.0));
+}
+
 /* ===========================
    CONSTS / SMALL HELPERS
    =========================== */
@@ -431,11 +442,10 @@ ShapeData evaluateContinuousRoundedRect(
    Two controls:
      • refractiveIndex — how hard the ray bends. 1.0 is no bending; the
        bend saturates, so small steps above 1.0 already move a lot.
-     • thickness       — the WIDTH of the beveled edge band (the `h` ramp),
-       which the travel distance scales with.
+     • thickness       — the WIDTH of the beveled edge band (the `h` ramp).
+     • depth           — how far the bent ray travels: a fixed
+       REFRACTION_DEPTH_LOGICAL_PX logical px.
    =========================== */
-// How far the bent ray travels, in band widths.
-const float REFRACTION_TRAVEL = 5.0;
 
 vec2 computeRefractedPosition(
     vec2 fragPx,
@@ -443,6 +453,7 @@ vec2 computeRefractedPosition(
     float sdf,
     float thickness,
     float refractiveIndex,
+    float depth,
     float zoneT
 ){
     // 2D gradient -> 3D surface normal.
@@ -458,7 +469,7 @@ vec2 computeRefractedPosition(
 
     // Displace by the refracted ray's screen-space (xy) component, fading to
     // nothing at the band's inner end.
-    float travel = thickness * REFRACTION_TRAVEL * zoneT;
+    float travel = depth * zoneT;
     return fragPx + refr.xy * travel;
 }
 

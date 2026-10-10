@@ -344,7 +344,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
     // Lite glass — by the engine switch or this style's pickup: no merged
     // pass at all, so members paint solo, each its own lite surface.
     final bool lite =
-        LiquidGlassEngine.liteGlass || widget.style.liteGlass != null;
+        LiquidGlassEngine.liteGlass || widget.style.liteGlass;
     final bool canBlend = (useImpeller || lensScope != null) && !lite;
     if (!canBlend && !lite) _warnSoloOnce();
 
@@ -495,11 +495,10 @@ class LiquidGlassBlenderScope extends InheritedWidget {
       shape: memberStyle.shape ?? style.shape,
       specular: memberStyle.specular ?? style.specular,
       glow: memberStyle.glow ?? style.glow,
-      secondSpecular: memberStyle.secondSpecular ?? style.secondSpecular,
       refractionIndex: style.refractionIndex,
       refractionWidth: style.refractionWidth,
       magnification: style.magnification,
-      chromaticAberration: style.chromaticAberration,
+      dispersion: style.dispersion,
       saturation: style.saturation,
       blur: style.blur,
       color: style.color,
@@ -1310,7 +1309,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       refractionIndex: refraction.refractionIndex,
       refractionWidth: refraction.refractionWidth,
       borderAlpha: 1.0,
-      chromaticAberration: refraction.chromaticAberration,
+      dispersion: refraction.dispersion,
       saturation: appearance.saturation,
       blur: blur,
       lensColor: appearance.color,

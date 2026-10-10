@@ -471,7 +471,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       refractionWidth: _refraction.refractionWidth,
       drawBorder: drawBorder,
       borderAlpha: _borderAlpha,
-      chromaticAberration: _refraction.chromaticAberration,
+      dispersion: _refraction.dispersion,
       saturation: _appearance.saturation,
       includeLensColor: includeLensColor,
       lensColor: _appearance.color,

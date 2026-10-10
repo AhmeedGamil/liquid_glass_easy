@@ -257,8 +257,8 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
         animValue + (cfg.effectiveRefraction.magnification * (1 - animValue));
     final double effectiveSaturation =
         animValue + (cfg.effectiveAppearance.saturation * (1 - animValue));
-    final double effectiveChromaticAberration =
-        cfg.effectiveRefraction.chromaticAberration * (1 - animValue);
+    final double effectiveDispersion =
+        cfg.effectiveRefraction.dispersion * (1 - animValue);
     final double effectiveBorderAlpha = 1 - animValue;
 
     // The main shader always draws the border itself. On the Impeller
@@ -283,7 +283,7 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
       refractionWidth: effectiveRefractionWidth,
       drawBorder: true,
       borderAlpha: effectiveBorderAlpha,
-      chromaticAberration: effectiveChromaticAberration,
+      dispersion: effectiveDispersion,
       saturation: effectiveSaturation,
       includeLensColor: true,
       lensColor: cfg.effectiveAppearance.color,
@@ -435,10 +435,8 @@ class _ImpellerLiquidGlassLensState extends State<ImpellerLiquidGlassLens> {
           Positioned(
             left: lensPosition.dx,
             top: lensPosition.dy,
-            width:
-                config.geometry.width - config.effectiveShape.borderWidth / 2,
-            height:
-                config.geometry.height - config.effectiveShape.borderWidth / 2,
+            width: config.geometry.width,
+            height: config.geometry.height,
             child: _wrapFlex(
               GestureDetector(
                 behavior: HitTestBehavior.opaque,

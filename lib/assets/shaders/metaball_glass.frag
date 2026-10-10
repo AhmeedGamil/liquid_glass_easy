@@ -164,7 +164,7 @@ vec4 memberTint(int k) {
 // All loose scalars are merged into vec4s to cut bindings; the #define block
 // below restores their original names. The float-offset ORDER here is the exact
 // order packMetaballGlassUniforms writes with setFloat(i++,…) — keep in lockstep.
-// x=magnification  y=refractionIndex  z=refractionWidthPx  w=chromaticAberration
+// x=magnification  y=refractionIndex  z=refractionWidthPx  w=dispersion
 uniform vec4 u_warp;
 // x=smoothness (the metaball "gooeyness", px)  y=saturation  z=specularThickness  w=glowThickness
 uniform vec4 u_warpB;
@@ -188,7 +188,9 @@ uniform vec4 u_packA;
 uniform vec4 u_specular2;
 // The second specular's own colour, as u_specularColor.
 uniform vec4 u_specular2Color;
-uniform float u_specular2Intensity;
+// Far-arc strength per light: x=specular  y=glow  z=second specular;
+// w=the second specular's intensity (folded in, one declaration fewer).
+uniform vec4 u_lightOpposite;
 
 // Capture-region mapping (see liquid_glass.frag): xy=offset, zw=size. Full-frame
 // capture = offset (0,0), size u_resolution. MUST be the last uniform — see
@@ -201,7 +203,7 @@ uniform vec4 u_imageRegion;
 #define u_magnification                u_warp.x
 #define u_refractionIndex              u_warp.y
 #define u_refractionWidthPx            u_warp.z
-#define u_chromaticAberration          u_warp.w
+#define u_dispersion                   u_warp.w
 #define u_saturation                   u_warpB.y
 #define u_glowThickness                u_warpB.w
 #define u_smoothness                   u_warpB.x
@@ -222,6 +224,7 @@ uniform vec4 u_imageRegion;
 #define u_glowSpread                   u_packA.y
 #define u_borderSharpness              u_packA.z
 #define u_glowIntensity                u_packA.w
+#define u_specular2Intensity           u_lightOpposite.w
 // Each light as the border reads it: (angle in degrees, spread, intensity).
 #define u_specular vec3(u_specularAngle, u_specularSpread, u_specularIntensity)
 #define u_glow     vec3(u_glowAngle, u_glowSpread, u_glowIntensity)
@@ -533,10 +536,11 @@ ShapeData evaluateField(vec2 fragPx) {
 // hands over across the bridge at exactly the rate u_smoothness set for the
 // geometry — so the colour seam sits where the shape seam already is.
 void accumulateAnchor(vec4 lens, vec4 meta, vec4 tint, vec2 p,
-                      inout vec2 acc, inout float wsum, inout vec4 tintAcc) {
+                      inout vec3 acc, inout float wsum, inout vec4 tintAcc) {
     if (lens.z <= 0.0) return;
     float w = exp(-max(lensDistance(p, lens, meta), 0.0) / max(u_smoothness, EPS));
-    acc  += lens.xy * w;
+    // z carries the member's refraction depth: half its largest side.
+    acc  += vec3(lens.xy, min(lens.z, lens.w)) * w;
     wsum += w;
     // PREMULTIPLIED, because two members can differ in alpha as well as hue —
     // averaging straight alpha would drag the more transparent one's colour in
@@ -604,15 +608,16 @@ NearestMember nearestMember(vec2 p) {
     return n;
 }
 
-vec2 anchorFor(vec2 p, out vec4 tint) {
+vec2 anchorFor(vec2 p, out vec4 tint, out float depth) {
     // The branch is on a UNIFORM, so it costs nothing: every fragment in the
     // draw takes the same side of it.
     if (u_mergeEnabled < 0.5) {
         NearestMember n = nearestMember(p);
         tint = n.tint;
+        depth = min(n.lens.z, n.lens.w);
         return (n.dist < 1e8) ? n.lens.xy : p;
     }
-    vec2 acc = vec2(0.0);
+    vec3 acc = vec3(0.0);
     float wsum = 0.0;
     vec4 tintAcc = vec4(0.0);
     accumulateAnchor(u_lens0, u_lensMeta0, u_lensTint0, p, acc, wsum, tintAcc);
@@ -624,7 +629,8 @@ vec2 anchorFor(vec2 p, out vec4 tint) {
     accumulateAnchor(u_lens6, u_lensMeta6, u_lensTint6, p, acc, wsum, tintAcc);
     accumulateAnchor(u_lens7, u_lensMeta7, u_lensTint7, p, acc, wsum, tintAcc);
     tint = resolveTint(tintAcc, wsum);
-    return (wsum > EPS) ? acc / wsum : p;
+    depth = (wsum > EPS) ? acc.z / wsum : 0.0;
+    return (wsum > EPS) ? acc.xy / wsum : p;
 }
 
 // =====================================================
@@ -646,13 +652,14 @@ struct MergedField {
     float smoothSdf;   // == field(p)
     float hardSdf;     // == fieldHard(p)
     vec2  anchor;      // == anchorFor(p)
+    float depth;       // == anchorFor's depth out — the blended refraction depth
     vec4  tint;        // == anchorFor's tint out — the blended member colour
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
 };
 
 void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
                       inout float smoothSdf, inout float hardSdf,
-                      inout vec2 anchorAcc, inout float anchorW,
+                      inout vec3 anchorAcc, inout float anchorW,
                       inout vec4 tintAcc, inout vec2 gradAcc) {
     if (lens.z <= 0.0) return;
 
@@ -664,7 +671,7 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
 
     // Anchor weight (== accumulateAnchor).
     float w = exp(-max(base, 0.0) / max(u_smoothness, EPS));
-    anchorAcc += lens.xy * w;
+    anchorAcc += vec3(lens.xy, min(lens.z, lens.w)) * w;
     anchorW   += w;
     // Tint on the same weight — see accumulateAnchor.
     tintAcc   += vec4(tint.rgb * tint.a, tint.a) * w;
@@ -693,6 +700,7 @@ MergedField evaluateMerged(vec2 p) {
         m.smoothSdf = n.dist;
         m.hardSdf   = n.dist;
         m.anchor    = (n.dist < 1e8) ? n.lens.xy : p;
+        m.depth     = min(n.lens.z, n.lens.w);
         m.tint      = n.tint;
 #if METABALL_GRAD_ANALYTIC
         // One gradient — the winner's own — instead of eight blended together.
@@ -705,7 +713,7 @@ MergedField evaluateMerged(vec2 p) {
     m.smoothSdf = 1e9;
     m.hardSdf   = 1e9;
     m.grad      = vec2(0.0);
-    vec2 anchorAcc = vec2(0.0);
+    vec3 anchorAcc = vec3(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
 #ifdef LIQUID_GLASS_DESKTOP
@@ -732,7 +740,8 @@ MergedField evaluateMerged(vec2 p) {
     accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
 #endif
-    m.anchor = (anchorW > EPS) ? anchorAcc / anchorW : p;
+    m.anchor = (anchorW > EPS) ? anchorAcc.xy / anchorW : p;
+    m.depth  = (anchorW > EPS) ? anchorAcc.z / anchorW : 0.0;
     m.tint   = resolveTint(tintAcc, anchorW);
     return m;
 }
@@ -745,7 +754,7 @@ MergedField evaluateMerged(vec2 p) {
     ((SHAPE_GRAD_1TAP || METABALL_GRAD_ANALYTIC) && !METABALL_EIKONAL_CONTINUOUS && !METABALL_FLATTEN_CONTINUOUS_BLEND)
 
 // =====================================================
-// Background sampling (CA + optional in-shader blur), saturation, tint —
+// Background sampling (dispersion + optional in-shader blur), saturation, tint —
 // mirrors liquid_glass.frag's finalSample.
 // =====================================================
 // Engine-blur pass: u_imageRegion holds the pass clip, size negated. The input
@@ -778,42 +787,42 @@ vec2 refractedToUv(vec2 refractedPx) {
     return uv;
 }
 
-vec3 sampleChroma(vec2 uv, float shift) {
+vec3 sampleDispersed(vec2 uv, float shift) {
     vec3 color = texture(u_texture_input, uv).rgb;
-    if (shift < 0.001) return color;
+    if (shift < DISPERSION_MIN_LOGICAL_PX) return color;
     float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-    vec2 offset = vec2(shift * luma);
+    vec2 offset = dispersionOffsetUv(shift, luma, imageSizePx(), max(u_shapeAaPx, 1.0));
     float r = texture(u_texture_input, uv + offset).r;
     float g = texture(u_texture_input, uv).g;
     float b = texture(u_texture_input, uv - offset).b;
     return vec3(r, g, b);
 }
 
-// Two-ring blur where EACH tap is a chroma-split sample, so CA happens BEFORE
+// Two-ring blur where EACH tap is a dispersed sample, so dispersion happens BEFORE
 // the blur — the colour fringe is diffused by the frost, not laid over it.
-vec3 blurFieldChroma(vec2 uv, float shift) {
+vec3 blurFieldDispersed(vec2 uv, float shift) {
     vec2 pxToUv = 1.0 / max(imageSizePx(), vec2(EPS));
-    vec3 color = sampleChroma(uv, shift);
+    vec3 color = sampleDispersed(uv, shift);
     float count = 1.0;
     for (int ring = 1; ring <= 2; ring++) {
         float radius = u_blur * float(ring) * 0.5;
         for (int tap = 0; tap < 6; tap++) {
             float angle = 6.2831853 * float(tap) / 6.0 + float(ring) * 0.5;
             vec2 duv = vec2(cos(angle), sin(angle)) * radius * pxToUv;
-            color += sampleChroma(clamp(uv + duv, vec2(0.001), vec2(0.999)), shift);
+            color += sampleDispersed(clamp(uv + duv, vec2(0.001), vec2(0.999)), shift);
             count += 1.0;
         }
     }
     return color / count;
 }
 
-vec3 sampleBackground(vec2 refractedPx, float caShift) {
+vec3 sampleBackground(vec2 refractedPx, float dispersionShift) {
     vec2 uv = refractedToUv(refractedPx);
-    // No in-shader blur (e.g. Impeller engine-blur path): CA on the sample.
-    if (u_blur < 0.5) return sampleChroma(uv, caShift);
-    // Skia in-shader blur: CA FIRST (each tap is a chroma sample), then the
+    // No in-shader blur (e.g. Impeller engine-blur path): dispersion on the sample.
+    if (u_blur < 0.5) return sampleDispersed(uv, dispersionShift);
+    // Skia in-shader blur: dispersion FIRST (each tap is a dispersed sample), then the
     // kernel averages — so the colour fringe is blurred along with the field.
-    return blurFieldChroma(uv, caShift);
+    return blurFieldDispersed(uv, dispersionShift);
 }
 
 vec3 applySaturation(vec3 color, float saturation) {
@@ -821,9 +830,9 @@ vec3 applySaturation(vec3 color, float saturation) {
     return mix(vec3(luminance), color, saturation);
 }
 
-vec4 finalSample(vec2 refractedPx, float shapeMask, float caShift,
+vec4 finalSample(vec2 refractedPx, float shapeMask, float dispersionShift,
                  vec4 lensTint, out vec3 preTintColor) {
-    vec3 refrColor = sampleBackground(refractedPx, caShift);
+    vec3 refrColor = sampleBackground(refractedPx, dispersionShift);
     refrColor = applySaturation(refrColor, u_saturation);
     preTintColor = refrColor;
 
@@ -883,6 +892,7 @@ void main() {
     vec2 anchorPx   = mf.anchor;
     vec2 anchorNorm = anchorPx * invResY;
     vec4 lensTint   = mf.tint;
+    float refrDepth = mf.depth;
 #else
     ShapeData shapeData = evaluateField(fragPx);
     float shapeDistPx   = shapeData.orthoDist;
@@ -892,7 +902,8 @@ void main() {
     float rimWrap = bridgeWrap(fragPx, shapeData.sdf);
 
     vec4 lensTint;
-    vec2 anchorPx   = anchorFor(fragPx, lensTint);
+    float refrDepth;
+    vec2 anchorPx   = anchorFor(fragPx, lensTint, refrDepth);
     vec2 anchorNorm = anchorPx * invResY;
 #endif
 
@@ -903,10 +914,10 @@ void main() {
     vec2 magPx = applyLensMagnification(fragPx, anchorPx, u_magnification);
 
 #ifdef LIQUID_GLASS_DESKTOP
-    // Outside the band: the straight magnified sample, no CA. One sample and
+    // Outside the band: the straight magnified sample, no dispersion. One sample and
     // one border call serve both sides, so each is compiled once.
     vec2 samplePx = magPx;
-    float caShift = 0.0;
+    float dispersionShift = 0.0;
     bool drawBase = true;
     if (zoneMask >= 0.5) {
         float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
@@ -914,16 +925,17 @@ void main() {
         vec2 refrPx;
         refrPx = computeRefractedPosition(
             magPx, shapeData.normal, shapeData.sdf,
-            u_refractionWidthPx, u_refractionIndex, zoneT
+            u_refractionWidthPx, u_refractionIndex,
+            REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
         );
         samplePx = refrPx;
-        caShift = u_chromaticAberration * zoneT;
+        dispersionShift = u_dispersion * zoneT;
     }
 
     vec3 preTintCol = vec3(0.0);
     vec4 base = vec4(0.0);
     if (drawBase) {
-        base = finalSample(samplePx, shapeMask, caShift, lensTint, preTintCol);
+        base = finalSample(samplePx, shapeMask, dispersionShift, lensTint, preTintCol);
     }
 
     vec4 borderPremul = getBorder(
@@ -933,6 +945,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
+        u_lightOpposite.xyz,
         u_shapeAaPx,
         rimWrap
     );
@@ -951,6 +964,7 @@ void main() {
             u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
+            u_lightOpposite.xyz,
             u_shapeAaPx,
             rimWrap
         );
@@ -964,12 +978,13 @@ void main() {
     vec2 refrPx;
     refrPx = computeRefractedPosition(
         magPx, shapeData.normal, shapeData.sdf,
-        u_refractionWidthPx, u_refractionIndex, zoneT
+        u_refractionWidthPx, u_refractionIndex,
+            REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );
 
     vec3 preTintCol2 = vec3(0.0);
-    float caShift = u_chromaticAberration * zoneT;
-    vec4 base = finalSample(refrPx, shapeMask, caShift, lensTint, preTintCol2);
+    float dispersionShift = u_dispersion * zoneT;
+    vec4 base = finalSample(refrPx, shapeMask, dispersionShift, lensTint, preTintCol2);
 
     vec4 borderPremul = getBorder(
         shapeData.orthoDist, shapeData.grad,
@@ -978,6 +993,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
+        u_lightOpposite.xyz,
         u_shapeAaPx,
         rimWrap
     );

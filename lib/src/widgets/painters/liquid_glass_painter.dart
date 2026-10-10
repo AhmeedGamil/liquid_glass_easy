@@ -18,7 +18,7 @@ class LiquidGlassPainter extends CustomPainter {
   final LiquidGlassLitShape? border;
   final double borderAlpha;
   final double blur;
-  final double chromaticAberration;
+  final double dispersion;
   final double saturation;
   final Color color;
   final ui.FragmentShader shader;
@@ -74,7 +74,7 @@ class LiquidGlassPainter extends CustomPainter {
     required this.color,
     required this.shader,
     this.borderShader,
-    required this.chromaticAberration,
+    required this.dispersion,
     required this.saturation,
     required this.image,
     this.imageFallback,
@@ -108,11 +108,11 @@ class LiquidGlassPainter extends CustomPainter {
         index++, border != null ? liquidGlassCornerStyle(border!) : 0);
 
     // u_warp = (magnification, refractionIndex, refractionWidthPx,
-    // chromaticAberration)
+    // dispersion)
     shader.setFloat(index++, magnification);
     shader.setFloat(index++, refractionIndex);
     shader.setFloat(index++, refractionWidth);
-    shader.setFloat(index++, chromaticAberration);
+    shader.setFloat(index++, dispersion);
 
     // The authored border width in logical px, verbatim — the shader
     // expands it into the border's own band.
@@ -141,9 +141,10 @@ class LiquidGlassPainter extends CustomPainter {
     shader.setFloat(index++, border!.specular.spread);
     shader.setFloat(index++, border!.specular.sharpness);
     shader.setFloat(index++, border!.glow.angle);
-    // u_packC, u_specular2, u_specular2Color
+    // u_packC, u_specular2, u_specular2Color, u_lightOpposite
     index = packLiquidGlassSecondSpecular(shader, index, border!,
-        scale: 1, drawBorder: !useBlur);
+        scale: 1,
+        drawBorder: !useBlur);
 
     // u_imageOffset / u_imageSize — map the bound texture to a parent-space
     // rect. Full-frame default: offset (0,0), size == resolution (`size`),
@@ -225,7 +226,7 @@ class LiquidGlassPainter extends CustomPainter {
         oldDelegate.borderAlpha != borderAlpha ||
         oldDelegate.blur != blur ||
         oldDelegate.color != color ||
-        oldDelegate.chromaticAberration != chromaticAberration ||
+        oldDelegate.dispersion != dispersion ||
         oldDelegate.saturation != saturation ||
         oldDelegate.shader != shader ||
         oldDelegate.borderShader != borderShader ||
@@ -253,7 +254,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
   final double magnification;
   final double refractionIndex;
   final double refractionWidth;
-  final double chromaticAberration;
+  final double dispersion;
   final double saturation;
   final LiquidGlassLitShape border;
   final double borderAlpha;
@@ -285,7 +286,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
     required this.magnification,
     required this.refractionIndex,
     required this.refractionWidth,
-    required this.chromaticAberration,
+    required this.dispersion,
     required this.saturation,
     required this.border,
     required this.borderAlpha,
@@ -328,11 +329,11 @@ class LiquidGlassBorderPainter extends CustomPainter {
       // u_cornerStyle: 2 = continuous (capsule), 1 = squircle, 0 = circular
       ..setFloat(index++, liquidGlassCornerStyle(border))
       // u_warp = (magnification, refractionIndex, refractionWidthPx,
-      // chromaticAberration)
+      // dispersion)
       ..setFloat(index++, magnification)
       ..setFloat(index++, refractionIndex)
       ..setFloat(index++, refractionWidth)
-      ..setFloat(index++, chromaticAberration)
+      ..setFloat(index++, dispersion)
       // The authored border width in logical px, as the main pass and the
       // Impeller path pass it.
       ..setFloat(index++, border.specular.thickness)
@@ -357,9 +358,10 @@ class LiquidGlassBorderPainter extends CustomPainter {
       ..setFloat(index++, border.specular.spread)
       ..setFloat(index++, border.specular.sharpness)
       ..setFloat(index++, border.glow.angle);
-    // u_packC, u_specular2, u_specular2Color
+    // u_packC, u_specular2, u_specular2Color, u_lightOpposite
     index = packLiquidGlassSecondSpecular(borderShader, index, border,
-        scale: 1, drawBorder: true);
+        scale: 1,
+        drawBorder: true);
 
     // u_imageOffset / u_imageSize — full-frame default: (0,0) / size.
     final Offset imgOffset = imageOffset ?? Offset.zero;
@@ -392,7 +394,7 @@ class LiquidGlassBorderPainter extends CustomPainter {
         oldDelegate.magnification != magnification ||
         oldDelegate.refractionIndex != refractionIndex ||
         oldDelegate.refractionWidth != refractionWidth ||
-        oldDelegate.chromaticAberration != chromaticAberration ||
+        oldDelegate.dispersion != dispersion ||
         oldDelegate.saturation != saturation ||
         oldDelegate.borderAlpha != borderAlpha ||
         oldDelegate.lensColor != lensColor ||

@@ -61,7 +61,7 @@ void packLiquidGlassUniforms(
   /// thicknesses as zero, as the blur path does for the main pass.
   required bool drawBorder,
   required double borderAlpha,
-  required double chromaticAberration,
+  required double dispersion,
   required double saturation,
 
   /// Whether to emit the four `u_lensColor` floats. `true` for the main
@@ -131,11 +131,11 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, cornerStyle);
 
   // u_warp = (magnification, refractionIndex, refractionWidthPx,
-  // chromaticAberration)
+  // dispersion)
   shader.setFloat(i++, magnification);
   shader.setFloat(i++, refractionIndex);
   shader.setFloat(i++, refractionWidth * scale);
-  shader.setFloat(i++, chromaticAberration);
+  shader.setFloat(i++, dispersion);
 
   // Both thicknesses are logical px, sent verbatim: the shader expands each
   // into its light's own band.
@@ -169,10 +169,11 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, shape.specular.sharpness);
   shader.setFloat(i++, shape.glow.angle);
 
-  // u_packC, u_specular2, u_specular2Color — on both the main and border
-  // shaders, right after u_packB, before the image rect.
+  // u_packC, u_specular2, u_specular2Color, u_lightOpposite — on both the
+  // main and border shaders, right after u_packB, before the image rect.
   i = packLiquidGlassSecondSpecular(shader, i, shape,
-      scale: scale, drawBorder: drawBorder);
+      scale: scale,
+      drawBorder: drawBorder);
 
   // u_imageOffset / u_imageSize — present on BOTH shaders, so always
   // written. Scaled like the other spatial uniforms.
@@ -210,11 +211,11 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, xformOffset.dy * scale);
 }
 
-/// Writes one light's own colour as four straight-alpha floats starting at
-/// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0), `u_specular2`
-/// (thickness, sharpness, angle, spread) and `u_specular2Color` from [shape]
-/// at [index], and returns the next free index. No second specular, or
-/// [drawBorder] false, writes a zero thickness, which the shader skips.
+/// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0),
+/// `u_specular2` (thickness, sharpness, angle, spread), `u_specular2Color`
+/// and `u_lightOpposite` (specular, glow, second specular, 0) from [shape]
+/// at [index], and returns the next free index. No second specular, or [drawBorder] false, writes a zero
+/// thickness, which the shader skips.
 int packLiquidGlassSecondSpecular(
   ui.FragmentShader shader,
   int index,
@@ -232,7 +233,12 @@ int packLiquidGlassSecondSpecular(
   shader.setFloat(index++, second?.sharpness ?? 0);
   shader.setFloat(index++, second?.angle ?? 0);
   shader.setFloat(index++, second?.spread ?? 0);
-  return packLiquidGlassLightColor(shader, index, second?.color);
+  index = packLiquidGlassLightColor(shader, index, second?.color);
+  shader.setFloat(index++, shape.specular.oppositeIntensity);
+  shader.setFloat(index++, shape.glow.oppositeIntensity);
+  shader.setFloat(index++, second?.oppositeIntensity ?? 1);
+  shader.setFloat(index++, 0);
+  return index;
 }
 
 /// Writes one light's colour as a straight-alpha vec4 (r, g, b, a) at
@@ -357,7 +363,7 @@ void packMetaballGlassUniforms(
   /// thicknesses as zero.
   bool drawBorder = true,
   required double borderAlpha,
-  required double chromaticAberration,
+  required double dispersion,
   required double saturation,
   required double blur,
   Color lensColor = const Color(0x00000000),
@@ -421,11 +427,11 @@ void packMetaballGlassUniforms(
 
   // ── Shared glass block (every loose scalar packed into a vec4) ───────────
   // u_warp = (magnification, refractionIndex, refractionWidthPx,
-  // chromaticAberration).
+  // dispersion).
   shader.setFloat(i++, magnification);
   shader.setFloat(i++, refractionIndex);
   shader.setFloat(i++, refractionWidth * scale);
-  shader.setFloat(i++, chromaticAberration);
+  shader.setFloat(i++, dispersion);
   // Both thicknesses are logical px, sent verbatim.
   final double specularThickness = drawBorder ? shape.specular.thickness : 0;
   final double glowThickness = drawBorder ? shape.glow.thickness : 0;
@@ -462,7 +468,8 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, shape.glow.intensity);
 
   // u_specular2 = (thickness, sharpness, angle, spread), u_specular2Color,
-  // u_specular2Intensity. A zero thickness turns it off.
+  // u_lightOpposite = (specular, glow, second specular opposite intensity,
+  // second specular intensity). A zero thickness turns the second one off.
   final LiquidGlassLight? second = shape.secondSpecular;
   shader.setFloat(
       i++, drawBorder && second != null ? second.thickness * scale : 0);
@@ -470,6 +477,9 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, second?.angle ?? 0);
   shader.setFloat(i++, second?.spread ?? 0);
   i = packLiquidGlassLightColor(shader, i, second?.color);
+  shader.setFloat(i++, shape.specular.oppositeIntensity);
+  shader.setFloat(i++, shape.glow.oppositeIntensity);
+  shader.setFloat(i++, second?.oppositeIntensity ?? 1);
   shader.setFloat(i++, second?.intensity ?? 0);
 
   // u_imageRegion = (offset.xy, size.xy) — the captured/backdrop sub-rect.

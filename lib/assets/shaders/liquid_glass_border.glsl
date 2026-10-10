@@ -57,9 +57,8 @@ float rimRamp(float sdPx, float depthPx) {
 //  Both layers brighten the edge, keeping hue.
 // =======================================================
 
-// How the public values read inside the rim: thickness 1, intensity 1 and
-// sharpness 0.5 give the rest look.
-const float RIM_DEPTH_PER_WIDTH = 5.4;   // ramp depth per unit of thickness
+// How the public values read inside the rim (thickness is the band depth
+// in px as given): intensity 1 and sharpness 0.5 give the rest look.
 const float RIM_INTENSITY_SCALE = 0.1;   // intensity 1 -> 0.1
 const float RIM_SHIFT_AT_ZERO   = -0.6;  // sharpness 0..1 -> shift -0.6..0.4
 // The silhouette's AA ramp is centred this far inside the outline (in AA
@@ -68,9 +67,7 @@ const float RIM_OUTLINE_INSET   = 0.167;
 
 // Fixed shaping values with no uniform of their own.
 const float RIM_WEIGHT_GAIN        = 6.0;       // weight scale of both layers
-const float RIM_SPECULAR_BACK_GAIN = 1.0;       // specular on the arc facing away
 const float RIM_GLOW_SHIFT         = 0.0;       // shift on the glow's ramp
-const float RIM_GLOW_DEPTH_RATIO   = 5.4444444; // glow depth over a specular's
 // Share of the tint's alpha the rim colours take; the body mixes the tint
 // at full alpha, so the rim stays lighter than the body.
 const float RIM_TINT_SHARE = 0.625;
@@ -84,7 +81,7 @@ float rimArcPower(float spread) {
 // One specular layer: `base` lifted up to +150 L and +30 C by angle x depth.
 // Returns (colour, weight).
 vec4 rimSpecular(float sd, vec2 normal, vec3 base, float depthPx,
-                 float shift, vec3 light, vec4 lightColor
+                 float shift, vec3 light, vec4 lightColor, float opposite
 #ifdef LIQUID_GLASS_RIM_WRAP
                  , float wrap
 #endif
@@ -99,7 +96,8 @@ vec4 rimSpecular(float sd, vec2 normal, vec3 base, float depthPx,
     // A merged blob's concave neck faces sideways; wrap keeps it lit.
     facing = mix(facing, ndl * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
 #endif
-    float backGain = ndl < 0.0 ? RIM_SPECULAR_BACK_GAIN : 1.0;
+    // The far arc's strength, relative to the near one.
+    float backGain = ndl < 0.0 ? opposite : 1.0;
     // The pow() base is floored: an exact zero base is undefined.
     float arc = clamp(
         pow(max(facing * 1.2 * backGain * light.z * RIM_INTENSITY_SCALE, 1e-6),
@@ -132,6 +130,7 @@ vec4 getBorder(
     vec3 glow, vec4 glowLight,
     vec4 specular2Shape, // (thicknessPx, sharpness, angleDeg, spread)
     float specular2Intensity, vec4 specular2Light,
+    vec3 opposite,    // far-arc strength: (specular, glow, second specular)
     float aaPx        // the silhouette's AA band width, in fragment px
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap   // half-Lambert blend amount; only compiled for the metaball
@@ -150,15 +149,14 @@ vec4 getBorder(
     // Distance from where the silhouette actually sits, not the outline.
     float sd = signedEdgeOrthoDistPx + RIM_OUTLINE_INSET * max(aaPx, 1.0);
 
-    // Each ramp's depth follows its light's thickness; sharpness shifts a
+    // Each ramp's depth IS its light's thickness; sharpness shifts a
     // specular's, read from its 0..1 range.
-    float specularDepthPx = specularThicknessPx * RIM_DEPTH_PER_WIDTH;
+    float specularDepthPx = specularThicknessPx;
     float specularShift = RIM_SHIFT_AT_ZERO + clamp(sharpness, 0.0, 1.0);
-    float specular2DepthPx = specular2Shape.x * RIM_DEPTH_PER_WIDTH;
+    float specular2DepthPx = specular2Shape.x;
     float specular2Shift =
         RIM_SHIFT_AT_ZERO + clamp(specular2Shape.y, 0.0, 1.0);
-    float glowDepthPx =
-        glowThicknessPx * RIM_DEPTH_PER_WIDTH * RIM_GLOW_DEPTH_RATIO;
+    float glowDepthPx = glowThicknessPx;
 
     // Past every live ramp's end the rim is exactly zero: skip the pow work.
     float reachPx = specularOn ? (1.0 + specularShift) * specularDepthPx : 0.0;
@@ -191,8 +189,10 @@ vec4 getBorder(
 #ifdef LIQUID_GLASS_RIM_WRAP
         glowFacing = mix(glowFacing, ndlGlow * 0.5 + 0.5, clamp(wrap, 0.0, 1.0));
 #endif
+        float glowBack = ndlGlow < 0.0 ? opposite.y : 1.0;
         float glowArc = clamp(
-            pow(max(glowFacing * 1.2 * glow.z * RIM_INTENSITY_SCALE, 1e-6),
+            pow(max(glowFacing * 1.2 * glowBack * glow.z * RIM_INTENSITY_SCALE,
+                    1e-6),
                 rimArcPower(glow.y)),
             0.0, 1.0);
         float glowStrength = glowArc * glowRamp;
@@ -207,7 +207,7 @@ vec4 getBorder(
 
     vec4 specularLayer = specularOn
         ? rimSpecular(sd, normal, base, specularDepthPx,
-                      specularShift, specular, specularLight
+                      specularShift, specular, specularLight, opposite.x
 #ifdef LIQUID_GLASS_RIM_WRAP
                       , wrap
 #endif
@@ -218,7 +218,7 @@ vec4 getBorder(
                       specular2Shift,
                       vec3(specular2Shape.z, specular2Shape.w,
                            specular2Intensity),
-                      specular2Light
+                      specular2Light, opposite.z
 #ifdef LIQUID_GLASS_RIM_WRAP
                       , wrap
 #endif

@@ -154,8 +154,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                       image: image,
                       imageFallback: imageFallback,
                       borderShader: borderShader,
-                      chromaticAberration:
-                          config.effectiveRefraction.chromaticAberration *
+                      dispersion:
+                          config.effectiveRefraction.dispersion *
                               (1 - animValue),
                       saturation: (animValue) +
                           (config.effectiveAppearance.saturation *
@@ -212,8 +212,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
                 refractionIndex: config.effectiveRefraction.refractionIndex,
                 refractionWidth: (config.effectiveRefraction.refractionWidth -
                     animValue * config.effectiveRefraction.refractionWidth),
-                chromaticAberration:
-                    config.effectiveRefraction.chromaticAberration *
+                dispersion:
+                    config.effectiveRefraction.dispersion *
                         (1 - animValue),
                 saturation: (animValue) +
                     (config.effectiveAppearance.saturation * (1 - animValue)),
@@ -237,10 +237,8 @@ class SkiaLiquidGlassLens extends StatelessWidget {
             return Positioned(
               left: origin.dx,
               top: origin.dy,
-              width:
-                  config.geometry.width - config.effectiveShape.borderWidth / 2,
-              height: config.geometry.height -
-                  config.effectiveShape.borderWidth / 2,
+              width: config.geometry.width,
+              height: config.geometry.height,
               child: _wrapFlex(
                 GestureDetector(
                   behavior: HitTestBehavior

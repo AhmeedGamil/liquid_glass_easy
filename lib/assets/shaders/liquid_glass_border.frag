@@ -35,7 +35,7 @@ uniform sampler2D u_texture_input;
 //   2 = continuous (Apple capsule-style). Mirrors liquid_glass.frag.
 uniform vec4 u_lensGeom;
 // x=magnification  y=refractionIndex  z=refractionWidthPx
-// w=chromaticAberration
+// w=dispersion
 uniform vec4 u_warp;
 
 // Border controls
@@ -60,6 +60,8 @@ uniform vec4 u_packC;
 uniform vec4 u_specular2;
 // The second specular's own colour, as u_specularColor.
 uniform vec4 u_specular2Color;
+// Far-arc strength per light: x=specular  y=glow  z=second specular.
+uniform vec4 u_lightOpposite;
 
 // Restore the original scalar names (plain float aliases, no swizzle chain).
 #define u_lensWidth                    u_lensGeom.x
@@ -69,7 +71,7 @@ uniform vec4 u_specular2Color;
 #define u_magnification                u_warp.x
 #define u_refractionIndex              u_warp.y
 #define u_refractionWidthPx            u_warp.z
-#define u_chromaticAberration          u_warp.w
+#define u_dispersion                   u_warp.w
 #define u_specularIntensity            u_packA.x
 #define u_saturation                   u_packA.y
 #define u_glowIntensity                u_packA.z
@@ -102,12 +104,13 @@ uniform vec2 u_xformOff;
 out vec4 frag_color;
 
 
-vec3 applyChromaticAberration(vec2 uv, float shift) {
+vec3 applyDispersion(vec2 uv, float shift, vec2 texSizePx) {
     vec3 color = texture(u_texture_input, uv).rgb;
-    if (shift < 0.001) return color;
+    if (shift < DISPERSION_MIN_LOGICAL_PX) return color;
 
     float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
-    vec2 offset = vec2(shift * luma);
+    // The border pass runs in logical px.
+    vec2 offset = dispersionOffsetUv(shift, luma, texSizePx, 1.0);
 
     float r = texture(u_texture_input, uv + offset).r;
     float g = texture(u_texture_input, uv).g;
@@ -145,7 +148,7 @@ vec3 sampleBackdropColor(vec2 refractedPx) {
     #endif
     #endif
 
-    vec3 color = applyChromaticAberration(sampleUV, u_chromaticAberration);
+    vec3 color = applyDispersion(sampleUV, u_dispersion, u_imageSize);
     return applySaturation(color, u_saturation);
 }
 
@@ -250,7 +253,8 @@ void main() {
 
         refrPx = computeRefractedPosition(
             magPx, shapeData.normal, refrDistPx,
-            u_refractionWidthPx, u_refractionIndex, zoneT
+            u_refractionWidthPx, u_refractionIndex,
+            REFRACTION_DEPTH_LOGICAL_PX, zoneT
         );
 
         backdropCol = sampleBackdropColor(refrPx);
@@ -267,6 +271,7 @@ void main() {
         effectiveBorderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
+        u_lightOpposite.xyz,
         outerAa
     );
     // Apply the soft outer-edge mask so the rounded corners fade

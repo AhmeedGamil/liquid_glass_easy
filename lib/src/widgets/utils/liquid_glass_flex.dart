@@ -348,7 +348,7 @@ class LiquidGlassFlexAdvanced {
   final double refractionBoost;
 
   /// How much the backdrop is ZOOMED while pressed, as a fraction of
-  /// [LiquidGlassRefraction.magnification]. `0.15` magnifies what is behind
+  /// `LiquidGlassStyle.magnification`. `0.15` magnifies what is behind
   /// the glass by up to 15% at full press.
   ///
   /// **Off by default**, and deliberately separate from [refractionBoost].

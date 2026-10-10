@@ -38,7 +38,7 @@ uniform sampler2D u_texture_input;
 //   2 = continuous (Apple capsule-style) corners.
 uniform vec4 u_lensGeom;
 // x=magnification  y=refractionIndex  z=refractionWidthPx
-// w=chromaticAberration
+// w=dispersion
 uniform vec4 u_warp;
 
 // Border
@@ -61,6 +61,8 @@ uniform vec4 u_packC;
 uniform vec4 u_specular2;
 // The second specular's own colour, as u_specularColor.
 uniform vec4 u_specular2Color;
+// Far-arc strength per light: x=specular  y=glow  z=second specular.
+uniform vec4 u_lightOpposite;
 
 // Restore the original scalar names. These are plain float aliases (a single
 // component access, no swizzle chaining), so the shader body and every helper
@@ -72,7 +74,7 @@ uniform vec4 u_specular2Color;
 #define u_magnification                u_warp.x
 #define u_refractionIndex              u_warp.y
 #define u_refractionWidthPx            u_warp.z
-#define u_chromaticAberration          u_warp.w
+#define u_dispersion                   u_warp.w
 #define u_specularIntensity            u_packA.x
 #define u_saturation                   u_packA.y
 #define u_glowIntensity                u_packA.z
@@ -129,15 +131,15 @@ out vec4 frag_color;
 
 #define PIXEL_TO_NORM(px) ((px) / u_resolution.y)
 
-vec3 applyChromaticAberration(vec2 uv, float shift) {
+vec3 applyDispersion(vec2 uv, float shift, vec2 texSizePx) {
     // Compute offsets based on luma
     vec3 color = texture(u_texture_input, uv).rgb;
-    if(shift < 0.001) return color;
+    if(shift < DISPERSION_MIN_LOGICAL_PX) return color;
     // Luma calculation (Rec. 709)
     float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
 
     // Offset depends on brightness
-    vec2 offset = vec2(shift * luma);
+    vec2 offset = dispersionOffsetUv(shift, luma, texSizePx, max(u_shapeAaPx, 1.0));
 
     float r = texture(u_texture_input, uv + offset).r;
     float g = texture(u_texture_input, uv).g;
@@ -173,7 +175,7 @@ vec2 fragOrigin() {
 vec4 finalSample(
     vec2 refractedPx,
     float shapeMask,
-    float caShift,
+    float dispersionShift,
     bool xformed,
     out vec3 preTintColor
 ){
@@ -201,11 +203,11 @@ vec4 finalSample(
     sampleUV.y = 1.0 - sampleUV.y;
     #endif
     #endif
-    // Chromatic aberration is confined to the distortion band (caShift),
+    // Dispersion is confined to the distortion band (dispersionShift),
     // not applied across the whole lens body. The caller passes 0 outside
     // the band and a zoneT-ramped shift inside it, so the colour fringing
     // appears only where the glass actually bends light — at the edge.
-    refrColor = applyChromaticAberration(sampleUV, caShift);
+    refrColor = applyDispersion(sampleUV, dispersionShift, imageSize);
     // Apply saturation BEFORE tinting
     refrColor = applySaturation(refrColor,u_saturation);
     preTintColor = refrColor; // capture before tint for optical border
@@ -370,10 +372,10 @@ void main() {
     vec4 rimTint = u_lensColor;
 
 #ifdef LIQUID_GLASS_DESKTOP
-    // Outside the band: the straight magnified sample, no CA. One sample and
+    // Outside the band: the straight magnified sample, no dispersion. One sample and
     // one border call serve both sides, so each is compiled once.
     vec2 samplePx = magPx;
-    float caShift = 0.0;
+    float dispersionShift = 0.0;
     bool drawBase = true;
     if (zoneMask >= 0.5) {
         // ===============================
@@ -389,12 +391,13 @@ void main() {
 
         refrPx = computeRefractedPosition(
             magPx, shapeData.normal, refrDistPx,
-            u_refractionWidthPx, u_refractionIndex, zoneT
+            u_refractionWidthPx, u_refractionIndex,
+            REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
         );
         samplePx = refrPx;
-        // Confine chromatic aberration to the distortion band and ramp it with
+        // Confine dispersion to the distortion band and ramp it with
         // zoneT so the colour fringing is strongest at the shape edge.
-        caShift = u_chromaticAberration * zoneT;
+        dispersionShift = u_dispersion * zoneT;
     }
 
     // ===============================
@@ -403,7 +406,7 @@ void main() {
     vec3 preTintCol = vec3(0.0);
     vec4 base = vec4(0.0);
     if (drawBase) {
-        base = finalSample(samplePx, shapeMask, caShift, xformed, preTintCol);
+        base = finalSample(samplePx, shapeMask, dispersionShift, xformed, preTintCol);
     }
 
     vec4 borderPremul = getBorder(
@@ -413,6 +416,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
+        u_lightOpposite.xyz,
         u_shapeAaPx
     );
 
@@ -424,7 +428,7 @@ void main() {
     if (zoneMask < 0.5) {
         // Outside distortion zone
         vec3 preTintCol = vec3(0.0);
-        // No chromatic aberration outside the distortion band.
+        // No dispersion outside the distortion band.
         vec4 base = finalSample(magPx, shapeMask, 0.0, xformed, preTintCol);
 
         vec3 backdropCol = preTintCol;
@@ -435,6 +439,7 @@ void main() {
             u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
+            u_lightOpposite.xyz,
             u_shapeAaPx
         );
 
@@ -455,17 +460,18 @@ void main() {
 
     refrPx = computeRefractedPosition(
         magPx, shapeData.normal, refrDistPx,
-        u_refractionWidthPx, u_refractionIndex, zoneT
+        u_refractionWidthPx, u_refractionIndex,
+            REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );
     // ===============================
     // Final sample & border
     // ===============================
     vec3 preTintCol2 = vec3(0.0);
-    // Confine chromatic aberration to the distortion band and ramp it with
+    // Confine dispersion to the distortion band and ramp it with
     // zoneT so the colour fringing is strongest at the shape edge (zoneT→1)
     // and fades to none at the band's inner boundary (zoneT→0).
-    float caShift = u_chromaticAberration * zoneT;
-    vec4 base = finalSample(refrPx, shapeMask, caShift, xformed, preTintCol2);
+    float dispersionShift = u_dispersion * zoneT;
+    vec4 base = finalSample(refrPx, shapeMask, dispersionShift, xformed, preTintCol2);
 
     vec3 backdropCol2 = preTintCol2;
     vec4 borderPremul = getBorder(
@@ -475,6 +481,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
+        u_lightOpposite.xyz,
         u_shapeAaPx
     );
 
