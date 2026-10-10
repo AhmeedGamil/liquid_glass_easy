@@ -47,7 +47,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="eyebrow">LIQUID GLASS EASY</span>
         <span class="name">Documentation</span>
       </span>
-      <span class="ver">v4.3.4</span>
+      <span class="ver">v5.0.0</span>
     </a>
     <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html" aria-current="page">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
     <div class="nav-foot">
@@ -76,28 +76,16 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <a class="api-chip" href="api-view.html#liquidglassalignposition"><span class="k k-klass">class</span><code>LiquidGlassAlignPosition</code></a>
 </div>
 <h2 id="api-lens">The lens and its style<a class="anchor" href="#api-lens" aria-label="Link to this section">#</a></h2>
-<p>One widget and the descriptor that decides how it looks: shape, appearance, refraction, and the value objects underneath them.</p>
+<p>One widget and the flat descriptor that decides how it looks: its outline, the two lights of its border, its fill and its refraction.</p>
 <div class="api-index">
 <a class="api-chip" href="api-lens.html#liquidglasslens"><span class="k k-klass">class</span><code>LiquidGlassLens</code></a>
 <a class="api-chip" href="api-lens.html#liquidglasslite"><span class="k k-klass">class</span><code>LiquidGlassLite</code></a>
-<a class="api-chip" href="api-lens.html#liquidglasslitepickup"><span class="k k-enumeration">enum</span><code>LiquidGlassLitePickup</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassstyle"><span class="k k-klass">class</span><code>LiquidGlassStyle</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassshape"><span class="k k-klass">class</span><code>LiquidGlassShape</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassappearance"><span class="k k-klass">class</span><code>LiquidGlassAppearance</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefraction"><span class="k k-klass">class</span><code>LiquidGlassRefraction</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassblur"><span class="k k-klass">class</span><code>LiquidGlassBlur</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasslight"><span class="k k-klass">class</span><code>LiquidGlassLight</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassshadow"><span class="k k-klass">class</span><code>LiquidGlassShadow</code></a>
 <a class="api-chip" href="api-lens.html#liquidglasscornerstyle"><span class="k k-enumeration">enum</span><code>LiquidGlassCornerStyle</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassclipquality"><span class="k k-enumeration">enum</span><code>LiquidGlassClipQuality</code></a>
-<a class="api-chip" href="api-lens.html#liquidglasslightmode"><span class="k k-enumeration">enum</span><code>LiquidGlassLightMode</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassbordertype"><span class="k k-klass">class</span><code>LiquidGlassBorderType</code></a>
-<a class="api-chip" href="api-lens.html#classicborder"><span class="k k-klass">class</span><code>ClassicBorder</code></a>
-<a class="api-chip" href="api-lens.html#opticalborder"><span class="k k-klass">class</span><code>OpticalBorder</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassbordermode"><span class="k k-enumeration">enum</span><code>LiquidGlassBorderMode</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefractiontype"><span class="k k-klass">class</span><code>LiquidGlassRefractionType</code></a>
-<a class="api-chip" href="api-lens.html#standardrefraction"><span class="k k-klass">class</span><code>StandardRefraction</code></a>
-<a class="api-chip" href="api-lens.html#opticalrefraction"><span class="k k-klass">class</span><code>OpticalRefraction</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefractionmode"><span class="k k-enumeration">enum</span><code>LiquidGlassRefractionMode</code></a>
 </div>
 <h2 id="api-grouping">Combining lenses<a class="anchor" href="#api-grouping" aria-label="Link to this section">#</a></h2>
 <p>Three ways several lenses can share one read of the backdrop, or fuse into one surface.</p>

@@ -47,7 +47,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="eyebrow">LIQUID GLASS EASY</span>
         <span class="name">Documentation</span>
       </span>
-      <span class="ver">v4.3.4</span>
+      <span class="ver">v5.0.0</span>
     </a>
     <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html" aria-current="page">Getting started</a><ul class="toc"><li><a href="#install">Install</a></li><li><a href="#a-lens-anywhere">A lens, anywhere</a></li><li><a href="#which-engine-and-how-fast">Which engine, and how fast</a></li><li><a href="#more-than-one-lens">More than one lens</a></li><li><a href="#the-same-lens-on-skia-and-the-web">The same lens on Skia and the web</a></li><li><a href="#without-a-view-on-skia">Without a view on Skia</a></li><li><a href="#lite-glass-the-shortcut">Lite glass: the shortcut</a></li><li><a href="#one-line-in-main-and-the-shaders-are-ready">One line in main(), and the shaders are ready</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
     <div class="nav-foot">
@@ -61,7 +61,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
     <div class="wrap wide">
 <div class="doc-split">
 <aside class="doc-demo">
-<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=lens-plain&amp;embed=1&amp;v=1d51ace449" loading="lazy" title="Liquid glass"></iframe></div><figcaption>See a lens running — <a href="../demos/index.html?d=lens-plain&amp;v=1d51ace449">open full screen ↗</a></figcaption></figure>
+<figure class="demo"><div class="demo-frame"><iframe src="../demos/index.html?d=lens-plain&amp;embed=1&amp;v=-4b98f3de7" loading="lazy" title="Liquid glass"></iframe></div><figcaption>See a lens running — <a href="../demos/index.html?d=lens-plain&amp;v=-4b98f3de7">open full screen ↗</a></figcaption></figure>
 </aside>
 <div class="doc-main">
 <h1>Getting started</h1>
@@ -72,7 +72,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <div class="lite-inline"><button class="icon-btn lite-btn" type="button" data-lite-toggle aria-pressed="false" title="Every demo on the site draws the shader-free lite glass — no page capture, frost + tint + rim. Off, the demos refract." aria-label="Lite glass"><svg class="ico ico-lite" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 4c-7 0-12 3-14 9 2-1 5-1 7 0-3 1-5 3-6 7 5 0 9-2 11-5 2-3 2-7 2-11z"/><path d="M6 20c2-5 5-8 9-11"/></svg><span class="lite-label">Lite glass</span></button><p>Switches every demo on this site between full glass and lite glass. It is the same button as the one in the header.</p></div>
 <h2 id="install">Install<a class="anchor" href="#install" aria-label="Link to this section">#</a></h2>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">pubspec.yaml</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-a">dependencies</span>:
-  <span class="t-a">liquid_glass_easy</span>:<span class="t-s"> ^4.3.4</span></code></pre></div>
+  <span class="t-a">liquid_glass_easy</span>:<span class="t-s"> ^5.0.0</span></code></pre></div>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">Terminal</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-f">flutter</span> pub get</code></pre></div>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">import</span> <span class="t-s">'package:liquid_glass_easy/liquid_glass_easy.dart'</span>;</code></pre></div>
 <h2 id="a-lens-anywhere">A lens, anywhere<a class="anchor" href="#a-lens-anywhere" aria-label="Link to this section">#</a></h2>
@@ -88,10 +88,8 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="t-a">child</span>: <span class="t-y">LiquidGlassLens</span>(
           <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(
             <span class="t-a">shape</span>: <span class="t-y">LiquidGlassShape</span>.<span class="t-f">squircle</span>(<span class="t-a">cornerRadius</span>: <span class="t-n">44</span>),
-            <span class="t-a">refraction</span>: <span class="t-y">LiquidGlassRefraction</span>(
-              <span class="t-a">distortion</span>: <span class="t-n">0.13</span>,
-              <span class="t-a">distortionWidth</span>: <span class="t-n">34</span>,
-            ),
+            <span class="t-a">refractionIndex</span>: <span class="t-n">1.02</span>,
+            <span class="t-a">refractionWidth</span>: <span class="t-n">34</span>,
           ),
           <span class="t-a">child</span>: <span class="t-k">const</span> <span class="t-y">Center</span>(<span class="t-a">child</span>: <span class="t-y">Text</span>(<span class="t-s">'Liquid Glass'</span>)),
         ),
@@ -107,7 +105,8 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <p>Several lenses are just several <code>LiquidGlassLens</code> widgets. When a screen has many of them — a list of glass cards, a row of chips — wrap that part of the tree in a <code>LiquidGlassBatch</code>. On Impeller every lens would otherwise read the backdrop for itself; inside a batch they share <strong>one read</strong>, and each still keeps its own shape, style and child.</p>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-k">const</span> cardStyle = <span class="t-y">LiquidGlassStyle</span>(
   <span class="t-a">shape</span>: <span class="t-y">LiquidGlassShape</span>.<span class="t-f">squircle</span>(<span class="t-a">cornerRadius</span>: <span class="t-n">28</span>),
-  <span class="t-a">refraction</span>: <span class="t-y">LiquidGlassRefraction</span>(<span class="t-a">distortion</span>: <span class="t-n">0.1</span>, <span class="t-a">distortionWidth</span>: <span class="t-n">26</span>),
+  <span class="t-a">refractionIndex</span>: <span class="t-n">1.02</span>,
+  <span class="t-a">refractionWidth</span>: <span class="t-n">26</span>,
 );
 
 <span class="t-y">LiquidGlassBatch</span>(
@@ -152,14 +151,14 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <p><strong>Lite glass</strong> is the same material without the shader: frost, tint and a lit rim, but no refraction. Nothing to compile, no capture on Skia, no slot in the lens budget on Impeller. You reach it three ways, and none of them needs a switch to be turned on first.</p>
 <p><strong>As a widget.</strong> <code>LiquidGlassLite</code> is a surface of its own — a card, a row, a sheet — that was never a lens. Give it a shape, a blur and a colour and it draws lite glass, on any engine, anywhere in the tree.</p>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassLite</span>(
-  <span class="t-a">shape</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassShape</span>(<span class="t-a">cornerRadius</span>: <span class="t-n">22</span>, <span class="t-a">borderWidth</span>: <span class="t-n">1.5</span>),
-  <span class="t-a">blur</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassBlur</span>(<span class="t-a">sigmaX</span>: <span class="t-n">3</span>, <span class="t-a">sigmaY</span>: <span class="t-n">3</span>),
+  <span class="t-a">shape</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassShape</span>(<span class="t-a">cornerRadius</span>: <span class="t-n">22</span>),
+  <span class="t-a">blur</span>: <span class="t-n">3</span>,
   <span class="t-a">color</span>: <span class="t-k">const</span> <span class="t-y">Color</span>(<span class="t-n">0x33FFFFFF</span>),
   <span class="t-a">child</span>: child,
 )</code></pre></div>
-<p><strong>On one lens.</strong> Give a lens's style a <code>liteGlass</code> value and that lens draws lite while every other lens on the screen stays full glass.</p>
+<p><strong>On one lens.</strong> Set <code>liteGlass: true</code> on a lens's style and that lens draws lite while every other lens on the screen stays full glass.</p>
 <div class="code" dir="ltr"><div class="code-head"><span class="caption">Dart</span><button class="copy" type="button" data-copy="Copy" data-copied="Copied">Copy</button></div><pre><code><span class="t-y">LiquidGlassLens</span>(
-  <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(<span class="t-a">liteGlass</span>: <span class="t-y">LiquidGlassLitePickup</span>.backdrop),
+  <span class="t-a">style</span>: <span class="t-k">const</span> <span class="t-y">LiquidGlassStyle</span>(<span class="t-a">liteGlass</span>: <span class="t-k">true</span>),
   <span class="t-a">child</span>: child,
 )</code></pre></div>
 <p><strong>For the whole app.</strong> Two static switches on <code>LiquidGlassEngine</code>, one per engine. Turn one on and <strong>every lens and every component</strong> — the slider, the switch, the buttons, the bars, the sheet — draws lite glass automatically, with no change to any of them. Set it in <code>main()</code> before <code>runApp</code>, so the first lens already builds lite. Both are <code>false</code> by default: leave them out, or set them back, and the app is full glass again.</p>

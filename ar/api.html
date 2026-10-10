@@ -47,7 +47,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="eyebrow">LIQUID GLASS EASY</span>
         <span class="name">التوثيق</span>
       </span>
-      <span class="ver">v4.3.4</span>
+      <span class="ver">v5.0.0</span>
     </a>
     <nav aria-label="شريط التوثيق الجانبي"><div class="nav-group"><div class="nav-title">الأساسيات</div><ul class="nav"><li><a href="start.html">البداية</a></li></ul></div><div class="nav-group"><div class="nav-title">المحركات والعارض</div><ul class="nav"><li><a href="engines.html">المحركات والعارض</a></li></ul></div><div class="nav-group"><div class="nav-title">المادة</div><ul class="nav"><li><a href="lens.html">العدسة وأسلوبها</a></li><li><a href="lite.html">الزجاج الخفيف</a></li><li><a href="batch.html">الدفعة</a></li><li><a href="blend.html">الانصهار</a></li><li><a href="group.html">المجموعة</a></li><li><a href="touch.html">اللمس</a></li><li><a href="adaptivity.html">التكيّف</a></li><li><a href="morph.html">التحوّل</a></li></ul></div><div class="nav-group"><div class="nav-title">المكوّنات</div><ul class="nav"><li><a href="components.html">المكوّنات</a><ul class="sub"><li><a href="slider.html">المزلاج</a></li><li><a href="toggle.html">المفتاح</a></li><li><a href="button.html">الزر</a></li><li><a href="fab.html">زر الإجراء العائم</a></li><li><a href="appbar.html">الشريط العلوي</a></li><li><a href="tabbar.html">شريط التبويبات</a></li><li><a href="scaffold.html">الهيكل</a></li><li><a href="scrolledge.html">حافة التمرير</a></li><li><a href="motion.html">الحركة</a></li><li><a href="draggable.html">القابل للسحب</a></li><li><a href="shadow.html">الظل</a></li><li><a href="sheet.html">الأوراق</a></li><li><a href="dialog.html">الحوارات</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">الإتقان</div><ul class="nav"><li><a href="efficiency.html">الاستخدام الكفء</a></li></ul></div><div class="nav-group"><div class="nav-title">مرجع الواجهة</div><ul class="nav"><li><a href="api.html" aria-current="page">مرجع الواجهة البرمجية</a></li><li><a href="api-view.html">العارض</a></li><li><a href="api-lens.html">العدسة وأسلوبها</a></li><li><a href="api-grouping.html">دمج العدسات</a></li><li><a href="api-touch.html">اللمس والحركة</a></li><li><a href="api-adaptivity.html">التكيّف والوضوح</a></li><li><a href="api-components.html">المكوّنات</a></li><li><a href="api-chrome.html">هيكل التطبيق</a></li><li><a href="api-shape-helpers.html">دوال الأشكال</a></li></ul></div></nav>
     <div class="nav-foot">
@@ -76,28 +76,16 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <a class="api-chip" href="api-view.html#liquidglassalignposition"><span class="k k-klass">صنف</span><code>LiquidGlassAlignPosition</code></a>
 </div>
 <h2 id="api-lens">العدسة وأسلوبها<a class="anchor" href="#api-lens" aria-label="Link to this section">#</a></h2>
-<p>عنصر واحد والواصف الذي يحدد شكله: الهيئة والمظهر والانكسار، والكائنات القيمية تحتها.</p>
+<p>عنصر واحد والواصف المسطّح الذي يحدد شكله: محيطه، وضوءا حافته، وتعبئته، وانكساره.</p>
 <div class="api-index">
 <a class="api-chip" href="api-lens.html#liquidglasslens"><span class="k k-klass">صنف</span><code>LiquidGlassLens</code></a>
 <a class="api-chip" href="api-lens.html#liquidglasslite"><span class="k k-klass">صنف</span><code>LiquidGlassLite</code></a>
-<a class="api-chip" href="api-lens.html#liquidglasslitepickup"><span class="k k-enumeration">تعداد</span><code>LiquidGlassLitePickup</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassstyle"><span class="k k-klass">صنف</span><code>LiquidGlassStyle</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassshape"><span class="k k-klass">صنف</span><code>LiquidGlassShape</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassappearance"><span class="k k-klass">صنف</span><code>LiquidGlassAppearance</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefraction"><span class="k k-klass">صنف</span><code>LiquidGlassRefraction</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassblur"><span class="k k-klass">صنف</span><code>LiquidGlassBlur</code></a>
+<a class="api-chip" href="api-lens.html#liquidglasslight"><span class="k k-klass">صنف</span><code>LiquidGlassLight</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassshadow"><span class="k k-klass">صنف</span><code>LiquidGlassShadow</code></a>
 <a class="api-chip" href="api-lens.html#liquidglasscornerstyle"><span class="k k-enumeration">تعداد</span><code>LiquidGlassCornerStyle</code></a>
 <a class="api-chip" href="api-lens.html#liquidglassclipquality"><span class="k k-enumeration">تعداد</span><code>LiquidGlassClipQuality</code></a>
-<a class="api-chip" href="api-lens.html#liquidglasslightmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassLightMode</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassbordertype"><span class="k k-klass">صنف</span><code>LiquidGlassBorderType</code></a>
-<a class="api-chip" href="api-lens.html#classicborder"><span class="k k-klass">صنف</span><code>ClassicBorder</code></a>
-<a class="api-chip" href="api-lens.html#opticalborder"><span class="k k-klass">صنف</span><code>OpticalBorder</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassbordermode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassBorderMode</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefractiontype"><span class="k k-klass">صنف</span><code>LiquidGlassRefractionType</code></a>
-<a class="api-chip" href="api-lens.html#standardrefraction"><span class="k k-klass">صنف</span><code>StandardRefraction</code></a>
-<a class="api-chip" href="api-lens.html#opticalrefraction"><span class="k k-klass">صنف</span><code>OpticalRefraction</code></a>
-<a class="api-chip" href="api-lens.html#liquidglassrefractionmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassRefractionMode</code></a>
 </div>
 <h2 id="api-grouping">دمج العدسات<a class="anchor" href="#api-grouping" aria-label="Link to this section">#</a></h2>
 <p>ثلاث طرق تتشارك بها عدة عدسات قراءة واحدة للخلفية، أو تنصهر في سطح واحد.</p>
