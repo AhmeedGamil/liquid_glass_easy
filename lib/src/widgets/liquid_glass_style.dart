@@ -115,8 +115,8 @@ class LiquidGlassStyle {
   /// active, its glass color overrides [color].
   final LiquidGlassAdaptivity? adaptivity;
 
-  /// Draw this surface as `LiquidGlassLite` — frost, tint and a rim cut
-  /// from the background, no shader and no refraction — whatever engine the
+  /// Draw this surface as `LiquidGlassLite` — frost, tint and a painted
+  /// rim, no shader and no refraction — whatever engine the
   /// app is on.
   ///
   /// `false` (the default) leaves the choice to the engine switches on

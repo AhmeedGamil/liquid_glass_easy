@@ -19,16 +19,15 @@ import '../utils/liquid_glass_shape.dart';
 /// budget.
 ///
 /// This is the light version of that. It gives up refraction, which is the
-/// half that needs a shader, and keeps the half that does not: the frost, the
-/// rim, and the colour the rim takes off the background.
+/// half that needs a shader, and keeps the half that does not: the frost,
+/// the tint, and the rim.
 ///
 /// The rim is a lens' specular, evaluated on the Dart side: the outline is
 /// sampled into a ring of points, each point's outward normal is run through
 /// the shader's own formulas — the same ramp across the edge, the same pair
-/// of arcs on the light's axis, the same lift of the colour under it — and
-/// the result is one `drawVertices` call. [blur] is the glass itself; the
-/// rim is its edge. No shader asset, no `FragmentProgram`, nothing to warm
-/// up.
+/// of arcs on the light's axis — and the result is a few `drawVertices` calls
+/// per light. [blur] is the glass itself; the rim is its edge. No shader
+/// asset, no `FragmentProgram`, nothing to warm up.
 ///
 /// ```dart
 /// LiquidGlassLite(
@@ -42,31 +41,24 @@ import '../utils/liquid_glass_shape.dart';
 ///
 /// It takes the ordinary [LiquidGlassShape] and the lens' two lights: the
 /// [specular], and the [glow] under it, each drawing the same band here as
-/// it does on a lens. Both are cut from the one backdrop read, so a glow
-/// costs no read of its own. The silhouette comes from the same
+/// it does on a lens. Neither light reads the backdrop, so a glow costs
+/// nothing but its own mesh. The silhouette comes from the same
 /// outline a lens clips to, so all three corner styles — circular, squircle,
 /// and the continuous capsule corner — are reproduced exactly.
 ///
-/// ## Taking colour from the background
+/// ## A painted rim
 ///
-/// The shader's rim samples the **refracted background under each pixel** and
-/// tints the highlight with it, so over a photograph the real rim picks the
-/// colours up pixel by pixel. Here the rim is cut out of a brightened,
-/// saturated copy of the background, so its colour varies **along** the rim
-/// the way the shader's does: red where it crosses red, blue where it crosses
-/// blue, within the one rim.
+/// The rim is painted **last**, over the frost, the [color] and the [child],
+/// and reads nothing back. Each light is blended into the finished surface
+/// with `overlay`, so it brightens whatever it lies over and keeps that
+/// colour: red where the surface is red, blue where it is blue. A plain white
+/// floor is screened over the blend so the rim still shows over black, where
+/// `overlay` has nothing to lift. A light's own `color` is multiplied in after
+/// that, so a grey light is a grey rim.
 ///
-/// The lift is the shader's: the same lightness added to the background, by
-/// the rim's strength at each point. One thing parts company with it: the
-/// colour transform is a matrix, so it scales the background's saturation
-/// where the shader adds to it, and a neutral background is not warmed. The
-/// specular's `color` replaces the picked-up colour by its alpha, as on a
-/// lens.
-///
-/// It reads the **background** — the frosted, magnified backdrop and nothing
-/// else, as the shader samples its rim colour before the tint goes on. The
-/// rim sits over [color] and under [child], so neither one bleeds into it;
-/// the child paints over the rim, as it does over a lens.
+/// Because it reads nothing, the rim holds up wherever a backdrop read does
+/// not: through page transitions, under the overscroll stretch, inside any
+/// layer that moves.
 ///
 /// There is no refraction — no edge bend. [magnification] is the flat-slab
 /// half only; the rim itself does not shift with the content behind it the
@@ -85,9 +77,8 @@ import '../utils/liquid_glass_shape.dart';
 /// ring — and for the many-of-them cases where real lenses would be too
 /// expensive: long lists, low-end devices, the web.
 ///
-/// It frosts and picks its rim colour off the background, which costs two
-/// backdrop reads — what a blurred lens costs. `blur: 0` drops the frost's
-/// read and leaves the rim's.
+/// The frost is its only backdrop read. `blur: 0` at a [magnification] of `1`
+/// drops that read too, and the surface reads nothing at all.
 class LiquidGlassLite extends StatelessWidget {
   /// Creates a shader-free sheet of glass behind [child].
   const LiquidGlassLite({
@@ -127,9 +118,8 @@ class LiquidGlassLite extends StatelessWidget {
   /// does. A Gaussian sigma; `3` by default, and `0` is a bare rim over
   /// whatever is already there.
   ///
-  /// It costs a backdrop read, and the rim's own read comes on top of it: two
-  /// reads for a surface that carries both. That is what a blurred lens costs
-  /// too, so a screen with many of them wants `0` here.
+  /// It costs one backdrop read, the surface's only one, so a screen with
+  /// many of them wants `0` here.
   final double blur;
 
   /// How much the surface magnifies what is behind it: the backdrop scaled
@@ -142,8 +132,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// The glass's own tint, `LiquidGlassStyle.color`'s counterpart: a
   /// flat fill of the shape between the frost and [child].
   ///
-  /// The rim sits over it and never takes colour from it, as on a lens: it
-  /// is laid beneath the rim inside the read's own layer. `null`, or fully
+  /// The rim is painted over it and blends into it. `null`, or fully
   /// transparent, paints nothing.
   final Color? color;
 
@@ -156,8 +145,8 @@ class LiquidGlassLite extends StatelessWidget {
   /// ellipse instead of keeping a fixed corner radius.
   final Offset shapeScale;
 
-  /// The content the rim is drawn over. When null the widget expands to its
-  /// constraints and draws the rim alone.
+  /// The content the rim is drawn over: the rim is painted on top of it.
+  /// When null the widget expands to its constraints and draws the rim alone.
   final Widget? child;
 
   @override

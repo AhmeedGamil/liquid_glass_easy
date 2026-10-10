@@ -34,7 +34,7 @@ export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart'
 // `liteGlassOnImpeller` put every lens on the shader-free lite glass.
 export 'package:liquid_glass_easy/src/widgets/liquid_glass_engine.dart'
     show LiquidGlassEngine;
-// Lite: the shader-free glass — frost, tint and a rim lit from the backdrop
+// Lite: the shader-free glass — frost, tint and a painted rim
 // — for surfaces that are not lenses, and what every lens wears under the
 // engine switches above and `LiquidGlassStyle.liteGlass`.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_lite.dart'

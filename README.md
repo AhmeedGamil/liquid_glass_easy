@@ -113,9 +113,9 @@ LiquidGlassLite(
 )
 ```
 
-The rim is cut from the background, so its colour varies along the rim the
-way the shader's does, for one extra read on top of the frost's. The glow is
-cut from that same read, so it costs nothing more.
+The rim is painted over the finished surface and blended into it, so it
+takes the colour of whatever it lies over and reads nothing back: the frost's
+read is the only one a lite surface costs, and the glow costs no read either.
 
 **What still works, and what does not.** Lite glass changes how a lens is
 drawn, not what the tree around it does:

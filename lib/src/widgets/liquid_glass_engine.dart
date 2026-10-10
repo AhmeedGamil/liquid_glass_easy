@@ -8,8 +8,8 @@ class LiquidGlassEngine {
   ///
   /// Off (the default), a lens inside a `LiquidGlassView` on Skia refracts
   /// the view's captured background. On, the view takes no glass capture at
-  /// all and every lens draws `LiquidGlassLite` — frost, tint and a rim cut
-  /// from the backdrop, no refraction — the same thing a lens outside any
+  /// all and every lens draws `LiquidGlassLite` — frost, tint and a painted
+  /// rim, no refraction — the same thing a lens outside any
   /// view draws. The adaptive sampler is not a glass capture and keeps
   /// running. Set it once, before the first lens builds:
   ///

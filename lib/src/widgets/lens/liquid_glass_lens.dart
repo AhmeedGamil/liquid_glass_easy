@@ -796,7 +796,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
 }
 
 /// The shader-free glass: [LiquidGlassLite] reading the backdrop for its
-/// frost and its rim colour, with the lens's tint laid under the content.
+/// frost, with the lens's tint under the content and the rim painted over.
 /// Clipped to the outline like the shader path clips its child. Worn under
 /// the `LiquidGlassEngine` switches and `LiquidGlassStyle.liteGlass`, with
 /// no view on Skia, and while the shaders load.
@@ -823,9 +823,9 @@ class _LiteGlassFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
 
-    // The tint is the lite's own, a fill of the shape. The rim is cut from
-    // the background, so its colour runs along the rim as the shader's does.
-    // That read comes on top of the frost's, so a lite lens costs two.
+    // The tint is the lite's own, a fill of the shape. The rim is painted
+    // over the finished surface and reads nothing, so the frost's read is
+    // the only one a lite lens costs.
     return liquidGlassClip(
       shape: shape,
       shapeScale: shapeScale,
