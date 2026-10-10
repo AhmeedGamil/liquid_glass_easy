@@ -1,7 +1,5 @@
 import 'dart:ui' as ui;
 
-import 'components/liquid_glass_lite.dart';
-
 /// Package-wide renderer switches.
 class LiquidGlassEngine {
   LiquidGlassEngine._();
@@ -36,11 +34,4 @@ class LiquidGlassEngine {
   static bool get liteGlass => ui.ImageFilter.isShaderFilterSupported
       ? liteGlassOnImpeller
       : liteGlassOnSkia;
-
-  /// Where a lens drawn lite by the switches above — or while its shaders
-  /// load — takes its rim colour from. `backdrop` (the default) reads the
-  /// background along the rim as the shader does, for one read; `blend` and
-  /// `surface` cost no read; `none` is white light. A style that sets its
-  /// own `LiquidGlassStyle.liteGlass` names its own and ignores this.
-  static LiquidGlassLitePickup litePickup = LiquidGlassLitePickup.backdrop;
 }

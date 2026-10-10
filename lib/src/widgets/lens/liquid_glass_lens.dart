@@ -569,11 +569,11 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         (widget.useImpellerBackdrop ?? scope?.useImpellerBackdrop ?? true) &&
             ui.ImageFilter.isShaderFilterSupported;
 
-    // Lite glass — by the engine switch or this style's own pickup: no
+    // Lite glass — by the engine switch or this style's own flag: no
     // shader, no capture, the lens draws `LiquidGlassLite`. That is by
     // choice, so no warning.
     final bool lite =
-        LiquidGlassEngine.liteGlass || widget.style.liteGlass != null;
+        LiquidGlassEngine.liteGlass || widget.style.liteGlass;
     LiquidGlassLensRenderMode? mode;
     if (lite) {
       // Falls through to the lite fallback below.
@@ -601,7 +601,6 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
           shapeScale: shapeScale,
           appearance: appearance,
           refraction: refraction,
-          pickup: widget.style.liteGlass ?? LiquidGlassEngine.litePickup,
           visible: widget.visibility,
           child: content == null
               ? null
@@ -807,10 +806,6 @@ class _LiteGlassFallback extends StatelessWidget {
   final LiquidGlassRefraction refraction;
   final bool visible;
 
-  /// Where the rim takes its colour from: `LiquidGlassStyle.liteGlass`, or
-  /// `LiquidGlassEngine.litePickup` when the style leaves it to the engine.
-  final LiquidGlassLitePickup pickup;
-
   /// Deformed size / rest size; `(1,1)` when undeformed.
   final Offset shapeScale;
   final Widget? child;
@@ -820,7 +815,6 @@ class _LiteGlassFallback extends StatelessWidget {
     required this.appearance,
     required this.refraction,
     required this.visible,
-    this.pickup = LiquidGlassLitePickup.backdrop,
     this.shapeScale = const Offset(1, 1),
     this.child,
   });
@@ -829,11 +823,9 @@ class _LiteGlassFallback extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!visible) return const SizedBox.shrink();
 
-    // The tint is the lite's own, a fill of the shape. The rim follows the
-    // style's `liteGlass` pickup, or the engine's — `backdrop` by default:
-    // cut from the background, so its colour runs along the rim as the
-    // shader's does. That read comes on top of the frost's, so a lite lens
-    // costs two.
+    // The tint is the lite's own, a fill of the shape. The rim is cut from
+    // the background, so its colour runs along the rim as the shader's does.
+    // That read comes on top of the frost's, so a lite lens costs two.
     return liquidGlassClip(
       shape: shape,
       shapeScale: shapeScale,
@@ -842,7 +834,6 @@ class _LiteGlassFallback extends StatelessWidget {
         shapeScale: shapeScale,
         blur: appearance.blur,
         magnification: refraction.magnification,
-        pickup: pickup,
         color: appearance.color,
         child: child,
       ),

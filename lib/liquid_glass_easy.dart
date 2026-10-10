@@ -38,7 +38,7 @@ export 'package:liquid_glass_easy/src/widgets/liquid_glass_engine.dart'
 // — for surfaces that are not lenses, and what every lens wears under the
 // engine switches above and `LiquidGlassStyle.liteGlass`.
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_lite.dart'
-    show LiquidGlassLite, LiquidGlassLitePickup;
+    show LiquidGlassLite;
 
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_controller.dart';
 export 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
