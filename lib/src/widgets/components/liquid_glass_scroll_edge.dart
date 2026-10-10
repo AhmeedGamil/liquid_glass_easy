@@ -361,13 +361,24 @@ class _LiquidGlassScrollEdgeState extends State<LiquidGlassScrollEdge>
   Widget _blurPass(bool top) {
     return ClipRect(
       child: LiquidGlassBatchBackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: widget.blur, sigmaY: widget.blur),
+        filter: ui.ImageFilter.blur(sigmaX: _sigma(top), sigmaY: _sigma(top)),
         child: widget.style == LiquidGlassScrollEdgeStyle.soft
             ? _featherMask(top)
             : const SizedBox.expand(),
       ),
     );
   }
+
+  /// How much the bottom band's sigma is nudged off the top band's.
+  ///
+  /// On Impeller, identical filters under one shared batch key are drawn once,
+  /// so a top and a bottom band with the same blur would lose a pass and their
+  /// `dstIn` ramps would erase the page. The nudge keeps them apart; at this
+  /// size it cannot be seen.
+  static const double _kBottomSigmaNudge = 0.01;
+
+  /// The blur sigma of this band's pass.
+  double _sigma(bool top) => top ? widget.blur : widget.blur + _kBottomSigmaNudge;
 
   /// Cache for [_featherMask]. The mask never varies for a given band —
   /// same edge, same curve, same black — so without this an adaptive
