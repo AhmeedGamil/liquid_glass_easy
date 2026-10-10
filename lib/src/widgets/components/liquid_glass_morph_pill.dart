@@ -104,11 +104,6 @@ LiquidGlass buildLiquidGlassMorphPill({
   LiquidGlassCornerStyle defaultCornerStyle =
       LiquidGlassCornerStyle.roundedRectangle,
 
-  /// Border width of the height-tracking default capsule when no explicit
-  /// [style] shape is supplied. Lets a caller thin (or thicken) the rim
-  /// without taking over the whole tuned default shape.
-  double defaultBorderWidth = 1.0,
-
   /// Scales the refraction band's **width** as the pill grows into its
   /// final size. `1.0` (the default) leaves it exactly as authored.
   ///
@@ -131,7 +126,6 @@ LiquidGlass buildLiquidGlassMorphPill({
     height: h,
     style: style,
     defaultCornerStyle: defaultCornerStyle,
-    defaultBorderWidth: defaultBorderWidth,
     refractionWidthScale: refractionWidthScale,
   );
   return LiquidGlass(
@@ -159,7 +153,6 @@ LiquidGlassStyle resolveLiquidGlassMorphPillStyle({
   LiquidGlassStyle? style,
   LiquidGlassCornerStyle defaultCornerStyle =
       LiquidGlassCornerStyle.roundedRectangle,
-  double defaultBorderWidth = 1.0,
   double refractionWidthScale = 1.0,
 }) {
   // The pill morphs as it grows, so without an explicit shape it stays a
@@ -168,12 +161,7 @@ LiquidGlassStyle resolveLiquidGlassMorphPillStyle({
       LiquidGlassLitShape(
         cornerStyle: defaultCornerStyle,
         cornerRadius: height / 2,
-        specular: LiquidGlassLight.specular(
-            thickness: defaultBorderWidth,
-            sharpness: 0.5,
-            angle: 80,
-            intensity: 1.3),
-        glow: LiquidGlassLight.glow(thickness: defaultBorderWidth, angle: 170),
+        specular: LiquidGlassLight.specular(),
       );
   final LiquidGlassRefraction authoredRefraction = style?.refraction ??
       const LiquidGlassRefraction(

@@ -190,7 +190,7 @@ class LiquidGlassSwitch extends StatefulWidget {
   /// washing over it, so the solid body, not a milky fill, is what reads
   /// as the thumb.
   ///
-  /// The blur is deliberately near-zero: at thumb size the refraction
+  /// The blur is deliberately off: at thumb size the refraction
   /// reads sharper over a photo without one.
   ///
   /// The contact shadow is tucked in (`inset: 3`), so the glass overhangs
@@ -201,14 +201,13 @@ class LiquidGlassSwitch extends StatefulWidget {
   /// beneath the thumb, so the glass sits over its own shadow.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(),
-    specular: LiquidGlassLight.specular(angle: 39),
-    glow: LiquidGlassLight.glow(angle: 129),
+    specular: LiquidGlassLight.specular(),
     color: Color(0x00FFFFFF),
-    blur: 0.5,
+    blur: 0,
     shadow: LiquidGlassShadow(inset: 3),
-    refractionIndex: 1.021,
-    refractionWidth: 13,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.03,
+    refractionWidth: 8,
+    dispersion: 1.0,
   );
 
   @override
@@ -222,11 +221,10 @@ LiquidGlassStyle _withShadow(LiquidGlassStyle base, LiquidGlassShadow? shadow) {
     shape: base.shape,
     specular: base.specular,
     glow: base.glow,
-    secondSpecular: base.secondSpecular,
     refractionIndex: base.refractionIndex,
     refractionWidth: base.refractionWidth,
     magnification: base.magnification,
-    chromaticAberration: base.chromaticAberration,
+    dispersion: base.dispersion,
     saturation: base.saturation,
     blur: base.blur,
     color: base.color,
@@ -739,7 +737,6 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                           (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
                       defaultCornerStyle:
                           LiquidGlassCornerStyle.roundedRectangle,
-                      defaultBorderWidth: 0.6,
                     );
                     // Re-stated at every morph step rather than carried
                     // through: the shadow arrives WITH the glass, so at rest

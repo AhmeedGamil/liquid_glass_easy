@@ -420,17 +420,15 @@ class _LiquidGlassMotionPillState extends State<LiquidGlassMotionPill>
       shape: shape,
       // A thin bright rim unless the caller's style names its own lights.
       specular: base.specular ??
-          const LiquidGlassLight.specular(
-              thickness: 0.6, sharpness: 0.5, angle: 80, intensity: 1.3),
-      glow:
-          base.glow ?? const LiquidGlassLight.glow(thickness: 0.6, angle: 170),
+          const LiquidGlassLight.specular(),
+      glow: base.glow,
       saturation: base.saturation,
       blur: base.blur,
       color: base.color,
       refractionIndex: base.refractionIndex,
       refractionWidth: base.refractionWidth * bandScale * comp,
       magnification: base.magnification,
-      chromaticAberration: base.chromaticAberration,
+      dispersion: base.dispersion,
       liteGlass: base.liteGlass,
     );
   }

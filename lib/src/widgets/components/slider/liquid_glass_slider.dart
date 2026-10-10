@@ -146,7 +146,7 @@ class LiquidGlassSlider extends StatefulWidget {
   /// soft rim, no tint — so the glass shows what is behind it rather
   /// than washing over it.
   ///
-  /// The blur is deliberately near-zero: at thumb size a real blur turns
+  /// The blur is deliberately off: at thumb size a real blur turns
   /// the magnified content to mush, and the refraction reads sharper
   /// over a photo without it.
   ///
@@ -162,14 +162,13 @@ class LiquidGlassSlider extends StatefulWidget {
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 100,
     ),
-    specular: LiquidGlassLight.specular(thickness: 0.4, angle: 39),
-    glow: LiquidGlassLight.glow(thickness: 0.4, angle: 129),
+    specular: LiquidGlassLight.specular(),
     color: Colors.transparent,
-    blur: 0.5,
+    blur: 0,
     shadow: LiquidGlassShadow(inset: 3),
-    refractionIndex: 1.025,
-    refractionWidth: 18,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.03,
+    refractionWidth: 8,
+    dispersion: 0,
   );
 
   /// Capture resolution for the inner view.

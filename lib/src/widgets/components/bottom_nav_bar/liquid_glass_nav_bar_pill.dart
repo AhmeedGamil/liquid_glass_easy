@@ -117,17 +117,14 @@ LiquidGlass buildLiquidGlassBottomNavPill({
     shape: shape ??
         LiquidGlassLitShape(
           cornerRadius: pillH / 2,
-          specular: const LiquidGlassLight.specular(
-              thickness: 1.0, sharpness: 0.5, angle: 80, intensity: 1.3),
-          glow: const LiquidGlassLight.glow(
-              thickness: 1.0, angle: 170, intensity: 1.0),
+          specular: const LiquidGlassLight.specular(),
         ),
     refraction: refraction ??
         LiquidGlassRefraction(
           magnification: magnification,
           refractionIndex: refractionIndex,
           refractionWidth: refractionWidth,
-          chromaticAberration: 0.002,
+          dispersion: 1.32,
         ),
     appearance: LiquidGlassAppearance(
       color: color ?? Colors.white.withAlpha(28),
@@ -178,16 +175,12 @@ LiquidGlass buildLiquidGlassBottomNavCapsule({
         LiquidGlassLitShape(
           cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: 40,
-          specular: const LiquidGlassLight.specular(
-              thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
-          glow: const LiquidGlassLight.glow(
-              thickness: 1.2, angle: 170, intensity: 1.0),
+          specular: const LiquidGlassLight.specular(),
         ),
     refraction: refraction ??
         const LiquidGlassRefraction(
-          refractionIndex: 1.025,
-          refractionWidth: 28,
-          chromaticAberration: 0.002,
+          refractionIndex: 1.1,
+          refractionWidth: 12,
         ),
     appearance: appearance ??
         LiquidGlassAppearance(

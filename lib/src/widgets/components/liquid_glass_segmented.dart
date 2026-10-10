@@ -141,7 +141,7 @@ class LiquidGlassSegmentedPillStyle {
   LiquidGlassStyle resolveGlass(double radius) {
     final g = glassStyle;
     return LiquidGlassStyle.groups(
-      shape: g?.shape ?? _capsule(radius, solidity: 0.5, light: 1.3, sat: 1.4),
+      shape: g?.shape ?? _capsule(radius, sat: 1.4),
       specular: g?.specular,
       glow: g?.glow,
       secondSpecular: g?.secondSpecular,
@@ -154,9 +154,8 @@ class LiquidGlassSegmentedPillStyle {
           const LiquidGlassRefraction(
             refractionIndex: 1.025,
             refractionWidth: 10,
-            chromaticAberration: 0.002,
           ),
-      liteGlass: g?.liteGlass,
+      liteGlass: g?.liteGlass ?? false,
     );
   }
 
@@ -164,13 +163,13 @@ class LiquidGlassSegmentedPillStyle {
   LiquidGlassStyle resolveRest(double radius) {
     final r = restStyle;
     return LiquidGlassStyle.groups(
-      shape: r?.shape ?? _capsule(radius, solidity: 0, light: 1, sat: 1),
+      shape: r?.shape ?? _capsule(radius, sat: 1),
       specular: r?.specular,
       glow: r?.glow,
       secondSpecular: r?.secondSpecular,
       appearance: r?.appearance ??
-          const LiquidGlassAppearance(color: Color(0x3CFFFFFF)), // white, a60
-      liteGlass: r?.liteGlass,
+          const LiquidGlassAppearance(color: Color(0x3CFFFFFF), blur: 0), // white, a60
+      liteGlass: r?.liteGlass ?? false,
     );
   }
 }
@@ -480,12 +479,11 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
   /// The capsule look — the tuned default overlaid by [widget.style].
   LiquidGlassStyle _capsuleStyle() {
     final base = LiquidGlassStyle(
-      shape: _capsule(widget.height / 2, solidity: 0.25, light: 1, sat: 1.1),
+      shape: _capsule(widget.height / 2, sat: 1.1),
       color: Color(0x14FFFFFF),
       blur: 2,
-      refractionIndex: 1.025,
-      refractionWidth: 22,
-      chromaticAberration: 0.002,
+      refractionIndex: 1.1,
+      refractionWidth: 12,
     );
     return base.merge(widget.style);
   }
@@ -503,8 +501,6 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
     final LiquidGlassLitShape? lit = shape == null ? null : style.litShape();
     final LiquidGlassLight? specular = lit?.specular ?? style.specular;
     final LiquidGlassLight? glow = lit?.glow ?? style.glow;
-    final LiquidGlassLight? second =
-        lit?.secondSpecular ?? style.secondSpecular;
     final color = style.color;
     return LiquidGlassStyle(
       shape: lit?.outline,
@@ -513,10 +509,6 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
         intensity: specular.intensity * f,
       ),
       glow: glow?.copyWith(thickness: glow.thickness * f),
-      secondSpecular: second?.copyWith(
-        thickness: second.thickness * f,
-        intensity: second.intensity * f,
-      ),
       saturation: style.saturation,
       shadow: style.shadow,
       color: color.withValues(alpha: color.a * f),
@@ -524,7 +516,7 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
       refractionIndex: 1.0 + (style.refractionIndex - 1.0) * f,
       refractionWidth: style.refractionWidth,
       magnification: style.magnification,
-      chromaticAberration: style.chromaticAberration * f,
+      dispersion: style.dispersion * f,
       liteGlass: style.liteGlass,
     );
   }
@@ -548,15 +540,11 @@ class _LiquidGlassSegmentedState extends State<LiquidGlassSegmented>
 /// the segmented control's capsule and its pills.
 LiquidGlassShape _capsule(
   double radius, {
-  required double solidity,
-  required double light,
   required double sat,
 }) {
   return LiquidGlassLitShape(
     cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
     cornerRadius: radius,
-    specular: LiquidGlassLight.specular(
-        thickness: 1, sharpness: solidity, angle: 80, intensity: light),
-    glow: LiquidGlassLight.glow(thickness: 1, angle: 170, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
   );
 }

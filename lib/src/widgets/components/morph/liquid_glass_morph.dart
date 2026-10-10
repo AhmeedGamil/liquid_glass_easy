@@ -436,7 +436,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   /// preset would show two separate frosted outlines pulling apart. One lens
   /// on one spring is the only kind that reads.
   LiquidGlassMorphMotion get _m =>
-      LiquidGlassEngine.liteGlass || widget.style.liteGlass != null
+      LiquidGlassEngine.liteGlass || widget.style.liteGlass
           ? LiquidGlassMorphMotion.plain
           : widget.motion;
   LiquidGlassMorphAdvanced get _a => _m.advanced;

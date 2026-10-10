@@ -375,8 +375,8 @@ class LiquidGlassTabPillStyle {
     final g = glassStyle;
     return LiquidGlassStyle.groups(
       shape: g?.shape ?? shape ?? const LiquidGlassShape(),
-      specular: g?.specular ?? const LiquidGlassLight.specular(thickness: 0.5),
-      glow: g?.glow ?? const LiquidGlassLight.glow(thickness: 0.5),
+      specular: g?.specular ?? const LiquidGlassLight.specular(),
+      glow: g?.glow,
       secondSpecular: g?.secondSpecular,
       appearance: g?.appearance ??
           LiquidGlassAppearance(
@@ -389,9 +389,9 @@ class LiquidGlassTabPillStyle {
             refractionIndex: refractionIndex,
             refractionWidth: refractionWidth,
             magnification: magnification,
-            chromaticAberration: 0.002,
+            dispersion: 1.32,
           ),
-      liteGlass: g?.liteGlass,
+      liteGlass: g?.liteGlass ?? false,
     );
   }
 
@@ -430,23 +430,23 @@ class LiquidGlassTabPillStyle {
       specular: r?.specular,
       glow: r?.glow,
       secondSpecular: r?.secondSpecular,
-      appearance: r?.appearance ?? LiquidGlassAppearance(color: color),
+      appearance: r?.appearance ?? LiquidGlassAppearance(color: color, blur: 0),
       // Carried, not dropped: the static pill resolves it against the
       // BAR's verdict, so the pill flips with the bar rather than
       // sampling a backdrop it cannot see (its own rect reads the
       // capsule's tint, not the page).
       adaptivity: r?.adaptivity,
-      liteGlass: r?.liteGlass,
+      liteGlass: r?.liteGlass ?? false,
       // Explicitly inert, not merely "ignored". The static pill never
       // reads this, but the moving pill interpolates FROM it, and
       // `LiquidGlassStyle`'s default refraction is the full-strength one
-      // (index 1.02 over a 30 px band) — stronger than most lifted
+      // (index 1.5 over a 30 px band) — stronger than most lifted
       // pills, which inverted the lerp and left the glass still bending
       // the bar at the instant the static pill took over.
       refraction: const LiquidGlassRefraction(
         refractionIndex: 1.0,
         refractionWidth: 0,
-        chromaticAberration: 0,
+        dispersion: 0,
       ),
     );
   }

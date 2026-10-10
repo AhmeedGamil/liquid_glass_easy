@@ -83,9 +83,8 @@ class LiquidGlassControlTile extends StatelessWidget {
   final bool visibility;
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    refractionIndex: 1.024,
-    refractionWidth: 30,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   @override
@@ -94,20 +93,14 @@ class LiquidGlassControlTile extends StatelessWidget {
         LiquidGlassLitShape(
           cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: size * 0.32,
-          specular: LiquidGlassLight.specular(
-              thickness: 1.2,
-              sharpness: 0.35,
-              angle: 60,
-              intensity: active ? 1.6 : 1.1),
-          glow: const LiquidGlassLight.glow(
-              thickness: 1.2, angle: 150, intensity: 1.0),
+          specular: LiquidGlassLight.specular(),
         );
 
     final LiquidGlassAppearance effectiveAppearance = appearance ??
         LiquidGlassAppearance(
           color:
               active ? activeColor.withAlpha(180) : Colors.white.withAlpha(30),
-          blur: 3,
+          blur: 0,
         );
 
     return SizedBox(

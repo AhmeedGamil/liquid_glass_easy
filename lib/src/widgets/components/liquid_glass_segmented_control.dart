@@ -100,13 +100,12 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
 
   static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x14FFFFFF), // white, alpha 20
-    blur: 3,
+    blur: 2,
   );
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    refractionIndex: 1.025,
-    refractionWidth: 22,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   @override
@@ -115,10 +114,7 @@ class LiquidGlassSegmentedControl extends StatelessWidget {
         LiquidGlassLitShape(
           cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
           cornerRadius: height / 2,
-          specular: const LiquidGlassLight.specular(
-              thickness: 1.0, sharpness: 0.25, angle: 80, intensity: 1.0),
-          glow: const LiquidGlassLight.glow(
-              thickness: 1.0, angle: 170, intensity: 1.0),
+          specular: const LiquidGlassLight.specular(),
         );
 
     return SizedBox(

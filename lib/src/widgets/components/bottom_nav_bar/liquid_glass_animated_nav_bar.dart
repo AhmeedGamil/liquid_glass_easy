@@ -431,9 +431,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     // static pill, so any glass left here would pop off at the swap.
     this.restStyle = const LiquidGlassStyle(
       color: Color(0x26FFFFFF),
+      blur: 0,
       refractionIndex: 1.0,
       refractionWidth: 0,
-      chromaticAberration: 0,
+      dispersion: 0,
     ),
     this.travelStiffness = 280,
     this.travelDamping = 31.4,
@@ -1389,13 +1390,12 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           magnification: widget.pillMagnification,
           refractionIndex: widget.pillRefractionIndex,
           refractionWidth: widget.pillRefractionWidth,
-          chromaticAberration: 0.002,
+          dispersion: 1.32,
         );
     return LiquidGlassStyle(
       shape: widget.pillShape,
       specular: widget.pillSpecular,
       glow: widget.pillGlow,
-      secondSpecular: widget.pillSecondSpecular,
       color: widget.pillColor,
       blur: widget.pillBlur,
       refractionIndex: refraction.refractionIndex,
@@ -1403,7 +1403,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // On Impeller the under-pill magnifier lens owns the magnification;
       // the glass pill on top must not compound it (m² in the middle).
       magnification: _useImpeller ? 1 : refraction.magnification,
-      chromaticAberration: refraction.chromaticAberration,
+      dispersion: refraction.dispersion,
     );
   }
 
@@ -1425,7 +1425,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
   /// One end of the Impeller under-pill magnifier's material: pure
   /// magnification — fully transparent, zero blur, no distortion, no
-  /// chromatic aberration, no rim. The lifted end carries
+  /// dispersion, no rim. The lifted end carries
   /// [_magnifierMagnification]; the rest end carries `1`, so the
   /// magnification lerps in with the lift and back out through the
   /// handover on exactly the curve the glass material runs.
@@ -1441,7 +1441,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       refractionIndex: 1.0,
       refractionWidth: 0,
       magnification: magnification,
-      chromaticAberration: 0,
+      dispersion: 0,
     );
   }
 
@@ -1576,10 +1576,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           LiquidGlassLitShape(
             cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
             cornerRadius: 40,
-            specular: const LiquidGlassLight.specular(
-                thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
-            glow: const LiquidGlassLight.glow(
-                thickness: 1.2, angle: 170, intensity: 1.0),
+            specular: const LiquidGlassLight.specular(),
           ),
       specular: widget.barSpecular,
       glow: widget.barGlow,
@@ -1589,9 +1586,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           : capsuleAppearance.copyWith(shadow: widget.barShadow),
       refraction: widget.barRefraction ??
           const LiquidGlassRefraction(
-            refractionIndex: 1.025,
-            refractionWidth: 28,
-            chromaticAberration: 0.002,
+            refractionIndex: 1.1,
+            refractionWidth: 12,
           ),
     );
 

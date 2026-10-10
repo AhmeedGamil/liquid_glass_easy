@@ -123,15 +123,12 @@ class LiquidGlassAppBar extends StatelessWidget {
   /// Compose with `copyWith` to tweak one facet, e.g.
   /// `style: LiquidGlassAppBar.defaultStyle.copyWith(...)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    specular: LiquidGlassLight.specular(
-        thickness: 1.2, sharpness: 0.35, angle: 80, intensity: 1.1),
-    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
     // white, alpha 28
     color: Color(0x1CFFFFFF),
-    blur: 4,
-    refractionIndex: 1.025,
-    refractionWidth: 28,
-    chromaticAberration: 0.002,
+    blur: 2,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   @override
@@ -163,7 +160,6 @@ class LiquidGlassAppBar extends StatelessWidget {
           shape: effectiveShape,
           specular: resolved.specular,
           glow: resolved.glow,
-          secondSpecular: resolved.secondSpecular,
           saturation: resolved.saturation,
           blur: resolved.blur,
           color: resolved.color,
@@ -171,7 +167,7 @@ class LiquidGlassAppBar extends StatelessWidget {
           refractionIndex: resolved.refractionIndex,
           refractionWidth: resolved.refractionWidth,
           magnification: resolved.magnification,
-          chromaticAberration: resolved.chromaticAberration,
+          dispersion: resolved.dispersion,
           adaptivity: resolved.adaptivity,
           liteGlass: resolved.liteGlass,
         ),

@@ -12,15 +12,18 @@ import 'package:flutter/foundation.dart';
 /// ```dart
 /// LiquidGlassStyle(
 ///   specular: LiquidGlassLight.specular(
-///       thickness: 1, sharpness: 0.5, angle: 0, spread: 0.9, intensity: 1),
+///       thickness: 5, sharpness: 0.5, angle: 39, spread: 0.9, intensity: 1),
 ///   glow: LiquidGlassLight.glow(
-///       thickness: 1, angle: 90, spread: 0.5, intensity: 1),
+///       thickness: 10, angle: 90, spread: 0.5, intensity: 1),
 /// )
 /// ```
 @immutable
 class LiquidGlassLight {
   /// How deep the light's band reaches in from the outline, in logical
-  /// pixels. `0` draws nothing.
+  /// pixels: the value is the band's depth as given, with no scaling.
+  /// `0` draws nothing.
+  ///
+  /// Defaults: `5` for a specular, `10` for a glow.
   final double thickness;
 
   /// How solid the specular reads across its depth. Not used by a glow.
@@ -42,7 +45,8 @@ class LiquidGlassLight {
   ///
   /// The light draws two arcs, one on each end of this axis:
   /// - `0` — the left and right of the outline.
-  /// - `90` — the top and bottom.
+  /// - `39` — Default for a specular: a diagonal between the two.
+  /// - `90` — Default for a glow: the top and bottom.
   final double angle;
 
   /// How far the arcs wrap around the outline.
@@ -59,6 +63,16 @@ class LiquidGlassLight {
   /// Recommended range: `0.0` to `3.0`.
   final double intensity;
 
+  /// How strong the arc on the far end of the light's axis is, as a
+  /// multiple of the near arc.
+  ///
+  /// - `0.0` — One arc only: the far side stays dark.
+  /// - `1.0` — Default: both arcs equally strong.
+  /// - Above `1.0` — The far arc outshines the near one.
+  ///
+  /// Recommended range: `0.0` to `2.0`.
+  final double oppositeIntensity;
+
   /// The light's own colour, or `null` for the colour the glass picks up.
   ///
   /// When `null` (the default) the light takes the colour of the backdrop
@@ -67,25 +81,24 @@ class LiquidGlassLight {
   /// is how much of it replaces the picked-up colour.
   final Color? color;
 
-  /// The highlight: a thin, crisp band on the `0°` axis, wrapping wide.
+  /// The highlight: a thin, crisp band on the `39°` axis, wrapping wide.
   const LiquidGlassLight.specular({
-    this.thickness = 1.0,
+    this.thickness = 5.0,
     this.sharpness = 0.5,
-    this.angle = 0.0,
+    this.angle = 39.0,
     this.spread = 0.9,
     this.intensity = 1.0,
+    this.oppositeIntensity = 1.0,
     this.color,
   });
 
   /// The soft side light: a wider, gentler band on the `90°` axis.
-  ///
-  /// At the same [thickness] a glow reaches several times deeper than a
-  /// specular.
   const LiquidGlassLight.glow({
-    this.thickness = 1.0,
+    this.thickness = 10.0,
     this.angle = 90.0,
     this.spread = 0.5,
     this.intensity = 1.0,
+    this.oppositeIntensity = 1.0,
     this.color,
   }) : sharpness = 0.5;
 
@@ -95,6 +108,7 @@ class LiquidGlassLight {
     required this.angle,
     required this.spread,
     required this.intensity,
+    required this.oppositeIntensity,
     required this.color,
   });
 
@@ -106,6 +120,7 @@ class LiquidGlassLight {
     double? angle,
     double? spread,
     double? intensity,
+    double? oppositeIntensity,
     Color? color,
   }) =>
       LiquidGlassLight._(
@@ -114,6 +129,7 @@ class LiquidGlassLight {
         angle: angle ?? this.angle,
         spread: spread ?? this.spread,
         intensity: intensity ?? this.intensity,
+        oppositeIntensity: oppositeIntensity ?? this.oppositeIntensity,
         color: color ?? this.color,
       );
 
@@ -138,6 +154,8 @@ class LiquidGlassLight {
       angle: lerpDouble(a.angle, b.angle, t)!,
       spread: lerpDouble(a.spread, b.spread, t)!,
       intensity: lerpDouble(a.intensity, b.intensity, t)!,
+      oppositeIntensity:
+          lerpDouble(a.oppositeIntensity, b.oppositeIntensity, t)!,
       color: color,
     );
   }
@@ -151,14 +169,16 @@ class LiquidGlassLight {
           other.angle == angle &&
           other.spread == spread &&
           other.intensity == intensity &&
+          other.oppositeIntensity == oppositeIntensity &&
           other.color == color;
 
   @override
-  int get hashCode =>
-      Object.hash(thickness, sharpness, angle, spread, intensity, color);
+  int get hashCode => Object.hash(
+      thickness, sharpness, angle, spread, intensity, oppositeIntensity, color);
 
   @override
   String toString() =>
       'LiquidGlassLight(thickness: $thickness, sharpness: $sharpness, '
-      'angle: $angle, spread: $spread, intensity: $intensity, color: $color)';
+      'angle: $angle, spread: $spread, intensity: $intensity, '
+      'oppositeIntensity: $oppositeIntensity, color: $color)';
 }

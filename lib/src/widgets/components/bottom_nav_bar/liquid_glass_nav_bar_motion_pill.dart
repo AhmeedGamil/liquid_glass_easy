@@ -186,7 +186,8 @@ class LiquidGlassNavBarMotionPill extends StatefulWidget {
     required this.activeSize,
     this.envelopeSize,
     this.style,
-    this.restStyle = const LiquidGlassStyle(),
+    this.restStyle = const LiquidGlassStyle(
+        refractionIndex: 1.5, refractionWidth: 30, blur: 0),
     this.motion = const LiquidGlassLensMotionSpec(),
     this.deviation,
     this.glassPresence = 1.0,
@@ -503,7 +504,7 @@ class _LiquidGlassNavBarMotionPillState
       refraction:
           LiquidGlassRefraction.lerp(rest.refraction, active.refraction, t)
               .withWidthFactor(widthCompensation * presence),
-      liteGlass: active.liteGlass ?? rest.liteGlass,
+      liteGlass: active.liteGlass || rest.liteGlass,
     );
   }
 
@@ -548,10 +549,7 @@ class _LiquidGlassNavBarMotionPillState
     );
   }
 
-  static const LiquidGlassLight _defaultSpecular = LiquidGlassLight.specular(
-      thickness: 0.6, sharpness: 0.5, angle: 80, intensity: 1.3);
-  static const LiquidGlassLight _defaultGlow =
-      LiquidGlassLight.glow(thickness: 0.6, angle: 170);
+  static const LiquidGlassLight _defaultSpecular = LiquidGlassLight.specular();
 
   /// [style]'s outline and lights, with the pill's own defaults where the
   /// style names none: a capsule of [cornerRadius] and a thin bright rim.
@@ -560,7 +558,6 @@ class _LiquidGlassNavBarMotionPillState
       fallback: LiquidGlassShape.continuousRoundedRectangle(
           cornerRadius: cornerRadius),
       fallbackSpecular: _defaultSpecular,
-      fallbackGlow: _defaultGlow,
     );
   }
 

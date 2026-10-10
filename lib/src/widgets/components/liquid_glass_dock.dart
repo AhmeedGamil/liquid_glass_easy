@@ -89,20 +89,17 @@ class LiquidGlassDock extends StatelessWidget {
   static const LiquidGlassShape _defaultShape = LiquidGlassLitShape(
     cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
     cornerRadius: 30,
-    specular: LiquidGlassLight.specular(
-        thickness: 1.2, sharpness: 0.4, angle: 70, intensity: 1.2),
-    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 160, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
   );
 
   static const LiquidGlassAppearance _defaultAppearance = LiquidGlassAppearance(
     color: Color(0x1CFFFFFF), // white, alpha 28
-    blur: 3,
+    blur: 0,
   );
 
   static const LiquidGlassRefraction _defaultRefraction = LiquidGlassRefraction(
-    refractionIndex: 1.024,
-    refractionWidth: 36,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   @override

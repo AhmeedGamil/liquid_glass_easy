@@ -279,15 +279,12 @@ class LiquidGlassSheet extends StatelessWidget {
   /// [style] supplies no shape. Compose with `copyWith` to tweak one
   /// facet, e.g. `style: LiquidGlassSheet.defaultStyle.copyWith(...)`.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    specular: LiquidGlassLight.specular(
-        thickness: 0.6, sharpness: 0.4, angle: 39, intensity: 1.2),
-    glow: LiquidGlassLight.glow(thickness: 0.6, angle: 129, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
     // white, alpha 36
     color: Color(0x24FFFFFF),
     blur: 3,
-    refractionIndex: 1.021,
-    refractionWidth: 40,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   /// The shape a sheet uses when its style names none.
@@ -333,7 +330,6 @@ class LiquidGlassSheet extends StatelessWidget {
             shape: shape,
             specular: resolved.specular,
             glow: resolved.glow,
-            secondSpecular: resolved.secondSpecular,
             saturation: resolved.saturation,
             blur: resolved.blur,
             color: resolved.color,
@@ -341,7 +337,7 @@ class LiquidGlassSheet extends StatelessWidget {
             refractionIndex: resolved.refractionIndex,
             refractionWidth: resolved.refractionWidth,
             magnification: resolved.magnification,
-            chromaticAberration: resolved.chromaticAberration,
+            dispersion: resolved.dispersion,
             adaptivity: resolved.adaptivity,
             liteGlass: resolved.liteGlass,
           ),

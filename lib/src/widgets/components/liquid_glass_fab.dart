@@ -125,18 +125,15 @@ class LiquidGlassFab extends StatelessWidget {
 
   /// The tuned default look for liquid glass FAB.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    specular: LiquidGlassLight.specular(
-        thickness: 1.2, sharpness: 0.4, angle: 80, intensity: 1.2),
-    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
     // white, alpha 28
     color: Color(0x1CFFFFFF),
-    blur: 4,
+    blur: 2,
     // The contact shadow rides the style, like every lens's; hand over a
     // style carrying none to drop it.
     shadow: LiquidGlassShadow(blur: 9, opacity: 0.25),
-    refractionIndex: 1.024,
-    refractionWidth: 28,
-    chromaticAberration: 0.002,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   @override
@@ -195,7 +192,6 @@ class LiquidGlassFab extends StatelessWidget {
           shape: effectiveShape,
           specular: resolved.specular,
           glow: resolved.glow,
-          secondSpecular: resolved.secondSpecular,
           saturation: resolved.saturation,
           blur: resolved.blur,
           color: resolved.color,
@@ -203,7 +199,7 @@ class LiquidGlassFab extends StatelessWidget {
           refractionIndex: resolved.refractionIndex,
           refractionWidth: resolved.refractionWidth,
           magnification: resolved.magnification,
-          chromaticAberration: resolved.chromaticAberration,
+          dispersion: resolved.dispersion,
           // Was dropped: a FAB styled with its own adaptivity never
           // reached the lens, so only an enclosing area could flip it.
           adaptivity: resolved.adaptivity,

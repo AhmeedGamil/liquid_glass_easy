@@ -142,15 +142,12 @@ class LiquidGlassDialog extends StatelessWidget {
 
   /// Default glass look for dialogs.
   static const LiquidGlassStyle defaultStyle = LiquidGlassStyle(
-    specular: LiquidGlassLight.specular(
-        thickness: 1.2, sharpness: 0.4, angle: 80, intensity: 1.2),
-    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 170, intensity: 1.0),
+    specular: LiquidGlassLight.specular(),
     // white frost, alpha 40
     color: Color(0x28FFFFFF),
-    blur: 8,
-    refractionIndex: 1.024,
-    refractionWidth: 36,
-    chromaticAberration: 0.002,
+    blur: 3,
+    refractionIndex: 1.1,
+    refractionWidth: 12,
   );
 
   const LiquidGlassDialog({
@@ -180,7 +177,6 @@ class LiquidGlassDialog extends StatelessWidget {
             shape: effectiveShape,
             specular: resolved.specular,
             glow: resolved.glow,
-            secondSpecular: resolved.secondSpecular,
             saturation: resolved.saturation,
             blur: resolved.blur,
             color: resolved.color,
@@ -188,7 +184,7 @@ class LiquidGlassDialog extends StatelessWidget {
             refractionIndex: resolved.refractionIndex,
             refractionWidth: resolved.refractionWidth,
             magnification: resolved.magnification,
-            chromaticAberration: resolved.chromaticAberration,
+            dispersion: resolved.dispersion,
             liteGlass: resolved.liteGlass,
           ),
           visibility: visibility,

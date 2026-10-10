@@ -146,19 +146,15 @@ LiquidGlass buildLiquidGlassMorphSegmentedCapsule({
     shape: LiquidGlassLitShape(
       cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
       cornerRadius: layout.height / 2,
-      specular: const LiquidGlassLight.specular(
-          thickness: 1.0, sharpness: 0.25, angle: 80, intensity: 1.0),
-      glow: const LiquidGlassLight.glow(
-          thickness: 1.0, angle: 170, intensity: 1.0),
+      specular: const LiquidGlassLight.specular(),
     ),
     refraction: const LiquidGlassRefraction(
-      refractionIndex: 1.025,
-      refractionWidth: 22,
-      chromaticAberration: 0.002,
+      refractionIndex: 1.1,
+      refractionWidth: 12,
     ),
     appearance: LiquidGlassAppearance(
       color: Colors.white.withAlpha(20),
-      blur: 2,
+      blur: 0,
     ),
   );
 }
@@ -218,15 +214,11 @@ LiquidGlass buildLiquidGlassMorphSegmentedPill({
     shape: LiquidGlassLitShape(
       cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
       cornerRadius: pillH / 2,
-      specular: const LiquidGlassLight.specular(
-          thickness: 1.0, sharpness: 0.5, angle: 80, intensity: 1.3),
-      glow: const LiquidGlassLight.glow(
-          thickness: 1.0, angle: 170, intensity: 1.0),
+      specular: const LiquidGlassLight.specular(),
     ),
     refraction: const LiquidGlassRefraction(
       refractionIndex: 1.025,
       refractionWidth: 10,
-      chromaticAberration: 0.002,
     ),
     appearance: LiquidGlassAppearance(
       color: Colors.white.withAlpha(28),
