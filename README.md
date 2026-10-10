@@ -75,7 +75,7 @@ The widget tree you write is **identical** in every case:
 | **Impeller** (Flutter's default on modern iOS/Android) | The lens refracts the **live backdrop** — whatever your app painted behind it. **No `LiquidGlassView` and no background widget needed at all.** Just drop the lens over any UI. |
 | **Skia** with an ancestor `LiquidGlassView` (+ `backgroundWidget`) | The lens refracts the view's **captured background**, wherever it sits inside the view's `child`. |
 | **Skia** without a view | Refraction isn't possible, so the lens gracefully degrades to a **frosted** look (backdrop blur + tint + border) and logs a one-time debug notice. |
-| **Any engine**, lite glass | `LiquidGlassEngine.liteGlassOnSkia` / `liteGlassOnImpeller`, or a `LiquidGlassLitePickup` in `liteGlass` on one style: the lens draws `LiquidGlassLite` — frost, tint and a lit rim — with no shader, no capture and no view needed. |
+| **Any engine**, lite glass | `LiquidGlassEngine.liteGlassOnSkia` / `liteGlassOnImpeller`, or `liteGlass: true` on one style: the lens draws `LiquidGlassLite` — frost, tint and a lit rim — with no shader, no capture and no view needed. |
 
 > In short: **on Impeller it just works anywhere**; on Skia you wrap your
 > content in a `LiquidGlassView` to give the lens a background to refract —
@@ -88,7 +88,7 @@ The widget tree you write is **identical** in every case:
 A lens gets its look from a fragment shader that bends the background under
 it. **Lite glass** gives up the bending and keeps everything else: the frost,
 the tint, the contact shadow, and a rim lit by the same model the shader
-runs, evaluated on the Dart side. Nothing to compile, nothing to warm up, no
+runs — the specular and the glow under it — evaluated on the Dart side. Nothing to compile, nothing to warm up, no
 capture on Skia, no slot in the lens budget on Impeller.
 
 ```dart
@@ -96,28 +96,26 @@ capture on Skia, no slot in the lens budget on Impeller.
 LiquidGlassEngine.liteGlassOnSkia = true;      // Skia and the web
 LiquidGlassEngine.liteGlassOnImpeller = true;  // Impeller
 
-// One lens, on either engine — the value is where its rim takes its colour.
+// One lens, on either engine.
 LiquidGlassLens(
-  style: const LiquidGlassStyle(liteGlass: LiquidGlassLitePickup.backdrop),
+  style: const LiquidGlassStyle(liteGlass: true),
   child: child,
 )
 
 // The widget itself, on a surface that was never a lens.
 LiquidGlassLite(
   shape: const LiquidGlassShape(cornerRadius: 22),
-  specular: const LiquidGlassLight.specular(thickness: 1.5),
+  specular: const LiquidGlassLight.specular(thickness: 8),
+  glow: const LiquidGlassLight.glow(intensity: 0.8),
   blur: 3,
   color: const Color(0x33FFFFFF),
   child: child,
 )
 ```
 
-The value of `liteGlass` is where the rim takes its colour from, a
-`LiquidGlassLitePickup`. `backdrop` is the default: it samples the
-background along the rim the way the shader does, for one extra read.
-`blend` and `surface` cost no read of their own; `none` is white light. A
-lens the engine switches put on lite glass takes its rim from
-`LiquidGlassEngine.litePickup` instead, which is `backdrop` by default too.
+The rim is cut from the background, so its colour varies along the rim the
+way the shader's does, for one extra read on top of the frost's. The glow is
+cut from that same read, so it costs nothing more.
 
 **What still works, and what does not.** Lite glass changes how a lens is
 drawn, not what the tree around it does:
@@ -355,7 +353,7 @@ their own background and work anywhere on both engines.
 | `LiquidGlassFab` | Needs an ancestor `LiquidGlassView`. |
 | `LiquidGlassAlertDialog` | Open it from a context inside a `LiquidGlassView`. |
 | `LiquidGlassSheet` | Placed by hand: needs an ancestor `LiquidGlassView`. Presented with `showLiquidGlassSheet`: open it from a context inside one. |
-| `LiquidGlassTabBar` | Use it inside a `LiquidGlassScaffold`, which provides the view. For **anywhere on Impeller**, use `LiquidGlassTabBar.withImpeller(...)`. |
+| `LiquidGlassTabBar` | **None** — inside a `LiquidGlassScaffold` the scaffold provides the view; on its own it places itself and, on Impeller, samples the live backdrop. |
 | `LiquidGlassDraggable` | Inherits whatever the lens it wraps requires. |
 | `LiquidGlassMorph` | It is a blender: needs an ancestor `LiquidGlassView` with a `backgroundWidget`, or the two blobs fall back to two separate lenses and double-refract where they overlap. |
 | `LiquidGlassMotionPill` | Inherits whatever its host provides — inside a slider or a tab bar it is already covered; on its own, an ancestor `LiquidGlassView`. |
@@ -520,17 +518,17 @@ size it). The `child` is always clipped to the full lens shape; add your own
 LiquidGlassStyle({
   LiquidGlassShape? shape,        // null → default continuous rounded rect
   LiquidGlassLight? specular,     // null → LiquidGlassLight.specular()
-  LiquidGlassLight? glow,         // null → LiquidGlassLight.glow()
-  double refractionIndex = 1.02,
-  double refractionWidth = 30,
+  LiquidGlassLight? glow,         // null → no glow on a plain lens
+  double refractionIndex = 1.1,
+  double refractionWidth = 12,
   double magnification = 1.0,
-  double chromaticAberration = 0.003,
+  double dispersion = 0,
   double saturation = 1.0,
   double blur = 0.0,
   Color color = Colors.transparent,
   LiquidGlassShadow? shadow,
   LiquidGlassAdaptivity? adaptivity,
-  LiquidGlassLitePickup? liteGlass,
+  bool liteGlass = false,
 })
 ```
 
@@ -544,16 +542,16 @@ for theme/override patterns. A component uses its own tuned default wherever
 | `shape` | `null` | The outline. See `LiquidGlassShape`. |
 | `specular` | `null` | The border's highlight. See [The Border](#the-border). |
 | `glow` | `null` | The border's soft side light. See [The Border](#the-border). |
-| `refractionIndex` | `1.02` | How hard the edge bends what is behind it. `1.0` is no bending; the bend builds quickly, so `1.02` is already a clear lens edge and `1.5` a very strong one. |
-| `refractionWidth` | `30` | Width of the bending band along the edge, in logical pixels. The distance the content is displaced scales with it. |
+| `refractionIndex` | `1.1` | How hard the edge bends what is behind it. `1.0` is no bending; the bend builds quickly, so `1.02` is already a clear lens edge and `1.5` a very strong one. |
+| `refractionWidth` | `12` | Width of the bending band along the edge, in logical pixels: how far in from the outline the bend reaches. |
 | `magnification` | `1.0` | Magnification of content seen through the glass (`1.0` = none). |
-| `chromaticAberration` | `0.003` | Colour fringing in the bending band; `0.0` disables it. |
+| `dispersion` | `0` | Colour fringe in the bending band. `0` is off and the cheapest; the value is the widest split in logical pixels, `1.3` is a thin fringe. |
 | `color` | `transparent` | Base tint of the glass (often semi-transparent). |
 | `blur` | `0.0` | Blur applied to content beneath the glass, as a Gaussian sigma. |
 | `saturation` | `1.0` | `1.0` = unchanged, `0.0` = grayscale. |
 | `shadow` | `null` | Contact shadow (`LiquidGlassShadow`) the lens wraps itself in — part of the style, so it travels wherever the style goes. Components take their shadow from here, never as a separate parameter. |
 | `adaptivity` | `null` | Glass tint and content colour that flip with the background. See [ADAPTIVITY.md](ADAPTIVITY.md). |
-| `liteGlass` | `null` | Draw this surface as lite glass, with the rim pickup named here. |
+| `liteGlass` | `false` | Draw this surface as lite glass, whatever the engine switches say. |
 
 #### `LiquidGlassShape`
 
@@ -612,26 +610,27 @@ LiquidGlassLens(
   style: const LiquidGlassStyle(
     shape: LiquidGlassShape.squircle(cornerRadius: 36),
     specular: LiquidGlassLight.specular(
-        thickness: 1, sharpness: 0.5, angle: 0, spread: 0.9, intensity: 1.0),
+        thickness: 5, sharpness: 0.5, angle: 39, spread: 0.9, intensity: 1.0),
     glow: LiquidGlassLight.glow(
-        thickness: 1, angle: 90, spread: 0.5, intensity: 1.0),
+        thickness: 10, angle: 90, spread: 0.5, intensity: 1.0),
   ),
 )
 ```
 
 - **`specular`** is the highlight: the backdrop seen through the edge,
   brightened along the light's axis.
-- **`glow`** is the soft side light: a wider, gentler band, white pulled toward
-  the glass colour.
+- **`glow`** is the soft side light: a wider, gentler band that fills the
+  sides the specular leaves dark, in the same picked-up colour.
 
 | Property | Description |
 |----------|-------------|
-| `thickness` | How deep the light's band reaches in from the outline, in logical pixels. `0` draws nothing. Defaults to `1.0`. At the same thickness a glow reaches several times deeper than a specular. |
+| `thickness` | How deep the light's band reaches in from the outline, in logical pixels, exactly as given. `0` draws nothing. Defaults to `5` for a specular and `10` for a glow. |
 | `sharpness` | Specular only. How solid the band reads across its depth: `0.0` a faint hairline, `0.5` a crisp thin band (default), `1.0` solid before it falls. |
-| `angle` | The axis the two arcs sit on, in degrees. `0` = left and right, `90` = top and bottom. Defaults to `0` for the specular and `90` for the glow. |
+| `angle` | The axis the two arcs sit on, in degrees. `0` = left and right, `90` = top and bottom. Defaults to `39` for the specular and `90` for the glow. |
 | `spread` | How far the arcs wrap around the outline. `0.0` tight, `1.0` almost all the way around. Defaults to `0.9` for the specular and `0.5` for the glow. |
 | `intensity` | Strength of the light. `0.0` turns it off. Range `0.0`–`3.0`. |
-| `color` | `null` (default) keeps the colour the glass picks up: the backdrop for the specular, white pulled toward the glass colour for the glow. When set, the light is drawn in this colour as given; its alpha is how much of it replaces the picked-up colour. |
+| `oppositeIntensity` | How strong the arc on the far end of the light's axis is, as a multiple of the near arc. `0.0` draws one arc only, `1.0` (default) both equally, above `1.0` the far arc outshines the near one. Range `0.0`–`2.0`. |
+| `color` | `null` (default) keeps the colour the glass picks up: the backdrop seen through the edge, brightened, for the specular and the glow alike. When set, the light is drawn in this colour as given; its alpha is how much of it replaces the picked-up colour. |
 
 The glow's angle is its own: turning the specular does not turn the glow. To
 keep the glow filling the sides the specular leaves dark, set it `90` degrees
@@ -1004,22 +1003,23 @@ LiquidGlassTabBarItem(
 );
 ```
 
-### Tab bar — standalone with `.withImpeller`
+### Tab bar — standalone
 
 `LiquidGlassTabBar` shows its animated, glass-refracting **morph
 selection pill** when it's driven by a `LiquidGlassScaffold`, which owns the
 capture pipeline and hands the bar the page as its background.
 
-To use the bar **on its own** — no `LiquidGlassScaffold` and no `body` to pass
-— use the **`.withImpeller`** constructor. On Impeller the bar and its morph
-pill sample the live backdrop, so just drop it as the last child of a `Stack`
-over your page:
+The same bar also works **on its own** — no `LiquidGlassScaffold` and no
+`body` to pass. With no host above it, it fills its parent and places itself
+from `alignment` and `margin`, and on Impeller the bar and its morph pill
+sample the live backdrop. Drop it as the last child of a `Stack` over your
+page:
 
 ```dart
 Stack(
   children: [
     MyPage(),
-    LiquidGlassTabBar.withImpeller(
+    LiquidGlassTabBar(
       items: items,
       selectedIndex: index,
       onChanged: (i) => setState(() => index = i),
@@ -1028,10 +1028,14 @@ Stack(
 );
 ```
 
-> `.withImpeller` is **Impeller-first**: on Skia (no live-backdrop
-> shader) it falls back to a plain frosted bar that still shows the content
-> behind it. For the refracting morph pill on Skia, use a
-> `LiquidGlassScaffold` with a real `body`.
+> On Skia (no live-backdrop shader) it falls back to a plain frosted bar,
+> placed the same way, that still shows the content behind it. For the
+> refracting morph pill on Skia, use a `LiquidGlassScaffold` with a real
+> `body`.
+>
+> To place the bar yourself — in a `Column`, an `Align` or a Material
+> `Scaffold` — set `pillStyle: LiquidGlassTabPillStyle(mode:
+> LiquidGlassPillMode.none)`: it is then a plain `width` x `height` capsule.
 
 ---
 
