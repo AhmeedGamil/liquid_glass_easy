@@ -4,8 +4,8 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 /// Interactive showcase page for [LiquidGlassFab] and [LiquidGlassAlertDialog].
 ///
 /// Every glass on it — the FAB, the dialogs, every button — is LITE glass
-/// with the `surface` rim: `liteGlass: LiquidGlassLitePickup.surface` on the style, no shader and no
-/// refraction, the rim blended over the tint and the content.
+/// glass: `liteGlass: true` on the style, no shader and no refraction, the
+/// rim cut from the background.
 class FabAndDialogDemoPage extends StatefulWidget {
   const FabAndDialogDemoPage({super.key});
 
@@ -16,10 +16,10 @@ class FabAndDialogDemoPage extends StatefulWidget {
 class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   bool _useExtendedFab = true;
 
-  /// Every surface on the page is lite glass with the `surface` rim.
-  static const LiquidGlassLitePickup _rim = LiquidGlassLitePickup.surface;
-  static final LiquidGlassStyle _panel = LiquidGlassDialog.defaultStyle
-      .copyWith(liteGlass: _rim);
+  /// Every surface on the page is lite glass.
+  static const bool _rim = true;
+  static final LiquidGlassStyle _panel =
+      LiquidGlassDialog.defaultStyle.copyWith(liteGlass: _rim);
   // The buttons carry no frost: a surface-rim button reads best as a flat
   // tinted plate.
   static final LiquidGlassStyle _button =

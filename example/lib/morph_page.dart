@@ -85,13 +85,9 @@ class _LiquidGlassMorphExamplePageState
 
   LiquidGlassStyle get _style => LiquidGlassStyle(
         shape: _shape,
-        specular: const LiquidGlassLight.specular(),
-        glow: const LiquidGlassLight.glow(thickness: 1.4),
         color: const Color(0x1FFFFFFF),
         saturation: 1.06,
         blur: _morphBlur,
-        refractionIndex: 1.117,
-        refractionWidth: 22,
       );
 
   /// The panel row last tapped, so a tap inside the panel visibly lands

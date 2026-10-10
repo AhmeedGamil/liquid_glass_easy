@@ -69,13 +69,9 @@ class _LiquidMenuPageState extends State<LiquidMenuPage>
     shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: 40,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.5),
     color: Color(0x1FFFFFFF),
     saturation: 1.06,
     blur: 5,
-    refractionIndex: 1.079,
-    refractionWidth: 22,
   );
 
   static const double _mainSize = 72;

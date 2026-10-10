@@ -95,11 +95,7 @@ class _BlenderPageState extends State<BlenderPage> {
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 30,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.4),
     color: Color(0x1AFFFFFF),
-    refractionIndex: 1.021,
-    refractionWidth: 26,
   );
 
   Widget _member(int i, List<Offset> pos) {

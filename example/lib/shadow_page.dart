@@ -10,7 +10,7 @@ import 'demo_kit.dart';
 //
 // A light page — the kind a shadow actually shows on — with two draggable
 // lenses floating over it: a wide card and a round button. Both wear a
-// LiquidGlassShadow through `appearance.shadow`, and the panel drives its
+// LiquidGlassShadow through the style's `shadow`, and the panel drives its
 // numbers. The first chip switches it off outright, which is the whole
 // argument: without it the glass floats flat, with it the glass sits in.
 // The second flips `insideGlass`: off keeps the ring outside the outline,
@@ -81,13 +81,9 @@ class _ShadowPageState extends State<ShadowPage> {
 
   LiquidGlassStyle _style(LiquidGlassShape shape) => LiquidGlassStyle(
         shape: shape,
-        specular: const LiquidGlassLight.specular(),
-        glow: const LiquidGlassLight.glow(thickness: 1.2),
         blur: 2,
         color: const Color(0x40FFFFFF),
         shadow: _shadow,
-        refractionIndex: 1.023,
-        refractionWidth: 30,
       );
 
   @override

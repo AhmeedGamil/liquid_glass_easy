@@ -49,22 +49,14 @@ class _ButtonPageState extends State<ButtonPage> {
 
   static const LiquidGlassStyle _round = LiquidGlassStyle(
     shape: LiquidGlassShape.roundedRectangle(cornerRadius: 44),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.2),
     color: Color(0x1AFFFFFF),
-    refractionIndex: 1.017,
-    refractionWidth: 32,
   );
 
   static const LiquidGlassStyle _wide = LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 32,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.2),
     color: Color(0x1AFFFFFF),
-    refractionIndex: 1.019,
-    refractionWidth: 38,
   );
 
   @override

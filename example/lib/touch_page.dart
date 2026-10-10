@@ -97,8 +97,6 @@ class _TouchPageState extends State<TouchPage> {
                     shape: LiquidGlassShape.continuousRoundedRectangle(
                       cornerRadius: 26,
                     ),
-                    specular: LiquidGlassLight.specular(angle: 39),
-                    glow: LiquidGlassLight.glow(angle: 129),
                   ),
                   child: Padding(
                     padding:
@@ -270,4 +268,3 @@ class _ListRow extends StatelessWidget {
     );
   }
 }
-

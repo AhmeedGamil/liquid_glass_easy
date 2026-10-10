@@ -48,18 +48,11 @@ LiquidGlassShape _frostShape(double cornerRadius) =>
       clipQuality: LiquidGlassClipQuality.exact,
     );
 
-const LiquidGlassLight _rimSpecular = LiquidGlassLight.specular(angle: 62, intensity: 0.9);
-const LiquidGlassLight _rimGlow = LiquidGlassLight.glow(thickness: 0.7, angle: 152, intensity: 0.85);
-
 LiquidGlassStyle _frost(double cornerRadius) => LiquidGlassStyle(
       shape: _frostShape(cornerRadius),
-      specular: _rimSpecular,
-      glow: _rimGlow,
       color: Color(0x8FFFFFFF),
       blur: 5,
       shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
-      refractionIndex: 1.025,
-      refractionWidth: 26,
     );
 
 class ScaffoldPage extends StatefulWidget {

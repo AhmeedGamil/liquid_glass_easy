@@ -109,8 +109,6 @@ class _Lens extends StatelessWidget {
           shape: LiquidGlassShape.squircle(
             cornerRadius: cornerRadius,
           ),
-          specular: LiquidGlassLight.specular(),
-          glow: LiquidGlassLight.glow(thickness: 1.5),
         ),
         child: Center(
           child: Text(

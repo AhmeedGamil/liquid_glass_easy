@@ -264,14 +264,10 @@ class _LensRevealPageState extends State<LensRevealPage>
         : LiquidGlassShadow(inset: 3, opacity: 0.28 * _morph);
     return LiquidGlassStyle(
       shape: shape,
-      specular: const LiquidGlassLight.specular(),
-      glow: const LiquidGlassLight.glow(thickness: 1.5),
       color: const Color(0x14FFFFFF),
       saturation: 1.05,
       blur: 1,
       shadow: shadow,
-      refractionIndex: 1.22,
-      refractionWidth: 24,
     );
   }
 

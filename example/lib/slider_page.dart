@@ -69,7 +69,7 @@ class _SliderPageState extends State<SliderPage> {
           ),
           SafeArea(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(22, 28, 22, 40),
+              padding: const EdgeInsets.fromLTRB(22, 28, 22, 260),
               children: [
                 const Text(
                   'Sliders',

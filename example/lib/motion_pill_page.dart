@@ -51,15 +51,11 @@ class _MotionPillPageState extends State<MotionPillPage> {
   static const double _restHeight = 46;
   static const double _railInset = 44;
 
-  static const LiquidGlassStyle _glass = LiquidGlassStyle(
+  LiquidGlassStyle _glass = const LiquidGlassStyle(
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: _restHeight / 2,
     ),
-    specular: LiquidGlassLight.specular(angle: 39),
-    glow: LiquidGlassLight.glow(thickness: 1.2, angle: 129),
-    refractionIndex: 1.017,
-    refractionWidth: 22,
-    magnification: 1.12,
+    magnification: 1,
     shadow: LiquidGlassShadow(blur: 12, opacity: 0.2),
   );
 
@@ -132,6 +128,7 @@ class _MotionPillPageState extends State<MotionPillPage> {
                   decimals: 2,
                   onChanged: (double v) => setState(() => _grow = v),
                 ),
+                ...refractionSliders(_glass, (s) => setState(() => _glass = s)),
               ],
             ),
           ],

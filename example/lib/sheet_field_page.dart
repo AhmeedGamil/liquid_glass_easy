@@ -16,9 +16,8 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 //
 // Inside a LiquidGlassScaffold, so the sheets join its capture on BOTH
 // backends. Every glass on the page — the sheets, the buttons in them,
-// the openers — is LITE glass with the `surface` rim: `liteGlass:
-// LiquidGlassLitePickup.surface` on the style, no shader and no refraction, the rim blended over the
-// tint and the content.
+// the openers — is LITE glass: `liteGlass: true` on the style, no shader
+// and no refraction, the rim cut from the background.
 //
 //   flutter run -t lib/sheet_field_page.dart   (standalone)
 //   …or open it from the gallery.
@@ -28,8 +27,8 @@ void main() {
   runApp(const _SheetFieldApp());
 }
 
-/// Every surface on the page is lite glass with the `surface` rim.
-const LiquidGlassLitePickup _rim = LiquidGlassLitePickup.surface;
+/// Every surface on the page is lite glass.
+const bool _rim = true;
 
 /// The sheets: the stock sheet glass, drawn lite.
 final LiquidGlassStyle _sheetStyle =
@@ -78,6 +77,8 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
     // glass refracts the photo on every backend instead of falling back
     // to a frosted fill.
     return LiquidGlassScaffold(
+      // The same black the photo shows while it loads.
+      backgroundColor: Colors.black,
       appBar: LiquidGlassAppBar(
         title: const Text('Sheets'),
         leading: IconButton(
@@ -388,19 +389,9 @@ class _Background extends StatelessWidget {
 
   final String url;
 
-  static const DecoratedBox _fallback = DecoratedBox(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: <Color>[
-          Color(0xFF2E1065),
-          Color(0xFF0EA5E9),
-          Color(0xFFF59E0B)
-        ],
-      ),
-    ),
-  );
+  /// Shown until the photo loads, and if it fails: plain black.
+  static const ColoredBox _fallback =
+      ColoredBox(color: Colors.black, child: SizedBox.expand());
 
   @override
   Widget build(BuildContext context) {

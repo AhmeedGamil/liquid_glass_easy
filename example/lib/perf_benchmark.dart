@@ -3,8 +3,8 @@
 //
 // Gives you a HARD NUMBER for the shader cost, on-device, no DevTools:
 //   * One large LiquidGlassLens (the production single-lens shader) is driven
-//     with the HEAVIEST settings (optical refraction + wide band + chromatic
-//     aberration + magnification) and ANIMATED every frame, so the GPU/raster
+//     with the HEAVIEST settings (optical refraction + wide band + dispersion
+//     + magnification) and ANIMATED every frame, so the GPU/raster
 //     thread is the bottleneck and the per-pixel shader cost dominates.
 //   * A HUD reads ui.FrameTiming.rasterDuration (microseconds, the time the
 //     RASTER thread spends — i.e. the shader) and shows avg / p50 / p90 / max
@@ -154,7 +154,7 @@ class _PerfBenchmarkPageState extends State<PerfBenchmarkPage>
   }
 
   // A big lens on the worst-case path: optical refraction, wide edge band,
-  // strong chromatic aberration, magnification. Animated so it repaints every
+  // strong dispersion, magnification. Animated so it repaints every
   // frame and the raster thread never idles.
   Widget _animatedLens(Size size, int index) {
     // Each lens sweeps a Lissajous path so they overlap/separate over the
@@ -178,12 +178,9 @@ class _PerfBenchmarkPageState extends State<PerfBenchmarkPage>
             shape: LiquidGlassShape.continuousRoundedRectangle(
               cornerRadius: 48,
             ),
-            specular: LiquidGlassLight.specular(intensity: 3),
             color: Color(0x14FFFFFF),
-            refractionIndex: 1.6,
-            refractionWidth: 40,
             magnification: 1.15,
-            chromaticAberration: 0.02,
+            dispersion: 13.2,
           ),
           child: const SizedBox.shrink(),
         ),

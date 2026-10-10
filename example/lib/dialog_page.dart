@@ -11,8 +11,8 @@ import 'demo_kit.dart';
 // The page is a LiquidGlassScaffold, and that is the important part: a
 // dialog opened from a context inside one joins the scaffold's capture.
 // Every glass here — the panels, their actions, the openers — is LITE
-// glass with the `surface` rim: `liteGlass: LiquidGlassLitePickup.surface` on the style, no shader
-// and no refraction, the rim blended over the tint and the content. Three
+// glass: `liteGlass: true` on the style, no shader and no refraction, the
+// rim cut from the background. Three
 // dialogs: a plain confirm, a destructive one with a tinted action, and a
 // long one that scrolls. Each pops with a value, printed on the page.
 // =============================================================
@@ -46,8 +46,8 @@ class _DialogPageState extends State<DialogPage> {
   String _result = 'No answer yet';
   bool _dismissible = true;
 
-  /// Every surface on the page is lite glass with the `surface` rim.
-  static const LiquidGlassLitePickup _rim = LiquidGlassLitePickup.surface;
+  /// Every surface on the page is lite glass.
+  static const bool _rim = true;
 
   /// The panels: the stock dialog glass, drawn lite.
   static final LiquidGlassStyle _panel = LiquidGlassDialog.defaultStyle
@@ -60,6 +60,9 @@ class _DialogPageState extends State<DialogPage> {
     liteGlass: _rim,
     blur: 0,
   );
+
+  /// The openers in the scrolling list: the same button with a light blur.
+  static final LiquidGlassStyle _scrollButton = _button.copyWith(blur: 1);
 
   /// The dialog actions: the same button with a blue tint.
   static final LiquidGlassStyle _accent = _button.copyWith(
@@ -172,7 +175,7 @@ class _DialogPageState extends State<DialogPage> {
       height: 62,
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 18),
-      style: _button,
+      style: _scrollButton,
       onPressed: () => open(context),
       child: Row(
         children: <Widget>[
@@ -204,11 +207,13 @@ class _DialogPageState extends State<DialogPage> {
   Widget build(BuildContext context) {
     return LiquidGlassScaffold(
       batch: true,
+      // The same black the photo shows while it loads.
+      backgroundColor: Colors.black,
       appBar: const DemoHeader(title: 'Alert Dialog'),
       body: Stack(
         fit: StackFit.expand,
         children: <Widget>[
-          const DemoPhoto('rain.jpg', seed: 2),
+          const DemoPhoto('rain.jpg', seed: 2, placeholder: Colors.black),
           // A Builder so the dialogs open from a context under the
           // scaffold — that is what hands them its capture.
           Builder(

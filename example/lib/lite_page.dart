@@ -11,10 +11,9 @@ import 'demo_kit.dart';
 // No LiquidGlassView, no shader, no capture. Two draggable surfaces over a
 // painted backdrop, both lite glass by different routes: the card IS a
 // LiquidGlassLite, and the round button is an ordinary LiquidGlassLens whose
-// style names its lite rim in `liteGlass`, which draws the same thing. The
-// panel drives what a lite surface is made of — the frost, the flat
-// magnification, the tint, the rim — and where the rim takes its colour
-// from, on both surfaces at once.
+// style sets `liteGlass`, which draws the same thing. The panel drives what
+// a lite surface is made of — the frost, the flat magnification, the tint,
+// the rim — on both surfaces at once.
 // =============================================================
 
 void main() {
@@ -43,11 +42,10 @@ class LitePage extends StatefulWidget {
 }
 
 class _LitePageState extends State<LitePage> {
-  LiquidGlassLitePickup _pickup = LiquidGlassLitePickup.backdrop;
   double _blur = 3;
   double _magnification = 1.0;
   int _tint = 1;
-  double _border = 1.0;
+  double _border = const LiquidGlassLight.specular().thickness;
 
   /// The tints on offer. `null` is no tint at all.
   static const List<(String, Color?)> _tints = <(String, Color?)>[
@@ -81,10 +79,12 @@ class _LitePageState extends State<LitePage> {
       );
 
   LiquidGlassLight get _specular =>
-      LiquidGlassLight.specular(thickness: _border, angle: 39);
+      LiquidGlassLight.specular(thickness: _border);
 
-  LiquidGlassLight get _glow =>
-      LiquidGlassLight.glow(thickness: _border, angle: 129);
+  LiquidGlassLight get _glow => LiquidGlassLight.glow(
+      thickness: _border *
+          const LiquidGlassLight.glow().thickness /
+          const LiquidGlassLight.specular().thickness);
 
   @override
   Widget build(BuildContext context) {
@@ -111,7 +111,6 @@ class _LitePageState extends State<LitePage> {
                         specular: _specular,
                         blur: _blur,
                         magnification: _magnification,
-                        pickup: _pickup,
                         color: _color,
                         child: const Padding(
                           padding: EdgeInsets.symmetric(horizontal: 24),
@@ -143,8 +142,8 @@ class _LitePageState extends State<LitePage> {
                     ),
                   ),
                   // The same material by the other route: a lens whose style
-                  // names the pickup in `liteGlass`, so the same chips move
-                  // its rim and the card's together.
+                  // sets `liteGlass`, so the same chips move its rim and the
+                  // card's together.
                   Positioned(
                     left: button.dx,
                     top: button.dy,
@@ -153,7 +152,7 @@ class _LitePageState extends State<LitePage> {
                     child: LiquidGlassDraggable(
                       child: LiquidGlassLens(
                         style: LiquidGlassStyle(
-                          liteGlass: _pickup,
+                          liteGlass: true,
                           shape: _shape(_button / 2),
                           specular: _specular,
                           glow: _glow,
@@ -180,14 +179,6 @@ class _LitePageState extends State<LitePage> {
                   DemoPanel(
                     title: 'LiquidGlassLite',
                     children: <Widget>[
-                      DemoChips<LiquidGlassLitePickup>(
-                        values: LiquidGlassLitePickup.values,
-                        selected: _pickup,
-                        label: (LiquidGlassLitePickup v) => 'rim: ${v.name}',
-                        onChanged: (LiquidGlassLitePickup v) =>
-                            setState(() => _pickup = v),
-                      ),
-                      const SizedBox(height: 6),
                       DemoChips<int>(
                         values: List<int>.generate(_tints.length, (int i) => i),
                         selected: _tint,
@@ -212,10 +203,10 @@ class _LitePageState extends State<LitePage> {
                             setState(() => _magnification = v),
                       ),
                       DemoSlider(
-                        label: 'border width',
+                        label: 'specular thickness',
                         value: _border,
                         min: 0,
-                        max: 4,
+                        max: 20,
                         decimals: 1,
                         onChanged: (double v) => setState(() => _border = v),
                       ),

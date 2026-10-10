@@ -67,88 +67,6 @@ const Color _kTint = Color(0xFF0A84FF);
 /// the frost instead of punching through it.
 const Color _kInk = Color(0xE61C1C1E);
 
-/// The frost's alpha as the page was designed — where the opacity slider
-/// starts, and what every other glass colour on the page is scaled against.
-const double _kFrostAlpha = 0x6E / 255;
-
-/// [c] with its alpha scaled by how far [opacity] sits from [_kFrostAlpha],
-/// so at the design value every colour is exactly what it was.
-Color _atOpacity(Color c, double opacity) =>
-    c.withValues(alpha: (c.a * opacity / _kFrostAlpha).clamp(0.0, 1.0));
-
-/// The refraction band the page was designed with — where the width slider
-/// starts, and what the tab bar pill's narrower band is scaled against.
-const double _kRefractionWidth = 24;
-
-/// The two lights, the refraction and the glass opacity, live. The tuner in
-/// the filter menu edits one of these, and every piece of glass on the page
-/// is cut with it.
-@immutable
-class _Rim {
-  const _Rim({
-    this.opacity = _kFrostAlpha,
-    this.specular = const LiquidGlassLight.specular(angle: 39),
-    this.glow = const LiquidGlassLight.glow(angle: 129),
-    this.secondSpecular = const LiquidGlassLight.specular(
-      thickness: 0,
-      angle: 219,
-    ),
-    this.refractionIndex = 1.02,
-    this.refractionWidth = _kRefractionWidth,
-    this.blur = 4,
-  });
-
-  final double opacity;
-  final LiquidGlassLight specular;
-  final LiquidGlassLight glow;
-
-  /// Off at thickness 0.
-  final LiquidGlassLight secondSpecular;
-  final double refractionIndex;
-  final double refractionWidth;
-  final double blur;
-
-  _Rim copyWith({
-    double? opacity,
-    LiquidGlassLight? specular,
-    LiquidGlassLight? glow,
-    LiquidGlassLight? secondSpecular,
-    double? refractionIndex,
-    double? refractionWidth,
-    double? blur,
-  }) =>
-      _Rim(
-        opacity: opacity ?? this.opacity,
-        specular: specular ?? this.specular,
-        glow: glow ?? this.glow,
-        secondSpecular: secondSpecular ?? this.secondSpecular,
-        refractionIndex: refractionIndex ?? this.refractionIndex,
-        refractionWidth: refractionWidth ?? this.refractionWidth,
-        blur: blur ?? this.blur,
-      );
-}
-
-/// [light] with its colour replaced, `null` included — which `copyWith`
-/// cannot do.
-LiquidGlassLight _withColor(LiquidGlassLight light, Color? color,
-        {required bool specular}) =>
-    specular
-        ? LiquidGlassLight.specular(
-            thickness: light.thickness,
-            sharpness: light.sharpness,
-            angle: light.angle,
-            spread: light.spread,
-            intensity: light.intensity,
-            color: color,
-          )
-        : LiquidGlassLight.glow(
-            thickness: light.thickness,
-            angle: light.angle,
-            spread: light.spread,
-            intensity: light.intensity,
-            color: color,
-          );
-
 /// The rim every piece of glass is cut with — a bright, tight optical
 /// border, which is what keeps a white-on-white control visible when a
 /// pale photo scrolls under it.
@@ -162,26 +80,22 @@ LiquidGlassShape _frostShape(double cornerRadius) =>
 /// what lets ink-coloured labels survive a black photograph passing
 /// underneath, and the saturation lift puts the colour of the photo back
 /// into the frost it just washed out.
-LiquidGlassStyle _frost(double cornerRadius, _Rim rim,
-        {LiquidGlassShadow? shadow}) =>
+LiquidGlassStyle _frost(
+  double cornerRadius, {
+  LiquidGlassShadow? shadow,
+  double blur = 4,
+}) =>
     LiquidGlassStyle(
-      // Its own palettes, so the opacity slider reaches the verdict colours
-      // too; at the design opacity they are the adaptivity defaults.
-      adaptivity: LiquidGlassAdaptivity(
-        glassColorOnDark: _atOpacity(const Color(0x26000000), rim.opacity),
-        glassColorOnLight: _atOpacity(const Color(0x3DFFFFFF), rim.opacity),
+      adaptivity: const LiquidGlassAdaptivity(
+        glassColorOnDark: Color(0x26000000),
+        glassColorOnLight: Color(0x3DFFFFFF),
       ),
       shape: _frostShape(cornerRadius),
-      specular: rim.specular,
-      glow: rim.glow,
-      secondSpecular: rim.secondSpecular,
-      color: _atOpacity(const Color(0x6EFFFFFF), rim.opacity),
-      blur: rim.blur,
+      color: const Color(0x6EFFFFFF),
+      blur: blur,
       saturation: 1.2,
       shadow: shadow,
-      refractionIndex: rim.refractionIndex,
-      refractionWidth: rim.refractionWidth,
-      chromaticAberration: 0.002,
+      dispersion: 1.32,
     );
 
 /// What the frost does about the photograph under it. The material is
@@ -190,15 +104,15 @@ LiquidGlassStyle _frost(double cornerRadius, _Rim rim,
 /// tint is what adapts: it thins to the page's own frost over a dark
 /// photo and thickens over a bright one, keeping the ink's contrast.
 /// [continuousGlassColor] glides it rather than switching, so a scroll
-/// through mixed frames never snaps. Both tints follow the opacity slider.
-LiquidGlassAdaptivity _adapt(double opacity) => LiquidGlassAdaptivity(
-      glassColorOnDark: _atOpacity(const Color(0x6EFFFFFF), opacity),
-      contentColorOnDark: _kInk,
-      glassColorOnLight: _atOpacity(const Color(0x99FFFFFF), opacity),
-      contentColorOnLight: _kInk,
-      duration: const Duration(milliseconds: 300),
-      continuousGlassColor: true,
-    );
+/// through mixed frames never snaps.
+const LiquidGlassAdaptivity _adapt = LiquidGlassAdaptivity(
+  glassColorOnDark: Color(0x6EFFFFFF),
+  contentColorOnDark: _kInk,
+  glassColorOnLight: Color(0x99FFFFFF),
+  contentColorOnLight: _kInk,
+  duration: Duration(milliseconds: 300),
+  continuousGlassColor: true,
+);
 
 /// The title has no frost to hide in, so the ink is what adapts here —
 /// the exact opposite of [_adapt]. Bare text over a photograph only
@@ -241,7 +155,16 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
   /// become the other.
   bool _morphing = false;
   final Set<int> _picked = <int>{};
-  _Rim _rim = const _Rim();
+
+  /// The frost's blur, shared by every frosted surface: the tab capsule,
+  /// search, Select and the menu.
+  final double _glassBlur = 4;
+
+  /// The tab pill's glass.
+  final LiquidGlassStyle _pillGlass = const LiquidGlassStyle(
+    dispersion: 3.3,
+    shadow: LiquidGlassShadow(blur: 9, opacity: 0.3),
+  );
 
   /// What the filter menu offers. The count is the library's headline
   /// number; the step is what the grid actually shows, so the two agree
@@ -346,138 +269,136 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
     return Scaffold(
       extendBody: true,
       resizeToAvoidBottomInset: false,
-      body: LiquidGlassScaffold(
-        pixelRatio: 1,
-        useSync: true,
-        // The page's own surface, which shows on overscroll and past the
-        // last row — so it comes from the app theme rather than a colour
-        // pinned here, and the grid sits on paper in the light and on
-        // near-black in the dark.
-        backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-        bottomNavigationBarActionMargin: _edge,
-        // Every glass slot below — header controls, the tab capsule,
-        // the search circle — inherits these palettes and judges the
-        // photographs behind ITSELF, so nothing here has to be told
-        // about the grid.
-        //
-        // The grid runs edge to edge under BOTH system bars, so each one
-        // gets a strip: the scaffold samples that band and drives the
-        // OS icon brightness from it. The strips judge only the bars —
-        // the glass chrome above still judges its own backdrop, so the
-        // two can legitimately disagree.
-        adaptivity: LiquidGlassScaffoldAdaptivity(
-          _adapt(_rim.opacity),
-          systemChrome: LiquidGlassSystemChrome.both,
-        ),
+      body: _scaffold(context, pad),
+    );
+  }
 
-        // ── the photographs, edge to edge and under everything ─────
-        body: _PhotoGrid(
-          photos: _photos,
-          selecting: _selecting,
-          picked: _picked,
-          onTap: _tapCell,
-          bottomInset: pad.bottom,
-        ),
+  Widget _scaffold(BuildContext context, EdgeInsets pad) {
+    return LiquidGlassScaffold(
+      pixelRatio: 1,
+      useSync: true,
+      // The page's own surface, which shows on overscroll and past the
+      // last row — so it comes from the app theme rather than a colour
+      // pinned here, and the grid sits on paper in the light and on
+      // near-black in the dark.
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      bottomNavigationBarActionMargin: _edge,
+      // Every glass slot below — header controls, the tab capsule,
+      // the search circle — inherits these palettes and judges the
+      // photographs behind ITSELF, so nothing here has to be told
+      // about the grid.
+      //
+      // The grid runs edge to edge under BOTH system bars, so each one
+      // gets a strip: the scaffold samples that band and drives the
+      // OS icon brightness from it. The strips judge only the bars —
+      // the glass chrome above still judges its own backdrop, so the
+      // two can legitimately disagree.
+      adaptivity: LiquidGlassScaffoldAdaptivity(
+        _adapt,
+        systemChrome: LiquidGlassSystemChrome.both,
+      ),
 
-        // ── tap anywhere else to put the menu away ─────────────────
-        //
-        // In `lenses`, so it sits ABOVE the grid but BELOW the app bar:
-        // the menu and the Select pill still get their taps, everything
-        // else — photographs, the title, the bars — closes it. It also
-        // stops a scroll from starting under an open menu, which is what
-        // makes it read as modal.
-        //
-        // Here rather than in `body` because this layer is outside the
-        // capture the lenses refract, so an open menu costs no repaint of
-        // the page behind it.
-        lenses: [
-          if (_menuOpen)
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => _setMenu(false),
-            ),
-        ],
+      // ── the photographs, edge to edge and under everything ─────
+      body: _PhotoGrid(
+        photos: _photos,
+        selecting: _selecting,
+        picked: _picked,
+        onTap: _tapCell,
+        bottomInset: pad.bottom,
+      ),
 
-        // ── title + the two top controls ───────────────────────────
-        appBar: _LibraryHeader(
-          subtitle: _subtitle,
-          selecting: _selecting,
-          filters: _filters,
-          filter: _filter,
-          menuOpen: _menuOpen,
-          onMenu: () => _setMenu(true),
-          onMorphEnd: _onMorphEnd,
-          onPickFilter: _pickFilter,
-          onSelect: _toggleSelecting,
-          rim: _rim,
-          onRim: (r) => setState(() => _rim = r),
-        ),
-
-        // ── the tab capsule, held off the left edge ────────────────
-        bottomNavigationBar: LiquidGlassTabBar(
-          items: _tabs,
-          selectedIndex: _tab,
-          onChanged: (i) => setState(() => _tab = i),
-          width: 189,
-          height: _barHeight,
-          itemPadding: 4,
-          // Left-anchored, like the reference: the capsule hugs its two
-          // tabs and leaves the right end of the line to search.
-          alignment: Alignment.bottomLeft,
-          margin: const EdgeInsets.only(left: _edge, bottom: 12),
-          // The bar's contact shadow lives in the material, like any
-          // lens's: the capsule wraps itself in this ring.
-          style: _frost(
-            _barHeight / 2,
-            _rim,
-            shadow: const LiquidGlassShadow(blur: 9, opacity: 0.16),
+      // ── tap anywhere else to put the menu away ─────────────────
+      //
+      // In `lenses`, so it sits ABOVE the grid but BELOW the app bar:
+      // the menu and the Select pill still get their taps, everything
+      // else — photographs, the title, the bars — closes it. It also
+      // stops a scroll from starting under an open menu, which is what
+      // makes it read as modal.
+      //
+      // Here rather than in `body` because this layer is outside the
+      // capture the lenses refract, so an open menu costs no repaint of
+      // the page behind it.
+      lenses: [
+        if (_menuOpen)
+          GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => _setMenu(false),
           ),
-          itemStyle: const LiquidGlassTabItemStyle(
-            selectedColor: Color.fromARGB(255, 0, 123, 255),
-            unselectedColor: _kInk,
-            iconSize: 24,
-            underGlassIconSize: 28,
-            labelFontSize: 11,
-            iconLabelGap: 2,
-            selectedFontWeight: FontWeight.w600,
-            unselectedFontWeight: FontWeight.w500,
-          ),
-          pillStyle: LiquidGlassTabPillStyle(
-            mode: LiquidGlassPillMode.both,
-            animated: true,
-            growHeight: 7,
-            // The pill wears the page's lights and bends with the same
-            // index; its band keeps its own narrower proportion of the
-            // slider's. Clear, unblurred, with the pill's own shadow.
-            glassStyle: LiquidGlassStyle(
-              specular: _rim.specular,
-              glow: _rim.glow,
-              secondSpecular: _rim.secondSpecular,
-              refractionIndex: _rim.refractionIndex,
-              refractionWidth: 10 * _rim.refractionWidth / _kRefractionWidth,
-              chromaticAberration: 0.002,
-              shadow: const LiquidGlassShadow(blur: 9, opacity: 0.3),
-            ),
-            // Travelling, the pill carries almost no tint — over a
-            // capsule this pale, a fill would only mud it. It is the
-            // refraction of the bar's own frost that reads as movement.
-            //
-            // Where it lands: the lighter capsule of the reference, a
-            // lift of white on white.
-            rest: LiquidGlassStyle(
-              shape: _frostShape(50),
-              color: Color.fromARGB(40, 0, 0, 0),
-            ),
+      ],
+
+      // ── title + the two top controls ───────────────────────────
+      appBar: _LibraryHeader(
+        subtitle: _subtitle,
+        selecting: _selecting,
+        filters: _filters,
+        filter: _filter,
+        menuOpen: _menuOpen,
+        onMenu: () => _setMenu(true),
+        onMorphEnd: _onMorphEnd,
+        onPickFilter: _pickFilter,
+        onSelect: _toggleSelecting,
+        glassBlur: _glassBlur,
+      ),
+
+      // ── the tab capsule, held off the left edge ────────────────
+      bottomNavigationBar: LiquidGlassTabBar(
+        items: _tabs,
+        selectedIndex: _tab,
+        onChanged: (i) => setState(() => _tab = i),
+        width: 189,
+        height: _barHeight,
+        itemPadding: 4,
+        // Left-anchored, like the reference: the capsule hugs its two
+        // tabs and leaves the right end of the line to search.
+        alignment: Alignment.bottomLeft,
+        margin: const EdgeInsets.only(left: _edge, bottom: 12),
+        // The bar's contact shadow lives in the material, like any
+        // lens's: the capsule wraps itself in this ring.
+        style: _frost(
+          _barHeight / 2,
+          shadow: const LiquidGlassShadow(blur: 9, opacity: 0.16),
+          blur: _glassBlur,
+        ),
+        itemStyle: const LiquidGlassTabItemStyle(
+          selectedColor: Color.fromARGB(255, 0, 123, 255),
+          unselectedColor: _kInk,
+          iconSize: 24,
+          underGlassIconSize: 28,
+          labelFontSize: 11,
+          iconLabelGap: 2,
+          selectedFontWeight: FontWeight.w600,
+          unselectedFontWeight: FontWeight.w500,
+        ),
+        pillStyle: LiquidGlassTabPillStyle(
+          mode: LiquidGlassPillMode.both,
+          animated: true,
+          growHeight: 7,
+          // The pill wears the page's lights and bends with the same
+          // index, over a narrower band. Clear, unblurred, with the
+          // pill's own shadow.
+          glassStyle: _pillGlass,
+          // Travelling, the pill carries almost no tint — over a
+          // capsule this pale, a fill would only mud it. It is the
+          // refraction of the bar's own frost that reads as movement.
+          //
+          // Where it lands: the lighter capsule of the reference, a
+          // lift of white on white.
+          rest: LiquidGlassStyle(
+            shape: _frostShape(50),
+            color: Color.fromARGB(40, 0, 0, 0),
           ),
         ),
+      ),
 
-        // ── search, on its own glass ───────────────────────────────
-        bottomNavigationBarAction: LiquidGlassTabBarAction(
-          icon: Icons.search_rounded,
-          size: _barHeight,
-          onTap: _search,
-          touch: _press,
-          style: _frost(_barHeight / 2, _rim),
+      // ── search, on its own glass ───────────────────────────────
+      bottomNavigationBarAction: LiquidGlassTabBarAction(
+        icon: Icons.search_rounded,
+        size: _barHeight,
+        onTap: _search,
+        touch: _press,
+        style: _frost(
+          _barHeight / 2,
+          blur: _glassBlur,
         ),
       ),
     );
@@ -507,8 +428,7 @@ class _LibraryHeader extends StatefulWidget {
     required this.onMorphEnd,
     required this.onPickFilter,
     required this.onSelect,
-    required this.rim,
-    required this.onRim,
+    required this.glassBlur,
   });
 
   final String subtitle;
@@ -522,8 +442,9 @@ class _LibraryHeader extends StatefulWidget {
   final VoidCallback onMorphEnd;
   final ValueChanged<int> onPickFilter;
   final VoidCallback onSelect;
-  final _Rim rim;
-  final ValueChanged<_Rim> onRim;
+
+  /// The frost's bend, from the page's tuning panel.
+  final double glassBlur;
 
   static const double _controlHeight = 44;
   static const double _left = 20;
@@ -621,7 +542,10 @@ class _LibraryHeaderState extends State<_LibraryHeader> {
                   touch: _press,
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
-                  style: _frost(ctrl / 2, widget.rim),
+                  style: _frost(
+                    ctrl / 2,
+                    blur: widget.glassBlur,
+                  ),
                   // The label as a `child` rather than `label:`, because a
                   // pinned width has to be able to clip: the built-in row
                   // sizes to the text and overflows a large text scale.
@@ -657,7 +581,10 @@ class _LibraryHeaderState extends State<_LibraryHeader> {
                   // The shape of the DESTINATION: a circle while it is a
                   // button, a card once it is a menu. The same frost as
                   // every other surface on the page.
-                  style: _frost(widget.menuOpen ? 28 : ctrl / 2, widget.rim),
+                  style: _frost(
+                    widget.menuOpen ? 28 : ctrl / 2,
+                    blur: widget.glassBlur,
+                  ),
                   onEnd: () {
                     if (_wide != widget.menuOpen) {
                       setState(() => _wide = widget.menuOpen);
@@ -673,8 +600,6 @@ class _LibraryHeaderState extends State<_LibraryHeader> {
                           filters: widget.filters,
                           active: widget.filter,
                           onPick: widget.onPickFilter,
-                          rim: widget.rim,
-                          onRim: widget.onRim,
                         )
                       : _FilterGlyph(
                           key: const ValueKey<String>('glyph'),
@@ -801,16 +726,12 @@ class _FilterMenu extends StatelessWidget {
     required this.filters,
     required this.active,
     required this.onPick,
-    required this.rim,
-    required this.onRim,
   });
 
   final double width;
   final List<(String, String, int, IconData)> filters;
   final int active;
   final ValueChanged<int> onPick;
-  final _Rim rim;
-  final ValueChanged<_Rim> onRim;
 
   static const double _rowHeight = 46;
   static const double _vPad = 7;
@@ -818,8 +739,7 @@ class _FilterMenu extends StatelessWidget {
   /// The height [rows] rows come to — the same arithmetic the build
   /// below performs, so the header can size the morph's box to the menu
   /// before the menu has been laid out even once.
-  static double heightFor(int rows) =>
-      _RimTuner.height + rows * _rowHeight + _vPad * 2;
+  static double heightFor(int rows) => rows * _rowHeight + _vPad * 2;
 
   @override
   Widget build(BuildContext context) {
@@ -834,7 +754,6 @@ class _FilterMenu extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            _RimTuner(rim: rim, onChanged: onRim, ink: ink),
             for (int i = 0; i < filters.length; i++)
               _FilterRow(
                 filter: filters[i],
@@ -846,340 +765,6 @@ class _FilterMenu extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-/// Every specular and glow value as a live control, plus the fill and the
-/// refraction. Each change goes up to the page, which recuts all the glass
-/// on it with the new rim.
-class _RimTuner extends StatelessWidget {
-  const _RimTuner({
-    required this.rim,
-    required this.onChanged,
-    required this.ink,
-  });
-
-  final _Rim rim;
-  final ValueChanged<_Rim> onChanged;
-  final Color ink;
-
-  static const double _headerHeight = 38;
-  static const double _sliderHeight = 42;
-  static const double _sectionHeight = 28;
-  static const double _swatchHeight = 40;
-
-  /// The colours a light can be given; `null` is the picked-up colour.
-  static const List<Color?> _swatches = [
-    null,
-    Color(0xFFFFFFFF),
-    Color(0xFF000000),
-    _kTint,
-    Color(0xFFFF375F),
-    Color(0xFFFFD60A),
-  ];
-
-  /// Fixed, so the menu's height can be known before it is laid out. The
-  /// controls scroll inside it.
-  static const double height = _headerHeight + 9 * _sliderHeight;
-
-  @override
-  Widget build(BuildContext context) {
-    final LiquidGlassLight s = rim.specular;
-    final LiquidGlassLight g = rim.glow;
-    final LiquidGlassLight s2 = rim.secondSpecular;
-    return SizedBox(
-      height: height,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: ink.withValues(alpha: ink.a * 0.18),
-              width: 0.6,
-            ),
-          ),
-        ),
-        child: Column(
-          children: [
-            SizedBox(
-              height: _headerHeight,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: [
-                    const Text(
-                      'Glass',
-                      style: TextStyle(
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: -0.2,
-                      ),
-                    ),
-                    const Spacer(),
-                    const SizedBox(width: 4),
-                    GestureDetector(
-                      behavior: HitTestBehavior.opaque,
-                      onTap: () => onChanged(const _Rim()),
-                      child: const Padding(
-                        padding: EdgeInsets.all(4),
-                        child: Icon(Icons.refresh_rounded, size: 19),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            Expanded(
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 8),
-                children: [
-                  _section('Specular'),
-                  _slider('Thickness', s.thickness, 0, 4,
-                      (v) => rim.copyWith(specular: s.copyWith(thickness: v))),
-                  _slider('Sharpness', s.sharpness, 0, 1,
-                      (v) => rim.copyWith(specular: s.copyWith(sharpness: v))),
-                  _slider('Angle', s.angle, 0, 360,
-                      (v) => rim.copyWith(specular: s.copyWith(angle: v)),
-                      digits: 0, unit: '°'),
-                  _slider('Spread', s.spread, 0, 1,
-                      (v) => rim.copyWith(specular: s.copyWith(spread: v))),
-                  _slider('Intensity', s.intensity, 0, 3,
-                      (v) => rim.copyWith(specular: s.copyWith(intensity: v))),
-                  ..._colour(s, (l) => rim.copyWith(specular: l),
-                      specular: true),
-                  _section('Specular 2'),
-                  _slider('Thickness', s2.thickness, 0, 4,
-                      (v) => rim.copyWith(secondSpecular: s2.copyWith(thickness: v))),
-                  _slider('Sharpness', s2.sharpness, 0, 1,
-                      (v) => rim.copyWith(secondSpecular: s2.copyWith(sharpness: v))),
-                  _slider('Angle', s2.angle, 0, 360,
-                      (v) => rim.copyWith(secondSpecular: s2.copyWith(angle: v)),
-                      digits: 0, unit: '°'),
-                  _slider('Spread', s2.spread, 0, 1,
-                      (v) => rim.copyWith(secondSpecular: s2.copyWith(spread: v))),
-                  _slider('Intensity', s2.intensity, 0, 3,
-                      (v) => rim.copyWith(secondSpecular: s2.copyWith(intensity: v))),
-                  ..._colour(s2, (l) => rim.copyWith(secondSpecular: l),
-                      specular: true),
-                  _section('Glow'),
-                  _slider('Thickness', g.thickness, 0, 4,
-                      (v) => rim.copyWith(glow: g.copyWith(thickness: v))),
-                  _slider('Angle', g.angle, 0, 360,
-                      (v) => rim.copyWith(glow: g.copyWith(angle: v)),
-                      digits: 0, unit: '°'),
-                  _slider('Spread', g.spread, 0, 1,
-                      (v) => rim.copyWith(glow: g.copyWith(spread: v))),
-                  _slider('Intensity', g.intensity, 0, 5,
-                      (v) => rim.copyWith(glow: g.copyWith(intensity: v))),
-                  ..._colour(g, (l) => rim.copyWith(glow: l),
-                      specular: false),
-                  _section('Glass'),
-                  _slider('Tint opacity', rim.opacity, 0, 1,
-                      (v) => rim.copyWith(opacity: v),
-                      digits: 0, unit: '%', display: 100),
-                  _slider('Refraction index', rim.refractionIndex, 1, 1.2,
-                      (v) => rim.copyWith(refractionIndex: v),
-                      digits: 3),
-                  _slider('Refraction width', rim.refractionWidth, 0, 60,
-                      (v) => rim.copyWith(refractionWidth: v),
-                      digits: 0),
-                  _slider('Blur', rim.blur, 0, 12,
-                      (v) => rim.copyWith(blur: v),
-                      digits: 1),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  /// The colour swatches, and the colour's alpha once one is picked.
-  List<Widget> _colour(
-    LiquidGlassLight light,
-    _Rim Function(LiquidGlassLight) apply, {
-    required bool specular,
-  }) {
-    final Color? c = light.color;
-    return [
-      SizedBox(
-        height: _swatchHeight,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            children: [
-              const Text(
-                'Colour',
-                style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w500),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  alignment: Alignment.centerRight,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      for (final Color? swatch in _swatches)
-                        GestureDetector(
-                          behavior: HitTestBehavior.opaque,
-                          onTap: () => onChanged(apply(_withColor(
-                            light,
-                            swatch?.withValues(alpha: c?.a ?? 1),
-                            specular: specular,
-                          ))),
-                          child: Padding(
-                            padding: const EdgeInsets.only(left: 6),
-                            child: _Swatch(
-                              color: swatch,
-                              on: swatch == null
-                                  ? c == null
-                                  : c != null && c.withValues(alpha: 1) == swatch,
-                              ink: ink,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-      if (c != null)
-        _slider(
-          'Colour alpha',
-          c.a,
-          0,
-          1,
-          (v) => apply(
-            _withColor(light, c.withValues(alpha: v), specular: specular),
-          ),
-        ),
-    ];
-  }
-
-  Widget _section(String title) {
-    return SizedBox(
-      height: _sectionHeight,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: Text(
-            title.toUpperCase(),
-            style: TextStyle(
-              color: ink.withValues(alpha: ink.a * 0.55),
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.6,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _slider(
-    String label,
-    double value,
-    double min,
-    double max,
-    _Rim Function(double) apply, {
-    int digits = 2,
-    String unit = '',
-    double display = 1,
-  }) {
-    return SizedBox(
-      height: _sliderHeight,
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
-                const Spacer(),
-                Text(
-                  '${(value * display).toStringAsFixed(digits)}$unit',
-                  style: TextStyle(
-                    color: ink.withValues(alpha: ink.a * 0.6),
-                    fontSize: 12.5,
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: SliderTheme(
-              data: SliderThemeData(
-                trackHeight: 3,
-                activeTrackColor: _kTint,
-                inactiveTrackColor: ink.withValues(alpha: ink.a * 0.18),
-                thumbColor: Colors.white,
-                overlayColor: _kTint.withValues(alpha: 0.12),
-                thumbShape:
-                    const RoundSliderThumbShape(enabledThumbRadius: 8),
-                overlayShape:
-                    const RoundSliderOverlayShape(overlayRadius: 14),
-              ),
-              child: Slider(
-                value: value.clamp(min, max),
-                min: min,
-                max: max,
-                onChanged: (v) => onChanged(apply(v)),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One colour choice in the tuner; a `null` colour is the picked-up colour,
-/// drawn as an outlined "A".
-class _Swatch extends StatelessWidget {
-  const _Swatch({required this.color, required this.on, required this.ink});
-
-  final Color? color;
-  final bool on;
-  final Color ink;
-
-  @override
-  Widget build(BuildContext context) {
-    final Color? c = color;
-    return Container(
-      width: 22,
-      height: 22,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: c,
-        border: Border.all(
-          color: on ? _kTint : ink.withValues(alpha: ink.a * 0.3),
-          width: on ? 2.2 : 1,
-        ),
-      ),
-      child: c == null
-          ? Text(
-              'A',
-              style: TextStyle(
-                color: ink,
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          : null,
     );
   }
 }

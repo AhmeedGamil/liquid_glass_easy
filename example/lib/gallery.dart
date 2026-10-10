@@ -16,17 +16,13 @@ import 'scroll_edge_page.dart';
 import 'motion_pill_page.dart';
 import 'liquid_menu_page.dart';
 import 'morph_page.dart';
-import 'nav_jelly_tuner.dart';
-import 'flex_tuner.dart';
 import 'basic_controls_page.dart';
 import 'batch_page.dart';
-import 'slider_motion_tuner.dart';
 import 'slider_page.dart';
 import 'tab_bar_page.dart';
 import 'adaptivity_page.dart';
 import 'adaptivity_advanced_page.dart';
 import 'adaptivity_controller_page.dart';
-import 'device_preview_page.dart';
 import 'showcases/photos_library_page.dart';
 
 // =============================================================
@@ -34,10 +30,7 @@ import 'showcases/photos_library_page.dart';
 //
 // A home menu that opens each demo as its OWN route, so only one glass
 // capture pipeline is live at a time (kind to the Impeller multi-lens
-// ceiling). The tuner pages write to a shared, in-memory store
-// (TuningStore) and preview the result on a live control of their own.
-// Values are not persisted; they reset to the shipped defaults on
-// restart.
+// ceiling).
 //
 // The gear at the top right opens Settings: light/dark on a glass
 // switch. Not persisted.
@@ -246,14 +239,6 @@ class HomePage extends StatelessWidget {
       gradient: const [Color(0xFF136A8A), Color(0xFF267871)],
       builder: (_) => const AdaptivityControllerPage(),
     ),
-    _Destination(
-      title: 'Device preview',
-      subtitle: 'The whole app scaled down into a phone frame: does the '
-          'glass stay on its outline?',
-      icon: Icons.phonelink_rounded,
-      gradient: const [Color(0xFFF472B6), Color(0xFF9D174D)],
-      builder: (_) => const DevicePreviewPage(),
-    ),
   ];
 
   /// Whole app screens, rebuilt with the components. Each file under
@@ -267,30 +252,6 @@ class HomePage extends StatelessWidget {
       icon: Icons.photo_library_rounded,
       gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
       builder: (_) => const PhotosLibraryPage(),
-    ),
-  ];
-
-  static final List<_Destination> _tuners = [
-    _Destination(
-      title: 'Nav Motion Tuner',
-      subtitle: 'Tune the nav pill motion + bar look on a live bar',
-      icon: Icons.science_rounded,
-      gradient: const [Color(0xFFFFB020), Color(0xFFD97A06)],
-      builder: (_) => const NavJellyTunerPage(),
-    ),
-    _Destination(
-      title: 'Slider Motion Tuner',
-      subtitle: 'Tune the slider thumb jelly on a live slider',
-      icon: Icons.biotech_rounded,
-      gradient: const [Color(0xFFB79CFF), Color(0xFF6E4DD8)],
-      builder: (_) => const SliderMotionTunerPage(),
-    ),
-    _Destination(
-      title: 'Flex Tuner',
-      subtitle: 'Touch-deform a lens that never moves',
-      icon: Icons.touch_app_rounded,
-      gradient: const [Color(0xFF2DD4BF), Color(0xFF1E69DE)],
-      builder: (_) => const FlexTunerPage(),
     ),
   ];
 
@@ -353,13 +314,6 @@ class HomePage extends StatelessWidget {
               _SectionLabel('Demos'),
               const SizedBox(height: 12),
               for (final d in _demos) ...[
-                _DestinationCard(d: d, onTap: () => _open(context, d)),
-                const SizedBox(height: 12),
-              ],
-              const SizedBox(height: 14),
-              _SectionLabel('Fine-tuners'),
-              const SizedBox(height: 12),
-              for (final d in _tuners) ...[
                 _DestinationCard(d: d, onTap: () => _open(context, d)),
                 const SizedBox(height: 12),
               ],

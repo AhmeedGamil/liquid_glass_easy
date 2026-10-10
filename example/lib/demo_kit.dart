@@ -13,7 +13,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // =============================================================
 
 /// A painted backdrop: a two-tone gradient, soft colour blobs, and a fine
-/// dot grid so magnification and distortion are visible through any lens.
+/// dot grid so magnification and refraction are visible through any lens.
 class DemoBackdrop extends StatelessWidget {
   /// Picks the palette. Same seed, same picture, every build.
   final int seed;
@@ -114,7 +114,16 @@ class DemoPhoto extends StatelessWidget {
   /// How dark a scrim to lay over the photo so white text reads on it.
   final double scrim;
 
-  const DemoPhoto(this.name, {super.key, this.seed = 0, this.scrim = 0.18});
+  /// A flat colour shown until the photo loads (and if it fails), in place of
+  /// the stand-in backdrop. `null` keeps the stand-in.
+  final Color? placeholder;
+
+  const DemoPhoto(this.name,
+      {super.key, this.seed = 0, this.scrim = 0.18, this.placeholder});
+
+  Widget _standIn() => placeholder == null
+      ? DemoBackdrop(seed: seed)
+      : ColoredBox(color: placeholder!, child: const SizedBox.expand());
 
   static String urlFor(String name) => name.startsWith('http')
       ? name
@@ -130,11 +139,11 @@ class DemoPhoto extends StatelessWidget {
           urlFor(name),
           fit: BoxFit.cover,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) => DemoBackdrop(seed: seed),
+          errorBuilder: (_, __, ___) => _standIn(),
           loadingBuilder: (BuildContext context, Widget child,
               ImageChunkEvent? progress) {
             if (progress == null) return child;
-            return DemoBackdrop(seed: seed);
+            return _standIn();
           },
         ),
         DecoratedBox(
@@ -173,12 +182,8 @@ class DemoHeader extends StatelessWidget {
     shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: height / 2,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 0.8),
     blur: 3,
     color: Color(0x1AFFFFFF),
-    refractionIndex: 1.024,
-    refractionWidth: 22,
   );
 
   @override
@@ -422,4 +427,37 @@ class DemoSlider extends StatelessWidget {
       ],
     );
   }
+}
+
+/// The three refraction sliders — index, width and dispersion —
+/// editing [style] and handing the edited copy to [onChanged].
+List<Widget> refractionSliders(
+  LiquidGlassStyle style,
+  ValueChanged<LiquidGlassStyle> onChanged,
+) {
+  return <Widget>[
+    DemoSlider(
+      label: 'refraction index',
+      value: style.refractionIndex,
+      min: 1,
+      max: 2,
+      decimals: 3,
+      onChanged: (double v) => onChanged(style.copyWith(refractionIndex: v)),
+    ),
+    DemoSlider(
+      label: 'refraction width',
+      value: style.refractionWidth,
+      min: 0,
+      max: 60,
+      onChanged: (double v) => onChanged(style.copyWith(refractionWidth: v)),
+    ),
+    DemoSlider(
+      label: 'dispersion',
+      value: style.dispersion,
+      min: 0,
+      max: 13,
+      decimals: 2,
+      onChanged: (double v) => onChanged(style.copyWith(dispersion: v)),
+    ),
+  ];
 }

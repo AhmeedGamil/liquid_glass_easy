@@ -51,10 +51,6 @@ class _DraggablePageState extends State<DraggablePage> {
     shape: LiquidGlassShape.roundedRectangle(
       cornerRadius: _size / 2,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.4),
-    refractionIndex: 1.017,
-    refractionWidth: 30,
     magnification: 1,
   );
 

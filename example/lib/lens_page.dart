@@ -50,8 +50,8 @@ class _LensPageState extends State<LensPage> {
   LiquidGlassCornerStyle _corner =
       LiquidGlassCornerStyle.continuousRoundedRectangle;
   double _blur = 0;
-  double _index = 1.022;
-  double _width = 40;
+  double _index = const LiquidGlassStyle().refractionIndex;
+  double _width = const LiquidGlassStyle().refractionWidth;
 
   // Where the lens has been dragged to is NOT page state. A setState per
   // pan update would rebuild this whole LiquidGlassView — background image
@@ -89,8 +89,6 @@ class _LensPageState extends State<LensPage> {
           cornerStyle: _corner,
           cornerRadius: 44,
         ),
-        specular: LiquidGlassLight.specular(),
-        glow: LiquidGlassLight.glow(thickness: 1.4),
         blur: _blur,
         color: const Color(0x12FFFFFF),
         refractionIndex: _index,
@@ -152,7 +150,7 @@ class _LensPageState extends State<LensPage> {
                         label: 'refraction index',
                         value: _index,
                         min: 1,
-                        max: 1.2,
+                        max: 2,
                         decimals: 3,
                         onChanged: (double v) => setState(() => _index = v),
                       ),

@@ -120,12 +120,8 @@ class _BatchPageState extends State<BatchPage>
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 26,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.2, intensity: 1),
     color: Color(0x14FFFFFF),
     blur: 9,
-    refractionIndex: 1.117,
-    refractionWidth: 20,
   );
 
   @override

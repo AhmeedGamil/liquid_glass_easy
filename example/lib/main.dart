@@ -67,13 +67,9 @@ class _LensImagePageState extends State<LensImagePage> {
     shape: LiquidGlassShape.continuousRoundedRectangle(
       cornerRadius: 36,
     ),
-    specular: LiquidGlassLight.specular(),
-    glow: LiquidGlassLight.glow(thickness: 1.5),
     color: Color(0x14FFFFFF),
     saturation: 1.05,
     blur: 3,
-    refractionIndex: 1.22,
-    refractionWidth: 24,
   );
 
   @override

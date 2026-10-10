@@ -59,11 +59,6 @@ LiquidGlassShape _glassShape(double cornerRadius) =>
       clipQuality: LiquidGlassClipQuality.exact,
     );
 
-const LiquidGlassLight _rimSpecular = LiquidGlassLight.specular(
-    angle: 62, intensity: 0.9);
-const LiquidGlassLight _rimGlow =
-    LiquidGlassLight.glow(thickness: 0.7, angle: 152, intensity: 0.85);
-
 /// One tab: what the bar draws for it, and what the page behind it opens
 /// with. Both live on the same row so a fifth tab is one line, not four
 /// lists to keep in step.
@@ -184,13 +179,9 @@ class _TabBarPageState extends State<TabBarPage> {
         margin: const EdgeInsets.only(bottom: _bottom),
         style: LiquidGlassStyle(
           shape: _glassShape(_barHeight / 2),
-          specular: _rimSpecular,
-          glow: _rimGlow,
           color: Color(0x8FFFFFFF),
           blur: 5,
           shadow: LiquidGlassShadow(blur: 9, opacity: 0.13),
-          refractionIndex: 1.025,
-          refractionWidth: 26,
         ),
         itemStyle: const LiquidGlassTabItemStyle(
           // The one place the selected look is decided — icon, bloom and
@@ -213,7 +204,7 @@ class _TabBarPageState extends State<TabBarPage> {
         // tucked-in ring. The one thing this page decides is where the
         // pill comes to rest. A different pill shadow would be authored
         // where every lens's is — on the glass style's
-        // `appearance.shadow`.
+        // `shadow`.
         pillStyle: LiquidGlassTabPillStyle(
           // The tier knob, driven by the chips on the page so all
           // three are one tap apart: `both` = the glass-refracting
