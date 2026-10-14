@@ -255,6 +255,17 @@ float computeShapeMask(float shapeDistPx) {
 }
 
 
+// The bend's direction: away from the box's spine, as a capsule along the
+// long side bends, whatever the corners. Band pixels only.
+vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
+                   vec2 shapeScale, vec2 fallback) {
+    vec2 rel = fragRestPx - centerPx;
+    vec2 spine = max(restHalfPx - min(restHalfPx.x, restHalfPx.y), vec2(0.0));
+    vec2 away = (rel - clamp(rel, -spine, spine)) / shapeScale;
+    float awayLen = length(away);
+    return awayLen > EPS ? away / awayLen : fallback;
+}
+
 // =====================================================
 // Main entry
 // =====================================================
@@ -390,7 +401,10 @@ void main() {
         vec2 refrPx = magPx;
 
         refrPx = computeRefractedPosition(
-            magPx, shapeData.normal, refrDistPx,
+            magPx,
+            capsuleNormal(fragRestPx, lensCenterPx, restHalfPx, shapeScale,
+                          shapeData.normal),
+            refrDistPx,
             u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
         );
@@ -459,7 +473,10 @@ void main() {
     vec2 refrPx;
 
     refrPx = computeRefractedPosition(
-        magPx, shapeData.normal, refrDistPx,
+        magPx,
+        capsuleNormal(fragRestPx, lensCenterPx, restHalfPx, shapeScale,
+                      shapeData.normal),
+        refrDistPx,
         u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );
