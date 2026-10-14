@@ -200,9 +200,14 @@ class LiquidGlassLite extends StatelessWidget {
     );
   }
 
+  /// The body's clip: always the exact outline, the curve the rim is cut to,
+  /// so the two meet at the corners.
+  LiquidGlassShape get _bodyClip =>
+      _lit.copyWith(clipQuality: LiquidGlassClipQuality.exact);
+
   /// A flat fill of [tint], cut to the outline like the frost is.
   Widget _fill(Color tint) => liquidGlassClip(
-        shape: _lit,
+        shape: _bodyClip,
         shapeScale: shapeScale,
         child: ColoredBox(color: tint),
       );
@@ -210,7 +215,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// The glass itself: the backdrop, magnified and blurred, cut to the
   /// outline. Both go through one filter, so they share one read.
   Widget _frost() => liquidGlassClip(
-        shape: _lit,
+        shape: _bodyClip,
         shapeScale: shapeScale,
         child: _GlassBackdrop(
           blur: blur,

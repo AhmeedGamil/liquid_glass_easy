@@ -825,9 +825,10 @@ class _LiteGlassFallback extends StatelessWidget {
 
     // The tint is the lite's own, a fill of the shape. The rim is painted
     // over the finished surface and reads nothing, so the frost's read is
-    // the only one a lite lens costs.
+    // the only one a lite lens costs. The clip is the exact outline, the
+    // curve the lite cuts its own rim to.
     return liquidGlassClip(
-      shape: shape,
+      shape: shape.copyWith(clipQuality: LiquidGlassClipQuality.exact),
       shapeScale: shapeScale,
       child: LiquidGlassLite(
         shape: shape,
