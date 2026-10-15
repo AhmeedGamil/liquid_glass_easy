@@ -12,9 +12,9 @@ import 'package:flutter/foundation.dart';
 /// ```dart
 /// LiquidGlassStyle(
 ///   specular: LiquidGlassLight.specular(
-///       thickness: 5, sharpness: 0.5, angle: 39, spread: 0.9, intensity: 1),
+///       thickness: 5, sharpness: 0.5, angle: 39, spread: 0.85, intensity: 1),
 ///   glow: LiquidGlassLight.glow(
-///       thickness: 10, angle: 90, spread: 0.5, intensity: 1),
+///       thickness: 10, angle: 90, spread: 0.85, intensity: 1),
 /// )
 /// ```
 @immutable
@@ -103,7 +103,7 @@ class LiquidGlassLight {
     this.thickness = 5.0,
     this.sharpness = 0.5,
     this.angle = 39.0,
-    this.spread = 0.9,
+    this.spread = 0.85,
     this.intensity = 1.0,
     this.oppositeIntensity = 1.0,
     this.color,
@@ -114,7 +114,7 @@ class LiquidGlassLight {
   const LiquidGlassLight.glow({
     this.thickness = 10.0,
     this.angle = 90.0,
-    this.spread = 0.5,
+    this.spread = 0.85,
     this.intensity = 1.0,
     this.oppositeIntensity = 1.0,
     this.color,
