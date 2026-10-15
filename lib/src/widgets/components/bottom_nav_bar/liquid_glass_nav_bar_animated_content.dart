@@ -6,6 +6,7 @@ import '../liquid_glass_adaptive_area.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
+import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_pill.dart';
 import 'liquid_glass_nav_bar_pill_clippers.dart';
 import 'liquid_glass_nav_bar_style.dart';
@@ -42,6 +43,9 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
   /// and the icon-reveal clip. When `null`, a plain capsule is used.
   final LiquidGlassShape? pillShape;
 
+  /// The selection pill's rest width; `null` for one equal share.
+  final double? pillWidth;
+
   /// Unselected cells follow the ambient adaptive content color
   /// (installed by the hosting lens) instead of the style's fixed color;
   /// the selected cell keeps `itemStyle.selectedColor`. Set when the
@@ -61,6 +65,7 @@ class AnimatedBottomNavBarContent extends StatefulWidget {
     required this.duration,
     required this.curve,
     this.pillShape,
+    this.pillWidth,
     this.adaptive = false,
   });
 
@@ -133,14 +138,20 @@ class _AnimatedBottomNavBarContentState
       child: Padding(
         padding: EdgeInsets.all(widget.itemPadding),
         child: LayoutBuilder(builder: (context, constraints) {
-          final cellWidth = constraints.maxWidth / widget.items.length;
+          final row = LiquidGlassTabBarLayout(
+            itemCount: widget.items.length,
+            width: constraints.maxWidth,
+            padding: 0,
+            restPillWidth: widget.pillWidth,
+          );
+          final cellWidth = row.pillWidth;
           final cellHeight = constraints.maxHeight;
           return AnimatedBuilder(
             animation: _controller,
             builder: (context, _) {
               final frac = _currentIndex;
               final pillRect = Rect.fromLTWH(
-                frac * cellWidth,
+                row.pillOffset(frac),
                 0,
                 cellWidth,
                 cellHeight,
@@ -169,7 +180,7 @@ class _AnimatedBottomNavBarContentState
                           pillRadius: pillRadius,
                           shape: widget.pillShape,
                         ),
-                        child: _animatedIconRow(forceSelected: false),
+                        child: _animatedIconRow(row, forceSelected: false),
                       ),
                     ),
                   ),
@@ -183,7 +194,7 @@ class _AnimatedBottomNavBarContentState
                           pillRadius: pillRadius,
                           shape: widget.pillShape,
                         ),
-                        child: _animatedIconRow(forceSelected: true),
+                        child: _animatedIconRow(row, forceSelected: true),
                       ),
                     ),
                   ),
@@ -193,6 +204,7 @@ class _AnimatedBottomNavBarContentState
                       itemCount: widget.items.length,
                       onChanged: widget.onChanged,
                       cellHeight: cellHeight,
+                      pillWidth: widget.pillWidth,
                     ),
                   ),
                 ],
@@ -208,13 +220,18 @@ class _AnimatedBottomNavBarContentState
   /// or unselected state. The two copies (selected / unselected) share
   /// the exact same layout, so the pill-shaped clip cuts cleanly
   /// between filled and outlined.
-  Widget _animatedIconRow({required bool forceSelected}) {
-    return Row(
+  Widget _animatedIconRow(LiquidGlassTabBarLayout row,
+      {required bool forceSelected}) {
+    return Stack(
       children: [
-        for (final item in widget.items)
-          Expanded(
+        for (int i = 0; i < widget.items.length; i++)
+          Positioned(
+            left: row.pillOffset(i.toDouble()),
+            width: row.pillWidth,
+            top: 0,
+            bottom: 0,
             child: LiquidGlassNavTabCell(
-              item: item,
+              item: widget.items[i],
               selected: forceSelected,
               style: widget.itemStyle,
               adaptive: widget.adaptive,

@@ -773,19 +773,12 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   }
 
   // ── Gesture geometry ─────────────────────────────────────────────
-  double _xToTabFrac(double globalDx) {
-    final cell0Center = _barLeft + _layout.padding + _layout.cellWidth / 2;
-    final cellW = _layout.cellWidth;
-    final raw = (globalDx - cell0Center) / cellW;
-    return raw.clamp(0.0, (_layout.itemCount - 1).toDouble());
-  }
+  // The overlay spans the row, so its local x is already row-relative —
+  // and stays right wherever the bar sits on the screen.
+  double _xToTabFrac(double rowDx) => _layout.fracAt(rowDx);
 
-  void _onTabBarTapUp(TapUpDetails d) {
-    final cellW = _layout.cellWidth;
-    final raw = d.localPosition.dx / cellW;
-    final idx = raw.floor().clamp(0, _layout.itemCount - 1);
-    _animateTo(idx, notify: true);
-  }
+  void _onTabBarTapUp(TapUpDetails d) =>
+      _animateTo(_layout.indexAt(d.localPosition.dx), notify: true);
 
   // ── Hold-to-grab handlers ────────────────────────────────────────
   void _onTabPillLongPressStart(LongPressStartDetails d) {
@@ -795,7 +788,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     // The hand takes the deformation back off the travel.
     _travelSign = 0;
     _startCapture();
-    final frac = _xToTabFrac(d.globalPosition.dx);
+    final frac = _xToTabFrac(d.localPosition.dx);
     // Start the smoothed follow at the pill's current resting position so
     // a hold away from the pill EASES over to the finger.
     _dragFollow = _travelPos;
@@ -808,7 +801,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
   void _onTabPillLongPressMoveUpdate(LongPressMoveUpdateDetails d) {
     if (!_tabDragging) return;
-    final frac = _xToTabFrac(d.globalPosition.dx);
+    final frac = _xToTabFrac(d.localPosition.dx);
     if ((frac - _pressFrac).abs() > 0.2) _draggedRealMove = true;
     setState(() => _tabPillFracIndex = frac);
   }
@@ -1053,7 +1046,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     return Offset(
       _barLeft +
           layout.padding +
-          frac * layout.cellWidth +
+          layout.pillOffset(frac) +
           layout.pillWidth / 2,
       _pillCenter.dy,
     );
@@ -1102,7 +1095,6 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       }
       final layout = _layout.copyWith(bottomMargin: _effBottomMargin);
 
-      final cellW = layout.cellWidth;
 
       // The two ends of the lift: the cell the pill rests in, and the
       // raised glass it stands at while it is up — the same w:h ratio,
@@ -1122,7 +1114,10 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // it rides its cell; vertically the centre never moves, since the
       // morph is symmetric about the bar's row.
       final double pillCX =
-          _barLeft + layout.padding + pillFrac * cellW + layout.pillWidth / 2;
+          _barLeft +
+          layout.padding +
+          layout.pillOffset(pillFrac) +
+          layout.pillWidth / 2;
       final double pillCY = parentHeight -
           (_effBottomMargin + layout.padding + layout.cellHeight / 2);
       // Hand the row's Y to the ticker, which re-derives X itself each

@@ -203,9 +203,10 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   Rect _pillRect() {
     final pillW = highlightWidth!;
     final pillH = highlightHeight!;
-    final cellW = layout.cellWidth;
-    // Center of the cell at the fractional index, in local space.
-    final cellCenterX = layout.padding + (highlightFrac! + 0.5) * cellW;
+    // Centre of the pill at the fractional index, in local space.
+    final cellCenterX = layout.padding +
+        layout.pillOffset(highlightFrac!) +
+        layout.pillWidth / 2;
     // Bar's vertical center inside the local box.
     final cellCenterY = layout.height / 2;
     return Rect.fromCenter(

@@ -230,6 +230,16 @@ class LiquidGlassTabPillStyle {
   /// [mode]s only). `1` = none.
   final double magnification;
 
+  /// The selection pill's width at rest, in logical pixels. `null` (the
+  /// default) makes it one equal share of the bar, with each item centred
+  /// in its share.
+  ///
+  /// Set it to make the pill wider than a share: the first and last items
+  /// then sit `itemPadding + width / 2` in from the bar's ends and the
+  /// items between spread evenly over the rest. The lifted glass pill keeps
+  /// the same proportions.
+  final double? width;
+
   /// Shape of the moving **glass** pill (glass [mode]s only). When
   /// `null` (the default) the pill is an Apple capsule-style
   /// [LiquidGlassShape] whose corner radius tracks the
@@ -299,6 +309,7 @@ class LiquidGlassTabPillStyle {
     this.refractionIndex = 1.025,
     this.refractionWidth = 12,
     this.magnification = 1,
+    this.width,
     this.shape,
     this.glassStyle,
     this.rest,
@@ -336,6 +347,7 @@ class LiquidGlassTabPillStyle {
     double? refractionIndex,
     double? refractionWidth,
     double? magnification,
+    double? width,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
     LiquidGlassStyle? rest,
@@ -356,6 +368,7 @@ class LiquidGlassTabPillStyle {
       refractionIndex: refractionIndex ?? this.refractionIndex,
       refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
+      width: width ?? this.width,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
       rest: rest ?? this.rest,

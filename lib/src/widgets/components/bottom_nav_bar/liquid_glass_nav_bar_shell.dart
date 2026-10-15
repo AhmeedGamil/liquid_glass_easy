@@ -65,6 +65,7 @@ class LiquidGlassTabBarShell extends StatelessWidget {
                 itemCount: items.length,
                 onChanged: onChanged,
                 cellHeight: layout.cellHeight,
+                pillWidth: layout.restPillWidth,
               ),
             ),
           ),

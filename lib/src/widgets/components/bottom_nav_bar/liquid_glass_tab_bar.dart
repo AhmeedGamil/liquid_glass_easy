@@ -32,10 +32,9 @@ export 'liquid_glass_nav_bar_style.dart';
 /// Most commonly it goes in the `bottomNavigationBar:` slot of a
 /// `LiquidGlassScaffold`, which places it and feeds its glass.
 ///
-/// It also works **on its own**. Where it finds no host above it (no
-/// `LiquidGlassScaffold` or `LiquidGlassView`), a bar whose
-/// [pillStyle] `mode` is a glass mode fills its parent and places itself
-/// from [alignment] and [margin] — so drop it as the LAST child of a
+/// It also works **on its own**, or inside any `LiquidGlassView`. A bar
+/// whose [pillStyle] `mode` is a glass mode fills its parent and places
+/// itself from [alignment] and [margin] — so drop it as the LAST child of a
 /// `Stack` over your page:
 ///
 /// ```dart
@@ -50,8 +49,9 @@ export 'liquid_glass_nav_bar_style.dart';
 /// On Impeller the bar and its morph pill sample the **live backdrop**,
 /// so the page is never handed in. On Skia / Web there is no live-backdrop
 /// shader and no captured page, so it falls back to the plain frosted
-/// single-lens bar, placed the same way. For the refracting morph pill on
-/// Skia, use a `LiquidGlassScaffold` with a real `body`.
+/// single-lens bar: placed the same way on its own, or as a plain capsule
+/// inside a `LiquidGlassView`. For the refracting morph pill on Skia, use
+/// a `LiquidGlassScaffold` with a real `body`.
 ///
 /// With `mode: LiquidGlassPillMode.none` the bar is a plain [width] x
 /// [height] capsule instead — a single [LiquidGlassLens] with the icons,
@@ -187,6 +187,7 @@ class LiquidGlassTabBar extends StatelessWidget {
         height: height,
         bottomMargin: margin.bottom,
         padding: itemPadding,
+        restPillWidth: pillStyle.width,
       );
 
   /// Whether [glassPill] resolves to the glass-refracting morphing pill
@@ -290,6 +291,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       bottomMargin: base.bottomMargin + bottomInset,
       padding: base.padding,
       pillExtraHeight: base.pillExtraHeight,
+      restPillWidth: base.restPillWidth,
     );
 
     final glassStyle = pillStyle.effectiveGlass;
@@ -382,17 +384,21 @@ class LiquidGlassTabBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A host (a `LiquidGlassScaffold`, or any `LiquidGlassView`) places
-    // the bar and feeds its glass; `mode: none` is placed by the caller.
-    // Either way: the plain capsule.
-    if (glassPill == LiquidGlassPillMode.none ||
-        LiquidGlassLensScope.maybeOf(context) != null) {
-      return _buildPlainBar(context);
-    }
+    // `mode: none` is placed by the caller: the plain capsule.
+    if (glassPill == LiquidGlassPillMode.none) return _buildPlainBar(context);
 
-    // On its own, a glass-mode bar is a full-screen overlay that places
-    // itself.
-    if (resolveGlassPill() && ui.ImageFilter.isShaderFilterSupported) {
+    // Inside a host (a `LiquidGlassScaffold`, or any `LiquidGlassView`) the
+    // host's backdrop setting decides the tier. Skia has no live backdrop
+    // for the pill there, so it keeps the plain capsule the host feeds.
+    final LiquidGlassLensScope? host = LiquidGlassLensScope.maybeOf(context);
+    final bool live = ui.ImageFilter.isShaderFilterSupported &&
+        (host == null || host.useImpellerBackdrop);
+    if (host != null && !live) return _buildPlainBar(context);
+
+    // A glass-mode bar is a full-screen overlay that places itself, inside
+    // a host on Impeller or on its own.
+    if (live &&
+        resolveGlassPill(useImpellerBackdrop: host?.useImpellerBackdrop)) {
       // Impeller: the self-contained morph-pill bar over an empty,
       // transparent body. The pill samples the LIVE backdrop (the page
       // painted behind this overlay), so no `body` is handed in.
@@ -470,6 +476,7 @@ class LiquidGlassTabBar extends StatelessWidget {
             duration: pillStyle.animationDuration,
             curve: pillStyle.animationCurve,
             pillShape: restStyle.shape,
+            pillWidth: pillStyle.width,
             adaptive: adaptive,
           )
         : BottomNavBarContent(
@@ -482,6 +489,7 @@ class LiquidGlassTabBar extends StatelessWidget {
             selectionAdaptivity: pillAdaptivity,
             itemStyle: itemStyle,
             pillShape: restStyle.shape,
+            pillWidth: pillStyle.width,
             adaptive: adaptive,
           );
 
