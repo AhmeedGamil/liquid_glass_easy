@@ -292,6 +292,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// lifted — which is the whole travel, not a peak it passes through.
   final double pillGrowHeight;
 
+  /// How much wider than the resting pill the glass pill is while it is
+  /// lifted. `null` keeps the resting pill's proportions.
+  final double? pillGrowWidth;
+
   /// Refraction strength of the moving glass pill.
   final double pillRefractionIndex;
 
@@ -427,6 +431,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.pillLiteGlass = false,
     this.pillBlur = 0,
     this.pillGrowHeight = 12,
+    this.pillGrowWidth,
     this.pillRefractionIndex = 1.025,
     this.pillRefractionWidth = 10,
     this.pillRefraction,
@@ -1106,12 +1111,15 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
 
       // The two ends of the lift: the cell the pill rests in, and the
-      // raised glass it stands at while it is up — the same w:h ratio,
-      // scaled so the glass is a touch bigger than the bar height.
+      // raised glass it stands at while it is up: a touch taller than the
+      // bar, and either the resting w:h ratio or its own extra width.
       final Size pillRest = Size(layout.pillWidth, layout.cellHeight);
       final double liftedH = layout.height + widget.pillGrowHeight;
-      final Size pillLifted =
-          Size(liftedH * (layout.pillWidth / layout.cellHeight), liftedH);
+      final Size pillLifted = Size(
+          widget.pillGrowWidth == null
+              ? liftedH * (layout.pillWidth / layout.cellHeight)
+              : layout.pillWidth + widget.pillGrowWidth!,
+          liftedH);
 
       // How much of the glass is on. Its own spring, so the material
       // can be all the way in before the size is.

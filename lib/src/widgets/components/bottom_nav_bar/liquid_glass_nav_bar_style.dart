@@ -219,6 +219,11 @@ class LiquidGlassTabPillStyle {
   /// whole travel, and comes back down once it has landed.
   final double growHeight;
 
+  /// How much wider than the resting pill the glass pill is while it is
+  /// lifted (glass [mode]s only). `null` (the default) keeps the resting
+  /// pill's proportions, so the width follows [growHeight].
+  final double? growWidth;
+
   /// Refraction strength of the moving glass pill (glass [mode]s only).
   final double refractionIndex;
 
@@ -229,6 +234,10 @@ class LiquidGlassTabPillStyle {
   /// Magnification of the content seen through the glass pill (glass
   /// [mode]s only). `1` = none.
   final double magnification;
+
+  /// Colour fringing at the moving glass pill's edge, in logical pixels
+  /// (glass [mode]s only). `0` = none. Default `1.32`.
+  final double dispersion;
 
   /// The selection pill's width at rest, in logical pixels. `null` (the
   /// default) makes it one equal share of the bar, with each item centred
@@ -257,7 +266,7 @@ class LiquidGlassTabPillStyle {
   /// The **moving glass pill**'s full look as one [LiquidGlassStyle]
   /// (shape + fill/blur + refraction). When non-null it supersedes the
   /// individual glass-pill fields ([shape], [blur], [refractionIndex],
-  /// [refractionWidth], [magnification]);
+  /// [refractionWidth], [magnification], [dispersion]);
   /// a `null` shape inside it falls back to [shape]. Glass [mode]s only.
   final LiquidGlassStyle? glassStyle;
 
@@ -306,9 +315,11 @@ class LiquidGlassTabPillStyle {
     this.animationCurve = Curves.easeOutCubic,
     this.blur = 0,
     this.growHeight = 9,
+    this.growWidth,
     this.refractionIndex = 1.025,
     this.refractionWidth = 12,
     this.magnification = 1,
+    this.dispersion = 1.32,
     this.width,
     this.shape,
     this.glassStyle,
@@ -344,9 +355,11 @@ class LiquidGlassTabPillStyle {
     Curve? animationCurve,
     double? blur,
     double? growHeight,
+    double? growWidth,
     double? refractionIndex,
     double? refractionWidth,
     double? magnification,
+    double? dispersion,
     double? width,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
@@ -365,9 +378,11 @@ class LiquidGlassTabPillStyle {
       animationCurve: animationCurve ?? this.animationCurve,
       blur: blur ?? this.blur,
       growHeight: growHeight ?? this.growHeight,
+      growWidth: growWidth ?? this.growWidth,
       refractionIndex: refractionIndex ?? this.refractionIndex,
       refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
+      dispersion: dispersion ?? this.dispersion,
       width: width ?? this.width,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
@@ -402,7 +417,7 @@ class LiquidGlassTabPillStyle {
             refractionIndex: refractionIndex,
             refractionWidth: refractionWidth,
             magnification: magnification,
-            dispersion: 1.32,
+            dispersion: dispersion,
           ),
       liteGlass: g?.liteGlass ?? false,
     );

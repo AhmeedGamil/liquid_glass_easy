@@ -324,6 +324,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       pillBlur: glassStyle.appearance.blur,
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
+      pillGrowWidth: pillStyle.growWidth,
       pillRefraction: glassStyle.refraction,
       pillShape: glassStyle.shape,
       pillSpecular: glassStyle.specular,
