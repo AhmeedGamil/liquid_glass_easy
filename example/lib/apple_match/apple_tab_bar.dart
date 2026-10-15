@@ -85,9 +85,20 @@ class AppleTabBar extends StatelessWidget {
         mode: LiquidGlassPillMode.both,
         // How much taller than the bar the lifted glass pill stands.
         growHeight: AppleMatchTuning.d('tab.growHeight'),
+        // How much wider than the resting pill the lifted one is.
+        growWidth: AppleMatchTuning.b('tab.growWidthNull')
+            ? null
+            : AppleMatchTuning.d('tab.growWidth'),
         // The moving glass pill's own bend, separate from the bar's.
         refractionIndex: AppleMatchTuning.d('tab.pillRefIndex'),
         refractionWidth: AppleMatchTuning.d('tab.pillRefWidth'),
+        // The glass pill's own zoom; Skia only, Impeller uses the magnifier.
+        magnification: AppleMatchTuning.d('tab.pillMagnification'),
+        dispersion: AppleMatchTuning.d('tab.pillDispersion'),
+        // The bar seen under the pill, zoomed by the Impeller magnifier.
+        magnifierPill: LiquidGlassTabMagnifierPillStyle(
+          magnification: AppleMatchTuning.d('tab.magnifierMagnification'),
+        ),
         // Lite glass for the moving pill and its magnifier. A glassStyle
         // replaces the pill's whole look, so it restates the defaults.
         glassStyle: AppleMatchTuning.b('tab.pillLite')
@@ -96,7 +107,8 @@ class AppleTabBar extends StatelessWidget {
                 blur: 0,
                 refractionIndex: AppleMatchTuning.d('tab.pillRefIndex'),
                 refractionWidth: AppleMatchTuning.d('tab.pillRefWidth'),
-                dispersion: 1.32,
+                magnification: AppleMatchTuning.d('tab.pillMagnification'),
+                dispersion: AppleMatchTuning.d('tab.pillDispersion'),
                 shadow: const LiquidGlassShadow(
                     blur: 9, opacity: 0.3, inset: 0),
                 liteGlass: true,
@@ -127,6 +139,8 @@ class AppleTabBar extends StatelessWidget {
         unselectedColor: dark ? Colors.white : Colors.black,
         iconSize: AppleMatchTuning.d('tab.iconSize'),
         labelFontSize: AppleMatchTuning.d('tab.labelSize'),
+        underGlassIconSize: AppleMatchTuning.d('tab.underGlassIconSize'),
+        underGlassLabelFontSize: AppleMatchTuning.d('tab.underGlassLabelSize'),
         iconLabelGap: 1,
         selectedFontWeight: weight,
         unselectedFontWeight: weight,

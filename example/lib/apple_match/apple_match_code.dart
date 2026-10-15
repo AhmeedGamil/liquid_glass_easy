@@ -167,8 +167,14 @@ LiquidGlassTabBar(
   pillStyle: LiquidGlassTabPillStyle(
     mode: LiquidGlassPillMode.both,
     growHeight: ${_n(_d('tab.growHeight'))},
+    growWidth: ${_b('tab.growWidthNull') ? 'null' : _n(_d('tab.growWidth'))},
     refractionIndex: ${_n(_d('tab.pillRefIndex'))},
     refractionWidth: ${_n(_d('tab.pillRefWidth'))},
+    magnification: ${_n(_d('tab.pillMagnification'))},
+    dispersion: ${_n(_d('tab.pillDispersion'))},
+    magnifierPill: LiquidGlassTabMagnifierPillStyle(
+      magnification: ${_n(_d('tab.magnifierMagnification'))},
+    ),
     width: $pillWidth,${_b('tab.pillLite') ? _pillLiteGlass() : ''}
     rest: LiquidGlassStyle(
       shape: LiquidGlassShape.continuousRoundedRectangle(
@@ -183,6 +189,8 @@ LiquidGlassTabBar(
     unselectedColor: dark ? Colors.white : Colors.black,
     iconSize: ${_n(_d('tab.iconSize'))},
     labelFontSize: ${_n(_d('tab.labelSize'))},
+    underGlassIconSize: ${_n(_d('tab.underGlassIconSize'))},
+    underGlassLabelFontSize: ${_n(_d('tab.underGlassLabelSize'))},
     iconLabelGap: 1,
     selectedFontWeight: $weight,
     unselectedFontWeight: $weight,
@@ -226,7 +234,8 @@ String _pillLiteGlass() => '''
       blur: 0,
       refractionIndex: ${_n(_d('tab.pillRefIndex'))},
       refractionWidth: ${_n(_d('tab.pillRefWidth'))},
-      dispersion: 1.32,
+      magnification: ${_n(_d('tab.pillMagnification'))},
+      dispersion: ${_n(_d('tab.pillDispersion'))},
       shadow: LiquidGlassShadow(blur: 9, opacity: 0.3, inset: 0),
       liteGlass: true,
     ),''';
