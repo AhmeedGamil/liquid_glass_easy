@@ -355,6 +355,26 @@ vec2 lensGradDir(vec2 p, vec4 lens, vec4 meta) {
     return vec2(0.0, sg.y);
 }
 
+// The bend's direction for one member: away from its spine, as a capsule
+// along the long side bends, whatever the corners. Zero on the spine.
+vec2 lensCapsuleDir(vec2 p, vec4 lens, vec4 meta) {
+    vec2 s = unpackScale(meta.y);
+    vec2 halfSize, pRest;
+    lensRestSpace(p, lens, s, halfSize, pRest);
+    vec2 rel = pRest - lens.xy;
+    vec2 spine = max(halfSize - min(halfSize.x, halfSize.y), vec2(0.0));
+    vec2 away = (rel - clamp(rel, -spine, spine)) / s;
+    float awayLen = length(away);
+    return awayLen > EPS ? away / awayLen : vec2(0.0);
+}
+
+// The blended capsule direction as a unit normal; the shape's own normal
+// where the members' directions cancel out.
+vec2 bendNormal(vec2 bend, vec2 fallback) {
+    float bendLen = length(bend);
+    return bendLen > EPS ? bend / bendLen : fallback;
+}
+
 // The distance actually fed into the metaball smin. For CONTINUOUS lenses,
 // renormalize the raw value to a first-order true distance (f / |grad f|) so
 // the smin's bridge, which assumes value == distance, sits on the real
@@ -655,12 +675,14 @@ struct MergedField {
     float depth;       // == anchorFor's depth out — the blended refraction depth
     vec4  tint;        // == anchorFor's tint out — the blended member colour
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
+    vec2  bend;        // the members' capsule directions, blended as grad
 };
 
 void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
                       inout float smoothSdf, inout float hardSdf,
                       inout vec3 anchorAcc, inout float anchorW,
-                      inout vec4 tintAcc, inout vec2 gradAcc) {
+                      inout vec4 tintAcc, inout vec2 gradAcc,
+                      inout vec2 bendAcc) {
     if (lens.z <= 0.0) return;
 
     // The one raw SDF for this lens — shared by all three accumulators.
@@ -690,6 +712,8 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
     // takes its direction outright.
     gradAcc = mix(lensGradDir(p, lens, meta), gradAcc, h);
 #endif
+    // The capsule direction blends on the same weight as the gradient.
+    bendAcc = mix(lensCapsuleDir(p, lens, meta), bendAcc, h);
 }
 
 MergedField evaluateMerged(vec2 p) {
@@ -708,11 +732,13 @@ MergedField evaluateMerged(vec2 p) {
 #else
         m.grad = vec2(0.0);
 #endif
+        m.bend = (n.dist < 1e8) ? lensCapsuleDir(p, n.lens, n.meta) : vec2(0.0);
         return m;
     }
     m.smoothSdf = 1e9;
     m.hardSdf   = 1e9;
     m.grad      = vec2(0.0);
+    m.bend      = vec2(0.0);
     vec3 anchorAcc = vec3(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
@@ -720,25 +746,25 @@ MergedField evaluateMerged(vec2 p) {
     for (int k = 0; k < 8; k++) {
         accumulateMerged(p, memberLens(k), memberMeta(k), memberTint(k),
                          m.smoothSdf, m.hardSdf, anchorAcc, anchorW, tintAcc,
-                         m.grad);
+                         m.grad, m.bend);
     }
 #else
     accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens2, u_lensMeta2, u_lensTint2, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens3, u_lensMeta3, u_lensTint3, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens4, u_lensMeta4, u_lensTint4, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens5, u_lensMeta5, u_lensTint5, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens6, u_lensMeta6, u_lensTint6, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
     accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
 #endif
     m.anchor = (anchorW > EPS) ? anchorAcc.xy / anchorW : p;
     m.depth  = (anchorW > EPS) ? anchorAcc.z / anchorW : 0.0;
@@ -893,6 +919,7 @@ void main() {
     vec2 anchorNorm = anchorPx * invResY;
     vec4 lensTint   = mf.tint;
     float refrDepth = mf.depth;
+    vec2 bend       = mf.bend;
 #else
     ShapeData shapeData = evaluateField(fragPx);
     float shapeDistPx   = shapeData.orthoDist;
@@ -905,6 +932,8 @@ void main() {
     float refrDepth;
     vec2 anchorPx   = anchorFor(fragPx, lensTint, refrDepth);
     vec2 anchorNorm = anchorPx * invResY;
+    // The experiment paths keep the shape's own normal.
+    vec2 bend       = vec2(0.0);
 #endif
 
     float distAbsPx = abs(shapeDistPx);
@@ -924,7 +953,7 @@ void main() {
 
         vec2 refrPx;
         refrPx = computeRefractedPosition(
-            magPx, shapeData.normal, shapeData.sdf,
+            magPx, bendNormal(bend, shapeData.normal), shapeData.sdf,
             u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
         );
@@ -945,7 +974,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
-        u_lightOpposite.xyz,
+        u_lightOpposite.xyz, vec3(RIM_TINT_SHARE),
         u_shapeAaPx,
         rimWrap
     );
@@ -964,7 +993,7 @@ void main() {
             u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
-            u_lightOpposite.xyz,
+            u_lightOpposite.xyz, vec3(RIM_TINT_SHARE),
             u_shapeAaPx,
             rimWrap
         );
@@ -977,7 +1006,7 @@ void main() {
 
     vec2 refrPx;
     refrPx = computeRefractedPosition(
-        magPx, shapeData.normal, shapeData.sdf,
+        magPx, bendNormal(bend, shapeData.normal), shapeData.sdf,
         u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );
@@ -993,7 +1022,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
-        u_lightOpposite.xyz,
+        u_lightOpposite.xyz, vec3(RIM_TINT_SHARE),
         u_shapeAaPx,
         rimWrap
     );

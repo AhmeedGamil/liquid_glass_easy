@@ -68,8 +68,8 @@ const float RIM_OUTLINE_INSET   = 0.167;
 // Fixed shaping values with no uniform of their own.
 const float RIM_WEIGHT_GAIN        = 6.0;       // weight scale of both layers
 const float RIM_GLOW_SHIFT         = 0.0;       // shift on the glow's ramp
-// Share of the tint's alpha the rim colours take; the body mixes the tint
-// at full alpha, so the rim stays lighter than the body.
+// Default share of the tint's alpha a light's colour takes; the body mixes
+// the tint at full alpha, so the rim stays lighter than the body.
 const float RIM_TINT_SHARE = 0.625;
 
 // A light's arc power: spread 0 focuses the arcs on the light's axis; 1
@@ -131,6 +131,7 @@ vec4 getBorder(
     vec4 specular2Shape, // (thicknessPx, sharpness, angleDeg, spread)
     float specular2Intensity, vec4 specular2Light,
     vec3 opposite,    // far-arc strength: (specular, glow, second specular)
+    vec3 tintWeight,  // tint alpha share per light, same order
     float aaPx        // the silhouette's AA band width, in fragment px
 #ifdef LIQUID_GLASS_RIM_WRAP
     , float wrap   // half-Lambert blend amount; only compiled for the metaball
@@ -171,9 +172,11 @@ vec4 getBorder(
     // Surface normal: the shape's gradient.
     vec2 normal = normalize(gradDistPx);
 
-    float tintShare = clamp(tint.a, 0.0, 1.0) * RIM_TINT_SHARE;
-    // Every layer's picked-up colour: the backdrop at the tint's rim share.
-    vec3 base = mix(backdropColor, tint.rgb, tintShare);
+    // Each layer's picked-up colour: the backdrop at its share of the tint.
+    vec3 tintShare = clamp(tint.a, 0.0, 1.0) * clamp(tintWeight, 0.0, 1.0);
+    vec3 base = mix(backdropColor, tint.rgb, tintShare.x);
+    vec3 glowBase = mix(backdropColor, tint.rgb, tintShare.y);
+    vec3 base2 = mix(backdropColor, tint.rgb, tintShare.z);
 
     // Glow: the same two-arc response on its own axis and spread, driven by
     // its intensity on the specular's intensity scale, in the specular's
@@ -198,7 +201,7 @@ vec4 getBorder(
         float glowStrength = glowArc * glowRamp;
         float glowOwn = clamp(glowLight.a, 0.0, 1.0);
         if (glowOwn < 1.0) {
-            glowColor = rimLift(base, 150.0 * glowStrength,
+            glowColor = rimLift(glowBase, 150.0 * glowStrength,
                                 30.0 * glowStrength, 120.0);
         }
         glowColor = mix(glowColor, glowLight.rgb, glowOwn);
@@ -214,7 +217,7 @@ vec4 getBorder(
                       )
         : vec4(0.0);
     vec4 specular2Layer = specular2On
-        ? rimSpecular(sd, normal, base, specular2DepthPx,
+        ? rimSpecular(sd, normal, base2, specular2DepthPx,
                       specular2Shift,
                       vec3(specular2Shape.z, specular2Shape.w,
                            specular2Intensity),

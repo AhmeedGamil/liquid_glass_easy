@@ -200,9 +200,14 @@ class LiquidGlassLite extends StatelessWidget {
     );
   }
 
+  /// The body's clip: always the exact outline, the curve the rim is cut to,
+  /// so the two meet at the corners.
+  LiquidGlassShape get _bodyClip =>
+      _lit.copyWith(clipQuality: LiquidGlassClipQuality.exact);
+
   /// A flat fill of [tint], cut to the outline like the frost is.
   Widget _fill(Color tint) => liquidGlassClip(
-        shape: _lit,
+        shape: _bodyClip,
         shapeScale: shapeScale,
         child: ColoredBox(color: tint),
       );
@@ -210,7 +215,7 @@ class LiquidGlassLite extends StatelessWidget {
   /// The glass itself: the backdrop, magnified and blurred, cut to the
   /// outline. Both go through one filter, so they share one read.
   Widget _frost() => liquidGlassClip(
-        shape: _lit,
+        shape: _bodyClip,
         shapeScale: shapeScale,
         child: _GlassBackdrop(
           blur: blur,
@@ -223,7 +228,8 @@ class LiquidGlassLite extends StatelessWidget {
   /// the same layer, so it lands over the frost without entering the read.
   Widget _rimPickup(Color? under) => ClipRect(
         child: BackdropFilter(
-          filter: _highlightFilter(_rimPeakOf(_lit), under),
+          filter: _highlightFilter(
+              _rimPeakOf(_lit), under, _lit.specular.tintWeight),
           child: CustomPaint(
             painter: _RimMaskPainter(
               shape: _lit,
@@ -349,16 +355,17 @@ class _RenderGlassBackdrop extends RenderProxyBox {
 }
 
 /// The rim's lift as a colour matrix, at the rim's [peak] strength: the
-/// background mixed with the rim's share of [tint], its chroma stretched and
+/// background mixed with [tintWeight] of [tint]'s alpha, its chroma stretched and
 /// the peak's lightness added. The mask's alpha scales that down to each
 /// pixel's own strength.
-ColorFilter _highlightFilter(double peak, Color? tint) {
+ColorFilter _highlightFilter(double peak, Color? tint, double tintWeight) {
   final double lift = _kRimLift * peak;
   // A matrix scales chroma where the shader adds to it; the two agree on a
   // colour of middling saturation.
   final double s = 1.0 + _kRimChroma * peak / 0.25;
   final double d = 1.0 - s;
-  final double share = (tint?.a ?? 0.0).clamp(0.0, 1.0) * _kRimTintShare;
+  final double share =
+      (tint?.a ?? 0.0).clamp(0.0, 1.0) * tintWeight.clamp(0.0, 1.0);
   final double keep = 1.0 - share;
   final double tintLuma = tint == null
       ? 0.0
@@ -745,10 +752,6 @@ const double _kRimOutlineInset = 0.167;
 /// Lightness and chroma the rim adds per unit of strength, in sRGB.
 const double _kRimLift = 1.5;
 const double _kRimChroma = 30.0 * 0.00724;
-
-/// Share of the tint's alpha the rim's colour takes; the body takes it all,
-/// so the rim stays lighter than the body.
-const double _kRimTintShare = 0.625;
 
 /// Where the rings sit along the ramp, as fractions of its top. The ramp is
 /// a fifth power, so most of them crowd the outline.

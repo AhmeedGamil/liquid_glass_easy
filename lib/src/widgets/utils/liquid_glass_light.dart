@@ -81,6 +81,23 @@ class LiquidGlassLight {
   /// is how much of it replaces the picked-up colour.
   final Color? color;
 
+  /// How much of the glass's tint the light's picked-up colour takes, as a
+  /// share of the tint's alpha.
+  ///
+  /// The light lifts the backdrop seen through the edge mixed with the
+  /// glass `color`; this is how far that mix leans to the tint. The body
+  /// takes the tint at its full alpha.
+  /// - `0.0` — The bare backdrop: the tint never reaches the light.
+  /// - `0.625` — Default: lighter than the body, so the edge reads apart.
+  /// - `1.0` — The tint at its full alpha, as the body has it.
+  ///
+  /// Not read inside a `LiquidGlassBlender`, where the merged glass keeps
+  /// the default. Recommended range: `0.0` to `1.0`.
+  final double tintWeight;
+
+  /// The default [tintWeight].
+  static const double defaultTintWeight = 0.625;
+
   /// The highlight: a thin, crisp band on the `39°` axis, wrapping wide.
   const LiquidGlassLight.specular({
     this.thickness = 5.0,
@@ -90,6 +107,7 @@ class LiquidGlassLight {
     this.intensity = 1.0,
     this.oppositeIntensity = 1.0,
     this.color,
+    this.tintWeight = defaultTintWeight,
   });
 
   /// The soft side light: a wider, gentler band on the `90°` axis.
@@ -100,6 +118,7 @@ class LiquidGlassLight {
     this.intensity = 1.0,
     this.oppositeIntensity = 1.0,
     this.color,
+    this.tintWeight = defaultTintWeight,
   }) : sharpness = 0.5;
 
   const LiquidGlassLight._({
@@ -110,6 +129,7 @@ class LiquidGlassLight {
     required this.intensity,
     required this.oppositeIntensity,
     required this.color,
+    required this.tintWeight,
   });
 
   /// A copy with the given fields replaced. [color] cannot be cleared here;
@@ -122,6 +142,7 @@ class LiquidGlassLight {
     double? intensity,
     double? oppositeIntensity,
     Color? color,
+    double? tintWeight,
   }) =>
       LiquidGlassLight._(
         thickness: thickness ?? this.thickness,
@@ -131,6 +152,7 @@ class LiquidGlassLight {
         intensity: intensity ?? this.intensity,
         oppositeIntensity: oppositeIntensity ?? this.oppositeIntensity,
         color: color ?? this.color,
+        tintWeight: tintWeight ?? this.tintWeight,
       );
 
   /// Linearly interpolates between two lights.
@@ -157,6 +179,7 @@ class LiquidGlassLight {
       oppositeIntensity:
           lerpDouble(a.oppositeIntensity, b.oppositeIntensity, t)!,
       color: color,
+      tintWeight: lerpDouble(a.tintWeight, b.tintWeight, t)!,
     );
   }
 
@@ -170,15 +193,18 @@ class LiquidGlassLight {
           other.spread == spread &&
           other.intensity == intensity &&
           other.oppositeIntensity == oppositeIntensity &&
-          other.color == color;
+          other.color == color &&
+          other.tintWeight == tintWeight;
 
   @override
   int get hashCode => Object.hash(
-      thickness, sharpness, angle, spread, intensity, oppositeIntensity, color);
+      thickness, sharpness, angle, spread, intensity, oppositeIntensity, color,
+      tintWeight);
 
   @override
   String toString() =>
       'LiquidGlassLight(thickness: $thickness, sharpness: $sharpness, '
       'angle: $angle, spread: $spread, intensity: $intensity, '
-      'oppositeIntensity: $oppositeIntensity, color: $color)';
+      'oppositeIntensity: $oppositeIntensity, color: $color, '
+      'tintWeight: $tintWeight)';
 }

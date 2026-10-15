@@ -211,9 +211,10 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, xformOffset.dy * scale);
 }
 
-/// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0),
-/// `u_specular2` (thickness, sharpness, angle, spread), `u_specular2Color`
-/// and `u_lightOpposite` (specular, glow, second specular, 0) from [shape]
+/// Writes `u_packC` (glowSpread, specular2Intensity, specular tint weight,
+/// glow tint weight), `u_specular2` (thickness, sharpness, angle, spread),
+/// `u_specular2Color` and `u_lightOpposite` (specular, glow, second
+/// specular, second specular tint weight) from [shape]
 /// at [index], and returns the next free index. No second specular, or [drawBorder] false, writes a zero
 /// thickness, which the shader skips.
 int packLiquidGlassSecondSpecular(
@@ -226,8 +227,8 @@ int packLiquidGlassSecondSpecular(
   final LiquidGlassLight? second = shape.secondSpecular;
   shader.setFloat(index++, shape.glow.spread);
   shader.setFloat(index++, second?.intensity ?? 0);
-  shader.setFloat(index++, 0);
-  shader.setFloat(index++, 0);
+  shader.setFloat(index++, shape.specular.tintWeight);
+  shader.setFloat(index++, shape.glow.tintWeight);
   shader.setFloat(
       index++, drawBorder && second != null ? second.thickness * scale : 0);
   shader.setFloat(index++, second?.sharpness ?? 0);
@@ -237,7 +238,8 @@ int packLiquidGlassSecondSpecular(
   shader.setFloat(index++, shape.specular.oppositeIntensity);
   shader.setFloat(index++, shape.glow.oppositeIntensity);
   shader.setFloat(index++, second?.oppositeIntensity ?? 1);
-  shader.setFloat(index++, 0);
+  shader.setFloat(
+      index++, second?.tintWeight ?? LiquidGlassLight.defaultTintWeight);
   return index;
 }
 

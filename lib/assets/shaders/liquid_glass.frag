@@ -54,14 +54,16 @@ uniform vec4 u_lensColor;
 uniform vec4 u_packA;
 // x=specularAngle  y=specularSpread  z=borderSharpness  w=glowAngle
 uniform vec4 u_packB;
-// x=glowSpread  y=specular2Intensity  zw unused
+// x=glowSpread  y=specular2Intensity  z=specular tint weight
+// w=glow tint weight
 uniform vec4 u_packC;
 // The second specular: x=thicknessPx  y=sharpness  z=angle  w=spread.
 // A zero thickness turns it off.
 uniform vec4 u_specular2;
 // The second specular's own colour, as u_specularColor.
 uniform vec4 u_specular2Color;
-// Far-arc strength per light: x=specular  y=glow  z=second specular.
+// Far-arc strength per light: x=specular  y=glow  z=second specular;
+// w=the second specular's tint weight.
 uniform vec4 u_lightOpposite;
 
 // Restore the original scalar names. These are plain float aliases (a single
@@ -85,6 +87,8 @@ uniform vec4 u_lightOpposite;
 #define u_glowAngle                    u_packB.w
 #define u_glowSpread                   u_packC.x
 #define u_specular2Intensity           u_packC.y
+// Each light's share of the tint: (specular, glow, second specular).
+#define u_tintWeight vec3(u_packC.z, u_packC.w, u_lightOpposite.w)
 // Each light as the border reads it: (angle in degrees, spread, intensity).
 #define u_specular vec3(u_specularAngle, u_specularSpread, u_specularIntensity)
 #define u_glow     vec3(u_glowAngle, u_glowSpread, u_glowIntensity)
@@ -255,6 +259,17 @@ float computeShapeMask(float shapeDistPx) {
 }
 
 
+// The bend's direction: away from the box's spine, as a capsule along the
+// long side bends, whatever the corners. Band pixels only.
+vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
+                   vec2 shapeScale, vec2 fallback) {
+    vec2 rel = fragRestPx - centerPx;
+    vec2 spine = max(restHalfPx - min(restHalfPx.x, restHalfPx.y), vec2(0.0));
+    vec2 away = (rel - clamp(rel, -spine, spine)) / shapeScale;
+    float awayLen = length(away);
+    return awayLen > EPS ? away / awayLen : fallback;
+}
+
 // =====================================================
 // Main entry
 // =====================================================
@@ -390,7 +405,10 @@ void main() {
         vec2 refrPx = magPx;
 
         refrPx = computeRefractedPosition(
-            magPx, shapeData.normal, refrDistPx,
+            magPx,
+            capsuleNormal(fragRestPx, lensCenterPx, restHalfPx, shapeScale,
+                          shapeData.normal),
+            refrDistPx,
             u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
         );
@@ -416,7 +434,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
-        u_lightOpposite.xyz,
+        u_lightOpposite.xyz, u_tintWeight,
         u_shapeAaPx
     );
 
@@ -439,7 +457,7 @@ void main() {
             u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
-            u_lightOpposite.xyz,
+            u_lightOpposite.xyz, u_tintWeight,
             u_shapeAaPx
         );
 
@@ -459,7 +477,10 @@ void main() {
     vec2 refrPx;
 
     refrPx = computeRefractedPosition(
-        magPx, shapeData.normal, refrDistPx,
+        magPx,
+        capsuleNormal(fragRestPx, lensCenterPx, restHalfPx, shapeScale,
+                      shapeData.normal),
+        refrDistPx,
         u_refractionWidthPx, u_refractionIndex,
             REFRACTION_DEPTH_LOGICAL_PX * max(u_shapeAaPx, 1.0), zoneT
     );
@@ -481,7 +502,7 @@ void main() {
         u_borderWidth, u_borderSharpness, u_specular, u_specularColor,
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
-        u_lightOpposite.xyz,
+        u_lightOpposite.xyz, u_tintWeight,
         u_shapeAaPx
     );
 
