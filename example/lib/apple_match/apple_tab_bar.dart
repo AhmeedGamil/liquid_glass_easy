@@ -88,6 +88,20 @@ class AppleTabBar extends StatelessWidget {
         // The moving glass pill's own bend, separate from the bar's.
         refractionIndex: AppleMatchTuning.d('tab.pillRefIndex'),
         refractionWidth: AppleMatchTuning.d('tab.pillRefWidth'),
+        // Lite glass for the moving pill and its magnifier. A glassStyle
+        // replaces the pill's whole look, so it restates the defaults.
+        glassStyle: AppleMatchTuning.b('tab.pillLite')
+            ? LiquidGlassStyle(
+                color: Colors.transparent,
+                blur: 0,
+                refractionIndex: AppleMatchTuning.d('tab.pillRefIndex'),
+                refractionWidth: AppleMatchTuning.d('tab.pillRefWidth'),
+                dispersion: 1.32,
+                shadow: const LiquidGlassShadow(
+                    blur: 9, opacity: 0.3, inset: 0),
+                liteGlass: true,
+              )
+            : null,
         // Apple's pill is wider than an equal share and scales with it:
         // 1.175 x (328 - 2 x 4) / 4 = 94 pt. The end items sit half a pill
         // in from the bar's ends.

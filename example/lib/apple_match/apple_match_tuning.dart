@@ -173,6 +173,8 @@ final List<Knob> kKnobs = [
       min: 1, max: 1.5, step: 0.005),
   const Knob('tab.pillRefWidth', kTabBar, 'pillStyle.refractionWidth',
       max: 40, step: 0.5),
+  const Knob.toggle(
+      'tab.pillLite', kTabBar, 'pillStyle.glassStyle.liteGlass'),
   const Knob('tab.pillRadius', kTabBar, 'pillStyle.rest.shape.cornerRadius',
       max: 40, step: 0.5),
   const Knob.color('tab.pillColor', kTabBar, 'pillStyle.rest.color'),

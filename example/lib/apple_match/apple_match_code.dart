@@ -169,7 +169,7 @@ LiquidGlassTabBar(
     growHeight: ${_n(_d('tab.growHeight'))},
     refractionIndex: ${_n(_d('tab.pillRefIndex'))},
     refractionWidth: ${_n(_d('tab.pillRefWidth'))},
-    width: $pillWidth,
+    width: $pillWidth,${_b('tab.pillLite') ? _pillLiteGlass() : ''}
     rest: LiquidGlassStyle(
       shape: LiquidGlassShape.continuousRoundedRectangle(
         cornerRadius: ${_n(_d('tab.pillRadius'))},
@@ -216,3 +216,17 @@ String _switchCode() => '''${_header('LiquidGlassSwitch')}LiquidGlassSwitch(
   ),
 )
 ''';
+
+/// The moving pill's glassStyle with lite glass on: the pill's defaults
+/// restated, since a glassStyle replaces its whole look.
+String _pillLiteGlass() => '''
+
+    glassStyle: LiquidGlassStyle(
+      color: Colors.transparent,
+      blur: 0,
+      refractionIndex: ${_n(_d('tab.pillRefIndex'))},
+      refractionWidth: ${_n(_d('tab.pillRefWidth'))},
+      dispersion: 1.32,
+      shadow: LiquidGlassShadow(blur: 9, opacity: 0.3, inset: 0),
+      liteGlass: true,
+    ),''';
