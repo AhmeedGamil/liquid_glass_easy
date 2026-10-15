@@ -10,10 +10,16 @@ dependencies:
   flutter:
     sdk: flutter
 
-  flutter_svg: ^2.3.0
-  # Only the "Device preview" demo: the app scaled to fit a phone frame.
+  # The SF Symbol look-alikes on the Apple Match page.
+  cupertino_icons: ^1.0.8
   liquid_glass_easy:
     path: ../
+  # Apple's real controls on iOS and macOS (UIKit/AppKit platform views),
+  # shown live in Apple Match. Vendored so the controls keep their system
+  # colours: upstream forces the Flutter theme's primary colour onto every
+  # control as a tint.
+  cupertino_native:
+    path: third_party/cupertino_native
 
 dev_dependencies:
   flutter_test:
@@ -24,5 +30,8 @@ flutter:
   uses-material-design: true
 
   assets:
-    # Outline + filled SVG pairs driving the "Scaffold + SVG Nav" demo.
-    - assets/icons/
+    # Apple Match: the backdrops, and Apple's controls as iOS screenshots,
+    # one folder per iOS release.
+    - assets/apple_match/
+    - assets/apple_match/reference/ios26/
+    - assets/apple_match/reference/ios27/

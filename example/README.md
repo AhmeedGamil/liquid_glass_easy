@@ -1,76 +1,40 @@
 # liquid_glass_easy — example
 
-This folder has two entry points:
+**Apple Match**: glass buttons, a tab bar, a slider and a switch tuned to
+read like Apple's Liquid Glass controls, per iOS release. Each scene shows
+two bands over the same backdrop: Apple's control on top (live through
+cupertino_native on iOS and macOS, an iOS simulator screenshot
+elsewhere), the live package component below.
 
-- **`lib/main.dart`** — a minimal, self-contained example: one `LiquidGlassLens`
-  over a background. Its only import is the package, so you can copy it straight
-  into a fresh Flutter project and run it.
-- **`lib/gallery.dart`** — the full on-device gallery whose home menu opens each
-  demo (control center, scaffold + glass nav, slider & toggle, corner styles,
-  plus motion tuners) on its own page. This is what the README screenshots/GIFs
-  come from.
+## Tuning
+
+The panel at the bottom picks the iOS release, the component and the
+backdrop. Its tabs hold every value of the component: its own sizes and
+colours, then every `LiquidGlassStyle` field — Material, Shape, Specular,
+Glow, Refraction, Shadow. A dot on a tab marks changed values.
+
+Where things live:
+
+| What | Where |
+|---|---|
+| Tuned values, one file per release | `lib/apple_match/presets/ios26.dart`, `ios27.dart` |
+| Apple's controls, per release | `assets/apple_match/reference/ios26/`, `ios27/` |
+| The knobs (ranges, tabs) | `lib/apple_match/apple_match_tuning.dart` |
+| Knobs → `LiquidGlassStyle` | `lib/apple_match/apple_match_style.dart` |
+
+**Copy** puts the component's package code, with every tuned value written
+in, on the clipboard; **Copy all** does it for every component. Values are
+not saved: to keep them as the starting point, write them into
+`lib/apple_match/presets/<release>.dart`. Every knob needs a value in every
+preset file.
+
+To add a release: add its preset file and screenshot folder, an entry in
+`IosVersion`, and the folder under `assets:` in `pubspec.yaml`.
 
 ## Run
 
 ```bash
 cd example
 flutter pub get
-
-flutter run                       # minimal example (lib/main.dart)
-flutter run -t lib/gallery.dart   # full demo gallery
+flutter run
 ```
-
-## Minimal example
-
-```dart
-import 'package:flutter/material.dart';
-import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-
-void main() => runApp(const MyApp());
-
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: Scaffold(
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            // Anything you want refracted behind the glass.
-            Image.network('https://picsum.photos/800/1600', fit: BoxFit.cover),
-            Center(
-              child: SizedBox(
-                width: 260,
-                height: 150,
-                child: LiquidGlassLens(
-                  style: const LiquidGlassStyle(
-                    shape: LiquidGlassShape.squircle(cornerRadius: 44),
-                    refraction: LiquidGlassRefraction(
-                      distortion: 0.13,
-                      distortionWidth: 34,
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Liquid Glass',
-                      style: TextStyle(color: Colors.white, fontSize: 20),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-```
-
-> On the Skia engine, wrap your UI in a `LiquidGlassView` (with a
-> `backgroundWidget`) so the lens has a background to refract — on Impeller no
-> view is needed. See the package
-> [README](https://pub.dev/packages/liquid_glass_easy) for the full API.
