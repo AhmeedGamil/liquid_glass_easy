@@ -218,6 +218,9 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// Appearance (tint + blur) of the bar capsule.
   final LiquidGlassAppearance? barAppearance;
 
+  /// Draws the bar capsule as lite glass (see `LiquidGlassStyle.liteGlass`).
+  final bool barLiteGlass;
+
   /// iOS-style adaptivity for the whole bar (same contract as
   /// `LiquidGlassStyle.adaptivity`): the bar capsule's tint follows the
   /// adaptive glass color and the shell's **unselected** icons/labels
@@ -329,6 +332,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// stays on the rim while the pill squashes. It fades with the pill.
   final LiquidGlassShadow? pillShadow;
 
+  /// Draws the moving glass pill as lite glass (see
+  /// `LiquidGlassStyle.liteGlass`), its Impeller magnifier with it.
+  final bool pillLiteGlass;
+
   /// Resting material endpoint of the same persistent glass pill.
   final LiquidGlassStyle restStyle;
 
@@ -414,8 +421,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.barSecondSpecular,
     this.barRefraction,
     this.barAppearance,
+    this.barLiteGlass = false,
     this.barShadow,
     this.pillShadow,
+    this.pillLiteGlass = false,
     this.pillBlur = 0,
     this.pillGrowHeight = 12,
     this.pillRefractionIndex = 1.025,
@@ -1399,8 +1408,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // the glass pill on top must not compound it (m² in the middle).
       magnification: _useImpeller ? 1 : refraction.magnification,
       dispersion: refraction.dispersion,
+      liteGlass: widget.pillLiteGlass,
     );
   }
+
+  /// Whether the moving pill draws lite glass: its glass or its rest style
+  /// asks for it. The magnifier under it follows, so the two always match.
+  bool get _pillLite => widget.pillLiteGlass || widget.restStyle.liteGlass;
 
   /// The magnifier's silhouette: the shape the glass pill draws with at
   /// this end of the morph, stripped of everything visible — no rim, no
@@ -1437,6 +1451,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       refractionWidth: 0,
       magnification: magnification,
       dispersion: 0,
+      liteGlass: _pillLite,
     );
   }
 
@@ -1584,6 +1599,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             refractionIndex: 1.1,
             refractionWidth: 12,
           ),
+      liteGlass: widget.barLiteGlass,
     );
 
     Widget shell = LiquidGlassAnimatedBottomNavBarShell(

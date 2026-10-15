@@ -317,6 +317,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       barSecondSpecular: barStyle.secondSpecular,
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
+      barLiteGlass: barStyle.liteGlass,
       // The bar capsule's contact shadow rides its style's appearance —
       // the same place every lens carries one.
       barShadow: barStyle.appearance.shadow,
@@ -329,6 +330,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       pillGlow: glassStyle.glow,
       pillSecondSpecular: glassStyle.secondSpecular,
       pillShadow: glassStyle.appearance.shadow,
+      pillLiteGlass: glassStyle.liteGlass,
       restStyle: restStyle,
       travelStiffness: pillStyle.travelStiffness,
       travelDamping: pillStyle.travelDamping,
