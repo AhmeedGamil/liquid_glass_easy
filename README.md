@@ -32,9 +32,11 @@ flutter run
 
 ## How to contribute
 
-- **Fine-tuning:** tune a component until it matches, tap **Copy**, and open an
-  issue or a PR with the code, a side-by-side screenshot, your device and the iOS
-  version. Tuned starting values live in `example/lib/apple_match/presets/`.
+- **Fine-tuning:** tune a component until it matches and tap **Copy**. Put the
+  code in a folder named after your GitHub account, `contributions/<your-github-name>/`,
+  with screenshots or short videos of your result next to Apple's (your device and
+  the iOS version in a short note). Open a PR with that folder, or an issue if a
+  PR is too much. Tuned starting values live in `example/lib/apple_match/presets/`.
 - **iOS 27:** its preset is still a copy of iOS 26 and it has no screenshots yet.
   Screenshots go in `example/assets/apple_match/reference/ios27/` (names in the
   README there).
@@ -44,31 +46,32 @@ flutter run
 
 ## Open questions — help wanted
 
-1. **Glass colour in dark mode:** is there a saturation boost, or only a tint? Over
-   coloured stripes Apple's dark glass looks more saturated than a plain grey
-   layer would give.
-2. **What decides the glass colour:** in both modes, how does it change with what
-   is behind it? Over a dark page and a bright photo, one fixed dark-grey layer
-   (about `rgba(27, 28, 31, 146)`) fits our dark screenshots, but nothing confirms
-   it holds everywhere.
-3. **Tab bar on iOS 27:** does the selection pill still grow and lift when you tap
+1. **Glass colour in dark mode:** I don't know whether Apple's dark glass has a
+   saturation boost or only a tint. Over coloured stripes it looks more saturated
+   than a plain grey layer would give, so for now I raised the dark saturation for
+   the **tab bar only** (the other components keep 1).
+2. **Tab bar background:** in dark mode I set the tab bar's colour to
+   `rgba(69, 69, 69, 192)`. It matches over the photo, but over the plain dark
+   screen it looks different from Apple's. What decides the glass colour, and how
+   does it change with what is behind it?
+3. **Tab bar tap-and-hold:** when you tap and hold the glass pill, does the whole
+   **tab bar** scale, or only the pill?
+4. **Tab bar on iOS 27:** does the selection pill still grow and lift when you tap
    an item, as on iOS 26?
-4. **Tab bar dragging:** can you drag the pill straight away, or only after
+5. **Tab bar dragging:** can you drag the pill straight away, or only after
    tap-and-hold?
-5. **Dynamic adaptivity:** does the glass switch between light and dark on its own
+6. **Dynamic adaptivity:** does the glass switch between light and dark on its own
    by what is behind it, as Apple's showcases suggest, and when?
+7. **The public API of the new kit:** how would you like the components to be
+   used? Should they be close to Apple's and less customisable (pick a component,
+   it just looks right), or expose the glass values like the tuner does? What must
+   every component let you change: colours, icons and labels, sizes, haptics,
+   light and dark, or something else?
 
-## Components to create next
+## New components
 
-Ideas for the kit; say which you need most, or suggest your own:
-
-- Segmented control
-- Toolbar and navigation bar (with large title)
-- Search field / tab bar search tab
-- Menus, context menus and popovers
-- Sheets with detents
-- Stepper and steppers in lists
-- Bottom accessory above the tab bar (e.g. a mini player)
+New components are coming soon. If you need one, or want to suggest one, open an
+issue and say what it is and where you would use it.
 
 ---
 
