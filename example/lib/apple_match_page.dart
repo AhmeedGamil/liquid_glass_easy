@@ -56,7 +56,11 @@ enum _Component {
   final List<Backdrop> backdrops;
 
   /// The knob tabs, the component's own first.
-  List<String> get sections => [ownSection, ...kStyleSections];
+  List<String> get sections => [
+        ownSection,
+        ...kStyleSections,
+        if (knobs(kTouch).isNotEmpty) kTouch,
+      ];
 
   List<Knob> knobs(String section) => [
         for (final Knob k in kKnobs)

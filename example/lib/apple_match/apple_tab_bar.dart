@@ -80,6 +80,8 @@ class AppleTabBar extends StatelessWidget {
       // only bottomCenter honours exactly.
       alignment: body == null ? Alignment.center : Alignment.bottomCenter,
       style: tunedStyle('tab', brightness),
+      // The bar's glass flexes under the finger, as a lens does.
+      touch: tunedTouch('tab'),
       pillStyle: LiquidGlassTabPillStyle(
         // The moving glass pill, on Impeller and Skia alike.
         mode: LiquidGlassPillMode.both,

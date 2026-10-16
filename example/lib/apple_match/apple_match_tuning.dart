@@ -147,6 +147,37 @@ const String kTabBar = 'LiquidGlassTabBar';
 const String kSlider = 'LiquidGlassSlider';
 const String kSwitch = 'LiquidGlassSwitch';
 
+/// The `touch.flex` tab: every LiquidGlassFlex field. Shown only for a
+/// component that has these knobs.
+const String kTouch = 'touch.flex';
+
+/// Every LiquidGlassFlex and LiquidGlassFlexAdvanced field of [c].
+List<Knob> _flexKnobs(String c) => [
+      Knob.toggle('$c.flex', kTouch, 'touch (off = null)'),
+      Knob('$c.flexStretch', kTouch, 'stretch', max: 60, step: 0.5),
+      Knob('$c.flexSqueeze', kTouch, 'squeeze'),
+      Knob('$c.flexLean', kTouch, 'lean', max: 1.5),
+      Knob('$c.flexGrip', kTouch, 'grip'),
+      Knob.toggle('$c.flexCompressInward', kTouch, 'compressInward'),
+      Knob('$c.flexHoldScale', kTouch, 'holdScale',
+          min: -0.2, max: 0.2, step: 0.001),
+      Knob('$c.flexTapScale', kTouch, 'tapScale',
+          min: -0.2, max: 0.2, step: 0.001),
+      Knob('$c.flexMaxPull', kTouch, 'maxPull', min: 1, max: 200, step: 1),
+      Knob.choice('$c.flexLockAxis', kTouch, 'lockAxis',
+          const ['null', 'horizontal', 'vertical']),
+      Knob('$c.flexChildFollow', kTouch, 'advanced.childFollow'),
+      Knob('$c.flexRefractionBoost', kTouch, 'advanced.refractionBoost'),
+      Knob('$c.flexMagnificationBoost', kTouch,
+          'advanced.magnificationBoost'),
+      Knob('$c.flexStiffness', kTouch, 'advanced.stiffness',
+          min: 20, max: 1500, step: 5),
+      Knob('$c.flexDamping', kTouch, 'advanced.damping',
+          min: 1, max: 100, step: 0.5),
+      Knob('$c.flexReleaseDamping', kTouch, 'advanced.releaseDamping',
+          min: 1, max: 100, step: 0.5),
+    ];
+
 /// Every knob: each component's full glass style, then its own values.
 final List<Knob> kKnobs = [
   ..._styleKnobs('button'),
@@ -204,6 +235,7 @@ final List<Knob> kKnobs = [
       'tab.selectedLight', kTabBar, 'itemStyle.selectedColor (light)'),
   const Knob.color(
       'tab.selectedDark', kTabBar, 'itemStyle.selectedColor (dark)'),
+  ..._flexKnobs('tab'),
   ..._styleKnobs('slider'),
   const Knob.color('slider.active', kSlider, 'activeColor'),
   const Knob.color('slider.inactiveLight', kSlider, 'inactiveColor (light)'),

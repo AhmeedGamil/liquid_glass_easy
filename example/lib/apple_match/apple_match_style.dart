@@ -62,6 +62,33 @@ LiquidGlassStyle tunedStyle(
   );
 }
 
+/// Component [c]'s flex, every field read from its knobs; `null` while its
+/// touch toggle is off.
+LiquidGlassTouch? tunedTouch(String c) {
+  if (!AppleMatchTuning.b('$c.flex')) return null;
+  final double Function(String) t = AppleMatchTuning.d;
+  return LiquidGlassTouch.flexing(LiquidGlassFlex(
+    stretch: t('$c.flexStretch'),
+    squeeze: t('$c.flexSqueeze'),
+    lean: t('$c.flexLean'),
+    grip: t('$c.flexGrip'),
+    compressInward: AppleMatchTuning.b('$c.flexCompressInward'),
+    holdScale: t('$c.flexHoldScale'),
+    tapScale: t('$c.flexTapScale'),
+    maxPull: t('$c.flexMaxPull'),
+    lockAxis: const [null, Axis.horizontal, Axis.vertical]
+        [AppleMatchTuning.i('$c.flexLockAxis').clamp(0, 2)],
+    advanced: LiquidGlassFlexAdvanced(
+      childFollow: t('$c.flexChildFollow'),
+      refractionBoost: t('$c.flexRefractionBoost'),
+      magnificationBoost: t('$c.flexMagnificationBoost'),
+      stiffness: t('$c.flexStiffness'),
+      damping: t('$c.flexDamping'),
+      releaseDamping: t('$c.flexReleaseDamping'),
+    ),
+  ));
+}
+
 /// A light's `color`: `null` while [nullId] is on, so the light takes the
 /// colour of the backdrop under the edge; else the colour as given, its
 /// alpha being how much of it replaces the picked-up colour.
