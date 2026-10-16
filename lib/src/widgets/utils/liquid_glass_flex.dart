@@ -691,6 +691,21 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
   // Latest targets, recomputed each tick from the raw gesture state.
   double _lT = 0, _rT = 0, _tT = 0, _bT = 0;
 
+  // The hold and tap swell on its own: the same spring as the edges,
+  // chasing only that part of their targets, and where it grows from.
+  double _sw = 0, _swv = 0, _swT = 0;
+  Offset _swA = const Offset(0.5, 0.5);
+
+  /// The hold and tap swell alone, as a fraction of the rest size: `0` at
+  /// rest, [LiquidGlassFlex.holdScale] once a held press has settled. The
+  /// edges carry it on the same springs, so the glass grows by exactly
+  /// `1 + swell` about [swellAnchor], on top of any drag.
+  double get swell => _sw;
+
+  /// Where [swell] grows from, as a fraction of the rest size: the grab
+  /// point, pulled toward the middle by [LiquidGlassFlex.grip].
+  Offset get swellAnchor => _swA;
+
   /// Whether a finger is currently on the lens.
   bool get isPressed => _down;
 
@@ -715,6 +730,23 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     _downAt = DateTime.now();
     _retarget();
     _start();
+  }
+
+  /// Moves the grab point of the press in progress to [local], in
+  /// lens-local coordinates, keeping the pull. For a host that steers the
+  /// deformation from something it tracks itself, such as a moving pill:
+  /// [LiquidGlassFlex.grip] then weighs the edges toward it as it goes.
+  /// No-op while nothing is pressed.
+  void grabAt(Offset local) {
+    if (!_down) return;
+    final Size size = restSize;
+    _grab = size.isEmpty
+        ? const Offset(0.5, 0.5)
+        : Offset(
+            (local.dx / size.width).clamp(0.0, 1.0),
+            (local.dy / size.height).clamp(0.0, 1.0),
+          );
+    _retarget();
   }
 
   /// Accumulates a drag delta. No-op unless [pointer] is the finger that
@@ -766,6 +798,7 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     final double h = restSize.height;
     if (w <= 0 || h <= 0) {
       _lT = _rT = _tT = _bT = 0;
+      _swT = 0;
       return;
     }
 
@@ -848,6 +881,8 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     // weights, which sum to 1: the total gain is exactly `scale * extent`
     // however it is distributed. Both axes always, lock or no lock.
     final double scale = (_down ? s.holdScale : 0.0) + s.tapScale * _tap;
+    _swT = scale;
+    _swA = Offset(wL, wT);
     if (scale != 0) {
       final double growX = scale * w;
       final double growY = scale * h;
@@ -917,6 +952,14 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
         stiffness: s.stiffness,
         damping: damping);
 
+    final swelling = liquidGlassSpringStep(
+        x: _sw,
+        vel: _swv,
+        target: _swT,
+        dt: step,
+        stiffness: s.stiffness,
+        damping: damping);
+
     // The press scalar rides a stiffer, well-damped spring: the optical
     // boost should follow the finger, not wobble with the geometry.
     final pressed = liquidGlassSpringStep(
@@ -938,6 +981,8 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
     _bv = bottom.$2;
     _p = pressed.$1;
     _pv = pressed.$2;
+    _sw = swelling.$1;
+    _swv = swelling.$2;
 
     final bool settled = !_down &&
         _tap == 0 &&
@@ -949,12 +994,15 @@ class LiquidGlassFlexDriver extends ValueNotifier<LiquidGlassFlexDeform> {
         _rv.abs() < 0.5 &&
         _tv.abs() < 0.5 &&
         _bv.abs() < 0.5 &&
-        _p < 0.002;
+        _p < 0.002 &&
+        _sw.abs() < 0.0005 &&
+        _swv.abs() < 0.005;
 
     if (settled) {
       _l = _r = _t = _b = 0;
       _lv = _rv = _tv = _bv = 0;
       _p = _pv = 0;
+      _sw = _swv = 0;
       _tap = 0;
       _ticker?.stop();
       _running = false;

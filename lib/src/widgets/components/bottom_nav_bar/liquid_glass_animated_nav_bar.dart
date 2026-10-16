@@ -23,6 +23,8 @@ import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
 import '../../utils/liquid_glass_spring.dart' show liquidGlassSpringStep;
 import '../../utils/liquid_glass_position.dart';
+import '../../utils/liquid_glass_flex.dart';
+import '../../utils/liquid_glass_touch.dart';
 import '../../utils/liquid_glass_refresh_rate.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../../utils/liquid_glass_lens_motion.dart';
@@ -220,6 +222,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// Draws the bar capsule as lite glass (see `LiquidGlassStyle.liteGlass`).
   final bool barLiteGlass;
+
+  /// How the bar capsule flexes, as on a lens, but pressed by the glass
+  /// pill rather than by a finger: it is held for as long as the pill is
+  /// lifted, grabbed at the pill's centre wherever the pill goes, and the
+  /// drag of the finger carrying the pill is its pull. A touch that lifts
+  /// no pill leaves it still. `null` keeps the capsule rigid.
+  final LiquidGlassTouch? barTouch;
 
   /// iOS-style adaptivity for the whole bar (same contract as
   /// `LiquidGlassStyle.adaptivity`): the bar capsule's tint follows the
@@ -426,6 +435,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.barRefraction,
     this.barAppearance,
     this.barLiteGlass = false,
+    this.barTouch,
     this.barShadow,
     this.pillShadow,
     this.pillLiteGlass = false,
@@ -734,10 +744,70 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     }
   }
 
+  /// Spring driver behind [LiquidGlassAnimatedNavBar.barTouch]'s flex.
+  /// Created on first use, so a rigid bar never allocates a ticker.
+  LiquidGlassFlexDriver? _barFlexDriver;
+
+  LiquidGlassFlexDriver _ensureBarFlexDriver(LiquidGlassFlex spec) =>
+      (_barFlexDriver ??= LiquidGlassFlexDriver(vsync: this, spec: spec)
+        ..addListener(_onBarFlex))
+        ..spec = spec;
+
+  /// The pointer last seen on the bar, and the one holding the capsule's
+  /// flex while the pill is lifted (`null` when it is not held).
+  int _barPointer = -1;
+  int? _barFlexOwner;
+
+  /// Presses the capsule's flex while the glass pill is lifted, grabbed
+  /// at the pill's live centre, and releases it when the pill comes down.
+  void _syncBarFlex() {
+    final LiquidGlassFlex? flex = widget.barTouch?.flex;
+    if (flex == null) return;
+    final LiquidGlassTabBarLayout layout = _layout;
+    final Size rest = Size(layout.width, layout.height);
+    final LiquidGlassFlexDriver driver = _ensureBarFlexDriver(flex)
+      ..restSize = rest;
+    if (_lifted) {
+      final double frac = _tabDragging ? _dragFollow : _travelPos;
+      final Offset grab = Offset(
+        layout.padding + layout.pillOffset(frac) + layout.pillWidth / 2,
+        layout.height / 2,
+      );
+      if (_barFlexOwner == null) {
+        _barFlexOwner = _barPointer;
+        driver.down(grab, rest, pointer: _barPointer);
+      } else {
+        driver.grabAt(grab);
+      }
+    } else if (_barFlexOwner != null) {
+      driver.up(pointer: _barFlexOwner!);
+      _barFlexOwner = null;
+    }
+  }
+
+  /// The whole bar follows the flex: the capsule's shape, and the swell
+  /// the pills and the items take from it.
+  void _onBarFlex() {
+    if (mounted) setState(() {});
+  }
+
+  /// The bar's hold and tap swell as a map, set each build: everything on
+  /// the bar scales by [_swellScale] about [_swellAnchor] (the outer
+  /// view's coordinates), as the capsule's glass does.
+  double _swellScale = 1;
+  Offset _swellAnchor = Offset.zero;
+
+  // Untouched at rest: mapping through a scale of 1 could still move the
+  // point by a rounding error, and the pills sit on the pixel grid.
+  Offset _swellPoint(Offset p) => _swellScale == 1
+      ? p
+      : _swellAnchor + (p - _swellAnchor) * _swellScale;
+
   @override
   void dispose() {
     // (Sampler unregistration is owned by the registrar widget inside
     // the inner view — it unmounts with this subtree.)
+    _barFlexDriver?.dispose();
     _adaptDriver.dispose();
     _ticker?.dispose();
     _outerViewController.detach();
@@ -1013,6 +1083,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       _ticker?.stop();
     }
 
+    _syncBarFlex();
     if (mounted) setState(() {});
   }
 
@@ -1166,6 +1237,24 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // the travel, the lift, the squash — running underneath.
       final double glassPresence = (1 - _handover).clamp(0.0, 1.0);
 
+      // The bar's hold and tap swell, which the pills and the items take
+      // on: a scale about the point the capsule's glass grows from.
+      final LiquidGlassFlexDriver? barFlex =
+          widget.barTouch?.flex == null ? null : _barFlexDriver;
+      _swellScale = 1 + (barFlex?.swell ?? 0);
+      final Offset swellFrac = barFlex?.swellAnchor ?? const Offset(0.5, 0.5);
+      _swellAnchor = Offset(
+        _barLeft + layout.width * swellFrac.dx,
+        parentHeight - _effBottomMargin - layout.height * (1 - swellFrac.dy),
+      );
+      final Offset pillCenter = _swellPoint(Offset(pillCX, pillCY));
+      final bool swollen = _swellScale != 1;
+      final Size pillRestDrawn = swollen ? pillRest * _swellScale : pillRest;
+      final Size pillLiftedDrawn =
+          swollen ? pillLifted * _swellScale : pillLifted;
+      final Size envelopeDrawn =
+          swollen ? envelopeSize * _swellScale : envelopeSize;
+
       // The lens stays until there is nothing left in it to see: no glass,
       // no lift and no deformation. By then it is drawing a flat fill at
       // rest size — exactly what the plain pill draws — so handing over is
@@ -1207,20 +1296,20 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                     // before the icon shell above it had painted.
                     child: LiquidGlassBatch.exclude(
                       child: LiquidGlassNavBarMotionPill(
-                        center: Offset(pillCX, pillCY),
+                        center: pillCenter,
                         active: _lifted,
                         morphProgress: morphProgress,
-                        envelopeSize: envelopeSize,
-                        restSize: pillRest,
-                        activeSize: pillLifted,
+                        envelopeSize: envelopeDrawn,
+                        restSize: pillRestDrawn,
+                        activeSize: pillLiftedDrawn,
                         style: _magnifierStyle(
                           baseShape: widget.pillShape,
-                          fallbackRadius: pillLifted.height / 2,
+                          fallbackRadius: pillLiftedDrawn.height / 2,
                           magnification: widget.magnifierPill.magnification,
                         ),
                         restStyle: _magnifierStyle(
                           baseShape: widget.restStyle.shape,
-                          fallbackRadius: pillRest.height / 2,
+                          fallbackRadius: pillRestDrawn.height / 2,
                           magnification: 1,
                         ),
                         deviation: dev,
@@ -1288,14 +1377,14 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                         child: _withRestStyle(
                           (LiquidGlassStyle rest) =>
                               LiquidGlassNavBarMotionPill(
-                            center: Offset(pillCX, pillCY),
+                            center: pillCenter,
                             active: _lifted,
                             // The bar owns the size as well as the squash;
                             // the pill's own morph spring stays out of it.
                             morphProgress: morphProgress,
-                            envelopeSize: envelopeSize,
-                            restSize: pillRest,
-                            activeSize: pillLifted,
+                            envelopeSize: envelopeDrawn,
+                            restSize: pillRestDrawn,
+                            activeSize: pillLiftedDrawn,
                             style: _pillStyle(),
                             restStyle: rest,
                             // The bar owns the model; the pill just draws it.
@@ -1315,9 +1404,9 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 else if (widget.showSelectionPill)
                   Positioned(
                     key: const ValueKey('lg-motion-nav-pill-static'),
-                    left: pillCX - pillRest.width / 2,
-                    top: pillCY - pillRest.height / 2,
-                    child: _restPill(pillRest),
+                    left: pillCenter.dx - pillRestDrawn.width / 2,
+                    top: pillCenter.dy - pillRestDrawn.height / 2,
+                    child: _restPill(pillRestDrawn),
                   ),
                 // The host's chrome, on Impeller only: no capture up here
                 // to keep awake, so it paints over the cells and the pill
@@ -1341,27 +1430,30 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             bottom: _effBottomMargin + layout.padding,
             width: layout.width - 2 * layout.padding,
             height: layout.cellHeight,
-            child: RawGestureDetector(
-              behavior: HitTestBehavior.opaque,
-              gestures: {
-                TapGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                  () => TapGestureRecognizer(),
-                  (instance) => instance.onTapUp = _onTabBarTapUp,
-                ),
-                LongPressGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<
-                        LongPressGestureRecognizer>(
-                  () => LongPressGestureRecognizer(
-                    duration: const Duration(milliseconds: 100),
+            child: _withBarFlex(
+              layout,
+              RawGestureDetector(
+                behavior: HitTestBehavior.opaque,
+                gestures: {
+                  TapGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
+                    () => TapGestureRecognizer(),
+                    (instance) => instance.onTapUp = _onTabBarTapUp,
                   ),
-                  (instance) => instance
-                    ..onLongPressStart = _onTabPillLongPressStart
-                    ..onLongPressMoveUpdate = _onTabPillLongPressMoveUpdate
-                    ..onLongPressEnd = _onTabPillLongPressEnd
-                    ..onLongPressCancel = _onTabPillLongPressCancel,
-                ),
-              },
+                  LongPressGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          LongPressGestureRecognizer>(
+                    () => LongPressGestureRecognizer(
+                      duration: const Duration(milliseconds: 100),
+                    ),
+                    (instance) => instance
+                      ..onLongPressStart = _onTabPillLongPressStart
+                      ..onLongPressMoveUpdate = _onTabPillLongPressMoveUpdate
+                      ..onLongPressEnd = _onTabPillLongPressEnd
+                      ..onLongPressCancel = _onTabPillLongPressCancel,
+                  ),
+                },
+              ),
             ),
           ),
         ],
@@ -1388,6 +1480,47 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       );
     }
     return bar;
+  }
+
+  /// The bar capsule's lens at [rest] size, flexing on [barTouch]'s spring
+  /// when one is set — the same box and deformation a lens with a
+  /// `touch.flex` builds for itself.
+  Widget _barCapsule(LiquidGlassStyle style, Size rest) {
+    final LiquidGlassFlex? flex = widget.barTouch?.flex;
+    if (flex == null) return LiquidGlassLens(style: style);
+    final LiquidGlassFlexDeform deform =
+        (_ensureBarFlexDriver(flex)..restSize = rest).value;
+    return SizedBox.fromSize(
+      size: rest,
+      child: liquidGlassFlexBox(
+        deform: deform,
+        restSize: rest,
+        // The touch rides along for the press's optical boost; the
+        // deform given here still owns the shape.
+        child: LiquidGlassLens(
+          style: style,
+          touch: widget.barTouch,
+          deform: deform,
+          restSize: rest,
+        ),
+      ),
+    );
+  }
+
+  /// Watches the gesture overlay's pointers for the capsule's flex. A
+  /// touch alone presses nothing — the lifted pill does (see
+  /// [_syncBarFlex]); the finger carrying it only adds its drag. A
+  /// [Listener] takes no part in the gesture arena.
+  Widget _withBarFlex(LiquidGlassTabBarLayout layout, Widget overlay) {
+    final LiquidGlassFlex? flex = widget.barTouch?.flex;
+    if (flex == null) return overlay;
+    return Listener(
+      onPointerDown: (e) => _barPointer = e.pointer,
+      // Ignored by the driver unless this finger holds the press.
+      onPointerMove: (e) =>
+          _barFlexDriver?.move(e.delta, pointer: e.pointer),
+      child: overlay,
+    );
   }
 
   /// The moving pill's look, assembled from the bar's pill-* knobs.
@@ -1685,7 +1818,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                   // Its own read, never a batch's: the bar stays off the
                   // shared chrome read even when the host batches.
                   child: LiquidGlassBatch.exclude(
-                    child: LiquidGlassLens(style: capsuleStyle),
+                    child: _barCapsule(
+                        capsuleStyle, Size(layout.width, layout.height)),
                   ),
                 ),
               ),
@@ -1712,7 +1846,16 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
         IgnorePointer(
           child: Material(
             type: MaterialType.transparency,
-            child: shell,
+            // The items swell with the bar. They are not glass, so a
+            // plain transform carries them.
+            child: _swellScale == 1
+                ? shell
+                : Transform.scale(
+                    scale: _swellScale,
+                    alignment: Alignment.topLeft,
+                    origin: _swellAnchor,
+                    child: shell,
+                  ),
           ),
         ),
       ],
