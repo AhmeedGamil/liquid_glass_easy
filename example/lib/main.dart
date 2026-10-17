@@ -15,12 +15,16 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Apple Match',
-      theme: appleMatchTheme(Brightness.light),
-      darkTheme: appleMatchTheme(Brightness.dark),
-      home: const AppleMatchPage(),
+    return ValueListenableBuilder<bool>(
+      valueListenable: appleMatchPerformanceOverlay,
+      builder: (context, showOverlay, _) => MaterialApp(
+        debugShowCheckedModeBanner: false,
+        showPerformanceOverlay: showOverlay,
+        title: 'Apple Match',
+        theme: appleMatchTheme(Brightness.light),
+        darkTheme: appleMatchTheme(Brightness.dark),
+        home: const AppleMatchPage(),
+      ),
     );
   }
 }

@@ -27,6 +27,10 @@ import 'apple_match/scenes/tab_bar_scene.dart';
 // =============================================================
 
 /// The appearance of the app for [brightness].
+/// Whether the app shows Flutter's performance overlay (raster and UI
+/// frame graphs), toggled from the header.
+final ValueNotifier<bool> appleMatchPerformanceOverlay = ValueNotifier(false);
+
 ThemeData appleMatchTheme(Brightness brightness) => ThemeData(
       brightness: brightness,
       colorScheme: ColorScheme.fromSeed(
@@ -165,6 +169,17 @@ class _Header extends StatelessWidget {
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+          ValueListenableBuilder<bool>(
+            valueListenable: appleMatchPerformanceOverlay,
+            builder: (context, on, _) => IconButton(
+              tooltip: on ? 'Hide performance' : 'Show performance',
+              icon: Icon(
+                Icons.speed_rounded,
+                color: on ? const Color(0xFF0A84FF) : ink,
+              ),
+              onPressed: () => appleMatchPerformanceOverlay.value = !on,
             ),
           ),
           IconButton(
