@@ -746,10 +746,10 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
   /// Spring driver behind [LiquidGlassAnimatedNavBar.barTouch]'s flex.
   /// Created on first use, so a rigid bar never allocates a ticker.
-  LiquidGlassFlexDriver? _barFlexDriver;
+  LiquidGlassTabBarFlexDriver? _barFlexDriver;
 
-  LiquidGlassFlexDriver _ensureBarFlexDriver(LiquidGlassFlex spec) =>
-      (_barFlexDriver ??= LiquidGlassFlexDriver(vsync: this, spec: spec)
+  LiquidGlassTabBarFlexDriver _ensureBarFlexDriver(LiquidGlassFlex spec) =>
+      (_barFlexDriver ??= LiquidGlassTabBarFlexDriver(vsync: this, spec: spec)
         ..addListener(_onBarFlex))
         ..spec = spec;
 
@@ -765,7 +765,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     if (flex == null) return;
     final LiquidGlassTabBarLayout layout = _layout;
     final Size rest = Size(layout.width, layout.height);
-    final LiquidGlassFlexDriver driver = _ensureBarFlexDriver(flex)
+    final LiquidGlassTabBarFlexDriver driver = _ensureBarFlexDriver(flex)
       ..restSize = rest;
     if (_lifted) {
       final double frac = _tabDragging ? _dragFollow : _travelPos;
@@ -1239,7 +1239,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
 
       // The bar's hold and tap swell, which the pills and the items take
       // on: a scale about the point the capsule's glass grows from.
-      final LiquidGlassFlexDriver? barFlex =
+      final LiquidGlassTabBarFlexDriver? barFlex =
           widget.barTouch?.flex == null ? null : _barFlexDriver;
       _swellScale = 1 + (barFlex?.swell ?? 0);
       final Offset swellFrac = barFlex?.swellAnchor ?? const Offset(0.5, 0.5);
