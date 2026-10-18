@@ -24,7 +24,10 @@ Future<void> main() async {
 //     five pieces cost one glass pass. Press one and it swells; pressed
 //     against a neighbour it flows into it;
 //   • the bottom is the package's tab bar with its moving pill, and a
-//     detached search circle.
+//     detached search circle;
+//   • the switch under the header picks how the chrome shares the
+//     backdrop: Layer (the default) blurs it once under all of it, Batch
+//     puts it on one shared read.
 // =============================================================
 
 const Color _kPage = Color(0xFF0E1116);
@@ -43,7 +46,11 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
   static const double _barHeight = 64;
   static const double _edge = 18;
 
+  /// Every glass surface's blur: what the layer or the batch shares.
+  static const double _blur = 6;
+
   int _tab = 4;
+  bool _layer = true;
 
   static final List<LiquidGlassTabBarItem> _tabs = [
     const LiquidGlassTabBarItem(
@@ -78,6 +85,7 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
           cornerRadius: radius,
         ),
         color: const Color(0x33000000),
+        blur: _blur,
       );
 
   @override
@@ -91,12 +99,23 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
         backgroundColor: _kPage,
         body: LiquidGlassScaffold(
           backgroundColor: _kPage,
+          layer: _layer,
           bottomNavigationBarActionMargin: _edge,
           body: _VideoGrid(
             top: pad.top + _Header.height + 16,
             bottom: pad.bottom + _barHeight + 40,
           ),
           appBar: _Header(style: _glass),
+          lenses: [
+            Positioned(
+              top: pad.top + _Header.height + 10,
+              right: _edge,
+              child: _ModeSwitch(
+                layer: _layer,
+                onChanged: (v) => setState(() => _layer = v),
+              ),
+            ),
+          ],
           bottomNavigationBar: LiquidGlassTabBar(
             items: _tabs,
             selectedIndex: _tab,
@@ -118,8 +137,47 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
             icon: Icons.search_rounded,
             size: _barHeight,
             foregroundColor: _kInk,
+            style: LiquidGlassTabBarAction.defaultStyle.copyWith(blur: _blur),
             onTap: () {},
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Layer or Batch, on a plain chip so it is not glass of its own.
+class _ModeSwitch extends StatelessWidget {
+  const _ModeSwitch({required this.layer, required this.onChanged});
+
+  final bool layer;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xCC000000),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.only(left: 12),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              layer ? 'Layer' : 'Batch',
+              style: const TextStyle(
+                color: _kInk,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            Transform.scale(
+              scale: 0.75,
+              child: Switch(value: layer, onChanged: onChanged),
+            ),
+          ],
         ),
       ),
     );

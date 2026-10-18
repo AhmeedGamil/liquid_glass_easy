@@ -12,18 +12,20 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // rail, a now-playing bar, a settings panel and a round button that morphs
 // into a menu. None of the glass scrolls.
 //
-// Batch (header switch) puts every floating lens on one shared backdrop
-// read; off, each takes its own. Blur (settings panel) sets every glass
-// surface on the page, 0 to 20. A batch's members must not overlap, so
-// the pieces that would (the pill under the panel, the now-playing bar
-// under the open menu) step aside while the other is showing.
+// The header switch picks how the floating lenses share the backdrop:
+// Layer (the default) blurs it once under all of them and each runs only
+// its shader; Batch puts them on one shared backdrop read. Blur (settings
+// panel) sets every glass surface on the page, 0 to 20. A batch's members
+// must not overlap, so the pieces that would (the pill under the panel,
+// the now-playing bar under the open menu) step aside while the other is
+// showing.
 //
 //   flutter run -t lib/social_feed.dart
 // =============================================================
 
 final ValueNotifier<bool> _dark = ValueNotifier<bool>(true);
 final ValueNotifier<bool> _overlay = ValueNotifier<bool>(false);
-final ValueNotifier<bool> _batch = ValueNotifier<bool>(true);
+final ValueNotifier<bool> _layer = ValueNotifier<bool>(true);
 final ValueNotifier<double> _blur = ValueNotifier<double>(6);
 
 Future<void> main() async {
@@ -166,7 +168,7 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
         children: [
           Positioned.fill(
             child: ListenableBuilder(
-              listenable: Listenable.merge(<Listenable>[_batch, _blur]),
+              listenable: Listenable.merge(<Listenable>[_layer, _blur]),
               builder: (context, _) => _Knobs(
                 blur: _blur.value,
                 dark: dark,
@@ -226,75 +228,78 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
       body: content,
       blur: _blur.value,
       bottom: barBottom,
-      // One batch over every floating lens. The tree stays the same either
-      // way; switching only swaps the key.
-      chrome: LiquidGlassBatch(
-        enabled: _batch.value,
-        child: Stack(
-          children: [
-            Positioned(
-              left: 16,
-              right: 16,
-              top: safe.top + 8,
-              height: 56,
-              child: _Header(
-                panelOpen: _panelOpen,
-                onPanel: () => setState(() => _panelOpen = !_panelOpen),
-              ),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              top: safe.top + 72,
-              height: 40,
-              child: _FilterChips(
-                selected: _filter,
-                onSelect: (i) => setState(() => _filter = i),
-              ),
-            ),
-            if (_panelOpen)
+      // A layer or a batch over every floating lens. The tree stays the same
+      // either way; switching only turns one off and the other on.
+      chrome: LiquidGlassLayer(
+        enabled: _layer.value,
+        child: LiquidGlassBatch(
+          enabled: !_layer.value,
+          child: Stack(
+            children: [
               Positioned(
                 left: 16,
                 right: 16,
-                top: safe.top + 122,
-                child: const _SettingsPanel(),
-              )
-            else if (_newPosts)
-              Positioned(
-                left: 0,
-                right: 0,
-                top: safe.top + 124,
-                height: 36,
-                child: Center(
-                  child: _NewPostsPill(
-                    onTap: () => setState(() => _newPosts = false),
-                  ),
+                top: safe.top + 8,
+                height: 56,
+                child: _Header(
+                  panelOpen: _panelOpen,
+                  onPanel: () => setState(() => _panelOpen = !_panelOpen),
                 ),
               ),
-            Positioned(
-              right: 14,
-              bottom: rowBottom + rowH + 16,
-              child: const _ActionRail(),
-            ),
-            Positioned(
-              left: 16,
-              bottom: rowBottom,
-              width: 240,
-              height: 330,
-              child: _MorphMenu(
-                open: _menuOpen,
-                onToggle: () => setState(() => _menuOpen = !_menuOpen),
-              ),
-            ),
-            if (!_menuOpen)
               Positioned(
-                left: 16 + rowH + 12,
+                left: 16,
                 right: 16,
-                bottom: rowBottom,
-                height: rowH,
-                child: const _NowPlaying(),
+                top: safe.top + 72,
+                height: 40,
+                child: _FilterChips(
+                  selected: _filter,
+                  onSelect: (i) => setState(() => _filter = i),
+                ),
               ),
-          ],
+              if (_panelOpen)
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  top: safe.top + 122,
+                  child: const _SettingsPanel(),
+                )
+              else if (_newPosts)
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: safe.top + 124,
+                  height: 36,
+                  child: Center(
+                    child: _NewPostsPill(
+                      onTap: () => setState(() => _newPosts = false),
+                    ),
+                  ),
+                ),
+              Positioned(
+                right: 14,
+                bottom: rowBottom + rowH + 16,
+                child: const _ActionRail(),
+              ),
+              Positioned(
+                left: 16,
+                bottom: rowBottom,
+                width: 240,
+                height: 330,
+                child: _MorphMenu(
+                  open: _menuOpen,
+                  onToggle: () => setState(() => _menuOpen = !_menuOpen),
+                ),
+              ),
+              if (!_menuOpen)
+                Positioned(
+                  left: 16 + rowH + 12,
+                  right: 16,
+                  bottom: rowBottom,
+                  height: rowH,
+                  child: const _NowPlaying(),
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -372,19 +377,24 @@ class _Header extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            Text(
-              'Batch',
-              style: TextStyle(
-                color: ink.withValues(alpha: 0.8),
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
             ValueListenableBuilder<bool>(
-              valueListenable: _batch,
-              builder: (context, on, _) => Transform.scale(
-                scale: 0.75,
-                child: Switch(value: on, onChanged: (v) => _batch.value = v),
+              valueListenable: _layer,
+              builder: (context, on, _) => Row(
+                children: [
+                  Text(
+                    on ? 'Layer' : 'Batch',
+                    style: TextStyle(
+                      color: ink.withValues(alpha: 0.8),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  Transform.scale(
+                    scale: 0.75,
+                    child:
+                        Switch(value: on, onChanged: (v) => _layer.value = v),
+                  ),
+                ],
               ),
             ),
             IconButton(
@@ -662,8 +672,8 @@ class _SettingsPanel extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               impeller
-                  ? 'Impeller: a batch shares one backdrop read.'
-                  : 'Skia: batching has no effect on this renderer.',
+                  ? 'Impeller: Layer blurs once for all, Batch shares one read.'
+                  : 'Skia: neither has an effect on this renderer.',
               style: TextStyle(color: sub, fontSize: 12.5),
             ),
           ],
