@@ -169,6 +169,12 @@ class LiquidGlassPainter extends CustomPainter {
     // u_shapeScale — last uniform; a ratio, so never scaled.
     shader.setFloat(index++, shapeScale.dx == 0 ? 1.0 : shapeScale.dx);
     shader.setFloat(index++, shapeScale.dy == 0 ? 1.0 : shapeScale.dy);
+    // u_xformRow / u_xformOff — untransformed.
+    for (final double v in const <double>[1, 0, 0, 1, 0, 0]) {
+      shader.setFloat(index++, v);
+    }
+    // u_geom + u_geomTex — no bake on this path.
+    packLiquidGlassBake(shader, index, null, 0, 0);
 
     shader.setImageSampler(0, sampledImage);
 

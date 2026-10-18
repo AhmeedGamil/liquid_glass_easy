@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -6,7 +7,10 @@ import 'package:flutter/rendering.dart';
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
 import '../utils/liquid_glass_shape.dart';
+import '../utils/liquid_glass_light.dart';
 import 'liquid_glass_layer.dart';
+import 'liquid_glass_shaders.dart';
+import 'liquid_glass_shape_cache.dart';
 import 'liquid_glass_transform_tracking.dart';
 
 /// How a [RenderLiquidGlassLens] produces its glass effect.
@@ -426,6 +430,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
   @override
   void detach() {
     _layerGroup?.leave(this);
+    _releaseBake();
     _captureRevision?.removeListener(markNeedsPaint);
     _shaderLayerHandle.layer?.renderObject = null;
     super.detach();
@@ -482,7 +487,9 @@ class RenderLiquidGlassLens extends RenderProxyBox
     double xformC = 0,
     double xformD = 1,
     Offset xformOffset = Offset.zero,
+    bool baked = false,
   }) {
+    if (baked) _updateBake(scale);
     packLiquidGlassUniforms(
       shader,
       shape: _shape,
@@ -510,7 +517,90 @@ class RenderLiquidGlassLens extends RenderProxyBox
       xformC: xformC,
       xformD: xformD,
       xformOffset: xformOffset,
+      bake: baked ? _bake : null,
+      bakeRange: _bakeRange,
+      bakePad: _bakePad,
     );
+  }
+
+  // ── The baked shape ────────────────────────────────────────────────
+  //
+  // The shape in rest space, so it is keyed on the box, the corners and the
+  // band, never on where the lens is: moving, scrolling or flexing keeps it,
+  // and only a new size, radius or band bakes again.
+
+  LiquidGlassShapeBake? _bake;
+  double _bakeRange = 0;
+  double _bakePad = 0;
+
+  void _releaseBake() {
+    LiquidGlassShapeCache.release(_bake);
+    _bake = null;
+  }
+
+  /// Keeps [_bake] on this lens's shape at [scale] fragment px per logical
+  /// px, baking it when no lens holds that shape yet.
+  void _updateBake(double scale) {
+    final ui.FragmentShader? shader = LiquidGlassShaders.lensBakeShader;
+    if (!LiquidGlassShapeCache.enabled || shader == null || size.isEmpty) {
+      _releaseBake();
+      return;
+    }
+    // The shader's rest box: the half size divided by the flex.
+    final Offset s = _shapeScale;
+    final bool deformed =
+        s.dx > 0 && s.dy > 0 && (s.dx != 1.0 || s.dy != 1.0);
+    final double hx = size.width * scale / 2 / (deformed ? s.dx : 1.0);
+    final double hy = size.height * scale / 2 / (deformed ? s.dy : 1.0);
+    final double radius =
+        math.min(_shape.cornerRadius * scale, math.min(hx, hy));
+    final double style = liquidGlassCornerStyle(_shape);
+    // Far enough for the band and every rim layer, doubled for the flex,
+    // which scales distances on their way to the screen.
+    final LiquidGlassLight? second = _shape.secondSpecular;
+    final double reach = math.max(
+      _refraction.refractionWidth,
+      math.max(
+        1.4 * math.max(_shape.specular.thickness, second?.thickness ?? 0),
+        _shape.glow.thickness,
+      ),
+    );
+    final double range =
+        LiquidGlassShapeCache.ceilTo((reach + 4) * scale * 2, 8);
+    final double pad = (2 * scale + 2).ceilToDouble();
+    final int width = (2 * (hx + pad)).ceil();
+    final int height = (2 * (hy + pad)).ceil();
+    if (width * height > LiquidGlassShapeCache.maxTexels) {
+      _releaseBake();
+      return;
+    }
+    final Object key = (
+      LiquidGlassShapeCache.snap(hx),
+      LiquidGlassShapeCache.snap(hy),
+      LiquidGlassShapeCache.snap(radius),
+      style,
+      range,
+      pad,
+    );
+    _bakeRange = range;
+    _bakePad = pad;
+    if (_bake?.key == key) return;
+    final LiquidGlassShapeBake next =
+        LiquidGlassShapeCache.acquire(key, width, height, () {
+      int i = 0;
+      shader
+        ..setFloat(i++, hx)
+        ..setFloat(i++, hy)
+        ..setFloat(i++, radius)
+        ..setFloat(i++, style)
+        ..setFloat(i++, range)
+        ..setFloat(i++, pad)
+        ..setFloat(i++, 0)
+        ..setFloat(i++, 0);
+      return <ui.Image>[LiquidGlassShapeCache.draw(shader, width, height)];
+    });
+    _releaseBake();
+    _bake = next;
   }
 
   @override
@@ -650,6 +740,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       xformC: linearXform ? s[1] : 0,
       xformD: linearXform ? s[5] : 1,
       xformOffset: linearXform ? Offset(s[12], s[13]) : Offset.zero,
+      baked: true,
     );
   }
 

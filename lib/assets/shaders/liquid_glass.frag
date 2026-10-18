@@ -123,6 +123,11 @@ uniform vec2 u_shapeScale;
 uniform vec4 u_xformRow;
 uniform vec2 u_xformOff;
 
+// The baked shape (liquid_glass_geometry.frag): x = range px, 0 = no bake,
+// y = pad px, zw = texture size px. Bound to a 1x1 image when unused.
+uniform vec4 u_geom;
+uniform sampler2D u_geomTex;
+
 
 out vec4 frag_color;
 
@@ -266,6 +271,36 @@ vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
     return awayLen > EPS ? away / awayLen : fallback;
 }
 
+// One baked texel: (distance px, normal).
+vec3 geomTexel(vec2 texel) {
+    vec4 t = texture(u_geomTex, (texel + 0.5) / u_geom.zw);
+    float v = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
+    return vec3((2.0 * v - 1.0) * u_geom.x, 2.0 * t.ba - 1.0);
+}
+
+// The shape from the bake at [boxPx], rest px from the box's top-left.
+// Filtered here: the 16-bit distance cannot be blended in its two bytes.
+ShapeData shapeFromBake(vec2 boxPx, vec2 shapeScale) {
+    vec2 tp = boxPx + u_geom.y - 0.5;
+    vec2 i0 = clamp(floor(tp), vec2(0.0), u_geom.zw - 2.0);
+    vec2 f = clamp(tp - i0, 0.0, 1.0);
+    vec3 v = mix(mix(geomTexel(i0), geomTexel(i0 + vec2(1.0, 0.0)), f.x),
+                 mix(geomTexel(i0 + vec2(0.0, 1.0)),
+                     geomTexel(i0 + vec2(1.0, 1.0)), f.x),
+                 f.y);
+    float nl = length(v.yz);
+    vec2 n = nl > EPS ? v.yz / nl : vec2(0.0, 1.0);
+    // Rest to screen: the gradient divides by the flex, as shapeToScreen.
+    vec2 g = n / shapeScale;
+    float gl = max(length(g), EPS);
+    ShapeData d;
+    d.sdf       = v.x;
+    d.grad      = g;
+    d.normal    = g / gl;
+    d.orthoDist = v.x / gl;
+    return d;
+}
+
 // =====================================================
 // Main entry
 // =====================================================
@@ -328,27 +363,32 @@ void main() {
     float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
 
-    if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
-        // Continuous (capsule-style) corners.
-        vec2 reach = continuousRoundedRectReach(cornerRadiusPx, restHalfPx);
-        shapeData = evaluateContinuousRoundedRect(
-            fragRestPx, lensCenterPx, restHalfPx, cornerRadiusPx, reach);
-    } else if (u_cornerStyle > 0.5 && cornerRadiusPx > 0.5) {
-        // Squircle (Ln-norm) corners — smoothing fixed at full (1.0).
-        vec2 zn = squircleCornerParams(cornerRadiusPx, 1.0, maxCorner);
-        shapeData = evaluateSquircleRRect(
-            fragRestPx, lensCenterPx, restHalfPx, zn.x, zn.y);
+    if (u_geom.x > 0.0) {
+        // Baked: one filtered read replaces the SDF, already in screen px.
+        shapeData = shapeFromBake(fragRestPx - (lensCenterPx - restHalfPx),
+                                  shapeScale);
     } else {
-        shapeData = evaluateShape(
-            fragRestPx,
-            lensCenterPx,
-            restHalfPx,
-            cornerRadiusPx
-        );
+        if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
+            // Continuous (capsule-style) corners.
+            vec2 reach = continuousRoundedRectReach(cornerRadiusPx, restHalfPx);
+            shapeData = evaluateContinuousRoundedRect(
+                fragRestPx, lensCenterPx, restHalfPx, cornerRadiusPx, reach);
+        } else if (u_cornerStyle > 0.5 && cornerRadiusPx > 0.5) {
+            // Squircle (Ln-norm) corners — smoothing fixed at full (1.0).
+            vec2 zn = squircleCornerParams(cornerRadiusPx, 1.0, maxCorner);
+            shapeData = evaluateSquircleRRect(
+                fragRestPx, lensCenterPx, restHalfPx, zn.x, zn.y);
+        } else {
+            shapeData = evaluateShape(
+                fragRestPx,
+                lensCenterPx,
+                restHalfPx,
+                cornerRadiusPx
+            );
+        }
+        // Back to screen px — the AA ramp, the band and the rim measure there.
+        shapeData = shapeToScreen(shapeData, shapeScale);
     }
-
-    // Back to screen px — the AA ramp, the band and the rim all measure there.
-    shapeData   = shapeToScreen(shapeData, shapeScale);
     shapeDistPx = shapeData.orthoDist;
 
     // Refraction's depth, in the same px as the thickness it divides by. Raw
