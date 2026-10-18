@@ -271,11 +271,11 @@ vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
     return awayLen > EPS ? away / awayLen : fallback;
 }
 
-// One baked texel: (distance px, normal).
+// One baked texel: (raw SDF px, gradient).
 vec3 geomTexel(vec2 texel) {
     vec4 t = texture(u_geomTex, (texel + 0.5) / u_geom.zw);
     float v = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
-    return vec3((2.0 * v - 1.0) * u_geom.x, 2.0 * t.ba - 1.0);
+    return vec3((2.0 * v - 1.0) * u_geom.x, 4.0 * t.ba - 2.0);
 }
 
 // The shape from the bake at [boxPx], rest px from the box's top-left.
@@ -288,10 +288,8 @@ ShapeData shapeFromBake(vec2 boxPx, vec2 shapeScale) {
                  mix(geomTexel(i0 + vec2(0.0, 1.0)),
                      geomTexel(i0 + vec2(1.0, 1.0)), f.x),
                  f.y);
-    float nl = length(v.yz);
-    vec2 n = nl > EPS ? v.yz / nl : vec2(0.0, 1.0);
     // Rest to screen: the gradient divides by the flex, as shapeToScreen.
-    vec2 g = n / shapeScale;
+    vec2 g = v.yz / shapeScale;
     float gl = max(length(g), EPS);
     ShapeData d;
     d.sdf       = v.x;

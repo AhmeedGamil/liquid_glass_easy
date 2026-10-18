@@ -202,7 +202,7 @@ uniform vec4 u_imageRegion;
 uniform vec4 u_geom;
 // xy = the bake's origin in fragment px; z = which texture a bake pass writes.
 uniform vec4 u_geomB;
-uniform sampler2D u_geomDist;    // distance (16 bits), normal
+uniform sampler2D u_geomDist;    // raw field (16 bits), gradient
 uniform sampler2D u_geomAnchor;  // anchor x, y (16 bits each)
 uniform sampler2D u_geomTint;    // the blended member colour
 uniform sampler2D u_geomBend;    // bend xy, bridge
@@ -934,7 +934,7 @@ vec2 geomUv(vec2 texel) { return (texel + 0.5) / u_geom.zw; }
 
 vec3 distTexel(vec2 texel) {
     vec4 t = texture(u_geomDist, geomUv(texel));
-    return vec3((2.0 * unpack16(t.rg) - 1.0) * u_geom.x, 2.0 * t.ba - 1.0);
+    return vec3((2.0 * unpack16(t.rg) - 1.0) * u_geom.x, 4.0 * t.ba - 2.0);
 }
 
 vec2 anchorTexel(vec2 texel) {
@@ -955,12 +955,12 @@ void readBake(vec2 fragPx, out ShapeData sd, out vec2 anchorPx) {
     vec2 a = mix(mix(anchorTexel(i0), anchorTexel(i0 + dx), f.x),
                  mix(anchorTexel(i0 + dy), anchorTexel(i0 + dx + dy), f.x),
                  f.y);
-    float nl = length(v.yz);
-    vec2 n = nl > EPS ? v.yz / nl : vec2(0.0, 1.0);
+    // Rebuilt as shapeFrom1Tap builds it: the raw field over its gradient.
+    float gl = max(length(v.yz), EPS);
     sd.sdf       = v.x;
-    sd.grad      = n;
-    sd.normal    = n;
-    sd.orthoDist = v.x;
+    sd.grad      = v.yz;
+    sd.normal    = v.yz / gl;
+    sd.orthoDist = v.x / gl;
     anchorPx = a + u_geomB.xy;
 }
 
@@ -970,18 +970,15 @@ void main() {
     vec2 p = FlutterFragCoord().xy;
     MergedField mf = evaluateMerged(p);
 #if METABALL_GRAD_ANALYTIC
-    float gLen = max(length(mf.grad), EPS);
-    vec2 normal = mf.grad / gLen;
-    float orthoDist = mf.smoothSdf / gLen;
+    vec2 grad = mf.grad;
 #else
-    ShapeData sd = shapeFrom1Tap(mf.smoothSdf);
-    vec2 normal = sd.normal;
-    float orthoDist = sd.orthoDist;
+    vec2 grad = shapeFrom1Tap(mf.smoothSdf).grad;
 #endif
     float sel = u_geomB.z;
     if (sel < 0.5) {
-        frag_color = vec4(pack16(0.5 + 0.5 * orthoDist / max(u_geom.x, EPS)),
-                          0.5 + 0.5 * normal);
+        // The raw field, not the distance: refraction bends by it, as unbaked.
+        frag_color = vec4(pack16(0.5 + 0.5 * mf.smoothSdf / max(u_geom.x, EPS)),
+                          clamp(0.5 + 0.25 * grad, 0.0, 1.0));
     } else if (sel < 1.5) {
         vec2 a = mf.anchor / u_geom.zw;
         frag_color = vec4(pack16(a.x), pack16(a.y));

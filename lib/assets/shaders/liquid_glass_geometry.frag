@@ -8,8 +8,8 @@
 // The lens's shape, baked once into a texture that liquid_glass.frag reads in
 // place of its SDF. Rest space, one texel per fragment px, the box `pad` in
 // from the texture's top-left.
-//   r,g = the edge distance over [-range, range], 16 bits (high, low)
-//   b,a = the unit normal, 0.5 + 0.5 n
+//   r,g = the raw SDF over [-range, range], 16 bits (high, low)
+//   b,a = its gradient over [-2, 2], 0.5 + 0.25 g
 // Drawn with BlendMode.src, so the alpha channel carries data, not coverage.
 
 #include <flutter/runtime_effect.glsl>
@@ -41,9 +41,10 @@ void main() {
         d = evaluateShape(p, halfPx, halfPx, r);
     }
 
-    float t = clamp(0.5 + 0.5 * d.orthoDist / max(u_bake.x, EPS), 0.0, 1.0);
+    // The raw value, not the distance: refraction bends by it, as unbaked.
+    float t = clamp(0.5 + 0.5 * d.sdf / max(u_bake.x, EPS), 0.0, 1.0);
     float v = floor(t * 65535.0 + 0.5);
     float hi = floor(v / 256.0);
     frag_color = vec4(hi / 255.0, (v - hi * 256.0) / 255.0,
-                      0.5 + 0.5 * d.normal);
+                      clamp(0.5 + 0.25 * d.grad, 0.0, 1.0));
 }
