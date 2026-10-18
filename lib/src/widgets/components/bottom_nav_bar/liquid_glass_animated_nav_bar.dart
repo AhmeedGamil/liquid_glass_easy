@@ -1235,6 +1235,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
             batch: widget.batch,
+            // The bar's own glass keeps its reads; a host layers the chrome.
+            layer: false,
             foregroundBatchId: widget.foregroundBatchId,
             backgroundWidget: _buildInner(
               layout: layout,
@@ -1628,6 +1630,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
           useImpellerBackdrop: widget.useImpellerBackdrop,
           batch: widget.batch,
+          // The bar's own glass keeps its reads; a host layers the chrome.
+          layer: false,
           foregroundBatchId: widget.foregroundBatchId,
           backgroundWidget: background,
           // Body-luminance sampling for adaptivity: the inner view owns

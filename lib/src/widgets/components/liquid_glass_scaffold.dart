@@ -3,6 +3,7 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../controllers/liquid_glass_view_controller.dart';
 import '../lens/liquid_glass_batch.dart';
+import '../lens/liquid_glass_layer.dart';
 import '../liquid_glass_view.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_refresh_rate.dart';
@@ -276,6 +277,11 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// takes a read of its own.
   final bool batch;
 
+  /// See [LiquidGlassView.layer]. `true` (the default) has the chrome —
+  /// app bar, action, FAB, [lenses] — share a `LiquidGlassLayer` instead
+  /// of the chrome batch. Only with [batch] on; `false` keeps the batch.
+  final bool layer;
+
   /// The palettes this scaffold's glass chrome wears, the OS bars it
   /// drives, and the strips that judge them — see
   /// [LiquidGlassScaffoldAdaptivity]. `null` (the default) means
@@ -305,6 +311,7 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
     this.batch = true,
+    this.layer = true,
     this.adaptivity,
   });
 
@@ -433,7 +440,10 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         // screen again — carries the pill alone; nothing of ours is up
         // there, `outerNeedsRealtime` stays off, and that capture sleeps
         // whenever the pill is at rest.
-        chromeChild: _chromeSlots(context, pad, includeNavBar: false),
+        chromeChild: LiquidGlassLayer(
+          enabled: widget.batch && widget.layer,
+          child: _chromeSlots(context, pad, includeNavBar: false),
+        ),
         pixelRatio: widget.pixelRatio,
         useSync: widget.useSync,
         useImpellerBackdrop: widget.useImpellerBackdrop,
@@ -474,6 +484,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       refreshRate: widget.refreshRate,
       useImpellerBackdrop: widget.useImpellerBackdrop,
       batch: widget.batch,
+      layer: widget.layer,
       foregroundBatchId: _chromeBatch,
       adaptiveSampling: sampling,
       backgroundWidget: background,
