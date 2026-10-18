@@ -676,14 +676,17 @@ struct MergedField {
     vec4  tint;        // == anchorFor's tint out — the blended member colour
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
     vec2  bend;        // the members' capsule directions, blended as grad
+    vec4  h03;         // each member's blend weight, so the band alone
+    vec4  h47;         // folds the bend (mergedBend)
 };
 
-void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
-                      inout float smoothSdf, inout float hardSdf,
-                      inout vec3 anchorAcc, inout float anchorW,
-                      inout vec4 tintAcc, inout vec2 gradAcc,
-                      inout vec2 bendAcc) {
-    if (lens.z <= 0.0) return;
+// Returns the member's blend weight h; 1 (no effect) for an absent member.
+float accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
+                       inout float smoothSdf, inout float hardSdf,
+                       inout vec3 anchorAcc, inout float anchorW,
+                       inout vec4 tintAcc, inout vec2 gradAcc,
+                       inout vec2 bendAcc) {
+    if (lens.z <= 0.0) return 1.0;
 
     // The one raw SDF for this lens — shared by all three accumulators.
     float base = lensDistance(p, lens, meta);
@@ -713,7 +716,11 @@ void accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
     gradAcc = mix(lensGradDir(p, lens, meta), gradAcc, h);
 #endif
     // The capsule direction blends on the same weight as the gradient.
+    // Mobile folds it later, in the band only (mergedBend).
+#ifdef LIQUID_GLASS_DESKTOP
     bendAcc = mix(lensCapsuleDir(p, lens, meta), bendAcc, h);
+#endif
+    return h;
 }
 
 MergedField evaluateMerged(vec2 p) {
@@ -739,6 +746,8 @@ MergedField evaluateMerged(vec2 p) {
     m.hardSdf   = 1e9;
     m.grad      = vec2(0.0);
     m.bend      = vec2(0.0);
+    m.h03       = vec4(1.0);
+    m.h47       = vec4(1.0);
     vec3 anchorAcc = vec3(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
@@ -749,21 +758,21 @@ MergedField evaluateMerged(vec2 p) {
                          m.grad, m.bend);
     }
 #else
-    accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
+    m.h03.x = accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
+    m.h03.y = accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens2, u_lensMeta2, u_lensTint2, m.smoothSdf,
+    m.h03.z = accumulateMerged(p, u_lens2, u_lensMeta2, u_lensTint2, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens3, u_lensMeta3, u_lensTint3, m.smoothSdf,
+    m.h03.w = accumulateMerged(p, u_lens3, u_lensMeta3, u_lensTint3, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens4, u_lensMeta4, u_lensTint4, m.smoothSdf,
+    m.h47.x = accumulateMerged(p, u_lens4, u_lensMeta4, u_lensTint4, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens5, u_lensMeta5, u_lensTint5, m.smoothSdf,
+    m.h47.y = accumulateMerged(p, u_lens5, u_lensMeta5, u_lensTint5, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens6, u_lensMeta6, u_lensTint6, m.smoothSdf,
+    m.h47.z = accumulateMerged(p, u_lens6, u_lensMeta6, u_lensTint6, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
-    accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
+    m.h47.w = accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
                      m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
 #endif
     m.anchor = (anchorW > EPS) ? anchorAcc.xy / anchorW : p;
@@ -771,6 +780,28 @@ MergedField evaluateMerged(vec2 p) {
     m.tint   = resolveTint(tintAcc, anchorW);
     return m;
 }
+
+#ifndef LIQUID_GLASS_DESKTOP
+void foldBend(vec2 p, vec4 lens, vec4 meta, float h, inout vec2 bend) {
+    if (lens.z > 0.0) bend = mix(lensCapsuleDir(p, lens, meta), bend, h);
+}
+
+// The merged bend, folded on the weights evaluateMerged kept: the same mixes
+// in the same order, run only where the band needs them.
+vec2 mergedBend(vec2 p, MergedField m) {
+    if (u_mergeEnabled < 0.5) return m.bend;
+    vec2 bend = vec2(0.0);
+    foldBend(p, u_lens0, u_lensMeta0, m.h03.x, bend);
+    foldBend(p, u_lens1, u_lensMeta1, m.h03.y, bend);
+    foldBend(p, u_lens2, u_lensMeta2, m.h03.z, bend);
+    foldBend(p, u_lens3, u_lensMeta3, m.h03.w, bend);
+    foldBend(p, u_lens4, u_lensMeta4, m.h47.x, bend);
+    foldBend(p, u_lens5, u_lensMeta5, m.h47.y, bend);
+    foldBend(p, u_lens6, u_lensMeta6, m.h47.z, bend);
+    foldBend(p, u_lens7, u_lensMeta7, m.h47.w, bend);
+    return bend;
+}
+#endif
 
 // The fused path is exact only when fieldShape == field (no experiment macro)
 // AND the gradient comes from a SINGLE per-fragment pass: the 1-tap derivative
@@ -936,6 +967,13 @@ void main() {
     vec2 bend       = vec2(0.0);
 #endif
 
+    // Past the AA ramp the glass and its rim are exactly transparent: the
+    // gaps between members skip the sample and the rim.
+    if (shapeMask <= 0.0) {
+        frag_color = vec4(0.0);
+        return;
+    }
+
     float distAbsPx = abs(shapeDistPx);
     float zoneLimit = u_refractionWidthPx;
     float zoneMask  = step(distAbsPx, zoneLimit);
@@ -1003,6 +1041,9 @@ void main() {
     }
 
     float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
+#if METABALL_FUSED_PATH
+    bend = mergedBend(fragPx, mf);
+#endif
 
     vec2 refrPx;
     refrPx = computeRefractedPosition(

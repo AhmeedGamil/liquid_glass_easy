@@ -360,6 +360,13 @@ void main() {
     // --- Shared antialiasing + mask ---
     shapeMask = computeShapeMask(shapeDistPx);
 
+    // Past the AA ramp the lens and its rim are exactly transparent: a clip
+    // wider than the outline skips the sample and the rim there.
+    if (shapeMask <= 0.0) {
+        frag_color = vec4(0.0);
+        return;
+    }
+
     // ===============================
     // Distortion band setup
     // ===============================
