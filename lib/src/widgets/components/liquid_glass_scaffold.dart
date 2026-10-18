@@ -277,9 +277,9 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// takes a read of its own.
   final bool batch;
 
-  /// See [LiquidGlassView.layer]. `true` (the default) has the chrome —
-  /// app bar, action, FAB, [lenses] — share a `LiquidGlassLayer` instead
-  /// of the chrome batch. Only with [batch] on; `false` keeps the batch.
+  /// See [LiquidGlassView.layer]. `false` (the default) keeps the chrome
+  /// batch; `true` has the chrome — app bar, action, FAB, [lenses] — share
+  /// a `LiquidGlassLayer` instead. Only with [batch] on.
   final bool layer;
 
   /// The palettes this scaffold's glass chrome wears, the OS bars it
@@ -311,7 +311,7 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
     this.batch = true,
-    this.layer = true,
+    this.layer = false,
     this.adaptivity,
   });
 

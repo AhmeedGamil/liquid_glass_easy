@@ -26,8 +26,8 @@ Future<void> main() async {
 //   • the bottom is the package's tab bar with its moving pill, and a
 //     detached search circle;
 //   • the switch under the header picks how the chrome shares the
-//     backdrop: Layer (the default) blurs it once under all of it, Batch
-//     puts it on one shared read.
+//     backdrop: Batch (the default) puts it on one shared read, Layer
+//     blurs it once under all of it.
 // =============================================================
 
 const Color _kPage = Color(0xFF0E1116);
@@ -50,7 +50,7 @@ class _VideoLibraryPageState extends State<VideoLibraryPage> {
   static const double _blur = 6;
 
   int _tab = 4;
-  bool _layer = true;
+  bool _layer = false;
 
   static final List<LiquidGlassTabBarItem> _tabs = [
     const LiquidGlassTabBarItem(

@@ -13,8 +13,8 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 // into a menu. None of the glass scrolls.
 //
 // The header switch picks how the floating lenses share the backdrop:
-// Layer (the default) blurs it once under all of them and each runs only
-// its shader; Batch puts them on one shared backdrop read. Blur (settings
+// Batch (the default) puts them on one shared backdrop read; Layer blurs
+// it once under all of them and each runs only its shader. Blur (settings
 // panel) sets every glass surface on the page, 0 to 20. A batch's members
 // must not overlap, so the pieces that would (the pill under the panel,
 // the now-playing bar under the open menu) step aside while the other is
@@ -25,7 +25,7 @@ import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 final ValueNotifier<bool> _dark = ValueNotifier<bool>(true);
 final ValueNotifier<bool> _overlay = ValueNotifier<bool>(false);
-final ValueNotifier<bool> _layer = ValueNotifier<bool>(true);
+final ValueNotifier<bool> _layer = ValueNotifier<bool>(false);
 final ValueNotifier<double> _blur = ValueNotifier<double>(6);
 
 Future<void> main() async {

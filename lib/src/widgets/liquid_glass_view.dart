@@ -140,9 +140,9 @@ class LiquidGlassView extends StatefulWidget {
   /// Whether what floats in [child] shares a `LiquidGlassLayer` instead of
   /// the foreground batch.
   ///
-  /// `true` (the default) blurs the background once under every glass
-  /// surface in [child], and each runs only its shader. `false` keeps the
-  /// foreground batch. Either way it applies only with [batch] on, and the
+  /// `false` (the default) keeps the foreground batch. `true` blurs the
+  /// background once under every glass surface in [child], and each runs
+  /// only its shader. Either way it applies only with [batch] on, and the
   /// background keeps its batch: a layer blurs what was painted before it.
   final bool layer;
 
@@ -217,7 +217,7 @@ class LiquidGlassView extends StatefulWidget {
       this.useImpellerBackdrop,
       this.regionCapture = false,
       this.batch = true,
-      this.layer = true,
+      this.layer = false,
       this.foregroundBatchId,
       this.adaptiveSampling})
       : children = const [],
@@ -242,7 +242,7 @@ class LiquidGlassView extends StatefulWidget {
       this.regionCapture = false,
       this.honorBackdropAlpha = false,
       this.batch = true,
-      this.layer = true,
+      this.layer = false,
       this.foregroundBatchId,
       this.adaptiveSampling});
 
