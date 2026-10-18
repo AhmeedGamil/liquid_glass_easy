@@ -26,3 +26,4 @@ flutter:
   assets:
     # Outline + filled SVG pairs driving the "Scaffold + SVG Nav" demo.
     - assets/icons/
+    - assets/feed/
