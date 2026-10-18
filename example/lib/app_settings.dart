@@ -24,6 +24,11 @@ final ValueNotifier<bool> liteGlass = ValueNotifier<bool>(false)
     LiquidGlassEngine.liteGlassOnImpeller = liteGlass.value;
   });
 
+/// Whether the gallery shows Flutter's performance overlay — the raster
+/// and UI frame graphs — over every page. The Settings page flips it; the
+/// gallery's [MaterialApp] rebuilds from it.
+final ValueNotifier<bool> performanceOverlay = ValueNotifier<bool>(false);
+
 /// The gallery's page backdrop for [brightness]: a deep violet wash in the
 /// dark, the same hue bleached to near-paper in the light.
 ///

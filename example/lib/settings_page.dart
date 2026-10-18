@@ -6,7 +6,7 @@ import 'app_settings.dart';
 // =============================================================
 // Settings — the gallery's own preferences page.
 //
-// Two glass switches, each bound to a notifier the gallery listens to:
+// Three glass switches, each bound to a notifier the gallery listens to:
 //
 //   • Dark mode → app_settings.dart's `darkMode`, which picks the
 //     MaterialApp's themeMode. Every demo opened from the menu reads it
@@ -14,6 +14,8 @@ import 'app_settings.dart';
 //   • Lite glass → app_settings.dart's `liteGlass`, which sets both
 //     `LiquidGlassEngine` switches, so every lens in the gallery draws
 //     the shader-free material.
+//   • Performance overlay → app_settings.dart's `performanceOverlay`,
+//     which turns on the MaterialApp's frame graphs over every page.
 //
 // The settings are not persisted; they reset on restart.
 //
@@ -102,6 +104,25 @@ class SettingsPage extends StatelessWidget {
                           : 'The shader: every lens refracts its backdrop',
                       value: value,
                       onChanged: (v) => liteGlass.value = v,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 22),
+              _SectionLabel('Performance'),
+              const SizedBox(height: 12),
+              _Card(
+                children: [
+                  ValueListenableBuilder<bool>(
+                    valueListenable: performanceOverlay,
+                    builder: (context, value, _) => _SwitchRow(
+                      icon: Icons.speed_rounded,
+                      label: 'Performance overlay',
+                      detail: value
+                          ? 'Raster and UI frame graphs over every page'
+                          : 'Off',
+                      value: value,
+                      onChanged: (v) => performanceOverlay.value = v,
                     ),
                   ),
                 ],

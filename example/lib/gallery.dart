@@ -57,10 +57,11 @@ class GalleryApp extends StatelessWidget {
     // switches can flip the whole app from anywhere. The lite-glass one is
     // listened to as well so every mounted lens rebuilds when it flips.
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[darkMode, liteGlass]),
+      listenable: Listenable.merge(
+          <Listenable>[darkMode, liteGlass, performanceOverlay]),
       builder: (BuildContext context, Widget? _) => MaterialApp(
         debugShowCheckedModeBanner: false,
-        // showPerformanceOverlay: true,
+        showPerformanceOverlay: performanceOverlay.value,
         theme: galleryTheme(Brightness.light),
         darkTheme: galleryTheme(Brightness.dark),
         themeMode: darkMode.value ? ThemeMode.dark : ThemeMode.light,
