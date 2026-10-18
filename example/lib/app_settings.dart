@@ -24,6 +24,11 @@ final ValueNotifier<bool> liteGlass = ValueNotifier<bool>(false)
     LiquidGlassEngine.liteGlassOnImpeller = liteGlass.value;
   });
 
+/// Whether lenses and blenders read a baked shape instead of evaluating it
+/// per pixel; flips `LiquidGlassEngine.shapeCache`.
+final ValueNotifier<bool> shapeCache = ValueNotifier<bool>(true)
+  ..addListener(() => LiquidGlassEngine.shapeCache = shapeCache.value);
+
 /// Whether the gallery shows Flutter's performance overlay — the raster
 /// and UI frame graphs — over every page. The Settings page flips it; the
 /// gallery's [MaterialApp] rebuilds from it.

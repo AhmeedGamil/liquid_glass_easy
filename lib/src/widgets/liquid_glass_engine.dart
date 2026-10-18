@@ -1,5 +1,7 @@
 import 'dart:ui' as ui;
 
+import 'lens/liquid_glass_shape_cache.dart';
+
 /// Package-wide renderer switches.
 class LiquidGlassEngine {
   LiquidGlassEngine._();
@@ -34,4 +36,14 @@ class LiquidGlassEngine {
   static bool get liteGlass => ui.ImageFilter.isShaderFilterSupported
       ? liteGlassOnImpeller
       : liteGlassOnSkia;
+
+  /// Whether lenses and blenders bake their shape into a texture and read it
+  /// back, instead of evaluating it for every pixel on every frame.
+  ///
+  /// On (the default), a shape is baked once and kept while it only moves:
+  /// a new size, radius or corner style bakes again, and so does a blender
+  /// member moving against the others. Impeller on Android and iOS; other
+  /// renderers always evaluate per pixel. Takes effect on the next paint.
+  static bool get shapeCache => LiquidGlassShapeCache.enabled;
+  static set shapeCache(bool value) => LiquidGlassShapeCache.enabled = value;
 }

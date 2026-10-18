@@ -6,7 +6,7 @@ import 'app_settings.dart';
 // =============================================================
 // Settings — the gallery's own preferences page.
 //
-// Three glass switches, each bound to a notifier the gallery listens to:
+// Four glass switches, each bound to a notifier the gallery listens to:
 //
 //   • Dark mode → app_settings.dart's `darkMode`, which picks the
 //     MaterialApp's themeMode. Every demo opened from the menu reads it
@@ -16,6 +16,8 @@ import 'app_settings.dart';
 //     the shader-free material.
 //   • Performance overlay → app_settings.dart's `performanceOverlay`,
 //     which turns on the MaterialApp's frame graphs over every page.
+//   • Shape cache → app_settings.dart's `shapeCache`, which sets
+//     `LiquidGlassEngine.shapeCache`.
 //
 // The settings are not persisted; they reset on restart.
 //
@@ -123,6 +125,18 @@ class SettingsPage extends StatelessWidget {
                           : 'Off',
                       value: value,
                       onChanged: (v) => performanceOverlay.value = v,
+                    ),
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: shapeCache,
+                    builder: (context, value, _) => _SwitchRow(
+                      icon: Icons.layers_rounded,
+                      label: 'Shape cache',
+                      detail: value
+                          ? 'Shapes baked once, kept while they only move'
+                          : 'Every shape evaluated per pixel, every frame',
+                      value: value,
+                      onChanged: (v) => shapeCache.value = v,
                     ),
                   ),
                 ],
