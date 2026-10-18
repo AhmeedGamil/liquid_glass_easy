@@ -24,6 +24,10 @@ export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_group.dart'
 // a single lens. Members must not overlap each other.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_batch.dart'
     show LiquidGlassBatch;
+// Layer: wrap a subtree and blur the backdrop ONCE under every glass surface
+// inside it; each member then runs only its shader.
+export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_layer.dart'
+    show LiquidGlassLayer;
 // Blender: wrap a subtree and merge 2–6 descendant LiquidGlassLens
 // widgets into one smooth metaball glass surface.
 export 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_blender.dart'

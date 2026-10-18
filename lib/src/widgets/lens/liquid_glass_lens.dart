@@ -15,6 +15,7 @@ import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_batch.dart';
 import 'liquid_glass_blender.dart';
+import 'liquid_glass_layer.dart';
 import 'liquid_glass_lens_scope.dart';
 import 'liquid_glass_shaders.dart';
 import '../liquid_glass_engine.dart';
@@ -625,9 +626,16 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // Inside a LiquidGlassBatch: this lens joins the batch's shared backdrop
     // read. The Skia capture path already shares one capture per view, so it
     // has nothing to join.
-    final int? backdropId = mode == LiquidGlassLensRenderMode.impellerBackdrop
-        ? LiquidGlassBatch.backdropIdOf(context)
-        : null;
+    // Inside a LiquidGlassLayer the layer blurs for it and the batch is not
+    // used.
+    final LiquidGlassLayerGroup? layerGroup =
+        mode == LiquidGlassLensRenderMode.impellerBackdrop
+            ? LiquidGlassLayer.groupOf(context)
+            : null;
+    final int? backdropId =
+        mode == LiquidGlassLensRenderMode.impellerBackdrop && layerGroup == null
+            ? LiquidGlassBatch.backdropIdOf(context)
+            : null;
 
     // Clip at the deformed lens bounds, scale the content inside it: the
     // child stretches as pixels but can never spill past the glass edge.
@@ -668,6 +676,7 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         screenSize: screenSize,
         devicePixelRatio: dpr,
         backdropId: backdropId,
+        layerGroup: layerGroup,
         shaderClip: widget.shaderClip,
         scope: scope,
         child: visible ? clippedChild : null,
@@ -721,6 +730,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final Size screenSize;
   final double devicePixelRatio;
   final int? backdropId;
+  final LiquidGlassLayerGroup? layerGroup;
   final LiquidGlassShaderClip shaderClip;
   final LiquidGlassLensScope? scope;
 
@@ -739,6 +749,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
     required this.screenSize,
     required this.devicePixelRatio,
     required this.backdropId,
+    required this.layerGroup,
     required this.shaderClip,
     required this.scope,
     super.child,
@@ -761,6 +772,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       screenSize: screenSize,
       devicePixelRatio: devicePixelRatio,
       backdropId: backdropId,
+      layerGroup: layerGroup,
       shaderClip: shaderClip,
       captureRevision: scope?.captureRevision,
       currentImage: scope?.currentImage,
@@ -787,6 +799,7 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       ..screenSize = screenSize
       ..devicePixelRatio = devicePixelRatio
       ..backdropId = backdropId
+      ..layerGroup = layerGroup
       ..shaderClip = shaderClip
       ..captureRevision = scope?.captureRevision
       ..currentImage = scope?.currentImage

@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
 import '../utils/liquid_glass_shape.dart';
+import 'liquid_glass_layer.dart';
 import 'liquid_glass_transform_tracking.dart';
 
 /// How a [RenderLiquidGlassLens] produces its glass effect.
@@ -104,7 +105,8 @@ class _ImpellerShaderBackdropLayer extends ContainerLayer {
 /// Paint order (both modes): glass effect first, then the child on top.
 /// The child itself is clipped by the widget layer, not here.
 class RenderLiquidGlassLens extends RenderProxyBox
-    with LensTransformTrackingMixin {
+    with LensTransformTrackingMixin
+    implements LiquidGlassLayerMember {
   RenderLiquidGlassLens({
     required LiquidGlassLensRenderMode mode,
     required ui.FragmentShader mainShader,
@@ -120,6 +122,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required Size screenSize,
     required double devicePixelRatio,
     int? backdropId,
+    LiquidGlassLayerGroup? layerGroup,
     required LiquidGlassShaderClip shaderClip,
     ValueListenable<int>? captureRevision,
     ui.Image? Function()? currentImage,
@@ -127,6 +130,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     RenderBox? Function()? backgroundRenderBox,
   })  : _mode = mode,
         _backdropId = backdropId,
+        _layerGroup = layerGroup,
         _shaderClip = shaderClip,
         _honorBackdropAlpha = honorBackdropAlpha,
         _mainShader = mainShader,
@@ -179,6 +183,27 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _shaderLayerHandle.layer = null;
     markNeedsPaint();
   }
+
+  /// The `LiquidGlassLayer` this lens belongs to, or `null` outside one.
+  /// Under a layer the lens pushes no blur of its own: the layer blurs once
+  /// for all its members and this lens runs only its shader.
+  LiquidGlassLayerGroup? _layerGroup;
+  set layerGroup(LiquidGlassLayerGroup? value) {
+    if (_layerGroup == value) return;
+    _layerGroup?.leave(this);
+    _layerGroup = value;
+    markNeedsPaint();
+  }
+
+  @override
+  RenderBox get layerBox => this;
+
+  @override
+  double get layerBlurSigma => _appearance.blur;
+
+  @override
+  Path get layerBlurOutline =>
+      liquidGlassLayerOutline(_shape, size, _clipScale);
 
   /// Whether the shader folds the captured backdrop's alpha into its own
   /// coverage. Skia capture path only.
@@ -400,6 +425,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   @override
   void detach() {
+    _layerGroup?.leave(this);
     _captureRevision?.removeListener(markNeedsPaint);
     _shaderLayerHandle.layer?.renderObject = null;
     super.detach();
@@ -500,8 +526,20 @@ class RenderLiquidGlassLens extends RenderProxyBox
     // no backdrop cost — but keep painting the child; whether IT hides
     // stays the caller's call.
     if (!_glassEnabled || size.isEmpty) {
+      _layerGroup?.leave(this);
       super.paint(context, offset);
       return;
+    }
+
+    // In a layer only while it paints the layer's way and has a blur to
+    // share; every other path takes its own.
+    final bool layered = _layerGroup != null &&
+        _mode == LiquidGlassLensRenderMode.impellerBackdrop &&
+        _useBlur;
+    if (layered) {
+      _layerGroup!.join(this);
+    } else {
+      _layerGroup?.leave(this);
     }
 
     switch (_mode) {
@@ -509,7 +547,9 @@ class RenderLiquidGlassLens extends RenderProxyBox
         // A batch shares one backdrop read across all its lenses, which only
         // works if each is a single pass — a different paint path, not just a
         // key on the same one.
-        if (_backdropId != null) {
+        if (layered) {
+          _paintImpeller(context, offset, ownBlur: false);
+        } else if (_backdropId != null) {
           _paintImpellerBatched(context, offset);
         } else {
           _paintImpeller(context, offset);
@@ -712,13 +752,16 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// ramp (and any rim feather), so the visible outline never meets the clip.
   static const double _shaderClipPad = 2.0;
 
-  void _paintImpeller(PaintingContext context, Offset offset) {
+  /// [ownBlur] `false` is the layered path: the enclosing layer has already
+  /// blurred under this lens, so only the shader pass is pushed.
+  void _paintImpeller(PaintingContext context, Offset offset,
+      {bool ownBlur = true}) {
     // Order matters: blur first (below), shader second (on top) — stacked
     // BackdropFilters chain, so the shader refracts the already-blurred
     // backdrop and draws its sharp border last. The blur keeps the exact
     // outline clip: unlike the shader, blur FILLS its clip, so a looser
     // one would halo blurred backdrop outside the glass.
-    if (_useBlur) {
+    if (_useBlur && ownBlur) {
       void paintBlur(PaintingContext context, Offset offset) {
         final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
         blurLayer.filter = ui.ImageFilter.blur(
