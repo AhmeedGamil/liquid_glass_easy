@@ -197,6 +197,16 @@ uniform vec4 u_lightOpposite;
 // packMetaballGlassUniforms.
 uniform vec4 u_imageRegion;
 
+// The baked field (metaball_geometry.frag): x = distance range px, 0 = none,
+// y = 1 when one tint covers every member, zw = texture size px.
+uniform vec4 u_geom;
+// xy = the bake's origin in fragment px; z = which texture a bake pass writes.
+uniform vec4 u_geomB;
+uniform sampler2D u_geomDist;    // distance (16 bits), normal
+uniform sampler2D u_geomAnchor;  // anchor x, y (16 bits each)
+uniform sampler2D u_geomTint;    // the blended member colour
+uniform sampler2D u_geomBend;    // bend xy, bridge
+
 // --- Restore original names ------------------------------------------------
 // u_lensN / u_lensMetaN are real individual uniforms, so they need no aliases;
 // only the scalar vec4 packs are aliased back to their original names below.
@@ -911,6 +921,81 @@ float computeShapeMask(float shapeDistPx) {
 }
 
 // =====================================================
+// Baked field
+// =====================================================
+float unpack16(vec2 b) { return (b.x * 255.0 * 256.0 + b.y * 255.0) / 65535.0; }
+vec2 pack16(float v) {
+    float q = floor(clamp(v, 0.0, 1.0) * 65535.0 + 0.5);
+    float hi = floor(q / 256.0);
+    return vec2(hi, q - hi * 256.0) / 255.0;
+}
+
+vec2 geomUv(vec2 texel) { return (texel + 0.5) / u_geom.zw; }
+
+vec3 distTexel(vec2 texel) {
+    vec4 t = texture(u_geomDist, geomUv(texel));
+    return vec3((2.0 * unpack16(t.rg) - 1.0) * u_geom.x, 2.0 * t.ba - 1.0);
+}
+
+vec2 anchorTexel(vec2 texel) {
+    vec4 t = texture(u_geomAnchor, geomUv(texel));
+    return vec2(unpack16(t.rg), unpack16(t.ba)) * u_geom.zw;
+}
+
+// The field and its anchor at [fragPx], filtered here: a 16-bit value
+// cannot be blended in its two bytes.
+void readBake(vec2 fragPx, out ShapeData sd, out vec2 anchorPx) {
+    vec2 tp = fragPx - u_geomB.xy - 0.5;
+    vec2 i0 = clamp(floor(tp), vec2(0.0), u_geom.zw - 2.0);
+    vec2 f = clamp(tp - i0, 0.0, 1.0);
+    vec2 dx = vec2(1.0, 0.0);
+    vec2 dy = vec2(0.0, 1.0);
+    vec3 v = mix(mix(distTexel(i0), distTexel(i0 + dx), f.x),
+                 mix(distTexel(i0 + dy), distTexel(i0 + dx + dy), f.x), f.y);
+    vec2 a = mix(mix(anchorTexel(i0), anchorTexel(i0 + dx), f.x),
+                 mix(anchorTexel(i0 + dy), anchorTexel(i0 + dx + dy), f.x),
+                 f.y);
+    float nl = length(v.yz);
+    vec2 n = nl > EPS ? v.yz / nl : vec2(0.0, 1.0);
+    sd.sdf       = v.x;
+    sd.grad      = n;
+    sd.normal    = n;
+    sd.orthoDist = v.x;
+    anchorPx = a + u_geomB.xy;
+}
+
+#ifdef METABALL_BAKE
+// One texture of the bake per pass, chosen by u_geomB.z, in bake space.
+void main() {
+    vec2 p = FlutterFragCoord().xy;
+    MergedField mf = evaluateMerged(p);
+#if METABALL_GRAD_ANALYTIC
+    float gLen = max(length(mf.grad), EPS);
+    vec2 normal = mf.grad / gLen;
+    float orthoDist = mf.smoothSdf / gLen;
+#else
+    ShapeData sd = shapeFrom1Tap(mf.smoothSdf);
+    vec2 normal = sd.normal;
+    float orthoDist = sd.orthoDist;
+#endif
+    float sel = u_geomB.z;
+    if (sel < 0.5) {
+        frag_color = vec4(pack16(0.5 + 0.5 * orthoDist / max(u_geom.x, EPS)),
+                          0.5 + 0.5 * normal);
+    } else if (sel < 1.5) {
+        vec2 a = mf.anchor / u_geom.zw;
+        frag_color = vec4(pack16(a.x), pack16(a.y));
+    } else if (sel < 2.5) {
+        frag_color = mf.tint;
+    } else {
+        float bridge = clamp((mf.hardSdf - mf.smoothSdf) /
+                             max(u_smoothness * 0.25, EPS), 0.0, 1.0);
+        frag_color = vec4(0.5 + 0.5 * clamp(mergedBend(p, mf), -1.0, 1.0),
+                          bridge, 1.0);
+    }
+}
+#else
+// =====================================================
 // Main
 // =====================================================
 void main() {
@@ -923,34 +1008,45 @@ void main() {
     // Fast path: one per-lens pass yields the smooth union, the hard min and
     // the anchor together (see evaluateMerged). Bit-identical to the
     // separate-pass branch below for this config.
-    MergedField mf      = evaluateMerged(fragPx);
-#if METABALL_GRAD_ANALYTIC
-    // Skia: build ShapeData from the merged ANALYTIC gradient (no dFdx). The
-    // gradient is a blend of unit per-lens gradients, so |grad| <= 1 — dividing
-    // by it inflates orthoDist at the neck exactly like a true distance field.
+    MergedField mf;
     ShapeData shapeData;
-    shapeData.sdf       = mf.smoothSdf;
-    shapeData.grad      = mf.grad;
-    float gLen          = max(length(mf.grad), EPS);
-    shapeData.normal    = mf.grad / gLen;
-    shapeData.orthoDist = mf.smoothSdf / gLen;
+    float rimWrap;
+    vec2 anchorPx;
+    vec4 lensTint;
+    vec2 bend;
+    if (u_geom.x > 0.0) {
+        // Baked: the field, anchor, colour and bend read back, no member walked.
+        readBake(fragPx, shapeData, anchorPx);
+        vec2 uv = (fragPx - u_geomB.xy) / u_geom.zw;
+        vec4 b = texture(u_geomBend, uv);
+        bend = 2.0 * b.xy - 1.0;
+        if (length(bend) < 0.02) bend = vec2(0.0);
+        rimWrap = b.z * METABALL_RIM_WRAP;
+        lensTint = u_geom.y > 0.5 ? u_lensTint0 : texture(u_geomTint, uv);
+    } else {
+        mf = evaluateMerged(fragPx);
+#if METABALL_GRAD_ANALYTIC
+        // Skia: ShapeData from the merged ANALYTIC gradient (no dFdx); |grad|
+        // <= 1, so dividing inflates orthoDist at the neck like a true SDF.
+        shapeData.sdf       = mf.smoothSdf;
+        shapeData.grad      = mf.grad;
+        float gLen          = max(length(mf.grad), EPS);
+        shapeData.normal    = mf.grad / gLen;
+        shapeData.orthoDist = mf.smoothSdf / gLen;
 #else
-    ShapeData shapeData = shapeFrom1Tap(mf.smoothSdf);
+        shapeData = shapeFrom1Tap(mf.smoothSdf);
 #endif
+        // Rim wrap only at the blend neck; 0 on isolated lenses.
+        float bridge = mf.hardSdf - mf.smoothSdf;                    // >= 0
+        rimWrap = clamp(bridge / max(u_smoothness * 0.25, EPS), 0.0, 1.0)
+                  * METABALL_RIM_WRAP;
+        anchorPx = mf.anchor;
+        lensTint = mf.tint;
+        bend     = mf.bend;
+    }
     float shapeDistPx   = shapeData.orthoDist;
     float shapeMask     = computeShapeMask(shapeDistPx);
-
-    // Rim wrap only at the blend neck; 0 on isolated lenses (== bridgeWrap,
-    // reusing the hard min we already have).
-    float bridge  = mf.hardSdf - mf.smoothSdf;                       // >= 0
-    float rimWrap = clamp(bridge / max(u_smoothness * 0.25, EPS), 0.0, 1.0)
-                    * METABALL_RIM_WRAP;
-
-    vec2 anchorPx   = mf.anchor;
     vec2 anchorNorm = anchorPx * invResY;
-    vec4 lensTint   = mf.tint;
-    float refrDepth = mf.depth;
-    vec2 bend       = mf.bend;
 #else
     ShapeData shapeData = evaluateField(fragPx);
     float shapeDistPx   = shapeData.orthoDist;
@@ -1042,7 +1138,7 @@ void main() {
 
     float zoneT = 1.0 - clamp(distAbsPx / max(zoneLimit, EPS), 0.0, 1.0);
 #if METABALL_FUSED_PATH
-    bend = mergedBend(fragPx, mf);
+    if (u_geom.x <= 0.0) bend = mergedBend(fragPx, mf);
 #endif
 
     vec2 refrPx;
@@ -1071,3 +1167,4 @@ void main() {
     frag_color = overlayPremul(base, borderPremul);
 #endif
 }
+#endif

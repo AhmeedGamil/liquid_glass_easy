@@ -75,6 +75,30 @@ class LiquidGlassShaders {
   static const String _metaballDesktopAsset =
       'lib/assets/shaders/metaball_glass_desktop.frag';
 
+  // The shape bakes: what the lens and the blender read in place of their
+  // SDF. Impeller on mobile only; elsewhere the shapes stay per pixel.
+  static const String _lensBakeAsset =
+      'lib/assets/shaders/liquid_glass_geometry.frag';
+  static const String _metaballBakeAsset =
+      'lib/assets/shaders/metaball_geometry.frag';
+  static ui.FragmentProgram? _lensBakeProgram;
+  static ui.FragmentProgram? _metaballBakeProgram;
+  static ui.FragmentShader? _lensBakeShader;
+  static ui.FragmentShader? _metaballBakeShader;
+
+  static bool _bakes(bool impeller) => impeller && !_desktopEntries(impeller);
+
+  /// The shared shader the lens bakes its shape with, or `null` where shapes
+  /// are not baked or the program has not loaded.
+  @internal
+  static ui.FragmentShader? get lensBakeShader =>
+      _lensBakeShader ??= _lensBakeProgram?.fragmentShader();
+
+  /// The shared shader the blender bakes its merged field with, or `null`.
+  @internal
+  static ui.FragmentShader? get metaballBakeShader =>
+      _metaballBakeShader ??= _metaballBakeProgram?.fragmentShader();
+
   static bool _desktopEntries(bool impeller) =>
       impeller &&
       !kIsWeb &&
@@ -138,6 +162,9 @@ class LiquidGlassShaders {
   static Future<void> _load(bool impeller) async {
     try {
       _mainPrograms[impeller] ??= await _loadProgram(_mainAssetFor(impeller));
+      if (_bakes(impeller)) {
+        _lensBakeProgram ??= await _loadProgram(_lensBakeAsset);
+      }
       if (!impeller) {
         _borderPrograms[impeller] ??= await _loadProgram(_borderAsset);
       }
@@ -170,8 +197,12 @@ class LiquidGlassShaders {
 
   static Future<ui.FragmentProgram> _loadMetaball(bool impeller) async {
     try {
-      return _metaballPrograms[impeller] =
+      final ui.FragmentProgram program =
           await _loadProgram(_metaballAssetFor(impeller));
+      if (_bakes(impeller)) {
+        _metaballBakeProgram ??= await _loadProgram(_metaballBakeAsset);
+      }
+      return _metaballPrograms[impeller] = program;
     } finally {
       // Reset so a failed load can be retried instead of cached forever.
       _metaballLoading.remove(impeller);

@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
+import '../lens/liquid_glass_shape_cache.dart';
 import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
@@ -108,6 +109,13 @@ void packLiquidGlassUniforms(
   double xformC = 0,
   double xformD = 1,
   Offset xformOffset = Offset.zero,
+
+  /// The baked shape the main shader reads instead of its SDF, with the
+  /// distance [bakeRange] and box [bakePad] it was baked at, both in
+  /// fragment px. `null` evaluates the shape per pixel. Main shader only.
+  LiquidGlassShapeBake? bake,
+  double bakeRange = 0,
+  double bakePad = 0,
 }) {
   final double cornerRadius = shape.cornerRadius;
   // The shape type alone selects the corner SDF in the shader:
@@ -209,6 +217,20 @@ void packLiquidGlassUniforms(
   shader.setFloat(i++, xformD);
   shader.setFloat(i++, xformOffset.dx * scale);
   shader.setFloat(i++, xformOffset.dy * scale);
+
+  // u_geom + u_geomTex — the main shader only, after everything else.
+  if (includeShapeAa) packLiquidGlassBake(shader, i, bake, bakeRange, bakePad);
+}
+
+/// Writes `u_geom` at [index] and binds `u_geomTex`: [bake] and the range
+/// and pad it was baked at, or a range of zero and the empty image.
+void packLiquidGlassBake(ui.FragmentShader shader, int index,
+    LiquidGlassShapeBake? bake, double range, double pad) {
+  shader.setFloat(index++, bake == null ? 0 : range);
+  shader.setFloat(index++, pad);
+  shader.setFloat(index++, (bake?.width ?? 1).toDouble());
+  shader.setFloat(index++, (bake?.height ?? 1).toDouble());
+  shader.setImageSampler(1, bake?.images.first ?? LiquidGlassShapeCache.empty);
 }
 
 /// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0),
@@ -370,6 +392,21 @@ void packMetaballGlassUniforms(
   bool honorBackdropAlpha = false,
   Offset imageOffset = Offset.zero,
   Size? imageSize,
+
+  /// The baked field the shader reads instead of walking [lenses], with the
+  /// distance [bakeRange] in fragment px and its [bakeOrigin] in logical px,
+  /// the frame [lenses] are in. `null` walks the members per pixel.
+  LiquidGlassShapeBake? bake,
+  double bakeRange = 0,
+  Offset bakeOrigin = Offset.zero,
+
+  /// Which texture a bake pass writes; `0` when drawing.
+  double bakeOutput = 0,
+
+  /// The texture size in fragment px, and whether one tint covers every
+  /// member, for a bake pass, where [bake] is not made yet.
+  Size? bakeSize,
+  bool? bakeOneTint,
 }) {
   int i = 0;
 
@@ -488,6 +525,26 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, imageOffset.dy * scale);
   shader.setFloat(i++, imgSize.width * scale);
   shader.setFloat(i++, imgSize.height * scale);
+
+  // u_geom = (range, one tint, texture size), u_geomB = (origin, output).
+  final bool tintBaked = (bake?.images.length ?? 0) > 3;
+  shader.setFloat(i++, bake == null && bakeSize == null ? 0 : bakeRange);
+  shader.setFloat(i++, (bakeOneTint ?? !tintBaked) ? 1 : 0);
+  shader.setFloat(i++, bakeSize?.width ?? (bake?.width ?? 1).toDouble());
+  shader.setFloat(i++, bakeSize?.height ?? (bake?.height ?? 1).toDouble());
+  shader.setFloat(i++, bakeOrigin.dx * scale);
+  shader.setFloat(i++, bakeOrigin.dy * scale);
+  shader.setFloat(i++, bakeOutput);
+  shader.setFloat(i++, 0);
+  // u_geomDist, u_geomAnchor, u_geomTint, u_geomBend — samplers 1 to 4.
+  final ui.Image empty = LiquidGlassShapeCache.empty;
+  final List<ui.Image> images = bake?.images ?? const <ui.Image>[];
+  shader.setImageSampler(1, images.isNotEmpty ? images[0] : empty);
+  shader.setImageSampler(2, images.length > 1 ? images[1] : empty);
+  shader.setImageSampler(3, tintBaked ? images[3] : empty,
+      filterQuality: FilterQuality.low);
+  shader.setImageSampler(4, images.length > 2 ? images[2] : empty,
+      filterQuality: FilterQuality.low);
 }
 
 /// Packs a per-lens flex scale into one float for `meta.y`.

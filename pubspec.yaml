@@ -41,3 +41,5 @@ flutter:
     - lib/assets/shaders/metaball_glass_skia.frag
     - lib/assets/shaders/liquid_glass_desktop.frag
     - lib/assets/shaders/metaball_glass_desktop.frag
+    - lib/assets/shaders/liquid_glass_geometry.frag
+    - lib/assets/shaders/metaball_geometry.frag

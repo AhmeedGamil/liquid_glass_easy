@@ -16,9 +16,11 @@ import 'liquid_glass_shaders.dart';
 import '../liquid_glass_engine.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_adaptivity_driver.dart';
+import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_batch.dart';
 import 'liquid_glass_layer.dart';
+import 'liquid_glass_shape_cache.dart';
 import 'liquid_glass_lens_scope.dart';
 
 /// Draws two to eight descendant `LiquidGlassLens` widgets with **one shader**
@@ -979,6 +981,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
   @override
   void detach() {
     _layerGroup?.leave(this);
+    _releaseBake();
     _registry.removeListener(markNeedsPaint);
     _lensScope?.captureRevision.removeListener(markNeedsPaint);
     _trackingLayer.layer
@@ -1050,6 +1053,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
       _paintImpeller(context, offset, members);
     } else {
       _layerGroup?.leave(this);
+      _releaseBake();
       _paintSkiaCapture(context, offset, members);
     }
   }
@@ -1099,17 +1103,18 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     // with the input size the engine wrote into u_resolution and picks the
     // origin (see fragOrigin in metaball_glass.frag). Sampling is against that
     // input size too, so the window always matches the texture 1:1.
-    final Rect glassRect = engineBlur
-        ? _glassClipRect(members, this, Offset.zero & size)
-        : Rect.zero;
-    final Rect glassRectInScreen = engineBlur
-        ? MatrixUtils.transformRect(getTransformTo(null), glassRect)
-        : Rect.zero;
+    final Rect glassRect = _glassClipRect(members, this, Offset.zero & size);
+    final Rect glassRectInScreen =
+        MatrixUtils.transformRect(getTransformTo(null), glassRect);
+    final List<MetaballLensUniform> lenses = _lensesIn(members, null);
+    _updateBake(lenses, glassRectInScreen);
 
     _packShared(
       resolution: _screenSize,
-      lenses: _lensesIn(members, null),
+      lenses: lenses,
       scale: _devicePixelRatio,
+      bake: _bake,
+      bakeOrigin: glassRectInScreen.topLeft,
       // Engine blur runs before the shader → don't blur again in-shader.
       blur: engineBlur || layered ? 0.0 : sigma,
       imageOffset: engineBlur ? glassRectInScreen.topLeft : Offset.zero,
@@ -1147,9 +1152,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     // Engine-blur COMPOSE path: clip to the tight `glassRect`, the same rect
     // packed into the sampling window above — the costly backdrop+blur is
     // bounded to the glass region instead of the whole surface.
-    final Rect clipRect = engineBlur
-        ? glassRect
-        : _glassClipRect(members, this, Offset.zero & size);
+    final Rect clipRect = glassRect;
     _clipLayer.layer = context.pushClipRect(
       needsCompositing,
       offset,
@@ -1352,13 +1355,19 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     // into the blur's inflated snapshot instead of downscaling against it.
     Offset imageOffset = Offset.zero,
     Size? imageSize,
+    LiquidGlassShapeBake? bake,
+    Offset bakeOrigin = Offset.zero,
+    ui.FragmentShader? into,
+    double bakeOutput = 0,
+    Size? bakeSize,
+    bool? bakeOneTint,
   }) {
     final LiquidGlassLitShape shape = _style.litShape();
     final appearance = _style.appearance;
     final refraction = _style.refraction;
 
     packMetaballGlassUniforms(
-      _shader,
+      into ?? _shader,
       shape: shape,
       scale: scale,
       resolution: resolution,
@@ -1376,10 +1385,107 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
       honorBackdropAlpha: false,
       imageOffset: imageOffset,
       imageSize: imageSize,
+      bake: bake,
+      bakeRange: _bakeRange,
+      bakeOrigin: bakeOrigin,
+      bakeOutput: bakeOutput,
+      bakeSize: bakeSize,
+      bakeOneTint: bakeOneTint,
     );
   }
 
   double get _blurSigma => _style.appearance.blur;
+
+  // ── The baked field ────────────────────────────────────────────────
+  //
+  // Baked against its own origin, so it is keyed on the members' shapes and
+  // their places relative to one another, never on where the group is:
+  // the whole blender moving keeps it, a member moving against the others
+  // bakes again.
+
+  LiquidGlassShapeBake? _bake;
+  double _bakeRange = 0;
+
+  void _releaseBake() {
+    LiquidGlassShapeCache.release(_bake);
+    _bake = null;
+  }
+
+  /// Keeps [_bake] on the field of [lenses] over [rect], both global logical
+  /// px, baking it when no blender holds that field yet.
+  void _updateBake(List<MetaballLensUniform> lenses, Rect rect) {
+    final ui.FragmentShader? shader = LiquidGlassShaders.metaballBakeShader;
+    final double dpr = _devicePixelRatio;
+    final int width = (rect.width * dpr).ceil();
+    final int height = (rect.height * dpr).ceil();
+    if (!LiquidGlassShapeCache.enabled ||
+        shader == null ||
+        width < 2 ||
+        height < 2 ||
+        width * height > LiquidGlassShapeCache.maxTexels) {
+      _releaseBake();
+      return;
+    }
+    final LiquidGlassLitShape shape = _style.litShape();
+    final LiquidGlassLight? second = shape.secondSpecular;
+    final double reach = math.max(
+      _style.refraction.refractionWidth,
+      math.max(
+        1.4 * math.max(shape.specular.thickness, second?.thickness ?? 0),
+        shape.glow.thickness,
+      ),
+    );
+    final double range =
+        LiquidGlassShapeCache.ceilTo((reach + 4) * dpr * 2, 8);
+    final Offset origin = rect.topLeft;
+    final List<MetaballLensUniform> local = <MetaballLensUniform>[
+      for (final MetaballLensUniform lens in lenses) lens.translated(-origin)
+    ];
+    final bool oneTint =
+        local.every((MetaballLensUniform l) => l.color == local.first.color);
+    double snap(double v) => LiquidGlassShapeCache.snap(v * dpr);
+    final StringBuffer key = StringBuffer('metaball')
+      ..write(':$width:$height:$range:${snap(_smoothnessOrZero)}:$_merge')
+      ..write(':$oneTint');
+    for (final MetaballLensUniform l in local) {
+      key
+        ..write(':${snap(l.center.dx)},${snap(l.center.dy)}')
+        ..write(',${snap(l.halfSize.width)},${snap(l.halfSize.height)}')
+        ..write(',${snap(l.cornerRadius)},${l.cornerStyle}')
+        ..write(',${l.shapeScale.dx},${l.shapeScale.dy}')
+        ..write(oneTint ? '' : ',${l.color.toARGB32()}');
+    }
+    _bakeRange = range;
+    final String k = key.toString();
+    if (_bake?.key == k) return;
+    final LiquidGlassShapeBake next =
+        LiquidGlassShapeCache.acquire(k, width, height, () {
+      ui.Image pass(double output) {
+        _packShared(
+          resolution: _screenSize,
+          lenses: local,
+          scale: dpr,
+          blur: 0,
+          into: shader,
+          bakeOutput: output,
+          bakeSize: Size(width.toDouble(), height.toDouble()),
+          bakeOneTint: oneTint,
+        );
+        // Every declared sampler is bound, the backdrop's included.
+        shader.setImageSampler(0, LiquidGlassShapeCache.empty);
+        return LiquidGlassShapeCache.draw(shader, width, height);
+      }
+
+      return <ui.Image>[
+        pass(0),
+        pass(1),
+        pass(3),
+        if (!oneTint) pass(2),
+      ];
+    });
+    _releaseBake();
+    _bake = next;
+  }
 }
 
 /// A zero-content probe layer for the merged surface.
