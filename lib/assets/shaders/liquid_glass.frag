@@ -273,7 +273,8 @@ vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
 
 // One baked texel: (raw SDF px, gradient).
 vec3 geomTexel(vec2 texel) {
-    vec4 t = texture(u_geomTex, (texel + 0.5) / u_geom.zw);
+    vec4 t = texture(u_geomTex,
+                     glassRenderTextureUv((texel + 0.5) / u_geom.zw));
     float v = (t.r * 255.0 * 256.0 + t.g * 255.0) / 65535.0;
     return vec3((2.0 * v - 1.0) * u_geom.x, 4.0 * t.ba - 2.0);
 }

@@ -932,7 +932,9 @@ vec2 pack16(float v) {
     return vec2(hi, q - hi * 256.0) / 255.0;
 }
 
-vec2 geomUv(vec2 texel) { return (texel + 0.5) / u_geom.zw; }
+vec2 geomUv(vec2 texel) {
+    return glassRenderTextureUv((texel + 0.5) / u_geom.zw);
+}
 
 vec3 distTexel(vec2 texel) {
     vec4 t = texture(u_geomDist, geomUv(texel));
@@ -1016,7 +1018,7 @@ void main() {
     if (u_geom.x > 0.0) {
         // Baked: the field, anchor, colour and bend read back, no member walked.
         readBake(fragPx, shapeData, anchorPx);
-        vec2 uv = (fragPx - u_geomB.xy) / u_geom.zw;
+        vec2 uv = glassRenderTextureUv((fragPx - u_geomB.xy) / u_geom.zw);
         vec4 b = texture(u_geomBend, uv);
         bend = 2.0 * b.xy - 1.0;
         if (length(bend) < 0.02) bend = vec2(0.0);

@@ -35,6 +35,17 @@ const float EPS_T = 1e-3;
 vec2  safe2(vec2 v){ return max(v, vec2(EPS)); }
 float safe1(float v){ return max(v, EPS); }
 
+// Offscreen images (including Picture.toImageSync shape bakes) use an inverted
+// texture Y axis on older Impeller GLES engines. Values stored in them stay in
+// Flutter coordinates; only the lookup UV changes. Newer GLES, Metal, Vulkan
+// and Skia already use the same orientation as FlutterFragCoord.
+vec2 glassRenderTextureUv(vec2 uv) {
+#if defined(IMPELLER_TARGET_OPENGLES) && !defined(IMPELLER_OPENGLES_UNFLIPPED_DEPRECATED)
+    uv.y = 1.0 - uv.y;
+#endif
+    return uv;
+}
+
 float fastPow(float x, float n){ return exp2(n * log2(x)); }
 
 /* ===========================
