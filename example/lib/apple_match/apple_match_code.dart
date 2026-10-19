@@ -163,7 +163,7 @@ LiquidGlassTabBar(
   width: ${_n(barWidth)},
   height: ${_n(_d('tab.height'))},
   itemPadding: ${_n(padding)},
-  style: ${_indent(_style('tab'), 2)},${_touch('tab')}
+  style: ${_indent(_style('tab'), 2)},${_press()}
   pillStyle: LiquidGlassTabPillStyle(
     mode: LiquidGlassPillMode.both,
     growHeight: ${_n(_d('tab.growHeight'))},
@@ -240,30 +240,17 @@ String _pillLiteGlass() => '''
       liteGlass: true,
     ),''';
 
-/// Component [c]'s `touch:` line with every flex value written in, or
-/// nothing while its touch toggle is off.
-String _touch(String c) {
-  if (!_b('$c.flex')) return '';
-  const List<String> axes = ['null', 'Axis.horizontal', 'Axis.vertical'];
+/// The tab bar's `press:` line with every value written in, or nothing
+/// while its toggle is off.
+String _press() {
+  if (!_b('tab.press')) return '';
   return '''
 
-  touch: LiquidGlassTouch.flexing(LiquidGlassFlex(
-    stretch: ${_n(_d('$c.flexStretch'))},
-    squeeze: ${_n(_d('$c.flexSqueeze'))},
-    lean: ${_n(_d('$c.flexLean'))},
-    grip: ${_n(_d('$c.flexGrip'))},
-    compressInward: ${_b('$c.flexCompressInward')},
-    holdScale: ${_n(_d('$c.flexHoldScale'))},
-    tapScale: ${_n(_d('$c.flexTapScale'))},
-    maxPull: ${_n(_d('$c.flexMaxPull'))},
-    lockAxis: ${axes[_i('$c.flexLockAxis').clamp(0, 2)]},
-    advanced: LiquidGlassFlexAdvanced(
-      childFollow: ${_n(_d('$c.flexChildFollow'))},
-      refractionBoost: ${_n(_d('$c.flexRefractionBoost'))},
-      magnificationBoost: ${_n(_d('$c.flexMagnificationBoost'))},
-      stiffness: ${_n(_d('$c.flexStiffness'))},
-      damping: ${_n(_d('$c.flexDamping'))},
-      releaseDamping: ${_n(_d('$c.flexReleaseDamping'))},
-    ),
-  )),''';
+  press: LiquidGlassTabBarPress(
+    scale: ${_n(_d('tab.pressScale'))},
+    grip: ${_n(_d('tab.pressGrip'))},
+    stiffness: ${_n(_d('tab.pressStiffness'))},
+    damping: ${_n(_d('tab.pressDamping'))},
+    releaseDamping: ${_n(_d('tab.pressReleaseDamping'))},
+  ),''';
 }

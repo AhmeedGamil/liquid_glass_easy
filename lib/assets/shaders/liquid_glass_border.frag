@@ -6,8 +6,7 @@
 // -----------------------------------------------------------------------------
 
 #include <flutter/runtime_effect.glsl>
-// Same backend-split gradient method as liquid_glass.frag: derivative on
-// Impeller (this entry), analytic on Skia (liquid_glass_border_skia.frag).
+// Same gradient method as liquid_glass.frag: analytic on every backend.
 // common.glsl must come FIRST: it sets GLASS_FLOAT_PRECISION, and the optical
 // rim's Lab conversion needs the highp it selects.
 #include "liquid_glass_grad_select.glsl"

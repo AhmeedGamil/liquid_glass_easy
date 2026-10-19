@@ -152,7 +152,8 @@ export 'package:liquid_glass_easy/src/widgets/components/bottom_nav_bar/liquid_g
         LiquidGlassPillMode,
         LiquidGlassTabItemStyle,
         LiquidGlassTabPillStyle,
-        LiquidGlassTabMagnifierPillStyle;
+        LiquidGlassTabMagnifierPillStyle,
+        LiquidGlassTabBarPress;
 // Morph: glass that measures its child and flows to the new size —
 // two blender blobs drawn as one surface, so mid-morph it has a waist.
 export 'package:liquid_glass_easy/src/widgets/components/morph/liquid_glass_morph.dart';

@@ -479,3 +479,51 @@ class LiquidGlassTabPillStyle {
     );
   }
 }
+
+/// How the tab bar grows while its glass pill is lifted: the capsule, the
+/// pills and the items scale up together on one spring, and come back
+/// down when the pill does. A plain scale — the bar keeps its shape.
+///
+/// Glass pill modes only; a bar with no moving pill has nothing to lift.
+@immutable
+class LiquidGlassTabBarPress {
+  const LiquidGlassTabBarPress({
+    this.scale = 0.03,
+    this.grip = 0.5,
+    this.stiffness = 320,
+    this.damping = 24,
+    this.releaseDamping = 17,
+  });
+
+  /// How much bigger the bar is while the pill is up, as a fraction of its
+  /// size: `0.03` is 3% on both axes. Negative shrinks it.
+  final double scale;
+
+  /// Where the bar grows from, `0`..`1`. `0` grows it evenly about its
+  /// middle; `1` leans the growth toward the pill, so the side the pill
+  /// is on grows the most. The point follows the pill as it travels.
+  final double grip;
+
+  /// Stiffness of the scale spring. Higher → it gets there faster.
+  final double stiffness;
+
+  /// Damping of the scale spring while the pill is up.
+  final double damping;
+
+  /// Damping once the pill comes down. Below [damping] it rebounds a
+  /// little as it settles.
+  final double releaseDamping;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassTabBarPress &&
+      other.scale == scale &&
+      other.grip == grip &&
+      other.stiffness == stiffness &&
+      other.damping == damping &&
+      other.releaseDamping == releaseDamping;
+
+  @override
+  int get hashCode =>
+      Object.hash(scale, grip, stiffness, damping, releaseDamping);
+}

@@ -9,7 +9,6 @@ import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_position.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_shape.dart';
-import '../../utils/liquid_glass_touch.dart';
 import '../liquid_glass_adaptive_area.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_animated_nav_bar.dart';
@@ -83,7 +82,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 6,
     this.alignment = Alignment.bottomCenter,
-    this.touch,
+    this.press,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -106,7 +105,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 6,
     this.alignment = Alignment.bottomCenter,
-    this.touch,
+    this.press,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -165,11 +164,10 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// `LiquidGlassScaffold` on both the plain and glass-pill paths.
   final Alignment alignment;
 
-  /// How the bar's glass answers a finger, as on a lens (see
-  /// `LiquidGlassLens.touch`). With a [LiquidGlassTouch.flex] the bar
-  /// deforms under the finger; the items stay where they are. `null` (the
-  /// default) keeps the bar rigid.
-  final LiquidGlassTouch? touch;
+  /// How the whole bar — capsule, pills and items — grows while the glass
+  /// pill is lifted, as one scale (see [LiquidGlassTabBarPress]). Glass
+  /// pill modes only. `null` (the default) keeps the bar its size.
+  final LiquidGlassTabBarPress? press;
 
   /// The tuned default capsule look — a faint white frost over the
   /// default refraction. Its `shape` is `null`: the bar derives a
@@ -327,7 +325,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
       barLiteGlass: barStyle.liteGlass,
-      barTouch: touch,
+      barPress: press,
       // The bar capsule's contact shadow rides its style's appearance —
       // the same place every lens carries one.
       barShadow: barStyle.appearance.shadow,
@@ -529,7 +527,6 @@ class LiquidGlassTabBar extends StatelessWidget {
           liteGlass: barStyle.liteGlass,
         ),
         visibility: visibility,
-        touch: touch,
         child: content,
       ),
     );

@@ -6,9 +6,9 @@
 // -----------------------------------------------------------------------------
 
 #include <flutter/runtime_effect.glsl>
-// Shape-gradient method, chosen BEFORE common.glsl applies it: derivative on
-// Impeller (this entry), analytic on Skia (liquid_glass_skia.frag) — or 5-tap on
-// both when LIQUID_GLASS_FORCE_5TAP is set. See liquid_glass_grad_select.glsl.
+// Shape-gradient method, chosen BEFORE common.glsl applies it: analytic on
+// every backend, or 5-tap when LIQUID_GLASS_FORCE_5TAP is set. See
+// liquid_glass_grad_select.glsl.
 #include "liquid_glass_grad_select.glsl"
 #include "liquid_glass_common.glsl"
 #include "liquid_glass_border.glsl"
@@ -270,6 +270,15 @@ vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
     return awayLen > EPS ? away / awayLen : fallback;
 }
 
+#ifndef LIQUID_GLASS_DESKTOP
+// Whether a point (abs offset from the centre, rest px) sits in the box's
+// straight run at least `m` inside both edges, clear of the corner boxes.
+bool inInteriorCross(vec2 a, vec2 halfPx, vec2 cornerPx, float m) {
+    return (a.x <= halfPx.x - max(cornerPx.x, m) && a.y <= halfPx.y - m) ||
+           (a.x <= halfPx.x - m && a.y <= halfPx.y - max(cornerPx.y, m));
+}
+#endif
+
 // =====================================================
 // Main entry
 // =====================================================
@@ -331,6 +340,55 @@ void main() {
     //   2 = continuous (Apple capsule-style), 1 = squircle, 0 = circular.
     float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
+
+#ifndef LIQUID_GLASS_DESKTOP
+    // Interior fast path: past the band, the rim's reach and the AA ramp the
+    // lens is one plain magnified sample, so the shape is never needed there.
+    {
+        float aaPx = max(u_shapeAaPx, 1.0);
+        float rimReach = 0.0;
+        if (u_borderAlpha > 0.0) {
+            if (u_borderWidth > 0.0) {
+                rimReach = (1.0 + RIM_SHIFT_AT_ZERO +
+                            clamp(u_borderSharpness, 0.0, 1.0)) * u_borderWidth;
+            }
+            if (u_specular2.x > 0.0) {
+                rimReach = max(rimReach, (1.0 + RIM_SHIFT_AT_ZERO +
+                               clamp(u_specular2.y, 0.0, 1.0)) * u_specular2.x);
+            }
+            if (u_glowThickness > 0.0 && u_glowIntensity > 0.0) {
+                rimReach = max(rimReach, (1.0 + RIM_GLOW_SHIFT) * u_glowThickness);
+            }
+        }
+        // One px of slack past the furthest of the three; rest px under a flex.
+        float minScale = min(shapeScale.x, shapeScale.y);
+        float margin = (max(max(u_refractionWidthPx,
+                                rimReach + RIM_OUTLINE_INSET * aaPx),
+                            0.667 * aaPx) + 1.0) / minScale;
+        // The box each corner style curves inside (a continuous corner
+        // reaches at most CRR_REACH·r past r; a squircle's zone is 1.528 r).
+        float cornerBox = u_cornerStyle > 1.5 ? cornerRadiusPx * (1.0 + CRR_REACH)
+                        : u_cornerStyle > 0.5 ? min(cornerRadiusPx * 1.528, maxCorner)
+                        : cornerRadiusPx;
+        vec2 cornerPx = min(vec2(cornerBox), restHalfPx);
+
+        // Per pixel: the analytic slope needs no 2x2 neighbours. A derivative
+        // slope would, so that method keeps the full path everywhere.
+    #if GLASS_GRAD_METHOD == GLASS_GRAD_DERIVATIVE
+        bool interior = false;
+    #else
+        bool interior = inInteriorCross(abs(fragRestPx - lensCenterPx),
+                                        restHalfPx, cornerPx, margin);
+    #endif
+        if (interior) {
+            vec3 interiorPreTint = vec3(0.0);
+            frag_color = finalSample(
+                applyLensMagnification(fragPx, lensCenterPx, u_magnification),
+                1.0, 0.0, xformed, interiorPreTint);
+            return;
+        }
+    }
+#endif
 
     if (u_cornerStyle > 1.5 && cornerRadiusPx > 0.5) {
         // Continuous (capsule-style) corners.

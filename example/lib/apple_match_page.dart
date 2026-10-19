@@ -63,7 +63,7 @@ enum _Component {
   List<String> get sections => [
         ownSection,
         ...kStyleSections,
-        if (knobs(kTouch).isNotEmpty) kTouch,
+        if (knobs(kPress).isNotEmpty) kPress,
       ];
 
   List<Knob> knobs(String section) => [

@@ -6,26 +6,20 @@
 #define LIQUID_GLASS_GRAD_SELECT_GLSL
 
 // Internal flag. 1 = BOTH backends use the 5-tap central difference (exact for
-// every corner style, ~5x SDF cost). 0 = each backend picks its cheapest method.
+// every corner style, ~5x SDF cost). 0 = the analytic gradient everywhere.
 #ifndef LIQUID_GLASS_FORCE_5TAP
 #define LIQUID_GLASS_FORCE_5TAP 0
 #endif
 
 // Raw values (the named GLASS_GRAD_* constants live in common.glsl, not yet
-// included): 0 = derivative (Impeller), 1 = analytic (Skia), 2 = 5-tap.
+// included): 0 = derivative, 1 = analytic, 2 = 5-tap.
+// Analytic on every backend: each pixel finds its slope alone, with no 2x2
+// neighbours, so pixels are free to skip the shape (the interior fast path).
 #ifndef GLASS_GRAD_METHOD
 #if LIQUID_GLASS_FORCE_5TAP
 #define GLASS_GRAD_METHOD 2
-// SKIA_GRAPHICS_BACKEND is set by impellerc for the SkSL target: force analytic
-// so the Impeller entries stay valid SkSL (3.44+ validates at build time).
-#elif defined(LIQUID_GLASS_SKIA) || defined(SKIA_GRAPHICS_BACKEND)
-#define GLASS_GRAD_METHOD 1
-// Desktop (Impeller on GLES): derivatives read back as zero, which drops
-// refraction, so take the analytic path as Skia does.
-#elif defined(LIQUID_GLASS_DESKTOP)
-#define GLASS_GRAD_METHOD 1
 #else
-#define GLASS_GRAD_METHOD 0
+#define GLASS_GRAD_METHOD 1
 #endif
 #endif
 

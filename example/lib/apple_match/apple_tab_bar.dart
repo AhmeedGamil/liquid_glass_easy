@@ -16,6 +16,8 @@ class AppleTabBar extends StatelessWidget {
     this.tint,
     this.body,
     this.centerY,
+    this.chrome,
+    this.blur,
   });
 
   final List<LiquidGlassTabBarItem> items;
@@ -38,6 +40,13 @@ class AppleTabBar extends StatelessWidget {
   /// the parent's middle when null.
   final double? centerY;
 
+  /// Extra glass over [body] (a header, a floating button), as a full-screen
+  /// `Stack`; the bar places it for the renderer. Only with [body].
+  final Widget? chrome;
+
+  /// Overrides the tuned capsule blur when set.
+  final double? blur;
+
   @override
   Widget build(BuildContext context) {
     AppleMatchTuning.watch(context);
@@ -55,7 +64,7 @@ class AppleTabBar extends StatelessWidget {
         weight,
         (c.maxHeight - (centerY ?? c.maxHeight / 2) - h / 2)
             .clamp(0.0, double.infinity),
-      ).buildGlassPillBar(body: behind),
+      ).buildGlassPillBar(body: behind, chromeChild: chrome),
     );
   }
 
@@ -79,9 +88,11 @@ class AppleTabBar extends StatelessWidget {
       // With a body the bar places itself from its bottom margin, which
       // only bottomCenter honours exactly.
       alignment: body == null ? Alignment.center : Alignment.bottomCenter,
-      style: tunedStyle('tab', brightness),
-      // The bar's glass flexes under the finger, as a lens does.
-      touch: tunedTouch('tab'),
+      style: blur == null
+          ? tunedStyle('tab', brightness)
+          : tunedStyle('tab', brightness).copyWith(blur: blur),
+      // The whole bar grows while the glass pill is lifted.
+      press: tunedPress(),
       pillStyle: LiquidGlassTabPillStyle(
         // The moving glass pill, on Impeller and Skia alike.
         mode: LiquidGlassPillMode.both,
