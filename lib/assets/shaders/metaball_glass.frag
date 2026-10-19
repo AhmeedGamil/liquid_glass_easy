@@ -204,8 +204,10 @@ uniform vec4 u_geom;
 uniform vec4 u_geomB;
 uniform sampler2D u_geomDist;    // raw field (16 bits), gradient
 uniform sampler2D u_geomAnchor;  // anchor x, y (16 bits each)
-uniform sampler2D u_geomTint;    // the blended member colour
+// Keep bend before tint, matching their first use below. Vulkan reflection can
+// order samplers by use; Dart binds these textures by their sampler index.
 uniform sampler2D u_geomBend;    // bend xy, bridge
+uniform sampler2D u_geomTint;    // the blended member colour
 
 // --- Restore original names ------------------------------------------------
 // u_lensN / u_lensMetaN are real individual uniforms, so they need no aliases;

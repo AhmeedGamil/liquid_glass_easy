@@ -536,14 +536,14 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, bakeOrigin.dy * scale);
   shader.setFloat(i++, bakeOutput);
   shader.setFloat(i++, 0);
-  // u_geomDist, u_geomAnchor, u_geomTint, u_geomBend — samplers 1 to 4.
+  // u_geomDist, u_geomAnchor, u_geomBend, u_geomTint — samplers 1 to 4.
   final ui.Image empty = LiquidGlassShapeCache.empty;
   final List<ui.Image> images = bake?.images ?? const <ui.Image>[];
   shader.setImageSampler(1, images.isNotEmpty ? images[0] : empty);
   shader.setImageSampler(2, images.length > 1 ? images[1] : empty);
-  shader.setImageSampler(3, tintBaked ? images[3] : empty,
+  shader.setImageSampler(3, images.length > 2 ? images[2] : empty,
       filterQuality: FilterQuality.low);
-  shader.setImageSampler(4, images.length > 2 ? images[2] : empty,
+  shader.setImageSampler(4, tintBaked ? images[3] : empty,
       filterQuality: FilterQuality.low);
 }
 
