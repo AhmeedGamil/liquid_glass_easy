@@ -21,6 +21,9 @@ precision GLASS_FLOAT_PRECISION float;
 // Below this many logical px the fringe is invisible: one read, no split.
 #define DISPERSION_MIN_LOGICAL_PX 0.66
 
+// 1 bends refraction as a full-radius capsule; 0 follows the shape's own normal.
+#define LIQUID_GLASS_CAPSULE_BEND 0
+
 // Dispersion's UV offset: `shift` is in logical px, so every pass size fringes the same.
 vec2 dispersionOffsetUv(float shift, float luma, vec2 texSizePx, float pxPerLogical) {
     return vec2(shift * luma * pxPerLogical) / max(texSizePx, vec2(1.0));

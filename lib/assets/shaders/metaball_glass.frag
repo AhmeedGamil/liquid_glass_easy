@@ -370,6 +370,7 @@ vec2 lensGradDir(vec2 p, vec4 lens, vec4 meta) {
 // The bend's direction for one member: away from its spine, as a capsule
 // along the long side bends, whatever the corners. Zero on the spine.
 vec2 lensCapsuleDir(vec2 p, vec4 lens, vec4 meta) {
+#if LIQUID_GLASS_CAPSULE_BEND
     vec2 s = unpackScale(meta.y);
     vec2 halfSize, pRest;
     lensRestSpace(p, lens, s, halfSize, pRest);
@@ -378,6 +379,9 @@ vec2 lensCapsuleDir(vec2 p, vec4 lens, vec4 meta) {
     vec2 away = (rel - clamp(rel, -spine, spine)) / s;
     float awayLen = length(away);
     return awayLen > EPS ? away / awayLen : vec2(0.0);
+#else
+    return vec2(0.0);
+#endif
 }
 
 // The blended capsule direction as a unit normal; the shape's own normal

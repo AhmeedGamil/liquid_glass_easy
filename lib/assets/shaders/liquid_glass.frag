@@ -264,11 +264,15 @@ float computeShapeMask(float shapeDistPx) {
 // long side bends, whatever the corners. Band pixels only.
 vec2 capsuleNormal(vec2 fragRestPx, vec2 centerPx, vec2 restHalfPx,
                    vec2 shapeScale, vec2 fallback) {
+#if LIQUID_GLASS_CAPSULE_BEND
     vec2 rel = fragRestPx - centerPx;
     vec2 spine = max(restHalfPx - min(restHalfPx.x, restHalfPx.y), vec2(0.0));
     vec2 away = (rel - clamp(rel, -spine, spine)) / shapeScale;
     float awayLen = length(away);
     return awayLen > EPS ? away / awayLen : fallback;
+#else
+    return fallback;
+#endif
 }
 
 // One baked texel: (raw SDF px, gradient).
