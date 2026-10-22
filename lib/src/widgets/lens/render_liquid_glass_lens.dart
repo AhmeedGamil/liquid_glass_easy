@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
@@ -532,10 +533,23 @@ class RenderLiquidGlassLens extends RenderProxyBox
   LiquidGlassShapeBake? _bake;
   double _bakeRange = 0;
   double _bakePad = 0;
+  Object? _bakeWanted;
+  bool _settlePending = false;
 
   void _releaseBake() {
     LiquidGlassShapeCache.release(_bake);
     _bake = null;
+  }
+
+  /// Paints once more after this frame, so a shape that stopped changing
+  /// gets baked even when nothing else repaints the lens.
+  void _paintWhenSettled() {
+    if (_settlePending) return;
+    _settlePending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _settlePending = false;
+      if (attached) markNeedsPaint();
+    });
   }
 
   /// Keeps [_bake] on this lens's shape at [scale] fragment px per logical
@@ -585,6 +599,14 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _bakeRange = range;
     _bakePad = pad;
     if (_bake?.key == key) return;
+    // Changed since the last frame: still animating, so drawn per pixel
+    // until it holds still, and an animation never bakes every frame.
+    if (key != _bakeWanted && !LiquidGlassShapeCache.holds(key)) {
+      _releaseBake();
+      _bakeWanted = key;
+      _paintWhenSettled();
+      return;
+    }
     final LiquidGlassShapeBake next =
         LiquidGlassShapeCache.acquire(key, width, height, () {
       int i = 0;

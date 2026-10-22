@@ -42,7 +42,10 @@ class LiquidGlassEngine {
   ///
   /// On (the default), a shape is baked once and kept while it only moves:
   /// a new size, radius or corner style bakes again, and so does a blender
-  /// member moving against the others. Impeller on Android and iOS; other
+  /// member moving against the others. A shape that is still changing — a
+  /// resize, a merge — is evaluated per pixel and baked once it holds still
+  /// for a frame, so an animation never bakes every frame. Impeller on
+  /// Android and iOS; other
   /// renderers always evaluate per pixel. Takes effect on the next paint.
   static bool get shapeCache => LiquidGlassShapeCache.enabled;
   static set shapeCache(bool value) => LiquidGlassShapeCache.enabled = value;

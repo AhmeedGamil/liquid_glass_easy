@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 // Flutter only re-exports `internal` from foundation.dart on newer SDKs.
 // ignore: unnecessary_import
 import 'package:meta/meta.dart';
@@ -1405,10 +1406,23 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
 
   LiquidGlassShapeBake? _bake;
   double _bakeRange = 0;
+  String? _bakeWanted;
+  bool _settlePending = false;
 
   void _releaseBake() {
     LiquidGlassShapeCache.release(_bake);
     _bake = null;
+  }
+
+  /// Paints once more after this frame, so a field that stopped changing
+  /// gets baked even when nothing else repaints the blender.
+  void _paintWhenSettled() {
+    if (_settlePending) return;
+    _settlePending = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _settlePending = false;
+      if (attached) markNeedsPaint();
+    });
   }
 
   /// Keeps [_bake] on the field of [lenses] over [rect], both global logical
@@ -1458,6 +1472,14 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     _bakeRange = range;
     final String k = key.toString();
     if (_bake?.key == k) return;
+    // Changed since the last frame: still animating, so drawn per pixel
+    // until it holds still, and a merge never bakes every frame.
+    if (k != _bakeWanted && !LiquidGlassShapeCache.holds(k)) {
+      _releaseBake();
+      _bakeWanted = k;
+      _paintWhenSettled();
+      return;
+    }
     final LiquidGlassShapeBake next =
         LiquidGlassShapeCache.acquire(k, width, height, () {
       ui.Image pass(double output) {

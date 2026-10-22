@@ -64,6 +64,9 @@ class LiquidGlassShapeCache {
     return _empty = created;
   }
 
+  /// Whether someone holds a bake for [key], so acquiring it costs nothing.
+  static bool holds(Object key) => _bakes.containsKey(key);
+
   /// The bake for [key], baked by [bake] if no one holds it yet. Pair every
   /// call with a [release].
   static LiquidGlassShapeBake acquire(
