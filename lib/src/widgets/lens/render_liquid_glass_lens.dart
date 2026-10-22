@@ -972,9 +972,9 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// That costs a coordinate frame. Composing can bound the shader's input to
   /// this pass's clip, so `FlutterFragCoord()` may start at the clip's
   /// top-left rather than the screen's, and [_packImpellerMainUniforms] hands
-  /// the shader the clip whenever [_batchClip] is set. The clip is widened to
-  /// match: a Gaussian reads `3 * sigma` past every pixel it writes, and past
-  /// the clip there is nothing to read but the edge, repeated.
+  /// the shader the clip whenever [_batchClip] is set. The clip is the lens
+  /// box only, snapped to whole physical pixels, so the pass never grows with
+  /// the blur or the refraction band.
   void _paintImpellerBatched(PaintingContext context, Offset offset) {
     _blurLayerHandle.layer = null;
     _clipLayerHandle.layer = null;
@@ -982,26 +982,18 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _shaderClipRRectLayerHandle.layer = null;
     _shaderClipPathLayerHandle.layer = null;
 
+    // The lens box, no padding.
+    final Rect clip = _snappedShaderClip(0, 0);
+
     if (!_useBlur) {
       // No blur, no compose: the plain shader filter samples the full-screen
-      // backdrop, so the frame stays screen-space and the clip stays tight.
+      // backdrop, so the frame stays screen-space.
       _batchClip = null;
-      _pushShaderPass(
-          context, offset, _snappedShaderClip(_shaderClipPad, _shaderClipPad));
+      _pushShaderPass(context, offset, clip);
       super.paint(context, offset);
       return;
     }
 
-    // Room for everything that reaches past the lens box: the Gaussian tail,
-    // the refraction band the shader samples across, and the rim.
-    final double reach = _refraction.refractionWidth +
-        _shape.borderWidth +
-        1.0 +
-        _shaderClipPad;
-    final Rect clip = _snappedShaderClip(
-      3.0 * _appearance.blur + reach,
-      3.0 * _appearance.blur + reach,
-    );
     _batchClip = clip;
     _pushShaderPass(context, offset, clip);
 
