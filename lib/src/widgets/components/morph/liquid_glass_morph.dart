@@ -261,7 +261,7 @@ class LiquidGlassMorph extends StatefulWidget {
     this.width,
     this.height,
     this.alignment = Alignment.center,
-    this.motion = LiquidGlassMorphMotion.fluid,
+    this.motion = LiquidGlassMorphMotion.plain,
     this.style = const LiquidGlassStyle(),
     this.smoothness = 40,
     this.onEnd,
@@ -287,7 +287,8 @@ class LiquidGlassMorph extends StatefulWidget {
   /// docs — this is the parameter people leave at centre and later regret.
   final Alignment alignment;
 
-  /// The physics. Pick a preset: [LiquidGlassMorphMotion.fluid],
+  /// The physics. Pick a preset: [LiquidGlassMorphMotion.plain] (the
+  /// default), [LiquidGlassMorphMotion.fluid],
   /// [LiquidGlassMorphMotion.anchoredPop], [LiquidGlassMorphMotion.droplet]
   /// or [LiquidGlassMorphMotion.calm].
   final LiquidGlassMorphMotion motion;

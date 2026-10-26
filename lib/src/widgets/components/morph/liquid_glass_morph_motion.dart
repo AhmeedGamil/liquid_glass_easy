@@ -8,11 +8,11 @@ import 'package:flutter/painting.dart';
 /// Pick a preset and stop there — they are the whole point:
 ///
 /// ```dart
-/// motion: LiquidGlassMorphMotion.fluid        // the default: a blob that leaps and drags a neck
+/// motion: LiquidGlassMorphMotion.plain        // the default: one lens, one spring, no blending
+/// motion: LiquidGlassMorphMotion.fluid        // a blob that leaps and drags a neck
 /// motion: LiquidGlassMorphMotion.anchoredPop  // grows from its corner, no neck
 /// motion: LiquidGlassMorphMotion.droplet      // born small, long neck
 /// motion: LiquidGlassMorphMotion.calm         // no bounce, for sheets and cards
-/// motion: LiquidGlassMorphMotion.plain        // one lens, one spring, no blending
 /// ```
 ///
 /// A morph is two blobs of one liquid, not a box being resized. The new
