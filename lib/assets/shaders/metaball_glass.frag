@@ -871,22 +871,46 @@ vec3 sampleDispersed(vec2 uv, float shift) {
     return vec3(r, g, b);
 }
 
-// Two-ring blur where EACH tap is a dispersed sample, so dispersion happens BEFORE
-// the blur — the colour fringe is diffused by the frost, not laid over it.
+// In-shader frost, as the lens's: equal-weight taps from the Gaussian's
+// inverse CDF on a golden-angle spiral each pixel turns by its own noise.
+#define BLUR_MAX_TAPS 40
+// Interleaved gradient noise in [0, 1).
+float blurNoise(vec2 p) {
+    return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715))));
+}
 vec3 blurFieldDispersed(vec2 uv, float shift) {
-    vec2 pxToUv = 1.0 / max(imageSizePx(), vec2(EPS));
-    vec3 color = sampleDispersed(uv, shift);
-    float count = 1.0;
-    for (int ring = 1; ring <= 2; ring++) {
-        float radius = u_blur * float(ring) * 0.5;
-        for (int tap = 0; tap < 6; tap++) {
-            float angle = 6.2831853 * float(tap) / 6.0 + float(ring) * 0.5;
-            vec2 duv = vec2(cos(angle), sin(angle)) * radius * pxToUv;
-            color += sampleDispersed(clamp(uv + duv, vec2(0.001), vec2(0.999)), shift);
-            count += 1.0;
-        }
+    float sigma = u_blur;
+    vec2 texSizePx = imageSizePx();
+    vec2 pxToUv = 1.0 / max(texSizePx, vec2(1.0));
+    // A small blur needs few taps; the full 40 from sigma ~9.5 px up.
+    float n = clamp(floor(8.0 + 0.35 * sigma * sigma), 8.0, float(BLUR_MAX_TAPS));
+    vec2 p = FlutterFragCoord().xy;
+    float spin = 6.2831853 * blurNoise(p);
+    float jitter = blurNoise(p + vec2(23.0, 61.0));
+    // Each tap splits by the centre's luma, so the fringe blurs with the frost.
+    bool split = shift >= DISPERSION_MIN_LOGICAL_PX;
+    vec2 off = vec2(0.0);
+    if (split) {
+        float luma = dot(texture(u_texture_input, uv).rgb,
+                         vec3(0.2126, 0.7152, 0.0722));
+        off = dispersionOffsetUv(shift, luma, texSizePx, max(u_shapeAaPx, 1.0));
     }
-    return color / count;
+    vec3 sum = vec3(0.0);
+    for (int k = 0; k < BLUR_MAX_TAPS; k++) {
+        if (float(k) >= n) break;
+        // Radius by the 2D Gaussian's inverse CDF, cut at 3 sigma (98.9%).
+        float u = (float(k) + jitter) / n * 0.98889;
+        float r = sigma * sqrt(-2.0 * log(1.0 - u));
+        float a = float(k) * 2.39996323 + spin;
+        vec2 t = clamp(uv + vec2(cos(a), sin(a)) * r * pxToUv,
+                       vec2(0.001), vec2(0.999));
+        sum += split
+            ? vec3(texture(u_texture_input, t + off).r,
+                   texture(u_texture_input, t).g,
+                   texture(u_texture_input, t - off).b)
+            : texture(u_texture_input, t).rgb;
+    }
+    return sum / n;
 }
 
 vec3 sampleBackground(vec2 refractedPx, float dispersionShift) {
