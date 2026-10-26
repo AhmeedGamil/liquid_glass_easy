@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Adaptivity — CONTROLLER: adapting only when scrolling settles.
@@ -242,6 +243,7 @@ class _AdaptivityControllerPageState extends State<AdaptivityControllerPage> {
         _adapt.copyWith(controller: _adaptCtrl);
 
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       // The strips only ever judge the SYSTEM bars. The toggle decides
       // whether the glass chrome rides the bottom strip's verdict
       // (linked) or judges its own backdrop (independent).

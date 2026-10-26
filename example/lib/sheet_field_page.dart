@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Sheets — the glass surface you pull up.
@@ -77,6 +78,7 @@ class _SheetFieldPageState extends State<SheetFieldPage> {
     // glass refracts the photo on every backend instead of falling back
     // to a frosted fill.
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       // The same black the photo shows while it loads.
       backgroundColor: Colors.black,
       appBar: LiquidGlassAppBar(

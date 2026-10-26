@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import '../app_settings.dart';
 
 /// Standalone entry point so this showcase can be launched directly with:
 ///   flutter run -t lib/showcases/photos_library_page.dart
@@ -275,6 +276,7 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
 
   Widget _scaffold(BuildContext context, EdgeInsets pad) {
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       pixelRatio: 1,
       useSync: true,
       // The page's own surface, which shows on overscroll and past the

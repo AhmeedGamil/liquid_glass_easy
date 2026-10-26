@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Scaffold — LiquidGlassScaffold on a light page.
@@ -107,7 +108,7 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
   void _openDialog(BuildContext context) {
     showLiquidGlassDialog<void>(
       context: context,
-      batch: true,
+      batch: galleryBatch,
       builder: (BuildContext context) => LiquidGlassAlertDialog(
         icon: const Icon(Icons.playlist_add_rounded, color: _kBrand),
         title: const Text('New playlist'),
@@ -136,6 +137,7 @@ class _ScaffoldPageState extends State<ScaffoldPage> {
     // the chips have picked, so the page never has two glass surfaces on
     // it to compare against each other.
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       pixelRatio: 1,
       useSync: true,
 

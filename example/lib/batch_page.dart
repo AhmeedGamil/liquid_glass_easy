@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Batch — many lenses, one backdrop read.
@@ -174,11 +175,12 @@ class _BatchPageState extends State<BatchPage>
         elevation: 0,
       ),
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const _Background(url: _imageUrl),
         child: Stack(
           children: <Widget>[
             // The whole point: one wrapper, any number of lenses inside it.
-            LiquidGlassBatch(enabled: _batched, child: cards),
+            LiquidGlassBatch(enabled: _batched && galleryBatch, child: cards),
             Positioned(left: 0, right: 0, top: 0, child: _panel()),
           ],
         ),

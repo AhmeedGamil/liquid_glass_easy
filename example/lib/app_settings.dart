@@ -25,9 +25,9 @@ final ValueNotifier<bool> liteGlass = ValueNotifier<bool>(false)
   });
 
 /// Whether lenses and blenders read a baked shape instead of evaluating it
-/// per pixel; flips `LiquidGlassEngine.shapeCache`.
+/// per pixel; flips `LiquidGlassConfiguration.shapeCache`.
 final ValueNotifier<bool> shapeCache = ValueNotifier<bool>(true)
-  ..addListener(() => LiquidGlassEngine.shapeCache = shapeCache.value);
+  ..addListener(() => LiquidGlassConfiguration.shapeCache = shapeCache.value);
 
 /// Whether the gallery shows Flutter's performance overlay — the raster
 /// and UI frame graphs — over every page. The Settings page flips it; the
@@ -63,3 +63,66 @@ ThemeData galleryTheme(Brightness brightness) => ThemeData(
       ),
       useMaterial3: true,
     );
+
+/// Whether batches split an engine blur into a pass of its own; sets
+/// `LiquidGlassConfiguration.batchMode`, which a lens reads when it builds.
+final ValueNotifier<bool> separatePassBatch = ValueNotifier<bool>(true)
+  ..addListener(() => LiquidGlassConfiguration.batchMode = separatePassBatch.value
+      ? LiquidGlassBatchMode.separatePass
+      : LiquidGlassBatchMode.singlePass);
+
+/// Whether the gallery's views, scaffolds, batches, sheets and dialogs
+/// batch their glass at all. The Settings page flips it; a page reads it
+/// when it builds.
+final ValueNotifier<bool> galleryBatchEnabled = ValueNotifier<bool>(true);
+
+/// The `batch` flag every view, scaffold, sheet and dialog is given.
+bool get galleryBatch => galleryBatchEnabled.value;
+
+/// Whether a lens outside any batch blurs inside its shader instead of an
+/// engine blur pass; sets `LiquidGlassConfiguration.blurMethod`, which a lens reads
+/// when it builds.
+final ValueNotifier<bool> shaderBlur = ValueNotifier<bool>(
+    LiquidGlassConfiguration.blurMethod == LiquidGlassBlurMethod.shader)
+  ..addListener(() => LiquidGlassConfiguration.blurMethod = shaderBlur.value
+      ? LiquidGlassBlurMethod.shader
+      : LiquidGlassBlurMethod.engine);
+
+/// The same for a lens in a batch; sets `LiquidGlassConfiguration.batchBlurMethod`.
+final ValueNotifier<bool> batchShaderBlur = ValueNotifier<bool>(
+    LiquidGlassConfiguration.batchBlurMethod == LiquidGlassBlurMethod.shader)
+  ..addListener(() => LiquidGlassConfiguration.batchBlurMethod = batchShaderBlur.value
+      ? LiquidGlassBlurMethod.shader
+      : LiquidGlassBlurMethod.engine);
+
+/// Whether a batched lens's shader blur keeps the dispersion; sets
+/// `LiquidGlassConfiguration.batchShaderBlurDispersion`.
+final ValueNotifier<bool> batchShaderBlurDispersion =
+    ValueNotifier<bool>(LiquidGlassConfiguration.batchShaderBlurDispersion)
+      ..addListener(() => LiquidGlassConfiguration.batchShaderBlurDispersion =
+          batchShaderBlurDispersion.value);
+
+/// Whether an unbatched lens's shader blur keeps the dispersion; sets
+/// `LiquidGlassConfiguration.shaderBlurDispersion`.
+final ValueNotifier<bool> shaderBlurDispersion =
+    ValueNotifier<bool>(LiquidGlassConfiguration.shaderBlurDispersion)
+      ..addListener(() =>
+          LiquidGlassConfiguration.shaderBlurDispersion = shaderBlurDispersion.value);
+
+/// Whether [glassBlur] and [glassDispersion] replace every lens's own.
+final ValueNotifier<bool> overrideGlass = ValueNotifier<bool>(false)
+  ..addListener(_applyGlassOverrides);
+
+/// The blur every lens takes while [overrideGlass] is on.
+final ValueNotifier<double> glassBlur = ValueNotifier<double>(3.0)
+  ..addListener(_applyGlassOverrides);
+
+/// The dispersion every lens takes while [overrideGlass] is on.
+final ValueNotifier<double> glassDispersion = ValueNotifier<double>(0.0)
+  ..addListener(_applyGlassOverrides);
+
+void _applyGlassOverrides() {
+  final bool on = overrideGlass.value;
+  LiquidGlassConfiguration.blurOverride = on ? glassBlur.value : null;
+  LiquidGlassConfiguration.dispersionOverride = on ? glassDispersion.value : null;
+}

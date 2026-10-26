@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Adaptivity — the default: every surface judges itself.
@@ -174,6 +175,7 @@ class _AdaptivityPageState extends State<AdaptivityPage> {
     );
 
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       // A config carrying no palettes of its own: it is here to open the
       // adaptive sampler (the scaffold's `adaptivity` is the only thing
       // that does), to tune it, and to drive both system bars. Nothing

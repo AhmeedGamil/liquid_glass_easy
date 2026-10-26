@@ -7,6 +7,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 void main() => runApp(const _App());
 
@@ -135,6 +136,7 @@ class _LiquidGlassMorphExamplePageState
         ],
       ),
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const _Background(url: _wallpaper),
         child: SafeArea(
           child: Column(

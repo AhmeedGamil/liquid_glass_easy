@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Alert Dialog — LiquidGlassAlertDialog through showLiquidGlassDialog.
@@ -206,7 +207,7 @@ class _DialogPageState extends State<DialogPage> {
   @override
   Widget build(BuildContext context) {
     return LiquidGlassScaffold(
-      batch: true,
+      batch: galleryBatch,
       // The same black the photo shows while it loads.
       backgroundColor: Colors.black,
       appBar: const DemoHeader(title: 'Alert Dialog'),

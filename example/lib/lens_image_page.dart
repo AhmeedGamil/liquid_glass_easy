@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Lens over image — blended.
@@ -110,6 +111,7 @@ class _LensImagePageState extends State<LensImagePage> {
         elevation: 0,
       ),
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const _Background(url: _imageUrl),
         child: LayoutBuilder(
           builder: (context, c) {

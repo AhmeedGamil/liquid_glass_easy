@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Capture — what the Skia path does that Impeller does not.
@@ -91,6 +92,7 @@ class _CapturePageState extends State<CapturePage>
 
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         controller: _controller,
         backgroundWidget: _TickingBackdrop(clock: _clock),
         pixelRatio: _pixelRatio,

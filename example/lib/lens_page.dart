@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Lens — one LiquidGlassLens over a photo, and the style that shapes it.
@@ -99,6 +100,7 @@ class _LensPageState extends State<LensPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const DemoPhoto(_backdrop, seed: 0, scrim: 0.06),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {

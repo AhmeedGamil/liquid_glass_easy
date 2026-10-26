@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Draggable — LiquidGlassDraggable, drag without rebuilding the lens.
@@ -58,6 +59,7 @@ class _DraggablePageState extends State<DraggablePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const DemoPhoto(
           'socotra_tree_2.jpg',
           seed: 3,

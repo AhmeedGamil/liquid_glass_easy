@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // App Bar — LiquidGlassAppBar over a page that scrolls under it.
@@ -64,6 +65,7 @@ class _AppBarPageState extends State<AppBarPage> {
     final double barWidth =
         (MediaQuery.sizeOf(context).width - 28).clamp(280.0, 520.0);
     return LiquidGlassScaffold(
+      batch: galleryBatch,
       appBar: LiquidGlassAppBar(
         width: barWidth,
         height: 54,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Adaptivity — ADVANCED: sharing one verdict across surfaces.
@@ -230,6 +231,7 @@ class _AdaptivityAdvancedPageState extends State<AdaptivityAdvancedPage> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       body: LiquidGlassScaffold(
+        batch: galleryBatch,
         // The scaffold's `adaptivity` is what opens the background sampler
         // — without it nothing on this page could read pixels at all.
         // Its palettes only reach the system-bar strips here; every glass

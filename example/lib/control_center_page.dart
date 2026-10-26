@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Page 0 — Control Center
@@ -872,6 +873,7 @@ class _ControlCenterPageState extends State<ControlCenterPage> {
         return Stack(
           children: [
             LiquidGlassView(
+              batch: galleryBatch,
               controller: _viewController,
               backgroundWidget: const ControlCenterBackground(),
               pixelRatio: 1,

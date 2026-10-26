@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Button — two LiquidGlassButtons that flex under the finger.
@@ -63,6 +64,7 @@ class _ButtonPageState extends State<ButtonPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const DemoPhoto('flower.jpg', seed: 2),
         child: Stack(
           fit: StackFit.expand,

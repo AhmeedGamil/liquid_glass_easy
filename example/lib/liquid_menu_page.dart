@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Liquid action menu — a REAL UI use of the blend.
@@ -123,6 +124,7 @@ class _LiquidMenuPageState extends State<LiquidMenuPage>
         elevation: 0,
       ),
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const _Wallpaper(url: _wallpaper),
         child: AnimatedBuilder(
           animation: _t,

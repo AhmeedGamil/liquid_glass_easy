@@ -24,7 +24,6 @@ import 'adaptivity_page.dart';
 import 'adaptivity_advanced_page.dart';
 import 'adaptivity_controller_page.dart';
 import 'showcases/photos_library_page.dart';
-import 'showcases/video_library_page.dart';
 import 'social_feed.dart';
 
 // =============================================================
@@ -255,14 +254,6 @@ class HomePage extends StatelessWidget {
       icon: Icons.photo_library_rounded,
       gradient: const [Color(0xFF0A84FF), Color(0xFF0B3E8C)],
       builder: (_) => const PhotosLibraryPage(),
-    ),
-    _Destination(
-      title: 'Video Library',
-      subtitle: 'A video grid under five top controls drawn by one '
-          'blender, with a tab bar and a search circle',
-      icon: Icons.video_library_rounded,
-      gradient: const [Color(0xFF7C3AED), Color(0xFF2E1065)],
-      builder: (_) => const VideoLibraryPage(),
     ),
     _Destination(
       title: 'Social Feed',

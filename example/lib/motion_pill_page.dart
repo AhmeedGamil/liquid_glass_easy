@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Motion Pill — LiquidGlassMotionPill on a rail.
@@ -69,6 +70,7 @@ class _MotionPillPageState extends State<MotionPillPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const _Rail(),
         child: Stack(
           fit: StackFit.expand,

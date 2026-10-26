@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
+import 'app_settings.dart';
 
 // =============================================================
 // Blender — four draggable tiles fused by one LiquidGlassBlender.
@@ -138,6 +139,7 @@ class _BlenderPageState extends State<BlenderPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
+        batch: galleryBatch,
         backgroundWidget: const DemoBackdrop(seed: 3),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {
