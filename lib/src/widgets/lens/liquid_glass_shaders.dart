@@ -105,6 +105,10 @@ class LiquidGlassShaders {
       (defaultTargetPlatform == TargetPlatform.windows ||
           defaultTargetPlatform == TargetPlatform.linux);
 
+  /// Whether this platform's Impeller loads the desktop entries.
+  @internal
+  static bool get usesDesktopEntries => _desktopEntries(_defaultImpeller);
+
   static String _mainAssetFor(bool impeller) =>
       _desktopEntries(impeller) ? _mainDesktopAsset : _mainAsset[impeller]!;
 

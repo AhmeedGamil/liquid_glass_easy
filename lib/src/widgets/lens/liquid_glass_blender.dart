@@ -20,7 +20,7 @@ import '../utils/liquid_glass_adaptivity_driver.dart';
 import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_batch.dart';
-import 'liquid_glass_layer.dart';
+import '../liquid_glass_configuration.dart';
 import 'liquid_glass_shape_cache.dart';
 import 'liquid_glass_lens_scope.dart';
 
@@ -422,8 +422,6 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
     LiquidGlassStyle style,
     Widget child,
   ) {
-    final LiquidGlassLayerGroup? layerGroup =
-        useImpeller ? LiquidGlassLayer.groupOf(context) : null;
     return Stack(
       fit: StackFit.passthrough,
       clipBehavior: Clip.none,
@@ -433,17 +431,13 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
             child: _LiquidGlassBlenderSurface(
               registry: _registry,
               shader: _shader!,
-              style: style,
+              style: LiquidGlassConfiguration.overrideStyle(style),
               smoothness: widget.smoothness,
               useImpellerBackdrop: useImpeller,
               // Inside a LiquidGlassBatch the merged pass joins the batch's
               // shared backdrop read, like any single lens would.
-              // Inside a LiquidGlassLayer the layer blurs under the merged
-              // pass instead, and the batch is not used.
-              layerGroup: layerGroup,
-              backdropId: useImpeller && layerGroup == null
-                  ? LiquidGlassBatch.backdropIdOf(context)
-                  : null,
+              backdropId:
+                  useImpeller ? LiquidGlassBatch.backdropIdOf(context) : null,
               useEngineBlur: widget.useEngineBlur,
               debugClipBounds: widget.debugClipBounds,
               lensScope: lensScope,
@@ -724,7 +718,6 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
     required this.smoothness,
     required this.useImpellerBackdrop,
     required this.backdropId,
-    required this.layerGroup,
     required this.useEngineBlur,
     required this.debugClipBounds,
     required this.lensScope,
@@ -738,7 +731,6 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
   final double? smoothness;
   final bool useImpellerBackdrop;
   final int? backdropId;
-  final LiquidGlassLayerGroup? layerGroup;
   final bool useEngineBlur;
   final bool debugClipBounds;
   final LiquidGlassLensScope? lensScope;
@@ -754,7 +746,6 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
       smoothness: smoothness,
       useImpellerBackdrop: useImpellerBackdrop,
       backdropId: backdropId,
-      layerGroup: layerGroup,
       useEngineBlur: useEngineBlur,
       debugClipBounds: debugClipBounds,
       lensScope: lensScope,
@@ -775,7 +766,6 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
       ..smoothness = smoothness
       ..useImpellerBackdrop = useImpellerBackdrop
       ..backdropId = backdropId
-      ..layerGroup = layerGroup
       ..useEngineBlur = useEngineBlur
       ..debugClipBounds = debugClipBounds
       ..lensScope = lensScope
@@ -784,8 +774,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
   }
 }
 
-class _RenderLiquidGlassBlenderSurface extends RenderBox
-    implements LiquidGlassLayerMember {
+class _RenderLiquidGlassBlenderSurface extends RenderBox {
   _RenderLiquidGlassBlenderSurface({
     required _LiquidGlassBlenderRegistry registry,
     required ui.FragmentShader shader,
@@ -793,7 +782,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     required double? smoothness,
     required bool useImpellerBackdrop,
     required int? backdropId,
-    required LiquidGlassLayerGroup? layerGroup,
     required bool useEngineBlur,
     required bool debugClipBounds,
     required LiquidGlassLensScope? lensScope,
@@ -805,7 +793,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
         _smoothness = smoothness,
         _useImpellerBackdrop = useImpellerBackdrop,
         _backdropId = backdropId,
-        _layerGroup = layerGroup,
         _useEngineBlur = useEngineBlur,
         _debugClipBounds = debugClipBounds,
         _lensScope = lensScope,
@@ -861,41 +848,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     if (_shader == value) return;
     _shader = value;
     markNeedsPaint();
-  }
-
-  /// The enclosing `LiquidGlassLayer`, or `null` outside one. Under a layer
-  /// the merged pass is the plain shader: the layer blurs under the members.
-  LiquidGlassLayerGroup? _layerGroup;
-  set layerGroup(LiquidGlassLayerGroup? value) {
-    if (_layerGroup == value) return;
-    _layerGroup?.leave(this);
-    _layerGroup = value;
-    markNeedsPaint();
-  }
-
-  /// The members drawn by the last Impeller paint, whose outlines the layer
-  /// blurs under.
-  List<_RenderLiquidGlassBlenderMember> _layerMembers =
-      const <_RenderLiquidGlassBlenderMember>[];
-
-  @override
-  RenderBox get layerBox => this;
-
-  @override
-  double get layerBlurSigma => _blurSigma;
-
-  @override
-  Path get layerBlurOutline {
-    final Path outline = Path();
-    for (final member in _layerMembers) {
-      if (!member.attached || !member.hasSize) continue;
-      outline.addPath(
-        liquidGlassLayerOutline(member.shape, member.size, member.shapeScale)
-            .transform(member.getTransformTo(this).storage),
-        Offset.zero,
-      );
-    }
-    return outline;
   }
 
   /// The enclosing batch's shared backdrop key, or `null` outside one.
@@ -981,7 +933,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
 
   @override
   void detach() {
-    _layerGroup?.leave(this);
     _releaseBake();
     _registry.removeListener(markNeedsPaint);
     _lensScope?.captureRevision.removeListener(markNeedsPaint);
@@ -1044,7 +995,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
         .toList(growable: false);
 
     if (members.length < LiquidGlassBlender.minLensCount || size.isEmpty) {
-      _layerGroup?.leave(this);
       _shaderLayer.layer = null;
       _clipLayer.layer = null;
       return;
@@ -1053,7 +1003,6 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     if (_useImpellerBackdrop) {
       _paintImpeller(context, offset, members);
     } else {
-      _layerGroup?.leave(this);
       _releaseBake();
       _paintSkiaCapture(context, offset, members);
     }
@@ -1083,15 +1032,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     List<_RenderLiquidGlassBlenderMember> members,
   ) {
     final double sigma = _blurSigma;
-    // Under a layer the blur is the layer's: the pass is the plain shader.
-    final bool layered = _layerGroup != null && sigma > 0;
-    if (layered) {
-      _layerMembers = members;
-      _layerGroup!.join(this);
-    } else {
-      _layerGroup?.leave(this);
-    }
-    final bool engineBlur = !layered && _useEngineBlur && sigma > 0;
+    final bool engineBlur = _useEngineBlur && sigma > 0;
 
     // ENGINE-BLUR COMPOSE PATH.
     //
@@ -1117,7 +1058,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
       bake: _bake,
       bakeOrigin: glassRectInScreen.topLeft,
       // Engine blur runs before the shader → don't blur again in-shader.
-      blur: engineBlur || layered ? 0.0 : sigma,
+      blur: engineBlur ? 0.0 : sigma,
       imageOffset: engineBlur ? glassRectInScreen.topLeft : Offset.zero,
       imageSize: engineBlur
           ? Size(-glassRectInScreen.width, -glassRectInScreen.height)
@@ -1143,7 +1084,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox
     final layer = _shaderLayer.layer ??= LiquidGlassBatchBackdropLayer();
     layer
       ..filter = filter
-      ..backdropId = layered ? null : _backdropId;
+      ..backdropId = _backdropId;
     // Clip region for the backdrop pass.
     //
     // Plain shader path: a tight clip (the union of the member rects) just

@@ -3,7 +3,6 @@ import 'package:flutter/services.dart' show SystemUiOverlayStyle;
 
 import '../../controllers/liquid_glass_view_controller.dart';
 import '../lens/liquid_glass_batch.dart';
-import '../lens/liquid_glass_layer.dart';
 import '../liquid_glass_view.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_refresh_rate.dart';
@@ -277,10 +276,9 @@ class LiquidGlassScaffold extends StatefulWidget {
   /// takes a read of its own.
   final bool batch;
 
-  /// See [LiquidGlassView.layer]. `false` (the default) keeps the chrome
-  /// batch; `true` has the chrome — app bar, action, FAB, [lenses] — share
-  /// a `LiquidGlassLayer` instead. Only with [batch] on.
-  final bool layer;
+  /// See [LiquidGlassView.batchMode]. The sheets and dialogs that join the
+  /// chrome batch share it the same way.
+  final LiquidGlassBatchMode? batchMode;
 
   /// The palettes this scaffold's glass chrome wears, the OS bars it
   /// drives, and the strips that judge them — see
@@ -311,7 +309,7 @@ class LiquidGlassScaffold extends StatefulWidget {
     this.refreshRate = LiquidGlassRefreshRate.deviceRefreshRate,
     this.useImpellerBackdrop,
     this.batch = true,
-    this.layer = false,
+    this.batchMode,
     this.adaptivity,
   });
 
@@ -324,6 +322,12 @@ class LiquidGlassScaffold extends StatefulWidget {
   static int? chromeBatchIdOf(BuildContext context) =>
       context.getInheritedWidgetOfExactType<_ChromeBatchScope>()?.backdropId;
 
+  /// The [batchMode] of the nearest enclosing scaffold, `null` when it
+  /// leaves the mode to the engine or there is none. Read with
+  /// [chromeBatchIdOf]. Library-internal.
+  static LiquidGlassBatchMode? chromeBatchModeOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_ChromeBatchScope>()?.mode;
+
   @override
   State<LiquidGlassScaffold> createState() => _LiquidGlassScaffoldState();
 }
@@ -331,13 +335,18 @@ class LiquidGlassScaffold extends StatefulWidget {
 /// Publishes the scaffold's chrome batch key over the whole scaffold — the
 /// body included, which is where a sheet or a dialog is presented from.
 class _ChromeBatchScope extends InheritedWidget {
-  const _ChromeBatchScope({required this.backdropId, required super.child});
+  const _ChromeBatchScope({
+    required this.backdropId,
+    required this.mode,
+    required super.child,
+  });
 
   final int? backdropId;
+  final LiquidGlassBatchMode? mode;
 
   @override
   bool updateShouldNotify(_ChromeBatchScope oldWidget) =>
-      backdropId != oldWidget.backdropId;
+      backdropId != oldWidget.backdropId || mode != oldWidget.mode;
 }
 
 class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
@@ -401,6 +410,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
   Widget build(BuildContext context) {
     return _ChromeBatchScope(
       backdropId: _chromeBatch,
+      mode: widget.batchMode,
       child: _buildPipeline(context),
     );
   }
@@ -440,16 +450,14 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
         // screen again — carries the pill alone; nothing of ours is up
         // there, `outerNeedsRealtime` stays off, and that capture sleeps
         // whenever the pill is at rest.
-        chromeChild: LiquidGlassLayer(
-          enabled: widget.batch && widget.layer,
-          child: _chromeSlots(context, pad, includeNavBar: false),
-        ),
+        chromeChild: _chromeSlots(context, pad, includeNavBar: false),
         pixelRatio: widget.pixelRatio,
         useSync: widget.useSync,
         useImpellerBackdrop: widget.useImpellerBackdrop,
         // The bar keeps its own glass out of this batch; only the chrome
         // slots share it.
         batch: widget.batch,
+        batchMode: widget.batchMode,
         foregroundBatchId: _chromeBatch,
         realTimeCapture: widget.realTimeCapture,
         adaptiveSampling: sampling,
@@ -484,7 +492,7 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
       refreshRate: widget.refreshRate,
       useImpellerBackdrop: widget.useImpellerBackdrop,
       batch: widget.batch,
-      layer: widget.layer,
+      batchMode: widget.batchMode,
       foregroundBatchId: _chromeBatch,
       adaptiveSampling: sampling,
       backgroundWidget: background,

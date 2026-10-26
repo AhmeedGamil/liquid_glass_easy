@@ -15,10 +15,11 @@ import '../utils/liquid_glass_flex.dart';
 import '../utils/liquid_glass_shape.dart';
 import 'liquid_glass_batch.dart';
 import 'liquid_glass_blender.dart';
-import 'liquid_glass_layer.dart';
 import 'liquid_glass_lens_scope.dart';
 import 'liquid_glass_shaders.dart';
+import 'liquid_glass_shape_cache.dart';
 import '../liquid_glass_engine.dart';
+import '../liquid_glass_configuration.dart';
 import 'render_liquid_glass_lens.dart';
 
 /// A liquid-glass lens you can place **anywhere in the widget tree**.
@@ -536,9 +537,11 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     final bool deformed = !deform.isRest && !restSize.isEmpty;
 
     final LiquidGlassAppearance appearance =
-        _adaptAppearance(style?.appearance ?? widget.style.appearance);
+        LiquidGlassConfiguration.overrideAppearance(context,
+            _adaptAppearance(style?.appearance ?? widget.style.appearance));
     final LiquidGlassRefraction baseRefraction =
-        style?.refraction ?? _refraction;
+        LiquidGlassConfiguration.overrideRefraction(
+            context, style?.refraction ?? _refraction);
     final Widget? content = _adaptContent(context, widget.child);
 
     // The shape is passed through untouched. The shader evaluates it at REST
@@ -626,16 +629,21 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
     // Inside a LiquidGlassBatch: this lens joins the batch's shared backdrop
     // read. The Skia capture path already shares one capture per view, so it
     // has nothing to join.
-    // Inside a LiquidGlassLayer the layer blurs for it and the batch is not
-    // used.
-    final LiquidGlassLayerGroup? layerGroup =
-        mode == LiquidGlassLensRenderMode.impellerBackdrop
-            ? LiquidGlassLayer.groupOf(context)
-            : null;
-    final int? backdropId =
-        mode == LiquidGlassLensRenderMode.impellerBackdrop && layerGroup == null
-            ? LiquidGlassBatch.backdropIdOf(context)
-            : null;
+    final int? backdropId = mode == LiquidGlassLensRenderMode.impellerBackdrop
+        ? LiquidGlassBatch.backdropIdOf(context)
+        : null;
+    final LiquidGlassBatchMode batchMode = backdropId == null
+        ? LiquidGlassBatchMode.singlePass
+        : LiquidGlassBatch.modeOf(context);
+    // In a batch the batch's blur settings apply, otherwise the engine's.
+    final bool batched = backdropId != null;
+    final bool shaderBlur = (batched
+            ? LiquidGlassBatch.blurMethodOf(context)
+            : LiquidGlassConfiguration.blurMethod) ==
+        LiquidGlassBlurMethod.shader;
+    final bool shaderBlurDispersion = batched
+        ? LiquidGlassBatch.shaderBlurDispersionOf(context)
+        : LiquidGlassConfiguration.shaderBlurDispersion;
 
     // Clip at the deformed lens bounds, scale the content inside it: the
     // child stretches as pixels but can never spill past the glass edge.
@@ -676,7 +684,10 @@ class _LiquidGlassLensState extends State<LiquidGlassLens>
         screenSize: screenSize,
         devicePixelRatio: dpr,
         backdropId: backdropId,
-        layerGroup: layerGroup,
+        batchMode: batchMode,
+        shaderBlur: shaderBlur,
+        shaderBlurDispersion: shaderBlurDispersion,
+        shapeCache: !LiquidGlassShapeCacheExclude.of(context),
         shaderClip: widget.shaderClip,
         scope: scope,
         child: visible ? clippedChild : null,
@@ -730,7 +741,10 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
   final Size screenSize;
   final double devicePixelRatio;
   final int? backdropId;
-  final LiquidGlassLayerGroup? layerGroup;
+  final LiquidGlassBatchMode batchMode;
+  final bool shaderBlur;
+  final bool shaderBlurDispersion;
+  final bool shapeCache;
   final LiquidGlassShaderClip shaderClip;
   final LiquidGlassLensScope? scope;
 
@@ -749,7 +763,10 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
     required this.screenSize,
     required this.devicePixelRatio,
     required this.backdropId,
-    required this.layerGroup,
+    required this.batchMode,
+    required this.shaderBlur,
+    required this.shaderBlurDispersion,
+    required this.shapeCache,
     required this.shaderClip,
     required this.scope,
     super.child,
@@ -772,7 +789,10 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       screenSize: screenSize,
       devicePixelRatio: devicePixelRatio,
       backdropId: backdropId,
-      layerGroup: layerGroup,
+      batchMode: batchMode,
+      shaderBlur: shaderBlur,
+      shaderBlurDispersion: shaderBlurDispersion,
+      shapeCache: shapeCache,
       shaderClip: shaderClip,
       captureRevision: scope?.captureRevision,
       currentImage: scope?.currentImage,
@@ -799,7 +819,10 @@ class _RawLiquidGlassLens extends SingleChildRenderObjectWidget {
       ..screenSize = screenSize
       ..devicePixelRatio = devicePixelRatio
       ..backdropId = backdropId
-      ..layerGroup = layerGroup
+      ..batchMode = batchMode
+      ..shaderBlur = shaderBlur
+      ..shaderBlurDispersion = shaderBlurDispersion
+      ..shapeCache = shapeCache
       ..shaderClip = shaderClip
       ..captureRevision = scope?.captureRevision
       ..currentImage = scope?.currentImage

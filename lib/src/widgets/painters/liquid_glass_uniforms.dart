@@ -116,6 +116,10 @@ void packLiquidGlassUniforms(
   LiquidGlassShapeBake? bake,
   double bakeRange = 0,
   double bakePad = 0,
+  // In-shader blur sigma, logical px; 0 leaves the backdrop sharp.
+  double shaderBlur = 0,
+  // Whether each in-shader blur tap is dispersed.
+  bool shaderBlurDispersion = false,
 }) {
   final double cornerRadius = shape.cornerRadius;
   // The shape type alone selects the corner SDF in the shader:
@@ -181,7 +185,9 @@ void packLiquidGlassUniforms(
   // main and border shaders, right after u_packB, before the image rect.
   i = packLiquidGlassSecondSpecular(shader, i, shape,
       scale: scale,
-      drawBorder: drawBorder);
+      drawBorder: drawBorder,
+      shaderBlur: shaderBlur * scale,
+      shaderBlurDispersion: shaderBlurDispersion);
 
   // u_imageOffset / u_imageSize — present on BOTH shaders, so always
   // written. Scaled like the other spatial uniforms.
@@ -233,7 +239,8 @@ void packLiquidGlassBake(ui.FragmentShader shader, int index,
   shader.setImageSampler(1, bake?.images.first ?? LiquidGlassShapeCache.empty);
 }
 
-/// Writes `u_packC` (glowSpread, specular2Intensity, 0, 0),
+/// Writes `u_packC` (glowSpread, specular2Intensity, shaderBlur,
+/// shaderBlurDispersion),
 /// `u_specular2` (thickness, sharpness, angle, spread), `u_specular2Color`
 /// and `u_lightOpposite` (specular, glow, second specular, 0) from [shape]
 /// at [index], and returns the next free index. No second specular, or [drawBorder] false, writes a zero
@@ -244,12 +251,14 @@ int packLiquidGlassSecondSpecular(
   LiquidGlassLitShape shape, {
   required double scale,
   required bool drawBorder,
+  double shaderBlur = 0,
+  bool shaderBlurDispersion = false,
 }) {
   final LiquidGlassLight? second = shape.secondSpecular;
   shader.setFloat(index++, shape.glow.spread);
   shader.setFloat(index++, second?.intensity ?? 0);
-  shader.setFloat(index++, 0);
-  shader.setFloat(index++, 0);
+  shader.setFloat(index++, shaderBlur);
+  shader.setFloat(index++, shaderBlurDispersion ? 1 : 0);
   shader.setFloat(
       index++, drawBorder && second != null ? second.thickness * scale : 0);
   shader.setFloat(index++, second?.sharpness ?? 0);

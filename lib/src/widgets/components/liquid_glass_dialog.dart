@@ -78,6 +78,8 @@ Future<T?> showLiquidGlassDialog<T>({
   // costs no read of its own. See `LiquidGlassScaffold.batch`.
   final int? batchId =
       batch ? LiquidGlassScaffold.chromeBatchIdOf(context) : null;
+  final LiquidGlassBatchMode? batchMode =
+      LiquidGlassScaffold.chromeBatchModeOf(context);
 
   return showGeneralDialog<T>(
     context: context,
@@ -93,7 +95,11 @@ Future<T?> showLiquidGlassDialog<T>({
       final Widget page = builder(buildContext);
       Widget dialog = themes.wrap(page);
       if (batchId != null) {
-        dialog = LiquidGlassBatchScope(backdropId: batchId, child: dialog);
+        dialog = LiquidGlassBatchScope(
+          backdropId: batchId,
+          mode: batchMode,
+          child: dialog,
+        );
       }
       if (useSafeArea) {
         dialog = SafeArea(child: dialog);

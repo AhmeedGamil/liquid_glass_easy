@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/painting.dart';
+import 'package:flutter/widgets.dart';
 import 'package:meta/meta.dart';
 
 /// One baked shape: a texture the glass shaders read in place of their SDF.
@@ -75,8 +75,8 @@ class LiquidGlassShapeCache {
     int height,
     List<ui.Image> Function() bake,
   ) {
-    final LiquidGlassShapeBake entry = _bakes[key] ??=
-        LiquidGlassShapeBake._(key, bake(), width, height);
+    final LiquidGlassShapeBake entry =
+        _bakes[key] ??= LiquidGlassShapeBake._(key, bake(), width, height);
     entry._refs++;
     return entry;
   }
@@ -114,4 +114,25 @@ class LiquidGlassShapeCache {
 
   /// [value] rounded to 1/64 px, so float noise in a layout does not rebake.
   static double snap(double value) => (value * 64).roundToDouble() / 64;
+}
+
+/// Keeps the lenses under it out of the shape cache: their shape is drawn per
+/// pixel every frame, as with the cache off.
+///
+/// For glass that changes shape whenever it is seen, where a bake taken on
+/// settle is thrown away by the next touch.
+///
+/// Library-internal.
+@internal
+class LiquidGlassShapeCacheExclude extends InheritedWidget {
+  const LiquidGlassShapeCacheExclude({super.key, required super.child});
+
+  /// Whether [context] sits under an exclusion.
+  static bool of(BuildContext context) =>
+      context
+          .dependOnInheritedWidgetOfExactType<LiquidGlassShapeCacheExclude>() !=
+      null;
+
+  @override
+  bool updateShouldNotify(LiquidGlassShapeCacheExclude oldWidget) => false;
 }

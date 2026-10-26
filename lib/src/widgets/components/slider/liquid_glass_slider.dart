@@ -7,6 +7,9 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../liquid_glass_style.dart';
 import '../../lens/liquid_glass_batch.dart';
+import '../../lens/liquid_glass_shape_cache.dart'
+    show LiquidGlassShapeCacheExclude;
+import '../../liquid_glass_configuration.dart' show LiquidGlassOverrideExclude;
 import '../../liquid_glass_view.dart';
 import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_eager_pan.dart';
@@ -684,26 +687,34 @@ class _LiquidGlassSliderState extends State<LiquidGlassSlider>
               // to refract it, and a batch's shared copy is taken before
               // this control's track has painted — a batched thumb would
               // read the page and lose the track under it.
+              //
+              // Out of the shape cache too: the thumb changes shape on
+              // every touch, so a bake taken on settle never pays off. It
+              // keeps its own blur and dispersion under the overrides.
               child: LiquidGlassBatch.exclude(
-                child: LiquidGlassMotionPill(
-                  center: Offset(_thumbCX, centerY),
-                  active: _thumbActive,
-                  restSize: Size(_contractedW, _contractedH),
-                  activeSize: Size(_expandedW, _expandedH),
-                  // The contact shadow rides in the style's appearance; the
-                  // pill lifts it out and wraps the glass in it.
-                  style: widget.style ?? LiquidGlassSlider.defaultStyle,
-                  motion: widget.motion,
-                  // The contraction outlives the release, so the pill —
-                  // not the gesture — says when the glass is covered and
-                  // the capture can stop.
-                  onGlassVisibilityChanged: (visible) => visible
-                      ? _viewController.startRealtimeCapture()
-                      : _viewController.stopRealtimeCapture(),
-                  // A flat fill: the pill clips the cover to the same
-                  // outline the glass wears, so a radius of its own here
-                  // would only cut back inside it at the caps.
-                  cover: ColoredBox(color: widget.thumbColor),
+                child: LiquidGlassShapeCacheExclude(
+                  child: LiquidGlassOverrideExclude(
+                    child: LiquidGlassMotionPill(
+                      center: Offset(_thumbCX, centerY),
+                      active: _thumbActive,
+                      restSize: Size(_contractedW, _contractedH),
+                      activeSize: Size(_expandedW, _expandedH),
+                      // The contact shadow rides in the style's appearance; the
+                      // pill lifts it out and wraps the glass in it.
+                      style: widget.style ?? LiquidGlassSlider.defaultStyle,
+                      motion: widget.motion,
+                      // The contraction outlives the release, so the pill —
+                      // not the gesture — says when the glass is covered and
+                      // the capture can stop.
+                      onGlassVisibilityChanged: (visible) => visible
+                          ? _viewController.startRealtimeCapture()
+                          : _viewController.stopRealtimeCapture(),
+                      // A flat fill: the pill clips the cover to the same
+                      // outline the glass wears, so a radius of its own here
+                      // would only cut back inside it at the caps.
+                      cover: ColoredBox(color: widget.thumbColor),
+                    ),
+                  ),
                 ),
               ),
             ),

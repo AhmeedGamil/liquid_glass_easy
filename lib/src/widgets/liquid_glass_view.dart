@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_easy/src/controllers/liquid_glass_view_controller.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_batch.dart';
-import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_layer.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_lens_scope.dart';
 import 'package:liquid_glass_easy/src/widgets/lens/liquid_glass_shaders.dart';
 import 'package:liquid_glass_easy/src/widgets/liquid_glass_engine.dart';
@@ -137,14 +136,10 @@ class LiquidGlassView extends StatefulWidget {
   /// around the view still reaches the lenses inside it.
   final bool batch;
 
-  /// Whether what floats in [child] shares a `LiquidGlassLayer` instead of
-  /// the foreground batch.
-  ///
-  /// `false` (the default) keeps the foreground batch. `true` blurs the
-  /// background once under every glass surface in [child], and each runs
-  /// only its shader. Either way it applies only with [batch] on, and the
-  /// background keeps its batch: a layer blurs what was painted before it.
-  final bool layer;
+  /// How the glass in both batches shares the read — see
+  /// `LiquidGlassBatchMode`. Only with [batch] on. `null` (the default)
+  /// uses `LiquidGlassConfiguration.batchMode`.
+  final LiquidGlassBatchMode? batchMode;
 
   /// The key the batch over [child] carries, when a host owns it.
   ///
@@ -217,7 +212,7 @@ class LiquidGlassView extends StatefulWidget {
       this.useImpellerBackdrop,
       this.regionCapture = false,
       this.batch = true,
-      this.layer = false,
+      this.batchMode,
       this.foregroundBatchId,
       this.adaptiveSampling})
       : children = const [],
@@ -242,7 +237,7 @@ class LiquidGlassView extends StatefulWidget {
       this.regionCapture = false,
       this.honorBackdropAlpha = false,
       this.batch = true,
-      this.layer = false,
+      this.batchMode,
       this.foregroundBatchId,
       this.adaptiveSampling});
 
@@ -1000,8 +995,14 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
   /// taking one of its own.
   Widget _batched(Widget child, {int? backdropId}) {
     if (!widget.batch) return child;
-    if (backdropId == null) return LiquidGlassBatch(child: child);
-    return LiquidGlassBatchScope(backdropId: backdropId, child: child);
+    if (backdropId == null) {
+      return LiquidGlassBatch(mode: widget.batchMode, child: child);
+    }
+    return LiquidGlassBatchScope(
+      backdropId: backdropId,
+      mode: widget.batchMode,
+      child: child,
+    );
   }
 
   @override
@@ -1062,9 +1063,8 @@ class _LiquidGlassViewState extends State<LiquidGlassView>
           ),
       ],
     );
-    final Widget foreground = widget.batch && widget.layer
-        ? LiquidGlassLayer(child: lensSlots)
-        : _batched(lensSlots, backdropId: widget.foregroundBatchId);
+    final Widget foreground =
+        _batched(lensSlots, backdropId: widget.foregroundBatchId);
     // Wraps the whole view, background included, so anything below can
     // hand this view's capture to a route it pushes (see the portal's
     // doc). Lenses still bind to the inner scope around `child` only.

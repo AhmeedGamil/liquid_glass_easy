@@ -380,6 +380,9 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// the host's [chromeChild].
   final bool batch;
 
+  /// See `LiquidGlassView.batchMode`, forwarded to both views.
+  final LiquidGlassBatchMode? batchMode;
+
   /// See `LiquidGlassView.foregroundBatchId`, handed to both views: with it
   /// the [chromeChild] slots are one batch whichever view draws them — how
   /// the scaffold puts the sheets and dialogs presented over it, when they
@@ -451,6 +454,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.useSync = true,
     this.useImpellerBackdrop,
     this.batch = true,
+    this.batchMode,
     this.foregroundBatchId,
     this.realTimeCapture = true,
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
@@ -1235,8 +1239,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
             useImpellerBackdrop: widget.useImpellerBackdrop,
             batch: widget.batch,
-            // The bar's own glass keeps its reads; a host layers the chrome.
-            layer: false,
+            batchMode: widget.batchMode,
             foregroundBatchId: widget.foregroundBatchId,
             backgroundWidget: _buildInner(
               layout: layout,
@@ -1630,8 +1633,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           refreshRate: LiquidGlassRefreshRate.deviceRefreshRate,
           useImpellerBackdrop: widget.useImpellerBackdrop,
           batch: widget.batch,
-          // The bar's own glass keeps its reads; a host layers the chrome.
-          layer: false,
+          batchMode: widget.batchMode,
           foregroundBatchId: widget.foregroundBatchId,
           backgroundWidget: background,
           // Body-luminance sampling for adaptivity: the inner view owns

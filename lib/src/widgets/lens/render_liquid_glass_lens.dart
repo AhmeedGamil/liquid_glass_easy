@@ -9,7 +9,7 @@ import '../liquid_glass_config.dart';
 import '../painters/liquid_glass_uniforms.dart';
 import '../utils/liquid_glass_shape.dart';
 import '../utils/liquid_glass_light.dart';
-import 'liquid_glass_layer.dart';
+import 'liquid_glass_batch.dart';
 import 'liquid_glass_shaders.dart';
 import 'liquid_glass_shape_cache.dart';
 import 'liquid_glass_transform_tracking.dart';
@@ -83,7 +83,8 @@ class _ImpellerShaderBackdropLayer extends ContainerLayer {
       oldLayer: engineLayer as ui.BackdropFilterEngineLayer?,
       // Set inside a LiquidGlassBatch: every member pushes the same key, so
       // the engine reads the backdrop once and they all sample that copy.
-      backdropId: lens._backdropId,
+      // Null when only the blur under it carries the key.
+      backdropId: lens._shaderBackdropId,
     );
     addChildrenToScene(builder);
     builder.pop();
@@ -110,8 +111,7 @@ class _ImpellerShaderBackdropLayer extends ContainerLayer {
 /// Paint order (both modes): glass effect first, then the child on top.
 /// The child itself is clipped by the widget layer, not here.
 class RenderLiquidGlassLens extends RenderProxyBox
-    with LensTransformTrackingMixin
-    implements LiquidGlassLayerMember {
+    with LensTransformTrackingMixin {
   RenderLiquidGlassLens({
     required LiquidGlassLensRenderMode mode,
     required ui.FragmentShader mainShader,
@@ -127,7 +127,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required Size screenSize,
     required double devicePixelRatio,
     int? backdropId,
-    LiquidGlassLayerGroup? layerGroup,
+    LiquidGlassBatchMode batchMode = LiquidGlassBatchMode.singlePass,
+    bool shaderBlur = false,
+    bool shaderBlurDispersion = false,
+    bool shapeCache = true,
     required LiquidGlassShaderClip shaderClip,
     ValueListenable<int>? captureRevision,
     ui.Image? Function()? currentImage,
@@ -135,7 +138,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
     RenderBox? Function()? backgroundRenderBox,
   })  : _mode = mode,
         _backdropId = backdropId,
-        _layerGroup = layerGroup,
+        _batchMode = batchMode,
+        _shaderBlurEnabled = shaderBlur,
+        _shaderBlurDispersion = shaderBlurDispersion,
+        _shapeCache = shapeCache,
         _shaderClip = shaderClip,
         _honorBackdropAlpha = honorBackdropAlpha,
         _mainShader = mainShader,
@@ -189,26 +195,50 @@ class RenderLiquidGlassLens extends RenderProxyBox
     markNeedsPaint();
   }
 
-  /// The `LiquidGlassLayer` this lens belongs to, or `null` outside one.
-  /// Under a layer the lens pushes no blur of its own: the layer blurs once
-  /// for all its members and this lens runs only its shader.
-  LiquidGlassLayerGroup? _layerGroup;
-  set layerGroup(LiquidGlassLayerGroup? value) {
-    if (_layerGroup == value) return;
-    _layerGroup?.leave(this);
-    _layerGroup = value;
+  /// How this lens shares the batch's read when the engine blurs it:
+  /// composed into one keyed pass, or a keyed blur under an unkeyed shader.
+  LiquidGlassBatchMode _batchMode;
+  set batchMode(LiquidGlassBatchMode value) {
+    if (_batchMode == value) return;
+    _batchMode = value;
     markNeedsPaint();
   }
 
-  @override
-  RenderBox get layerBox => this;
+  /// Whether this lens's blur method is the shader's.
+  bool _shaderBlurEnabled;
+  set shaderBlur(bool value) {
+    if (_shaderBlurEnabled == value) return;
+    _shaderBlurEnabled = value;
+    markNeedsPaint();
+  }
 
-  @override
-  double get layerBlurSigma => _appearance.blur;
+  /// Whether this lens's shader blur keeps its dispersion.
+  bool _shaderBlurDispersion;
+  set shaderBlurDispersion(bool value) {
+    if (_shaderBlurDispersion == value) return;
+    _shaderBlurDispersion = value;
+    markNeedsPaint();
+  }
 
-  @override
-  Path get layerBlurOutline =>
-      liquidGlassLayerOutline(_shape, size, _clipScale);
+  /// Whether this lens may read its shape from the shape cache; `false`
+  /// under a `LiquidGlassShapeCacheExclude`.
+  bool _shapeCache;
+  set shapeCache(bool value) {
+    if (_shapeCache == value) return;
+    _shapeCache = value;
+    markNeedsPaint();
+  }
+
+  /// The key the shader pass carries this paint: the batch's when the
+  /// shader is the keyed pass, `null` when only the blur under it is.
+  int? _shaderBackdropId;
+  void _setShaderBackdropId(int? value) {
+    if (_shaderBackdropId == value) return;
+    _shaderBackdropId = value;
+    // Baked into the engine layer, as in [backdropId].
+    _shaderLayerHandle.layer?.renderObject = null;
+    _shaderLayerHandle.layer = null;
+  }
 
   /// Whether the shader folds the captured backdrop's alpha into its own
   /// coverage. Skia capture path only.
@@ -405,6 +435,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
       LayerHandle<ClipPathLayer>();
   final LayerHandle<BackdropFilterLayer> _blurLayerHandle =
       LayerHandle<BackdropFilterLayer>();
+  final LayerHandle<LiquidGlassBatchBackdropLayer> _keyedBlurLayerHandle =
+      LayerHandle<LiquidGlassBatchBackdropLayer>();
   final LayerHandle<_ImpellerShaderBackdropLayer> _shaderLayerHandle =
       LayerHandle<_ImpellerShaderBackdropLayer>();
   final LayerHandle<ClipRectLayer> _shaderClipRectLayerHandle =
@@ -430,7 +462,6 @@ class RenderLiquidGlassLens extends RenderProxyBox
 
   @override
   void detach() {
-    _layerGroup?.leave(this);
     _releaseBake();
     _captureRevision?.removeListener(markNeedsPaint);
     _shaderLayerHandle.layer?.renderObject = null;
@@ -442,6 +473,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     _clipLayerHandle.layer = null;
     _clipPathLayerHandle.layer = null;
     _blurLayerHandle.layer = null;
+    _keyedBlurLayerHandle.layer = null;
     _shaderLayerHandle.layer = null;
     _shaderClipRectLayerHandle.layer = null;
     _shaderClipRRectLayerHandle.layer = null;
@@ -451,8 +483,13 @@ class RenderLiquidGlassLens extends RenderProxyBox
     super.dispose();
   }
 
+  /// Whether the blur is an engine pass; with shader blur on, the main
+  /// shader blurs instead and every path paints as if there were none.
   bool get _useBlur =>
-      _appearance.blur > 0;
+      _appearance.blur > 0 && !_shaderBlur;
+
+  /// Whether the main shader takes this lens's blur itself.
+  bool get _shaderBlur => _appearance.blur > 0 && _shaderBlurEnabled;
 
   /// The batched pass's clip, in lens-local logical px, while the blur is
   /// composed into the shader — and `null` on every other path.
@@ -521,6 +558,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
       bake: baked ? _bake : null,
       bakeRange: _bakeRange,
       bakePad: _bakePad,
+      shaderBlur: _shaderBlur ? _appearance.blur : 0,
+      shaderBlurDispersion: _shaderBlurDispersion,
     );
   }
 
@@ -556,7 +595,10 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// px, baking it when no lens holds that shape yet.
   void _updateBake(double scale) {
     final ui.FragmentShader? shader = LiquidGlassShaders.lensBakeShader;
-    if (!LiquidGlassShapeCache.enabled || shader == null || size.isEmpty) {
+    if (!LiquidGlassShapeCache.enabled ||
+        !_shapeCache ||
+        shader == null ||
+        size.isEmpty) {
       _releaseBake();
       return;
     }
@@ -638,20 +680,8 @@ class RenderLiquidGlassLens extends RenderProxyBox
     // no backdrop cost — but keep painting the child; whether IT hides
     // stays the caller's call.
     if (!_glassEnabled || size.isEmpty) {
-      _layerGroup?.leave(this);
       super.paint(context, offset);
       return;
-    }
-
-    // In a layer only while it paints the layer's way and has a blur to
-    // share; every other path takes its own.
-    final bool layered = _layerGroup != null &&
-        _mode == LiquidGlassLensRenderMode.impellerBackdrop &&
-        _useBlur;
-    if (layered) {
-      _layerGroup!.join(this);
-    } else {
-      _layerGroup?.leave(this);
     }
 
     switch (_mode) {
@@ -659,12 +689,13 @@ class RenderLiquidGlassLens extends RenderProxyBox
         // A batch shares one backdrop read across all its lenses, which only
         // works if each is a single pass — a different paint path, not just a
         // key on the same one.
-        if (layered) {
-          _paintImpeller(context, offset, ownBlur: false);
-        } else if (_backdropId != null) {
+        // In the separate-pass mode an engine-blurred lens keeps both
+        // passes and only its blur carries the key.
+        if (_backdropId != null &&
+            (_batchMode == LiquidGlassBatchMode.singlePass || !_useBlur)) {
           _paintImpellerBatched(context, offset);
         } else {
-          _paintImpeller(context, offset);
+          _paintImpeller(context, offset, blurBackdropId: _backdropId);
         }
       case LiquidGlassLensRenderMode.skiaCapture:
         _paintSkiaCapture(context, offset);
@@ -865,22 +896,34 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// ramp (and any rim feather), so the visible outline never meets the clip.
   static const double _shaderClipPad = 2.0;
 
-  /// [ownBlur] `false` is the layered path: the enclosing layer has already
-  /// blurred under this lens, so only the shader pass is pushed.
+  /// [blurBackdropId] is the batch's key in the separate-pass mode: the blur
+  /// reads the batch's copy, the shader still reads its own over the blur.
   void _paintImpeller(PaintingContext context, Offset offset,
-      {bool ownBlur = true}) {
+      {int? blurBackdropId}) {
+    _setShaderBackdropId(null);
     // Order matters: blur first (below), shader second (on top) — stacked
     // BackdropFilters chain, so the shader refracts the already-blurred
     // backdrop and draws its sharp border last. The blur keeps the exact
     // outline clip: unlike the shader, blur FILLS its clip, so a looser
     // one would halo blurred backdrop outside the glass.
-    if (_useBlur && ownBlur) {
+    if (_useBlur) {
       void paintBlur(PaintingContext context, Offset offset) {
-        final blurLayer = _blurLayerHandle.layer ??= BackdropFilterLayer();
-        blurLayer.filter = ui.ImageFilter.blur(
+        final ui.ImageFilter blur = ui.ImageFilter.blur(
           sigmaX: _appearance.blur,
           sigmaY: _appearance.blur,
         );
+        final ContainerLayer blurLayer;
+        if (blurBackdropId != null) {
+          _blurLayerHandle.layer = null;
+          blurLayer = (_keyedBlurLayerHandle.layer ??=
+              LiquidGlassBatchBackdropLayer())
+            ..filter = blur
+            ..backdropId = blurBackdropId;
+        } else {
+          _keyedBlurLayerHandle.layer = null;
+          blurLayer = (_blurLayerHandle.layer ??= BackdropFilterLayer())
+            ..filter = blur;
+        }
         context.pushLayer(
             blurLayer, (PaintingContext context, Offset offset) {}, offset);
       }
@@ -908,6 +951,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       }
     } else {
       _blurLayerHandle.layer = null;
+      _keyedBlurLayerHandle.layer = null;
       _clipLayerHandle.layer = null;
       _clipPathLayerHandle.layer = null;
     }
@@ -976,7 +1020,9 @@ class RenderLiquidGlassLens extends RenderProxyBox
   /// box only, snapped to whole physical pixels, so the pass never grows with
   /// the blur or the refraction band.
   void _paintImpellerBatched(PaintingContext context, Offset offset) {
+    _setShaderBackdropId(_backdropId);
     _blurLayerHandle.layer = null;
+    _keyedBlurLayerHandle.layer = null;
     _clipLayerHandle.layer = null;
     _clipPathLayerHandle.layer = null;
     _shaderClipRRectLayerHandle.layer = null;

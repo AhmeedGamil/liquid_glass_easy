@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 
+import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
 import '../../lens/liquid_glass_lens_scope.dart';
 import '../../liquid_glass_style.dart';
@@ -229,6 +230,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     bool useSync = true,
     bool? useImpellerBackdrop,
     bool batch = false,
+    LiquidGlassBatchMode? batchMode,
     int? foregroundBatchId,
     bool realTimeCapture = true,
     bool outerNeedsRealtime = false,
@@ -248,6 +250,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
       batch: batch,
+      batchMode: batchMode,
       foregroundBatchId: foregroundBatchId,
       realTimeCapture: realTimeCapture,
       outerNeedsRealtime: outerNeedsRealtime,
@@ -272,6 +275,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     bool useSync = true,
     bool? useImpellerBackdrop,
     bool batch = false,
+    LiquidGlassBatchMode? batchMode,
     int? foregroundBatchId,
     bool realTimeCapture = true,
     bool outerNeedsRealtime = false,
@@ -336,6 +340,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       useSync: useSync,
       useImpellerBackdrop: useImpellerBackdrop,
       batch: batch,
+      batchMode: batchMode,
       foregroundBatchId: foregroundBatchId,
       realTimeCapture: realTimeCapture,
       adaptivity: barStyle.adaptivity,

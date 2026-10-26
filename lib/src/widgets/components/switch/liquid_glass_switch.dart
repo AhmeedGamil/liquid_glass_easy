@@ -9,6 +9,9 @@ import 'package:flutter/services.dart' show HapticFeedback;
 import '../../../controllers/liquid_glass_view_controller.dart';
 import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
+import '../../lens/liquid_glass_shape_cache.dart'
+    show LiquidGlassShapeCacheExclude;
+import '../../liquid_glass_configuration.dart' show LiquidGlassOverrideExclude;
 import '../../lens/render_liquid_glass_lens.dart' show LiquidGlassShaderClip;
 import '../../liquid_glass_style.dart';
 import '../../liquid_glass_view.dart';
@@ -717,33 +720,39 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
               // to refract it, and a batch's shared copy is taken before
               // this control's track has painted — a batched thumb would
               // read the page and lose the track under it.
+              //
+              // Out of the shape cache too: the thumb changes shape on
+              // every touch, so a bake taken on settle never pays off. It
+              // keeps its own blur and dispersion under the overrides.
               child: LiquidGlassBatch.exclude(
-                child: LiquidGlassLens(
-                  honorBackdropAlpha: true,
-                  // Off at rest: the opaque rest pill beside it covers the
-                  // box, and the glass would only cost its backdrop pass.
-                  visibility: _morph > 0,
-                  // The 4.1.0 clip, like the tab bar's pills: a padded rect
-                  // on the pixel grid, so nothing re-frames in flight.
-                  shaderClip: LiquidGlassShaderClip.snapped,
-                  style: () {
-                    final LiquidGlassStyle resolved =
-                        resolveLiquidGlassMorphPillStyle(
-                      height: pillH,
-                      style: pillStyle,
-                      // Keep the refraction band proportional while the pill
-                      // is below its full (expanded) size.
-                      refractionWidthScale:
-                          (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
-                      defaultCornerStyle:
-                          LiquidGlassCornerStyle.roundedRectangle,
-                    );
-                    // Re-stated at every morph step rather than carried
-                    // through: the shadow arrives WITH the glass, so at rest
-                    // the one the style carries is taken back off and above
-                    // rest it is re-made at morph strength.
-                    final LiquidGlassShadow? atMorph =
-                        (shadow == null || _morph <= 0.001)
+                child: LiquidGlassShapeCacheExclude(
+                  child: LiquidGlassOverrideExclude(
+                    child: LiquidGlassLens(
+                      honorBackdropAlpha: true,
+                      // Off at rest: the opaque rest pill beside it covers the
+                      // box, and the glass would only cost its backdrop pass.
+                      visibility: _morph > 0,
+                      // The 4.1.0 clip, like the tab bar's pills: a padded rect
+                      // on the pixel grid, so nothing re-frames in flight.
+                      shaderClip: LiquidGlassShaderClip.snapped,
+                      style: () {
+                        final LiquidGlassStyle resolved =
+                            resolveLiquidGlassMorphPillStyle(
+                          height: pillH,
+                          style: pillStyle,
+                          // Keep the refraction band proportional while the pill
+                          // is below its full (expanded) size.
+                          refractionWidthScale:
+                              (pillH / l.expandedThumbHeight).clamp(0.0, 1.0),
+                          defaultCornerStyle:
+                              LiquidGlassCornerStyle.roundedRectangle,
+                        );
+                        // Re-stated at every morph step rather than carried
+                        // through: the shadow arrives WITH the glass, so at rest
+                        // the one the style carries is taken back off and above
+                        // rest it is re-made at morph strength.
+                        final LiquidGlassShadow? atMorph = (shadow == null ||
+                                _morph <= 0.001)
                             ? null
                             : LiquidGlassShadow(
                                 blur: shadow.blur,
@@ -755,8 +764,10 @@ class _LiquidGlassSwitchState extends State<LiquidGlassSwitch>
                                 visible: shadow.visible,
                                 insideGlass: shadow.insideGlass,
                               );
-                    return _withShadow(resolved, atMorph);
-                  }(),
+                        return _withShadow(resolved, atMorph);
+                      }(),
+                    ),
+                  ),
                 ),
               ),
             ),

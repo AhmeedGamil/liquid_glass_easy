@@ -106,6 +106,8 @@ Future<T?> showLiquidGlassSheet<T>({
   // costs no read of its own. See `LiquidGlassScaffold.batch`.
   final int? batchId =
       batch ? LiquidGlassScaffold.chromeBatchIdOf(context) : null;
+  final LiquidGlassBatchMode? batchMode =
+      LiquidGlassScaffold.chromeBatchModeOf(context);
   return showModalBottomSheet<T>(
     context: context,
     // The glass is the surface, so Material's is given nothing to draw:
@@ -141,7 +143,11 @@ Future<T?> showLiquidGlassSheet<T>({
         child: builder(context),
       );
       if (batchId != null) {
-        sheet = LiquidGlassBatchScope(backdropId: batchId, child: sheet);
+        sheet = LiquidGlassBatchScope(
+          backdropId: batchId,
+          mode: batchMode,
+          child: sheet,
+        );
       }
       if (!avoidKeyboard) return sheet;
       // The route does not lift for the keyboard on its own. This is the

@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
+import '../liquid_glass_configuration.dart';
+
 /// Draws every `LiquidGlassLens` beneath it from **one** read of the backdrop.
 ///
 /// A lens on Impeller works by reading back what is already painted behind it
@@ -130,11 +132,20 @@ import 'package:flutter/widgets.dart';
 /// cost there. On the Skia / web capture path a `LiquidGlassView` already
 /// captures its background once for every lens inside it, so the batch is
 /// inert rather than wrong — the same tree runs on both backends.
+///
+/// ## Two ways to share the read
+///
+/// [mode] picks how a member blurred by the engine shares it — see
+/// [LiquidGlassBatchMode]. A member without blur, or one that blurs in its
+/// shader, is one keyed pass either way.
 class LiquidGlassBatch extends StatefulWidget {
   const LiquidGlassBatch({
     super.key,
     required this.child,
     this.enabled = true,
+    this.mode,
+    this.blurMethod,
+    this.shaderBlurDispersion,
   });
 
   /// Keeps [child] out of the enclosing batch.
@@ -147,7 +158,10 @@ class LiquidGlassBatch extends StatefulWidget {
   const LiquidGlassBatch.exclude({
     super.key,
     required this.child,
-  }) : enabled = false;
+  })  : enabled = false,
+        mode = null,
+        blurMethod = null,
+        shaderBlurDispersion = null;
 
   /// The subtree whose `LiquidGlassLens` descendants share the read.
   final Widget child;
@@ -158,6 +172,21 @@ class LiquidGlassBatch extends StatefulWidget {
   /// subtree.
   final bool enabled;
 
+  /// How a member blurred by the engine shares the read. See
+  /// [LiquidGlassBatchMode].
+  ///
+  /// `null` (the default) uses `LiquidGlassConfiguration.batchMode`.
+  final LiquidGlassBatchMode? mode;
+
+  /// Where the members blur. `null` (the default) uses
+  /// `LiquidGlassConfiguration.batchBlurMethod`. A `LiquidGlassBlender` keeps its
+  /// own `useEngineBlur`.
+  final LiquidGlassBlurMethod? blurMethod;
+
+  /// Whether a member's shader blur keeps its style's `dispersion`. `null`
+  /// (the default) uses `LiquidGlassConfiguration.batchShaderBlurDispersion`.
+  final bool? shaderBlurDispersion;
+
   /// The shared backdrop key for the nearest enclosing batch, or `null` when
   /// there is none (or the nearest one is disabled).
   static int? backdropIdOf(BuildContext context) {
@@ -166,8 +195,56 @@ class LiquidGlassBatch extends StatefulWidget {
         ?.backdropId;
   }
 
+  /// The [mode] of the nearest enclosing batch, or
+  /// `LiquidGlassConfiguration.batchMode` where it leaves the mode `null` or there
+  /// is no batch.
+  static LiquidGlassBatchMode modeOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<LiquidGlassBatchScope>()
+            ?.mode ??
+        LiquidGlassConfiguration.batchMode;
+  }
+
+  /// Where a member of the nearest enclosing batch blurs: its
+  /// [blurMethod], or `LiquidGlassConfiguration.batchBlurMethod`.
+  static LiquidGlassBlurMethod blurMethodOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<LiquidGlassBatchScope>()
+            ?.blurMethod ??
+        LiquidGlassConfiguration.batchBlurMethod;
+  }
+
+  /// Whether a member of the nearest enclosing batch keeps its dispersion
+  /// in a shader blur: its [shaderBlurDispersion], or
+  /// `LiquidGlassConfiguration.batchShaderBlurDispersion`.
+  static bool shaderBlurDispersionOf(BuildContext context) {
+    return context
+            .dependOnInheritedWidgetOfExactType<LiquidGlassBatchScope>()
+            ?.shaderBlurDispersion ??
+        LiquidGlassConfiguration.batchShaderBlurDispersion;
+  }
+
   @override
   State<LiquidGlassBatch> createState() => _LiquidGlassBatchState();
+}
+
+/// How a batch member blurred by the engine shares the batch's read.
+///
+/// Only a member whose blur is above zero and whose blur method is
+/// `LiquidGlassBlurMethod.engine` is affected. Every other member — no blur,
+/// a shader blur, lite glass — is one keyed pass in either mode. A
+/// `LiquidGlassBlender` always batches as [singlePass].
+enum LiquidGlassBatchMode {
+  /// One keyed pass per member: the engine blur rides inside it through
+  /// `ImageFilter.compose(outer: shader, inner: blur)`. The whole batch
+  /// costs one read.
+  singlePass,
+
+  /// Two passes per member: the blur is a keyed pass of its own, reading the
+  /// batch's copy, and the shader takes a second pass with a read of its own
+  /// over that blur. One read for the batch plus one per member; equal
+  /// blurs may be computed once for all of them.
+  separatePass,
 }
 
 /// Keys are handed to the engine as plain ints and share one namespace with
@@ -193,6 +270,9 @@ class _LiquidGlassBatchState extends State<LiquidGlassBatch> {
   Widget build(BuildContext context) {
     return LiquidGlassBatchScope(
       backdropId: widget.enabled ? _backdropId : null,
+      mode: widget.mode,
+      blurMethod: widget.blurMethod,
+      shaderBlurDispersion: widget.shaderBlurDispersion,
       child: widget.child,
     );
   }
@@ -206,6 +286,9 @@ class LiquidGlassBatchScope extends InheritedWidget {
   const LiquidGlassBatchScope({
     super.key,
     required this.backdropId,
+    this.mode,
+    this.blurMethod,
+    this.shaderBlurDispersion,
     required super.child,
   });
 
@@ -213,9 +296,23 @@ class LiquidGlassBatchScope extends InheritedWidget {
   /// batch is disabled.
   final int? backdropId;
 
+  /// How the members blurred by the engine share it; `null` uses
+  /// `LiquidGlassConfiguration.batchMode`.
+  final LiquidGlassBatchMode? mode;
+
+  /// Where the members blur; `null` uses `LiquidGlassConfiguration.batchBlurMethod`.
+  final LiquidGlassBlurMethod? blurMethod;
+
+  /// Whether a member's shader blur keeps its dispersion; `null` uses
+  /// `LiquidGlassConfiguration.batchShaderBlurDispersion`.
+  final bool? shaderBlurDispersion;
+
   @override
   bool updateShouldNotify(covariant LiquidGlassBatchScope oldWidget) {
-    return backdropId != oldWidget.backdropId;
+    return backdropId != oldWidget.backdropId ||
+        mode != oldWidget.mode ||
+        blurMethod != oldWidget.blurMethod ||
+        shaderBlurDispersion != oldWidget.shaderBlurDispersion;
   }
 }
 
