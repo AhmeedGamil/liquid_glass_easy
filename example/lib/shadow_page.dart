@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
-import 'app_settings.dart';
 
 // =============================================================
 // Shadow — the contact shadow that sets glass into the page.
@@ -91,7 +90,6 @@ class _ShadowPageState extends State<ShadowPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: LiquidGlassView(
-        batch: galleryBatch,
         backgroundWidget: const _NotesPage(),
         child: LayoutBuilder(
           builder: (BuildContext context, BoxConstraints c) {

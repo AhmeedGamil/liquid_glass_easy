@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-import 'app_settings.dart';
 
 // =============================================================
 // Social feed — a real-looking page for judging performance.
@@ -13,18 +12,19 @@ import 'app_settings.dart';
 // rail, a now-playing bar, a settings panel and a round button that morphs
 // into a menu. None of the glass scrolls.
 //
-// A batch puts the floating lenses on one shared backdrop read. Blur
-// (settings panel) sets every glass surface on the page, 0 to 20. A batch's members
-// must not overlap, so the pieces that would (the pill under the panel,
-// the now-playing bar under the open menu) step aside while the other is
-// showing.
+// A batch puts the floating lenses on one shared backdrop read. The
+// settings panel switches it off and on, and its Blur sets every glass
+// surface on the page, 0 to 20. A batch's members must not overlap, so
+// the pieces that would (the pill under the panel, the now-playing bar
+// under the open menu) step aside while the other is showing.
 //
 //   flutter run -t lib/social_feed.dart
 // =============================================================
 
 final ValueNotifier<bool> _dark = ValueNotifier<bool>(true);
 final ValueNotifier<bool> _overlay = ValueNotifier<bool>(false);
-final ValueNotifier<double> _blur = ValueNotifier<double>(6);
+final ValueNotifier<double> _blur = ValueNotifier<double>(3);
+final ValueNotifier<bool> _batch = ValueNotifier<bool>(true);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,7 +39,7 @@ class SocialFeedApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[_dark, _overlay]),
+      listenable: Listenable.merge(<Listenable>[_dark, _overlay, _batch]),
       builder: (context, _) => MaterialApp(
         debugShowCheckedModeBanner: false,
         title: 'Social Feed',
@@ -147,7 +147,7 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
     // The page carries its own theme and overlay, so the panel's switches
     // work the same from the gallery as standalone.
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[_dark, _overlay]),
+      listenable: Listenable.merge(<Listenable>[_dark, _overlay, _batch]),
       builder: (context, _) => Theme(
         data: _theme(_dark.value ? Brightness.dark : Brightness.light),
         child: Builder(builder: _page),
@@ -228,7 +228,7 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
       bottom: barBottom,
       // A batch over every floating lens.
       chrome: LiquidGlassBatch(
-        enabled: galleryBatch,
+        enabled: _batch.value,
         child: Stack(
           children: [
             Positioned(
@@ -341,7 +341,7 @@ class _FeedTabBar extends StatelessWidget {
     ).buildGlassPillBar(
       body: body,
       chromeChild: chrome,
-      batch: galleryBatch,
+      batch: _batch.value,
     );
   }
 }
@@ -644,6 +644,7 @@ class _SettingsPanel extends StatelessWidget {
                 ],
               ),
             ),
+            _switchRow(Icons.join_full_rounded, 'Batch', _batch, ink, label),
             _switchRow(Icons.speed_rounded, 'Performance overlay', _overlay,
                 ink, label),
             _switchRow(Icons.dark_mode_rounded, 'Dark mode', _dark, ink, label),

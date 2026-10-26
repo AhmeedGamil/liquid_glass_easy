@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-import 'app_settings.dart';
 
 // =============================================================
 // Batch — many lenses, one backdrop read.
@@ -56,6 +55,10 @@ class _BatchPageState extends State<BatchPage>
       '/main/blending.jpg';
 
   bool _batched = true;
+
+  /// How a card blurred by the engine shares the read; starts on the
+  /// app-wide `LiquidGlassConfiguration.batchMode`.
+  LiquidGlassBatchMode _mode = LiquidGlassConfiguration.batchMode;
   int _cardCount = 8;
 
   /// Drives the bob. One controller, every card reads it at its own phase.
@@ -175,12 +178,15 @@ class _BatchPageState extends State<BatchPage>
         elevation: 0,
       ),
       body: LiquidGlassView(
-        batch: galleryBatch,
         backgroundWidget: const _Background(url: _imageUrl),
         child: Stack(
           children: <Widget>[
             // The whole point: one wrapper, any number of lenses inside it.
-            LiquidGlassBatch(enabled: _batched && galleryBatch, child: cards),
+            LiquidGlassBatch(
+              enabled: _batched,
+              mode: _mode,
+              child: cards,
+            ),
             Positioned(left: 0, right: 0, top: 0, child: _panel()),
           ],
         ),
@@ -239,6 +245,19 @@ class _BatchPageState extends State<BatchPage>
                   on: _batched,
                   onTap: () => setState(() {
                     _batched = !_batched;
+                    _reset();
+                  }),
+                ),
+                const SizedBox(width: 6),
+                _Chip(
+                  label: _mode == LiquidGlassBatchMode.separatePass
+                      ? 'separate pass'
+                      : 'single pass',
+                  on: _mode == LiquidGlassBatchMode.separatePass,
+                  onTap: () => setState(() {
+                    _mode = _mode == LiquidGlassBatchMode.separatePass
+                        ? LiquidGlassBatchMode.singlePass
+                        : LiquidGlassBatchMode.separatePass;
                     _reset();
                   }),
                 ),

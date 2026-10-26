@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 import 'demo_kit.dart';
-import 'app_settings.dart';
 
 // =============================================================
 // Scroll Edge — LiquidGlassScrollEdge over a photo journal.
@@ -52,7 +51,6 @@ class _ScrollEdgePageState extends State<ScrollEdgePage> {
   Widget build(BuildContext context) {
     final EdgeInsets pad = MediaQuery.paddingOf(context);
     return LiquidGlassScaffold(
-      batch: galleryBatch,
       appBar: const DemoHeader(title: 'Scroll Edge'),
       body: const _Journal(),
       lenses: <Widget>[

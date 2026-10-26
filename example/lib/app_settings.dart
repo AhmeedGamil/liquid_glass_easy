@@ -71,14 +71,6 @@ final ValueNotifier<bool> separatePassBatch = ValueNotifier<bool>(true)
       ? LiquidGlassBatchMode.separatePass
       : LiquidGlassBatchMode.singlePass);
 
-/// Whether the gallery's views, scaffolds, batches, sheets and dialogs
-/// batch their glass at all. The Settings page flips it; a page reads it
-/// when it builds.
-final ValueNotifier<bool> galleryBatchEnabled = ValueNotifier<bool>(true);
-
-/// The `batch` flag every view, scaffold, sheet and dialog is given.
-bool get galleryBatch => galleryBatchEnabled.value;
-
 /// Whether a lens outside any batch blurs inside its shader instead of an
 /// engine blur pass; sets `LiquidGlassConfiguration.blurMethod`, which a lens reads
 /// when it builds.

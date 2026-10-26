@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-import 'app_settings.dart';
 
 // =============================================================
 // Lens reveal — the switch's first-tap stall, bisected.
@@ -279,7 +278,6 @@ class _LensRevealPageState extends State<LensRevealPage>
         fit: StackFit.expand,
         children: [
           LiquidGlassView(
-            batch: galleryBatch,
             realTimeCapture: _gateCapture ? _shown : true,
             backgroundWidget: _Background(
               phase: _liveBackground ? _bgPhase : 0,

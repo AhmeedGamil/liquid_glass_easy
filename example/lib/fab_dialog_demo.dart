@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-import 'app_settings.dart';
 
 /// Interactive showcase page for [LiquidGlassFab] and [LiquidGlassAlertDialog].
 ///
@@ -145,7 +144,6 @@ class _FabAndDialogDemoPageState extends State<FabAndDialogDemoPage> {
   @override
   Widget build(BuildContext context) {
     return LiquidGlassScaffold(
-      batch: galleryBatch,
       appBar: LiquidGlassAppBar(
         title: const Text('FAB & Dialog Showcase'),
         leading: IconButton(

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
-import 'app_settings.dart';
 
 /// Standalone entry point so this demo can be launched directly with:
 ///   flutter run -t lib/tab_bar_page.dart
@@ -160,7 +159,6 @@ class _TabBarPageState extends State<TabBarPage> {
     final double barWidth = (screen - _edge * 2).clamp(280.0, 560.0);
 
     return LiquidGlassScaffold(
-      batch: galleryBatch,
       pixelRatio: 1,
       useSync: true,
       body: _OnAirFeed(

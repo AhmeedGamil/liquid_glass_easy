@@ -20,8 +20,6 @@ import 'app_settings.dart';
 //     `LiquidGlassConfiguration.shapeCache`.
 //   • Separate-pass batch → app_settings.dart's `separatePassBatch`,
 //     which sets `LiquidGlassConfiguration.batchMode`; read when a page opens.
-//   • Batch → `galleryBatchEnabled`, the `batch` flag of every view,
-//     scaffold, batch, sheet and dialog; read when a page opens.
 //   • Shader blur → `LiquidGlassConfiguration.blurMethod` (lenses outside a
 //     batch); Batched shader blur → `.batchBlurMethod`. Read when a page
 //     opens.
@@ -160,18 +158,6 @@ class SettingsPage extends StatelessWidget {
                           : 'Single pass: engine blur composed into the shader',
                       value: value,
                       onChanged: (v) => separatePassBatch.value = v,
-                    ),
-                  ),
-                  ValueListenableBuilder<bool>(
-                    valueListenable: galleryBatchEnabled,
-                    builder: (context, value, _) => _SwitchRow(
-                      icon: Icons.join_full_rounded,
-                      label: 'Batch',
-                      detail: value
-                          ? 'Glass shares one backdrop read per batch'
-                          : 'Every glass takes its own read',
-                      value: value,
-                      onChanged: (v) => galleryBatchEnabled.value = v,
                     ),
                   ),
                 ],
