@@ -68,9 +68,8 @@ const float RIM_OUTLINE_INSET   = 0.167;
 // Fixed shaping values with no uniform of their own.
 const float RIM_WEIGHT_GAIN        = 6.0;       // weight scale of both layers
 const float RIM_GLOW_SHIFT         = 0.0;       // shift on the glow's ramp
-// Share of the tint's alpha the rim colours take; the body mixes the tint
-// at full alpha, so the rim stays lighter than the body.
-const float RIM_TINT_SHARE = 0.625;
+// Share of the tint's alpha the rim colours take: all of it, as the body.
+const float RIM_TINT_SHARE = 1.0;
 
 // A light's arc power: spread 0 focuses the arcs on the light's axis; 1
 // flattens the power so they wrap the perimeter.
