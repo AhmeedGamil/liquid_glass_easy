@@ -42,12 +42,12 @@ class LiquidGlassConfiguration {
   /// Where a lens in a batch blurs, for every `LiquidGlassBatch` that leaves
   /// its `blurMethod` `null`.
   ///
-  /// [LiquidGlassBlurMethod.shader] (the default) keeps every member on the
-  /// batch's single read with no pass of its own. With
-  /// [LiquidGlassBlurMethod.engine], [batchMode] decides how the engine blur
-  /// shares that read. A lens is in a batch when it joins the batch's shared
-  /// key, which is Impeller only. Read when a lens builds.
-  static LiquidGlassBlurMethod batchBlurMethod = LiquidGlassBlurMethod.shader;
+  /// [LiquidGlassBlurMethod.engine] (the default) blurs with the engine's
+  /// Gaussian, and [batchMode] decides how that blur shares the batch's read.
+  /// [LiquidGlassBlurMethod.shader] keeps every member on the batch's single
+  /// read with no pass of its own. A lens is in a batch when it joins the
+  /// batch's shared key, which is Impeller only. Read when a lens builds.
+  static LiquidGlassBlurMethod batchBlurMethod = LiquidGlassBlurMethod.engine;
 
   /// How a batch shares its read, for every `LiquidGlassBatch` that leaves
   /// its `mode` `null`. [LiquidGlassBatchMode.separatePass] by default. Read
