@@ -332,7 +332,12 @@ class _FeedTabBar extends StatelessWidget {
       height: height,
       margin: EdgeInsets.only(bottom: bottom),
       itemPadding: 4,
-      style: LiquidGlassTabBar.defaultStyle.copyWith(blur: blur),
+      style: LiquidGlassTabBar.defaultStyle.copyWith(
+        shape: const LiquidGlassShape.continuousRoundedRectangle(
+          cornerRadius: height / 2,
+        ),
+        blur: blur,
+      ),
       pillStyle: const LiquidGlassTabPillStyle(mode: LiquidGlassPillMode.both),
       itemStyle: LiquidGlassTabItemStyle(
         selectedColor: const Color(0xFF0A84FF),
