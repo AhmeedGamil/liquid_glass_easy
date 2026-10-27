@@ -12,6 +12,11 @@
   The full guide, the API reference, and every component running as real liquid glass in your browser — press it, drag it, scroll under it.
 </p>
 
+<p align="center">
+  <strong>⚡ <a href="https://ahmeedgamil.github.io/liquid_glass_easy/en/efficiency.html">Performance guide</a></strong><br/>
+  How to keep glass fast: floating chrome, batching, and how much blur — read it before you ship.
+</p>
+
 **A Flutter package that brings Apple's iOS-style Liquid Glass to your app with real-time, interactive lenses.**
 These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract** the content behind them — recreating the iOS 26 Liquid Glass look with stunning, glass-like effects that respond fluidly to **movement** and **touch**.
 
@@ -56,7 +61,8 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Morph** | `LiquidGlassMorph` | Glass that fits whatever you put in it: swap the child and the surface flows to the new size, as two blobs of one liquid with a neck between them. Motion is a preset. |
 | **Lite** | `LiquidGlassLite`, `LiquidGlassEngine`, `LiquidGlassStyle.liteGlass` | The material without the shader: frost, tint and a lit rim, no refraction. Flip one lens, or the whole app per engine — nothing to compile, no capture on Skia, no slot in the lens budget. |
 | **Shadow** | `LiquidGlassShadow` | The contact shadow that sets glass *into* the page: a soft ring hugging the rim and pooling beneath, multiplied over whatever is under it. Authored on the style's `shadow`, where the lens wraps itself in it; usable on its own around anything. |
-| **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). |
+| **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). `LiquidGlassBatchMode` picks how an engine-blurred member shares the read: `separatePass` (the default) or `singlePass`. |
+| **Configuration** | `LiquidGlassConfiguration`, `LiquidGlassBlurMethod` | Package-wide settings. Where glass blurs (the engine's Gaussian, or the lens's own shader, which costs no extra read), in a batch and out of one; how a batch shares its read; the shape cache, which bakes a lens's outline once while it only moves; and app-wide blur and dispersion overrides. |
 | **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
 | **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
@@ -126,7 +132,7 @@ drawn, not what the tree around it does:
 | `touch`, `adaptivity`, the style's `shadow`, `LiquidGlassScrollEdge` | Work. The adaptive sampler is not a glass capture and keeps running. |
 | `LiquidGlassMorph` | Runs as `plain`: one lens, one spring, no second blob. |
 | `LiquidGlassBlender` | Does not blend — every member paints solo as its own lite surface. |
-| `LiquidGlassBatch` | Inert — there is no shader pass to share. |
+| `LiquidGlassBatch` | On Impeller the frost reads the batch's copy, like any member. On Skia it is inert. |
 | `refraction` | Gone, except `magnification`, which survives as a flat zoom in the frost. |
 
 ---
@@ -398,7 +404,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^5.0.0
+  liquid_glass_easy: ^5.1.0
 ```
 
 ```bash
@@ -902,7 +908,8 @@ alignment: LiquidGlassMorph.alignmentFor(cardRect, pageRect),
 **Motion** is a preset:
 
 ```dart
-motion: LiquidGlassMorphMotion.fluid        // the default: leaps and drags a neck
+motion: LiquidGlassMorphMotion.plain        // the default: one lens, one spring, no neck
+motion: LiquidGlassMorphMotion.fluid        // leaps and drags a neck
 motion: LiquidGlassMorphMotion.anchoredPop  // pops open from the corner that holds
 motion: LiquidGlassMorphMotion.droplet      // born small, leaps hard, long neck
 motion: LiquidGlassMorphMotion.calm         // no bounce, for sheets and large cards
@@ -1010,9 +1017,9 @@ selection pill** when it's driven by a `LiquidGlassScaffold`, which owns the
 capture pipeline and hands the bar the page as its background.
 
 The same bar also works **on its own** — no `LiquidGlassScaffold` and no
-`body` to pass. With no host above it, it fills its parent and places itself
-from `alignment` and `margin`, and on Impeller the bar and its morph pill
-sample the live backdrop. Drop it as the last child of a `Stack` over your
+`body` to pass — or inside any `LiquidGlassView`. It fills its parent and
+places itself from `alignment` and `margin`, and on Impeller the bar and its
+morph pill sample the live backdrop. Drop it as the last child of a `Stack` over your
 page:
 
 ```dart
@@ -1082,6 +1089,14 @@ await viewController.captureOnce();
 ## License
 
 **MIT License**
+
+---
+
+## Acknowledgements
+
+The shape cache, which bakes a lens's outline into a texture once and reads it
+back, takes its approach from liquid_glass_renderer by Tim Lehmann
+(whynotmake.it).
 
 ---
 
