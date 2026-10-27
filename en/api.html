@@ -47,7 +47,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="eyebrow">LIQUID GLASS EASY</span>
         <span class="name">Documentation</span>
       </span>
-      <span class="ver">v5.0.0</span>
+      <span class="ver">v5.1.0</span>
     </a>
     <nav aria-label="Documentation sidebar"><div class="nav-group"><div class="nav-title">Basics</div><ul class="nav"><li><a href="start.html">Getting started</a></li></ul></div><div class="nav-group"><div class="nav-title">Engines and the view</div><ul class="nav"><li><a href="engines.html">Engines and the view</a></li></ul></div><div class="nav-group"><div class="nav-title">The material</div><ul class="nav"><li><a href="lens.html">The lens and its style</a></li><li><a href="lite.html">Lite glass</a></li><li><a href="batch.html">Batch</a></li><li><a href="blend.html">Blend</a></li><li><a href="group.html">Group</a></li><li><a href="touch.html">Touch</a></li><li><a href="adaptivity.html">Adaptivity</a></li><li><a href="morph.html">Morph</a></li></ul></div><div class="nav-group"><div class="nav-title">Components</div><ul class="nav"><li><a href="components.html">Components</a><ul class="sub"><li><a href="slider.html">Slider</a></li><li><a href="toggle.html">Switch</a></li><li><a href="button.html">Button</a></li><li><a href="fab.html">Floating action button</a></li><li><a href="appbar.html">App bar</a></li><li><a href="tabbar.html">Tab bar</a></li><li><a href="scaffold.html">Scaffold</a></li><li><a href="scrolledge.html">Scroll edge</a></li><li><a href="motion.html">Motion</a></li><li><a href="draggable.html">Draggable</a></li><li><a href="shadow.html">Shadow</a></li><li><a href="sheet.html">Sheets</a></li><li><a href="dialog.html">Dialogs</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">Craft</div><ul class="nav"><li><a href="efficiency.html">Using it efficiently</a></li></ul></div><div class="nav-group"><div class="nav-title">API reference</div><ul class="nav"><li><a href="api.html" aria-current="page">API reference</a></li><li><a href="api-view.html">The view</a></li><li><a href="api-lens.html">The lens and its style</a></li><li><a href="api-grouping.html">Combining lenses</a></li><li><a href="api-touch.html">Touch and motion</a></li><li><a href="api-adaptivity.html">Adaptivity and legibility</a></li><li><a href="api-components.html">Components</a></li><li><a href="api-chrome.html">App chrome</a></li><li><a href="api-shape-helpers.html">Shape helpers</a></li></ul></div></nav>
     <div class="nav-foot">
@@ -63,13 +63,15 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <p class="tagline">Every public type the package exports, with its parameters and defaults.</p>
 <aside class="note"><span class="label">NOTE</span><p>This section is generated from the package source on every build: every type below is a real export, and every default is the one the code compiles with.</p></aside>
 <h2 id="api-view">The view<a class="anchor" href="#api-view" aria-label="Link to this section">#</a></h2>
-<p>The capture pipeline the Skia and web backends need, and its controllers.</p>
+<p>The capture pipeline the Skia and web backends need, its controllers, and the package-wide settings.</p>
 <div class="api-index">
 <a class="api-chip" href="api-view.html#liquidglassview"><span class="k k-klass">class</span><code>LiquidGlassView</code></a>
 <a class="api-chip" href="api-view.html#liquidglassviewcontroller"><span class="k k-klass">class</span><code>LiquidGlassViewController</code></a>
 <a class="api-chip" href="api-view.html#liquidglasscontroller"><span class="k k-klass">class</span><code>LiquidGlassController</code></a>
 <a class="api-chip" href="api-view.html#liquidglassshaders"><span class="k k-klass">class</span><code>LiquidGlassShaders</code></a>
 <a class="api-chip" href="api-view.html#liquidglassengine"><span class="k k-klass">class</span><code>LiquidGlassEngine</code></a>
+<a class="api-chip" href="api-view.html#liquidglassconfiguration"><span class="k k-klass">class</span><code>LiquidGlassConfiguration</code></a>
+<a class="api-chip" href="api-view.html#liquidglassblurmethod"><span class="k k-enumeration">enum</span><code>LiquidGlassBlurMethod</code></a>
 <a class="api-chip" href="api-view.html#liquidglassrefreshrate"><span class="k k-enumeration">enum</span><code>LiquidGlassRefreshRate</code></a>
 <a class="api-chip" href="api-view.html#liquidglassposition"><span class="k k-klass">class</span><code>LiquidGlassPosition</code></a>
 <a class="api-chip" href="api-view.html#liquidglassoffsetposition"><span class="k k-klass">class</span><code>LiquidGlassOffsetPosition</code></a>
@@ -92,6 +94,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <div class="api-index">
 <a class="api-chip" href="api-grouping.html#liquidglassgroup"><span class="k k-klass">class</span><code>LiquidGlassGroup</code></a>
 <a class="api-chip" href="api-grouping.html#liquidglassbatch"><span class="k k-klass">class</span><code>LiquidGlassBatch</code></a>
+<a class="api-chip" href="api-grouping.html#liquidglassbatchmode"><span class="k k-enumeration">enum</span><code>LiquidGlassBatchMode</code></a>
 <a class="api-chip" href="api-grouping.html#liquidglassblender"><span class="k k-klass">class</span><code>LiquidGlassBlender</code></a>
 </div>
 <h2 id="api-touch">Touch and motion<a class="anchor" href="#api-touch" aria-label="Link to this section">#</a></h2>

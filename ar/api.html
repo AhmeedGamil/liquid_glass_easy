@@ -47,7 +47,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
         <span class="eyebrow">LIQUID GLASS EASY</span>
         <span class="name">التوثيق</span>
       </span>
-      <span class="ver">v5.0.0</span>
+      <span class="ver">v5.1.0</span>
     </a>
     <nav aria-label="شريط التوثيق الجانبي"><div class="nav-group"><div class="nav-title">الأساسيات</div><ul class="nav"><li><a href="start.html">البداية</a></li></ul></div><div class="nav-group"><div class="nav-title">المحركات والعارض</div><ul class="nav"><li><a href="engines.html">المحركات والعارض</a></li></ul></div><div class="nav-group"><div class="nav-title">المادة</div><ul class="nav"><li><a href="lens.html">العدسة وأسلوبها</a></li><li><a href="lite.html">الزجاج الخفيف</a></li><li><a href="batch.html">الدفعة</a></li><li><a href="blend.html">الانصهار</a></li><li><a href="group.html">المجموعة</a></li><li><a href="touch.html">اللمس</a></li><li><a href="adaptivity.html">التكيّف</a></li><li><a href="morph.html">التحوّل</a></li></ul></div><div class="nav-group"><div class="nav-title">المكوّنات</div><ul class="nav"><li><a href="components.html">المكوّنات</a><ul class="sub"><li><a href="slider.html">المزلاج</a></li><li><a href="toggle.html">المفتاح</a></li><li><a href="button.html">الزر</a></li><li><a href="fab.html">زر الإجراء العائم</a></li><li><a href="appbar.html">الشريط العلوي</a></li><li><a href="tabbar.html">شريط التبويبات</a></li><li><a href="scaffold.html">الهيكل</a></li><li><a href="scrolledge.html">حافة التمرير</a></li><li><a href="motion.html">الحركة</a></li><li><a href="draggable.html">القابل للسحب</a></li><li><a href="shadow.html">الظل</a></li><li><a href="sheet.html">الأوراق</a></li><li><a href="dialog.html">الحوارات</a></li></ul></li></ul></div><div class="nav-group"><div class="nav-title">الإتقان</div><ul class="nav"><li><a href="efficiency.html">الاستخدام الكفء</a></li></ul></div><div class="nav-group"><div class="nav-title">مرجع الواجهة</div><ul class="nav"><li><a href="api.html" aria-current="page">مرجع الواجهة البرمجية</a></li><li><a href="api-view.html">العارض</a></li><li><a href="api-lens.html">العدسة وأسلوبها</a></li><li><a href="api-grouping.html">دمج العدسات</a></li><li><a href="api-touch.html">اللمس والحركة</a></li><li><a href="api-adaptivity.html">التكيّف والوضوح</a></li><li><a href="api-components.html">المكوّنات</a></li><li><a href="api-chrome.html">هيكل التطبيق</a></li><li><a href="api-shape-helpers.html">دوال الأشكال</a></li></ul></div></nav>
     <div class="nav-foot">
@@ -63,13 +63,15 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <p class="tagline">كل نوع عام تصدّره الحزمة، بمعاملاته وقيمه الافتراضية.</p>
 <aside class="note"><span class="label">ملاحظة</span><p>يُولَّد هذا القسم من شيفرة الحزمة في كل بناء: كل نوع هنا تصدير حقيقي، وكل قيمة افتراضية هي ما تُترجَم به الشيفرة فعلاً.</p></aside>
 <h2 id="api-view">العارض<a class="anchor" href="#api-view" aria-label="Link to this section">#</a></h2>
-<p>خط الالتقاط الذي تحتاجه واجهتا Skia والويب، ومتحكماته.</p>
+<p>خط الالتقاط الذي تحتاجه واجهتا Skia والويب، ومتحكماته، والإعدادات العامة للحزمة.</p>
 <div class="api-index">
 <a class="api-chip" href="api-view.html#liquidglassview"><span class="k k-klass">صنف</span><code>LiquidGlassView</code></a>
 <a class="api-chip" href="api-view.html#liquidglassviewcontroller"><span class="k k-klass">صنف</span><code>LiquidGlassViewController</code></a>
 <a class="api-chip" href="api-view.html#liquidglasscontroller"><span class="k k-klass">صنف</span><code>LiquidGlassController</code></a>
 <a class="api-chip" href="api-view.html#liquidglassshaders"><span class="k k-klass">صنف</span><code>LiquidGlassShaders</code></a>
 <a class="api-chip" href="api-view.html#liquidglassengine"><span class="k k-klass">صنف</span><code>LiquidGlassEngine</code></a>
+<a class="api-chip" href="api-view.html#liquidglassconfiguration"><span class="k k-klass">صنف</span><code>LiquidGlassConfiguration</code></a>
+<a class="api-chip" href="api-view.html#liquidglassblurmethod"><span class="k k-enumeration">تعداد</span><code>LiquidGlassBlurMethod</code></a>
 <a class="api-chip" href="api-view.html#liquidglassrefreshrate"><span class="k k-enumeration">تعداد</span><code>LiquidGlassRefreshRate</code></a>
 <a class="api-chip" href="api-view.html#liquidglassposition"><span class="k k-klass">صنف</span><code>LiquidGlassPosition</code></a>
 <a class="api-chip" href="api-view.html#liquidglassoffsetposition"><span class="k k-klass">صنف</span><code>LiquidGlassOffsetPosition</code></a>
@@ -92,6 +94,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
 <div class="api-index">
 <a class="api-chip" href="api-grouping.html#liquidglassgroup"><span class="k k-klass">صنف</span><code>LiquidGlassGroup</code></a>
 <a class="api-chip" href="api-grouping.html#liquidglassbatch"><span class="k k-klass">صنف</span><code>LiquidGlassBatch</code></a>
+<a class="api-chip" href="api-grouping.html#liquidglassbatchmode"><span class="k k-enumeration">تعداد</span><code>LiquidGlassBatchMode</code></a>
 <a class="api-chip" href="api-grouping.html#liquidglassblender"><span class="k k-klass">صنف</span><code>LiquidGlassBlender</code></a>
 </div>
 <h2 id="api-touch">اللمس والحركة<a class="anchor" href="#api-touch" aria-label="Link to this section">#</a></h2>
