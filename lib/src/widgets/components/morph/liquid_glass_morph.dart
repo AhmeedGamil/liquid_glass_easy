@@ -12,6 +12,8 @@ import '../../liquid_glass_style.dart';
 import '../../utils/liquid_glass_adaptivity.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../../utils/liquid_glass_spring.dart';
+import '../../utils/liquid_glass_touch.dart';
+import '../liquid_glass_shadow.dart';
 import 'liquid_glass_morph_motion.dart';
 
 /// One scalar chasing a target through the package's spring integrator.
@@ -232,6 +234,17 @@ class _Blob {
 /// does. And the material thickens as the glass grows — more blur, deeper
 /// refraction — the way Apple's does when a menu opens from a button.
 ///
+/// ## Shared elements
+///
+/// Something that exists in BOTH children — the selected tab's icon in a bar
+/// and in the circle it folds into, the artwork on a pill and on the card it
+/// opens into — should not blur out in one place and in at another. Wrap it
+/// in a [LiquidGlassMorphShared] with the same `tag` on both sides and the
+/// morph matches the two: the originals hide for the swap and one opaque
+/// copy travels from the old one's rect to the new one's on the motion's own
+/// spring, scaling between their sizes, and hands over to the new original
+/// once it has landed. Apple's matched geometry, inside the glass.
+///
 /// ## Layout, and why [alignment] matters
 ///
 /// This widget **fills the box it is given** and places the glass inside that
@@ -254,7 +267,9 @@ class _Blob {
 /// its own rect implies.
 ///
 /// Under unbounded constraints there is no box to anchor inside, so the widget
-/// shrinks to the glass and [alignment] stops mattering.
+/// is the glass itself, frame by frame, and [alignment] stops mattering: in a
+/// `Row` the glass grows and shrinks from whichever edge the row holds, and
+/// its neighbours move with it.
 class LiquidGlassMorph extends StatefulWidget {
   const LiquidGlassMorph({
     super.key,
@@ -265,11 +280,14 @@ class LiquidGlassMorph extends StatefulWidget {
     this.style = const LiquidGlassStyle(),
     this.smoothness = 40,
     this.onEnd,
+    this.opacity = 1,
+    this.touch,
     this.debugClipBounds = false,
     this.child,
   })  : assert(width == null || width >= 0),
         assert(height == null || height >= 0),
         assert(smoothness >= 0),
+        assert(opacity >= 0 && opacity <= 1),
         assert(
             child != null || (width != null && height != null),
             'With no child there is nothing to measure, so both width and '
@@ -311,6 +329,20 @@ class LiquidGlassMorph extends StatefulWidget {
 
   /// Called once the springs settle, the way `AnimatedContainer.onEnd` is.
   final VoidCallback? onEnd;
+
+  /// How much of the morph is drawn, from `0` to `1` (the default): the
+  /// glass by `LiquidGlassLens.opacity` (it keeps refracting as it fades,
+  /// which an `Opacity` around it would stop), its blur and shadow by the
+  /// same amount, and the content with it.
+  final double opacity;
+
+  /// How the glass answers a finger, as `LiquidGlassLens.touch`: with a
+  /// flex it deforms under a press and a drag while it morphs. The blended
+  /// motions hand it to the destination blob, the one that stays.
+  ///
+  /// Inside a [LiquidGlassBlender] the deformed glass is a member like any
+  /// other, so a morph stretched toward a neighbour fuses with it.
+  final LiquidGlassTouch? touch;
 
   /// Debug: outline the blender's backdrop clip region in magenta.
   ///
@@ -389,6 +421,32 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
 
   /// The old child, kept only while the swap is playing.
   Widget? _srcChild;
+
+  /// Every [LiquidGlassMorphShared] that has reported, by the child it sits
+  /// in and its tag: the rect inside that child's content, and the widget
+  /// to fly. An old child's entries outlive its build, since a flight still
+  /// needs to know where it left from.
+  final Map<Key, Map<Object, _SharedEntry>> _shared =
+      <Key, Map<Object, _SharedEntry>>{};
+
+  /// The copies in flight, by tag: each a blob of content on the motion's
+  /// spring, from where the old original sat to where the new one sits.
+  final Map<Object, _Blob> _flights = <Object, _Blob>{};
+
+  /// The tags flying this frame, handed to both children's scopes so their
+  /// originals hide while the copy travels.
+  Set<Object> _inFlight = const <Object>{};
+
+  /// A [LiquidGlassMorphShared] inside child [childKey] says where it sits
+  /// and what it holds.
+  void _shareReport(Key childKey, Object tag, Rect rect, Widget child) {
+    if (!mounted) return;
+    final Map<Object, _SharedEntry> m =
+        _shared.putIfAbsent(childKey, () => <Object, _SharedEntry>{});
+    final _SharedEntry? was = m[tag];
+    m[tag] = _SharedEntry(rect, child);
+    if (was == null || was.rect != rect) setState(() {});
+  }
 
   /// What the current child reported. Null until the first measurement lands,
   /// which is one frame after mount.
@@ -711,6 +769,12 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       // The old child keeps showing — in the source blob — until the new
       // one has been measured and the morph is under way.
       _srcChild = old.child;
+      // Shared elements are remembered per child, and only this swap's two
+      // children matter now. A flight already in the air carries on and is
+      // simply re-aimed, so a reversal flies the copy back.
+      final Key leaving = _keyOf(old.child);
+      final Key arriving = _keyOf(widget.child);
+      _shared.removeWhere((Key k, _) => k != leaving && k != arriving);
       // A new child needs measuring before there is anything to aim at; the
       // report lands next frame and retargets then.
       if (widget.width != null && widget.height != null) {
@@ -746,10 +810,21 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     _src.step(dt, _m.stiffness, _m.damping);
     _dst.step(dt, _m.stiffness, _m.damping);
     _elapsed += dt;
+    for (final _Blob f in _flights.values) {
+      f.step(dt, _m.stiffness, _m.damping);
+    }
+    // A flight ends once it has landed AND the new original is fully there
+    // to take over; before that the hand-over would show the original
+    // still fading in.
+    final double landed = math.min(_a.contentInEnd, 1.0);
+    _flights.removeWhere((_, _Blob f) => !f.moving && _t >= landed);
 
     // The content swap can outlast the springs on a calm motion, so the
-    // ticker runs until both are done.
-    if (_src.moving || _dst.moving || _elapsed < _m.duration) {
+    // ticker runs until both are done, and the flights with them.
+    if (_src.moving ||
+        _dst.moving ||
+        _elapsed < _m.duration ||
+        _flights.isNotEmpty) {
       setState(() {});
       return;
     }
@@ -796,24 +871,60 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     final LiquidGlassMorphAdvanced a = _a;
     final double f = _thickness;
     final LiquidGlassStyle s = widget.style;
-    if (f <= 0 || (a.thickenBlur <= 0 && a.thickenRefraction <= 0)) return s;
+    if (f <= 0 || (a.thickenBlur <= 0 && a.thickenRefraction <= 0)) {
+      return _faded(s);
+    }
 
     final double bm = 1 + a.thickenBlur * f;
     final double rm =
         a.thickenRefraction > 0 ? 1 + a.thickenRefraction * f : 1.0;
-    return s.copyWith(
+    return _faded(s.copyWith(
       blur: s.blur * bm,
       refractionIndex: 1.0 + (s.refractionIndex - 1.0) * rm,
       refractionWidth: s.refractionWidth * rm,
+    ));
+  }
+
+  /// [s] at the morph's opacity. The engine's blur and the shadow are drawn
+  /// apart from the shader, so they fade here, as values; the shader's own
+  /// output fades in the lens.
+  LiquidGlassStyle _faded(LiquidGlassStyle s) {
+    final double o = widget.opacity;
+    if (o >= 1) return s;
+    final LiquidGlassShadow? shadow = s.shadow;
+    return s.copyWith(
+      blur: s.blur * o,
+      shadow: shadow == null
+          ? null
+          : LiquidGlassShadow(
+              blur: shadow.blur,
+              opacity: shadow.opacity * o,
+              color: shadow.color,
+              offset: shadow.offset,
+              cornerRadius: shadow.cornerRadius,
+              scale: shadow.scale,
+              inset: shadow.inset,
+              visible: shadow.visible,
+              insideGlass: shadow.insideGlass,
+            ),
     );
+  }
+
+  /// [child] at the morph's opacity: content sits on the glass, so a plain
+  /// `Opacity` is right for it.
+  Widget? _fadedContent(Widget? child) {
+    final double o = widget.opacity;
+    if (child == null || o >= 1) return child;
+    return Opacity(opacity: o, child: child);
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints c) {
-        // Unbounded means there is no box to anchor inside, so the widget
-        // shrinks to the glass and the alignment has nothing to act on.
+        // Unbounded means there is no box to anchor inside: the glass is laid
+        // out in a field of its target size, and the widget reports the
+        // glass's own extent each frame (see _framed).
         final Size glassSize = _targetSize ?? Size.zero;
         final Size field = Size(
           c.hasBoundedWidth ? c.maxWidth : glassSize.width,
@@ -844,14 +955,23 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
         // bulges past it. So the blender is bigger than the field by a
         // margin, and the blobs are shifted into it.
         final Offset shift = Offset(_overflow, _overflow);
+        // The old child sits in the source blob, the new one in the
+        // destination — or both in the one lens when there is no blending.
+        final Rect srcBlob = _m.blended ? srcRect : dstRect;
+        _updateFlights(
+          srcOrigin: _contentOrigin(srcBlob, _srcPin),
+          dstOrigin: _contentOrigin(dstRect, _target),
+        );
+        _inFlight = Set<Object>.of(_flights.keys);
 
         if (!_m.blended) {
           // One lens at the travelling outline, both children inside it:
           // the new one pinned to where the glass is going, the old one to
-          // where it came from, each clipped by the outline as it passes.
+          // where it came from, each clipped by the outline as it passes;
+          // a shared element flies between them inside the glass.
           final Widget? incoming = _dstContent(c, dstRect, t);
           final Widget? outgoing = _srcContent(c, dstRect, t);
-          return SizedBox.fromSize(
+          return _framed(c, field, dstRect, SizedBox.fromSize(
             size: field,
             child: Opacity(
               opacity: _seeded ? 1 : 0,
@@ -864,23 +984,30 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
                       style: _material().copyWith(
                         shape: _shapeFor(_dst, dstRect),
                       ),
-                      child: Stack(
+                      opacity: widget.opacity,
+                      touch: widget.touch,
+                      child: _fadedContent(Stack(
                         fit: StackFit.expand,
                         clipBehavior: Clip.none,
                         children: <Widget>[
                           if (incoming != null) incoming,
                           if (outgoing != null) outgoing,
+                          ..._flightWidgets(-dstRect.topLeft),
                         ],
-                      ),
+                      )),
                     ),
                   ),
                 ],
               ),
             ),
-          );
+          ));
         }
 
-        return SizedBox.fromSize(
+        // The old blob counts while it is still there to see.
+        final Rect extent = srcRect.width > 1 && srcRect.height > 1
+            ? dstRect.expandToInclude(srcRect)
+            : dstRect;
+        return _framed(c, field, extent, SizedBox.fromSize(
           size: field,
           child: Opacity(
             // Not painted until the first measurement lands, one frame after
@@ -898,6 +1025,8 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
                   child: LiquidGlassBlender(
                     style: _material(),
                     smoothness: _smoothness,
+                    // No group opacity: each blob carries the morph's own,
+                    // and the blender multiplies the two.
                     debugClipBounds: widget.debugClipBounds,
                     // Both blobs opt OUT of adaptivity, and that is load
                     // bearing. A lens with a verdict of its own publishes
@@ -922,7 +1051,12 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
                               shape: _shapeFor(_dst, dstRect),
                               adaptivity: LiquidGlassAdaptivity.none,
                             ),
-                            child: _dstContent(c, dstRect, t),
+                            // The merged pass draws each blob at its own
+                            // opacity, as does a lens of its own when the
+                            // blobs cannot blend.
+                            opacity: widget.opacity,
+                            touch: widget.touch,
+                            child: _fadedContent(_dstContent(c, dstRect, t)),
                           ),
                         ),
                         // The source blob, on top: the old child, in the
@@ -934,9 +1068,13 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
                               shape: _shapeFor(_src, srcRect),
                               adaptivity: LiquidGlassAdaptivity.none,
                             ),
-                            child: _srcContent(c, srcRect, t),
+                            opacity: widget.opacity,
+                            child: _fadedContent(_srcContent(c, srcRect, t)),
                           ),
                         ),
+                        // Shared elements fly over both blobs: no one lens
+                        // holds both ends of their travel.
+                        ..._flightWidgets(shift, fade: true),
                       ],
                     ),
                   ),
@@ -944,10 +1082,123 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
+
+  /// [content], laid out in [field], as this morph's box. On an axis with
+  /// no bound the box is the glass's own [extent] this frame, with [content]
+  /// drawn from its edge, so whatever places the morph places the glass: it
+  /// grows and shrinks from the edge its parent holds, and the parent's
+  /// other children move with it, instead of the box jumping to the new
+  /// size while the glass spills past it.
+  Widget _framed(BoxConstraints c, Size field, Rect extent, Widget content) {
+    final bool freeWidth = !c.hasBoundedWidth;
+    final bool freeHeight = !c.hasBoundedHeight;
+    if (!freeWidth && !freeHeight) return content;
+    return SizedBox(
+      width: freeWidth ? extent.width : field.width,
+      height: freeHeight ? extent.height : field.height,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: <Widget>[
+          Positioned(
+            left: freeWidth ? -extent.left : 0,
+            top: freeHeight ? -extent.top : 0,
+            width: field.width,
+            height: field.height,
+            child: content,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Where a child's top-left sits in FIELD coordinates, drawn in [blob]
+  /// with [pin] as the rect it was given: pinned there, or riding centred
+  /// in the blob, by `contentFollow`. The same arithmetic as the content's
+  /// own offset, without the slide.
+  Offset _contentOrigin(Rect blob, Rect pin) {
+    final Offset riding = blob.topLeft +
+        Offset(
+          (blob.width - pin.width) / 2,
+          (blob.height - pin.height) / 2,
+        );
+    return Offset.lerp(pin.topLeft, riding, _a.contentFollow)!;
+  }
+
+  /// Starts, re-aims and drops the flights for this frame. A tag reported
+  /// on both sides of a swap that is still young gets a copy, snapped to
+  /// the old original's rect and aimed at the new one's; a flight already
+  /// in the air is only re-aimed, so it follows a moving target and flies
+  /// back on a reversal. Tags no longer on both sides are dropped.
+  void _updateFlights({required Offset srcOrigin, required Offset dstOrigin}) {
+    final Widget? src = _srcChild;
+    final Widget? dst = widget.child;
+    final Map<Object, _SharedEntry>? a =
+        src == null ? null : _shared[_keyOf(src)];
+    final Map<Object, _SharedEntry>? b =
+        dst == null ? null : _shared[_keyOf(dst)];
+    if (a == null || b == null) {
+      _flights.clear();
+      return;
+    }
+    _flights.removeWhere((Object tag, _) => a[tag] == null || b[tag] == null);
+    final bool young = _elapsed < _m.duration;
+    for (final MapEntry<Object, _SharedEntry> e in b.entries) {
+      final _SharedEntry? from = a[e.key];
+      if (from == null) continue;
+      _Blob? f = _flights[e.key];
+      if (f == null) {
+        if (!young) continue;
+        f = _Blob()..snapTo(from.rect.shift(srcOrigin));
+        _flights[e.key] = f;
+        _wake();
+      }
+      f.aim(e.value.rect.shift(dstOrigin));
+    }
+  }
+
+  /// One opaque copy per flight — the new side's widget at its own size,
+  /// fitted into the travelling rect — positioned in a space that is the
+  /// field shifted by [shift]. [fade] puts them at the morph's opacity, for
+  /// where no faded content holds them.
+  List<Widget> _flightWidgets(Offset shift, {bool fade = false}) {
+    final Widget? dst = widget.child;
+    if (_flights.isEmpty || dst == null) return const <Widget>[];
+    final Map<Object, _SharedEntry>? b = _shared[_keyOf(dst)];
+    if (b == null) return const <Widget>[];
+    return <Widget>[
+      for (final MapEntry<Object, _Blob> e in _flights.entries)
+        if (b[e.key] != null)
+          Positioned.fromRect(
+            rect: e.value.rect.shift(shift),
+            child: IgnorePointer(
+              child: FittedBox(
+                fit: BoxFit.contain,
+                child: SizedBox.fromSize(
+                  size: b[e.key]!.rect.size,
+                  child:
+                      fade ? _fadedContent(b[e.key]!.child) : b[e.key]!.child,
+                ),
+              ),
+            ),
+          ),
+    ];
+  }
+
+  /// A child's content root: the box a [LiquidGlassMorphShared] inside it
+  /// measures itself against, and the scope that tells it which tags are
+  /// in flight.
+  Widget _root(Key key, Widget child) => _MorphContentRoot(
+        child: _MorphContentScope(
+          state: this,
+          childKey: key,
+          inFlight: _inFlight,
+          child: child,
+        ),
+      );
 
   /// The blob's shape at its current size. A blob with no shape is a
   /// capsule, so its radius is half its short side this frame; a blob with
@@ -989,7 +1240,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       offset: Offset.lerp(pinned, riding, a.contentFollow)! + slide,
       onMeasured: (Size s) => _onMeasured(_keyOf(child), s),
       child: _materialise(
-        child,
+        _root(_keyOf(child), child),
         opacity: k,
         scale: ui.lerpDouble(a.newScaleFrom, 1, k)!,
         blur: a.contentBlur * (1 - k),
@@ -1021,7 +1272,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       offset: Offset.lerp(pinned, riding, a.contentFollow),
       onMeasured: null,
       child: _materialise(
-        child,
+        _root(_keyOf(child), child),
         opacity: 1 - k,
         scale: ui.lerpDouble(1, a.oldScaleTo, k)!,
         blur: a.contentBlur * k,
@@ -1147,5 +1398,158 @@ class _RenderMorphMeasure extends RenderShiftedBox {
       // Reporting from inside layout would mean a setState during layout.
       SchedulerBinding.instance.addPostFrameCallback((_) => report(natural));
     }
+  }
+}
+
+/// One [LiquidGlassMorphShared]'s report: where it sits inside its child's
+/// content, and what to fly.
+class _SharedEntry {
+  const _SharedEntry(this.rect, this.child);
+
+  final Rect rect;
+  final Widget child;
+}
+
+/// The box a child's content is measured against: a [LiquidGlassMorphShared]
+/// reports its rect relative to this, which sits below the morph's own fade,
+/// scale and blur, so the rect is the child's own layout and not this
+/// frame's materialising transform.
+class _MorphContentRoot extends SingleChildRenderObjectWidget {
+  const _MorphContentRoot({required Widget super.child});
+
+  @override
+  RenderProxyBox createRenderObject(BuildContext context) =>
+      _RenderMorphContentRoot();
+}
+
+class _RenderMorphContentRoot extends RenderProxyBox {}
+
+/// What a [LiquidGlassMorphShared] needs from the morph around it: who to
+/// report to, which child it is in, and which tags are flying right now.
+class _MorphContentScope extends InheritedWidget {
+  const _MorphContentScope({
+    required this.state,
+    required this.childKey,
+    required this.inFlight,
+    required super.child,
+  });
+
+  final _LiquidGlassMorphState state;
+  final Key childKey;
+  final Set<Object> inFlight;
+
+  static _MorphContentScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_MorphContentScope>();
+
+  @override
+  bool updateShouldNotify(_MorphContentScope old) {
+    if (old.state != state || old.childKey != childKey) return true;
+    if (old.inFlight.length != inFlight.length) return true;
+    for (final Object tag in inFlight) {
+      if (!old.inFlight.contains(tag)) return true;
+    }
+    return false;
+  }
+}
+
+/// Content that exists in BOTH children of a [LiquidGlassMorph], and should
+/// travel between them rather than cross-fade.
+///
+/// Wrap the same thing on both sides with the same [tag] — the selected
+/// tab's icon in the bar and in the circle it folds into, the artwork on a
+/// pill and on the card it opens into:
+///
+/// ```dart
+/// LiquidGlassMorph(
+///   child: open
+///       ? Card(
+///           key: const ValueKey('card'),
+///           art: const LiquidGlassMorphShared(tag: 'art', child: Art(140)),
+///         )
+///       : Pill(
+///           key: const ValueKey('pill'),
+///           art: const LiquidGlassMorphShared(tag: 'art', child: Art(28)),
+///         ),
+/// )
+/// ```
+///
+/// During the swap both originals hide and one opaque copy of the NEW
+/// side's child flies from the old rect to the new on the motion's own
+/// spring, scaling between the two sizes, and hands over to the new original
+/// once it has landed and the new content is fully in. Nothing blurs. This
+/// is Apple's matched geometry, inside the glass. Outside a morph, or with
+/// no match on the other side, it is simply its child.
+///
+/// The copy is the destination's widget at the destination's size, fitted
+/// into the travelling rect, so the two sides may differ in size but should
+/// look alike — the same icon at 24 and at 28, not two different glyphs.
+/// In a blended morph the copy flies over both blobs rather than inside
+/// either, since no one lens holds both ends of its travel.
+class LiquidGlassMorphShared extends StatefulWidget {
+  const LiquidGlassMorphShared({
+    super.key,
+    required this.tag,
+    required this.child,
+  });
+
+  /// What matches this element with its counterpart in the other child.
+  /// Unique within each child.
+  final Object tag;
+
+  final Widget child;
+
+  @override
+  State<LiquidGlassMorphShared> createState() =>
+      _LiquidGlassMorphSharedState();
+}
+
+class _LiquidGlassMorphSharedState extends State<LiquidGlassMorphShared> {
+  bool _scheduled = false;
+
+  /// Reports where this element sits once the frame has laid it out. The
+  /// report is cheap and only reaches the morph when the rect changed, so
+  /// every build schedules one.
+  void _schedule() {
+    if (_scheduled) return;
+    _scheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _scheduled = false;
+      _report();
+    });
+  }
+
+  void _report() {
+    if (!mounted) return;
+    final _MorphContentScope? scope =
+        context.getInheritedWidgetOfExactType<_MorphContentScope>();
+    if (scope == null) return;
+    final RenderObject? self = context.findRenderObject();
+    final _RenderMorphContentRoot? root =
+        context.findAncestorRenderObjectOfType<_RenderMorphContentRoot>();
+    if (self is! RenderBox ||
+        root == null ||
+        !self.attached ||
+        !self.hasSize ||
+        !root.hasSize) {
+      return;
+    }
+    final Rect rect = MatrixUtils.transformRect(
+      self.getTransformTo(root),
+      Offset.zero & self.size,
+    );
+    scope.state._shareReport(scope.childKey, widget.tag, rect, widget.child);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final _MorphContentScope? scope = _MorphContentScope.maybeOf(context);
+    if (scope == null) return widget.child;
+    _schedule();
+    // Hidden, not removed: the layout stays so the rect stays, and the copy
+    // in flight is the one that shows.
+    return Opacity(
+      opacity: scope.inFlight.contains(widget.tag) ? 0 : 1,
+      child: widget.child,
+    );
   }
 }

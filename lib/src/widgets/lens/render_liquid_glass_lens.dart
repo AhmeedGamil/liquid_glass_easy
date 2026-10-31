@@ -122,6 +122,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
     required LiquidGlassRefraction refraction,
     required LiquidGlassAppearance appearance,
     required double borderAlpha,
+    double opacity = 1,
     required bool glassEnabled,
     bool honorBackdropAlpha = false,
     required Size screenSize,
@@ -152,6 +153,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
         _refraction = refraction,
         _appearance = appearance,
         _borderAlpha = borderAlpha,
+        _opacity = opacity,
         _glassEnabled = glassEnabled,
         _screenSize = screenSize,
         _devicePixelRatio = devicePixelRatio,
@@ -314,6 +316,16 @@ class RenderLiquidGlassLens extends RenderProxyBox
   set borderAlpha(double value) {
     if (_borderAlpha == value) return;
     _borderAlpha = value;
+    markNeedsPaint();
+  }
+
+  /// The glass's opacity: every shader output is multiplied by it, so the
+  /// glass fades into the backdrop while it keeps reading it. `1` draws it
+  /// whole.
+  double _opacity;
+  set opacity(double value) {
+    if (_opacity == value) return;
+    _opacity = value;
     markNeedsPaint();
   }
 
@@ -560,6 +572,7 @@ class RenderLiquidGlassLens extends RenderProxyBox
       bakePad: _bakePad,
       shaderBlur: _shaderBlur ? _appearance.blur : 0,
       shaderBlurDispersion: _shaderBlurDispersion,
+      opacity: _opacity,
     );
   }
 

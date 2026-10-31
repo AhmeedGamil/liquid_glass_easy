@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_shape_cache.dart';
+import '../liquid_glass_configuration.dart';
 import '../utils/liquid_glass_light.dart';
 import '../utils/liquid_glass_shape.dart';
 
@@ -120,6 +121,12 @@ void packLiquidGlassUniforms(
   double shaderBlur = 0,
   // Whether each in-shader blur tap is dispersed.
   bool shaderBlurDispersion = false,
+
+  /// The glass's opacity, `u_lightOpposite.w`: every output is multiplied
+  /// by it, so `0` leaves the backdrop as it was and `1` draws the glass
+  /// whole. It is not a layer opacity, so the glass keeps reading the
+  /// backdrop all the way through a fade.
+  double opacity = 1,
 }) {
   final double cornerRadius = shape.cornerRadius;
   // The shape type alone selects the corner SDF in the shader:
@@ -187,7 +194,8 @@ void packLiquidGlassUniforms(
       scale: scale,
       drawBorder: drawBorder,
       shaderBlur: shaderBlur * scale,
-      shaderBlurDispersion: shaderBlurDispersion);
+      shaderBlurDispersion: shaderBlurDispersion,
+      opacity: opacity);
 
   // u_imageOffset / u_imageSize — present on BOTH shaders, so always
   // written. Scaled like the other spatial uniforms.
@@ -201,7 +209,7 @@ void packLiquidGlassUniforms(
   // shader declares neither, so writing them there would overflow its
   // uniform array).
   if (includeShapeAa) {
-    shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
+    shader.setFloat(i++, liquidGlassBackdropFlags(honorBackdropAlpha));
     // u_shapeAaPx — edge-AA band width in fragment px = one logical pixel.
     // `scale` is 1.0 on Skia (logical-px shader) and dpr on Impeller
     // (physical-px shader), so the coverage ramp is the same physical width
@@ -226,7 +234,20 @@ void packLiquidGlassUniforms(
 
   // u_geom + u_geomTex — the main shader only, after everything else.
   if (includeShapeAa) packLiquidGlassBake(shader, i, bake, bakeRange, bakePad);
+  // u_rimDarkFade — the border shader only, after everything else.
+  if (!includeShapeAa) shader.setFloat(i++, liquidGlassRimDarkFade());
 }
+
+/// `u_backdropFlags` (the lens) and `u_warpC.w` (the blender): `1` to
+/// honor the backdrop's alpha, plus `2` while
+/// [LiquidGlassConfiguration.rimLiftOnDark] is off.
+double liquidGlassBackdropFlags(bool honorBackdropAlpha) =>
+    (honorBackdropAlpha ? 1.0 : 0.0) + 2.0 * liquidGlassRimDarkFade();
+
+/// The border shader's `u_rimDarkFade`: `1` while
+/// [LiquidGlassConfiguration.rimLiftOnDark] is off.
+double liquidGlassRimDarkFade() =>
+    LiquidGlassConfiguration.rimLiftOnDark ? 0.0 : 1.0;
 
 /// Writes `u_geom` at [index] and binds `u_geomTex`: [bake] and the range
 /// and pad it was baked at, or a range of zero and the empty image.
@@ -242,7 +263,7 @@ void packLiquidGlassBake(ui.FragmentShader shader, int index,
 /// Writes `u_packC` (glowSpread, specular2Intensity, shaderBlur,
 /// shaderBlurDispersion),
 /// `u_specular2` (thickness, sharpness, angle, spread), `u_specular2Color`
-/// and `u_lightOpposite` (specular, glow, second specular, 0) from [shape]
+/// and `u_lightOpposite` (specular, glow, second specular, [opacity]) from [shape]
 /// at [index], and returns the next free index. No second specular, or [drawBorder] false, writes a zero
 /// thickness, which the shader skips.
 int packLiquidGlassSecondSpecular(
@@ -253,6 +274,7 @@ int packLiquidGlassSecondSpecular(
   required bool drawBorder,
   double shaderBlur = 0,
   bool shaderBlurDispersion = false,
+  double opacity = 1,
 }) {
   final LiquidGlassLight? second = shape.secondSpecular;
   shader.setFloat(index++, shape.glow.spread);
@@ -268,7 +290,7 @@ int packLiquidGlassSecondSpecular(
   shader.setFloat(index++, shape.specular.oppositeIntensity);
   shader.setFloat(index++, shape.glow.oppositeIntensity);
   shader.setFloat(index++, second?.oppositeIntensity ?? 1);
-  shader.setFloat(index++, 0);
+  shader.setFloat(index++, opacity);
   return index;
 }
 
@@ -296,6 +318,7 @@ class MetaballLensUniform {
     this.cornerStyle = 0,
     this.shapeScale = const Offset(1, 1),
     this.color = const Color(0x00000000),
+    this.opacity = 1,
   });
 
   /// Lens centre in logical px.
@@ -323,6 +346,13 @@ class MetaballLensUniform {
   /// on opposite verdicts cross over exactly where their shapes fuse.
   final Color color;
 
+  /// This lens's own opacity, from `0` to `1`, packed into `meta.w`.
+  ///
+  /// The merged surface blends it on the same weight as [color], so a
+  /// member fading out fades its side of the bridge with it; the group's
+  /// opacity multiplies the result.
+  final double opacity;
+
   /// The same lens with its centre moved by [delta].
   ///
   /// The engine-blur path packs lens rects in CLIP-local space rather than
@@ -337,6 +367,7 @@ class MetaballLensUniform {
         cornerStyle: cornerStyle,
         shapeScale: shapeScale,
         color: color,
+        opacity: opacity,
       );
 
   /// This lens's touch deformation as deformed ÷ rest, per axis.
@@ -357,7 +388,7 @@ class MetaballLensUniform {
 const int kMetaballMaxLenses = 8;
 
 /// Floats one member occupies: a lens column (centre.xy, halfSize.xy) then a
-/// meta column (cornerRadius, packedScale, cornerStyle, spare).
+/// meta column (cornerRadius, packedScale, cornerStyle, opacity).
 const int _kMetaballFloatsPerLens = 8;
 
 /// Packs the `metaball_glass.frag` uniform block.
@@ -416,6 +447,10 @@ void packMetaballGlassUniforms(
   /// member, for a bake pass, where [bake] is not made yet.
   Size? bakeSize,
   bool? bakeOneTint,
+
+  /// The merged glass's opacity, `u_geomB.w`: every glass output is
+  /// multiplied by it, so `0` leaves the backdrop as it was.
+  double opacity = 1,
 }) {
   int i = 0;
 
@@ -425,11 +460,9 @@ void packMetaballGlassUniforms(
 
   // u_lensPair0..3 — one mat4 per TWO members, column-major, so a member's
   // two columns are adjacent: (centre.xy, halfSize.xy) then (cornerRadius,
-  // packedScale, cornerStyle, spare). A matrix is written as consecutive
+  // packedScale, cornerStyle, opacity). A matrix is written as consecutive
   // floats exactly like the vec4s it replaced; only the interleaving is new.
   //
-  // The meta's fourth slot is unused but must still be written — the column
-  // after it starts eight floats along whether or not this one was filled.
   // An absent member is all-zero, which is also how the shader reads
   // "disabled": its half-width lands on 0.
   final int lensFloatStart = i;
@@ -443,7 +476,7 @@ void packMetaballGlassUniforms(
       shader.setFloat(i++, lens.cornerRadius * scale);
       shader.setFloat(i++, _packMetaballScale(lens.shapeScale));
       shader.setFloat(i++, lens.cornerStyle.toDouble());
-      shader.setFloat(i++, 0);
+      shader.setFloat(i++, lens.opacity);
     } else {
       for (int k = 0; k < _kMetaballFloatsPerLens; k++) {
         shader.setFloat(i++, 0);
@@ -490,7 +523,7 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, borderAlpha);
   shader.setFloat(i++, shape.specular.intensity);
   shader.setFloat(i++, shape.specular.angle);
-  shader.setFloat(i++, honorBackdropAlpha ? 1.0 : 0.0);
+  shader.setFloat(i++, liquidGlassBackdropFlags(honorBackdropAlpha));
   // u_warpD = (blur, shapeAaPx, specularSpread, mergeEnabled).
   shader.setFloat(i++, blur * scale);
   shader.setFloat(i++, scale);
@@ -535,7 +568,8 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, imgSize.width * scale);
   shader.setFloat(i++, imgSize.height * scale);
 
-  // u_geom = (range, one tint, texture size), u_geomB = (origin, output).
+  // u_geom = (range, one tint, texture size), u_geomB = (origin, output,
+  // opacity).
   final bool tintBaked = (bake?.images.length ?? 0) > 3;
   shader.setFloat(i++, bake == null && bakeSize == null ? 0 : bakeRange);
   shader.setFloat(i++, (bakeOneTint ?? !tintBaked) ? 1 : 0);
@@ -544,7 +578,7 @@ void packMetaballGlassUniforms(
   shader.setFloat(i++, bakeOrigin.dx * scale);
   shader.setFloat(i++, bakeOrigin.dy * scale);
   shader.setFloat(i++, bakeOutput);
-  shader.setFloat(i++, 0);
+  shader.setFloat(i++, opacity);
   // u_geomDist, u_geomAnchor, u_geomBend, u_geomTint — samplers 1 to 4.
   final ui.Image empty = LiquidGlassShapeCache.empty;
   final List<ui.Image> images = bake?.images ?? const <ui.Image>[];

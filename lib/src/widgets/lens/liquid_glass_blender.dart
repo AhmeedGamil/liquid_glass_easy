@@ -89,7 +89,9 @@ class LiquidGlassBlender extends StatefulWidget {
     this.useImpellerBackdrop,
     this.useEngineBlur = true,
     this.debugClipBounds = false,
-  }) : assert(smoothness == null || smoothness >= 0);
+    this.opacity = 1,
+  })  : assert(smoothness == null || smoothness >= 0),
+        assert(opacity >= 0 && opacity <= 1);
 
   /// Any widget tree containing two to six `LiquidGlassLens` descendants.
   final Widget child;
@@ -140,6 +142,12 @@ class LiquidGlassBlender extends StatefulWidget {
   /// `false` in production; turn it on only while tuning to see where the
   /// costly pass runs.
   final bool debugClipBounds;
+
+  /// How much of the merged glass is drawn, from `0` to `1` (the default):
+  /// the shader's output is multiplied by it, as `LiquidGlassLens.opacity`
+  /// does for one lens. Scale the style's `blur` by the same amount when the
+  /// engine blurs (`useEngineBlur`), and fade the content yourself.
+  final double opacity;
 
   @override
   State<LiquidGlassBlender> createState() => _LiquidGlassBlenderState();
@@ -440,6 +448,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
                   useImpeller ? LiquidGlassBatch.backdropIdOf(context) : null,
               useEngineBlur: widget.useEngineBlur,
               debugClipBounds: widget.debugClipBounds,
+              opacity: widget.opacity,
               lensScope: lensScope,
               screenSize: MediaQuery.sizeOf(context),
               devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
@@ -517,10 +526,14 @@ class LiquidGlassBlenderScope extends InheritedWidget {
   /// something read off [style] because a member's appearance is otherwise
   /// never consulted, so there would be no way to tell "my verdict" from
   /// "the appearance I was declared with and which the group overrides".
+  ///
+  /// [opacity] is the member's own `LiquidGlassLens.opacity`; the merged
+  /// surface blends it across the bridge and multiplies the group's on top.
   Widget buildMember({
     required LiquidGlassStyle style,
     required bool visible,
     Color? tint,
+    double opacity = 1,
     Widget? child,
     Offset shapeScale = const Offset(1, 1),
   }) {
@@ -541,6 +554,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
       visible: visible,
       shapeScale: shapeScale,
       tint: tint,
+      opacity: opacity,
       child: visible ? clippedChild : null,
     );
   }
@@ -586,6 +600,7 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
     required this.visible,
     required this.shapeScale,
     required this.tint,
+    required this.opacity,
     super.child,
   });
 
@@ -597,6 +612,9 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
   /// This member's own verdict colour, or null to take the group's.
   final Color? tint;
 
+  /// This member's own opacity.
+  final double opacity;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return _RenderLiquidGlassBlenderMember(
@@ -605,6 +623,7 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
       visible: visible,
       shapeScale: shapeScale,
       tint: tint,
+      opacity: opacity,
     );
   }
 
@@ -618,7 +637,8 @@ class _LiquidGlassBlenderMember extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..visible = visible
       ..shapeScale = shapeScale
-      ..tint = tint;
+      ..tint = tint
+      ..opacity = opacity;
   }
 }
 
@@ -629,17 +649,20 @@ class _RenderLiquidGlassBlenderMember extends RenderProxyBox {
     required bool visible,
     Offset shapeScale = const Offset(1, 1),
     Color? tint,
+    double opacity = 1,
   })  : _registry = registry,
         _shape = shape,
         _visible = visible,
         _shapeScale = shapeScale,
-        _tint = tint;
+        _tint = tint,
+        _opacity = opacity;
 
   _LiquidGlassBlenderRegistry _registry;
   LiquidGlassShape _shape;
   bool _visible;
   Offset _shapeScale;
   Color? _tint;
+  double _opacity;
 
   /// This member's own adaptive verdict, or null to take the group's colour.
   /// It changes every frame of a flip, and the merged surface is what paints
@@ -648,6 +671,18 @@ class _RenderLiquidGlassBlenderMember extends RenderProxyBox {
   set tint(Color? value) {
     if (_tint == value) return;
     _tint = value;
+    _registry.memberChanged();
+    markNeedsPaint();
+  }
+
+  /// This member's own opacity. The merged surface paints it, as [tint].
+  ///
+  /// At `0` the member stays in the union, invisible, so its neighbours keep
+  /// their shape through a fade; set `visible` false to take it out.
+  double get opacity => _opacity;
+  set opacity(double value) {
+    if (_opacity == value) return;
+    _opacity = value;
     _registry.memberChanged();
     markNeedsPaint();
   }
@@ -720,6 +755,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
     required this.backdropId,
     required this.useEngineBlur,
     required this.debugClipBounds,
+    required this.opacity,
     required this.lensScope,
     required this.screenSize,
     required this.devicePixelRatio,
@@ -733,6 +769,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
   final int? backdropId;
   final bool useEngineBlur;
   final bool debugClipBounds;
+  final double opacity;
   final LiquidGlassLensScope? lensScope;
   final Size screenSize;
   final double devicePixelRatio;
@@ -748,6 +785,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
       backdropId: backdropId,
       useEngineBlur: useEngineBlur,
       debugClipBounds: debugClipBounds,
+      opacity: opacity,
       lensScope: lensScope,
       screenSize: screenSize,
       devicePixelRatio: devicePixelRatio,
@@ -768,6 +806,7 @@ class _LiquidGlassBlenderSurface extends LeafRenderObjectWidget {
       ..backdropId = backdropId
       ..useEngineBlur = useEngineBlur
       ..debugClipBounds = debugClipBounds
+      ..opacity = opacity
       ..lensScope = lensScope
       ..screenSize = screenSize
       ..devicePixelRatio = devicePixelRatio;
@@ -784,6 +823,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     required int? backdropId,
     required bool useEngineBlur,
     required bool debugClipBounds,
+    required double opacity,
     required LiquidGlassLensScope? lensScope,
     required Size screenSize,
     required double devicePixelRatio,
@@ -795,6 +835,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         _backdropId = backdropId,
         _useEngineBlur = useEngineBlur,
         _debugClipBounds = debugClipBounds,
+        _opacity = opacity,
         _lensScope = lensScope,
         _screenSize = screenSize,
         _devicePixelRatio = devicePixelRatio;
@@ -884,6 +925,14 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
   set useEngineBlur(bool value) {
     if (_useEngineBlur == value) return;
     _useEngineBlur = value;
+    markNeedsPaint();
+  }
+
+  /// The merged glass's opacity: every shader output is multiplied by it.
+  double _opacity;
+  set opacity(double value) {
+    if (_opacity == value) return;
+    _opacity = value;
     markNeedsPaint();
   }
 
@@ -1213,6 +1262,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         // a tint and a group where nobody adapts blends back to exactly the
         // colour it would have painted before.
         color: member.tint ?? _style.appearance.color,
+        opacity: member.opacity,
       );
     }, growable: false);
   }
@@ -1323,6 +1373,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
       dispersion: refraction.dispersion,
       saturation: appearance.saturation,
       blur: blur,
+      opacity: _opacity,
       lensColor: appearance.color,
       honorBackdropAlpha: false,
       imageOffset: imageOffset,
@@ -1398,6 +1449,14 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     ];
     final bool oneTint =
         local.every((MetaballLensUniform l) => l.color == local.first.color);
+    // The bake carries no opacity: a group whose members differ in it (a
+    // fade under way, usually) is drawn per pixel. One shared opacity is
+    // read straight from the uniforms, so a whole-group fade keeps the bake.
+    if (local
+        .any((MetaballLensUniform l) => l.opacity != local.first.opacity)) {
+      _releaseBake();
+      return;
+    }
     double snap(double v) => LiquidGlassShapeCache.snap(v * dpr);
     final StringBuffer key = StringBuffer('metaball')
       ..write(':$width:$height:$range:${snap(_smoothnessOrZero)}:$_merge')

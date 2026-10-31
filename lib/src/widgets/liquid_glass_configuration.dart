@@ -94,6 +94,16 @@ class LiquidGlassConfiguration {
   /// [blurOverride] keeps its own. Read when a lens builds.
   static double? dispersionOverride;
 
+  /// Whether the glow keeps showing over a dark backdrop.
+  ///
+  /// On (the default), the glow adds its lightness to whatever is behind
+  /// the edge, so it shows even over black. Off, its lift fades out over
+  /// dark backdrops: whole from a luma of 0.35 up, down to a tenth over
+  /// black. The speculars keep their lift either way, and a glow whose
+  /// own `color` is opaque keeps it. Every lens and blender; read when the
+  /// glass paints.
+  static bool rimLiftOnDark = true;
+
   /// [appearance] with [blurOverride] applied, unless [context] sits under
   /// a [LiquidGlassOverrideExclude]. Library-internal.
   @internal
