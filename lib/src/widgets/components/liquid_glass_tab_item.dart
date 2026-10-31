@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../lens/liquid_glass_lens.dart';
 import '../liquid_glass_style.dart';
 import '../utils/liquid_glass_adaptivity.dart';
+import '../utils/liquid_glass_flex.dart' show LiquidGlassFlex;
 import '../utils/liquid_glass_touch.dart';
 import '../utils/liquid_glass_glyph.dart';
 import '../utils/liquid_glass_light.dart';
@@ -146,7 +147,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
     this.style,
     this.visibility = true,
     this.child,
-    this.touch,
+    this.touch = const LiquidGlassTouch.flexing(LiquidGlassFlex()),
   }) : assert(icon != null || child != null,
             'Give the action something to show: an icon or a child.');
 
@@ -192,7 +193,8 @@ class LiquidGlassTabBarAction extends StatelessWidget {
 
   /// Makes the button deform under touch without moving it — press and it
   /// swells, drag and it elongates along the pull, then springs back. See
-  /// [LiquidGlassTouch]; `null` (the default) disables it entirely.
+  /// [LiquidGlassTouch]. The default is the default [LiquidGlassFlex];
+  /// `null` disables it entirely.
   final LiquidGlassTouch? touch;
 
   /// The tuned default look — a transparent body over a soft optical

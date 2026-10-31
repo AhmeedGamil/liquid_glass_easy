@@ -562,7 +562,7 @@ class LiquidGlassTabPillStyle {
 class LiquidGlassTabBarPress {
   const LiquidGlassTabBarPress({
     this.scale = 0.03,
-    this.grip = 0.5,
+    this.grip = 0.75,
     this.stiffness = 320,
     this.damping = 24,
     this.releaseDamping = 17,
