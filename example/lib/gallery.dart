@@ -23,6 +23,8 @@ import 'tab_bar_page.dart';
 import 'adaptivity_page.dart';
 import 'adaptivity_advanced_page.dart';
 import 'adaptivity_controller_page.dart';
+import 'showcases/app_store_page.dart';
+import 'showcases/music_page.dart';
 import 'showcases/photos_library_page.dart';
 import 'social_feed.dart';
 
@@ -262,6 +264,22 @@ class HomePage extends StatelessWidget {
       icon: Icons.dynamic_feed_rounded,
       gradient: const [Color(0xFFF97316), Color(0xFF9A3412)],
       builder: (_) => const SocialFeedPage(),
+    ),
+    _Destination(
+      title: 'App Store',
+      subtitle: 'Feature cards under the default tab bar: five tabs on '
+          'SF Symbols',
+      icon: Icons.apps_rounded,
+      gradient: const [Color(0xFF0A84FF), Color(0xFF5E5CE6)],
+      builder: (_) => const AppStorePage(),
+    ),
+    _Destination(
+      title: 'Music',
+      subtitle: 'An album grid under the default tab bar, four SF Symbols '
+          'tabs and search on its own glass',
+      icon: Icons.music_note_rounded,
+      gradient: const [Color(0xFFFF375F), Color(0xFFB0123A)],
+      builder: (_) => const MusicPage(),
     ),
   ];
 
