@@ -247,6 +247,7 @@ class LiquidGlassTabBarAction extends StatelessWidget {
           liteGlass: resolved.liteGlass,
         ),
         visibility: visibility,
+        touch: touch,
         child: Material(
           color: Colors.transparent,
           shape: const CircleBorder(),
