@@ -10,7 +10,9 @@ import 'dart:math' as math;
 /// defaults are the tuned pair; scale both together if you resize one, or
 /// the morph changes proportion mid-flight.
 class LiquidGlassSliderLayout {
-  /// Total width of the control, end to end.
+  /// Total width of the control, end to end. The default `354.4` is a
+  /// 300-long track, the iOS slider's, plus the derived room at each end
+  /// for the lifted thumb (27.2 with the default sizes and motion).
   final double width;
 
   /// Thickness of the track the thumb rides.
@@ -46,7 +48,7 @@ class LiquidGlassSliderLayout {
   final double? height;
 
   const LiquidGlassSliderLayout({
-    this.width = 280,
+    this.width = 354.4,
     this.trackHeight = 6,
     this.thumbWidth = 37,
     this.thumbHeight = 24,

@@ -186,7 +186,7 @@ class LiquidGlassSlider extends StatefulWidget {
     this.minimumValue = 0,
     this.maximumValue = 1,
     this.isContinuous = true,
-    this.activeColor = const Color(0xFF0A84FF),
+    this.activeColor = const Color(0xFF0088FF),
     this.inactiveColor = const Color(0x14000000),
     this.thumbColor = Colors.white,
     this.width,
