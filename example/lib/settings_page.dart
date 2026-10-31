@@ -216,6 +216,18 @@ class SettingsPage extends StatelessWidget {
                     ),
                   ),
                   ValueListenableBuilder<bool>(
+                    valueListenable: globalTint,
+                    builder: (context, value, _) => _SwitchRow(
+                      icon: Icons.format_color_fill_rounded,
+                      label: 'Global tint',
+                      detail: value
+                          ? 'Every lens takes the light/dark tint and saturation'
+                          : 'Every lens keeps its own tint',
+                      value: value,
+                      onChanged: (v) => globalTint.value = v,
+                    ),
+                  ),
+                  ValueListenableBuilder<bool>(
                     valueListenable: overrideGlass,
                     builder: (context, value, _) => _SwitchRow(
                       icon: Icons.tune_rounded,

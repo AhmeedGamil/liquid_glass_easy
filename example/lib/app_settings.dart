@@ -101,6 +101,13 @@ final ValueNotifier<bool> shaderBlurDispersion =
       ..addListener(() =>
           LiquidGlassConfiguration.shaderBlurDispersion = shaderBlurDispersion.value);
 
+/// Whether every lens takes the global light/dark tint and saturation; sets
+/// `LiquidGlassConfiguration.tintOverride`, read when a page opens.
+final ValueNotifier<bool> globalTint =
+    ValueNotifier<bool>(LiquidGlassConfiguration.tintOverride)
+      ..addListener(
+          () => LiquidGlassConfiguration.tintOverride = globalTint.value);
+
 /// Whether [glassBlur] and [glassDispersion] replace every lens's own.
 final ValueNotifier<bool> overrideGlass = ValueNotifier<bool>(false)
   ..addListener(_applyGlassOverrides);
