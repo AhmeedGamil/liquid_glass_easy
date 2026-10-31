@@ -108,6 +108,56 @@ final ValueNotifier<bool> globalTint =
       ..addListener(
           () => LiquidGlassConfiguration.tintOverride = globalTint.value);
 
+/// The global tint on a light theme; sets
+/// `LiquidGlassConfiguration.colorOverrideLight`.
+final ValueNotifier<Color> tintLight =
+    ValueNotifier<Color>(LiquidGlassConfiguration.colorOverrideLight)
+      ..addListener(
+          () => LiquidGlassConfiguration.colorOverrideLight = tintLight.value);
+
+/// The global tint on a dark theme; sets
+/// `LiquidGlassConfiguration.colorOverrideDark`.
+final ValueNotifier<Color> tintDark =
+    ValueNotifier<Color>(LiquidGlassConfiguration.colorOverrideDark)
+      ..addListener(
+          () => LiquidGlassConfiguration.colorOverrideDark = tintDark.value);
+
+/// The global saturation on a light theme; sets
+/// `LiquidGlassConfiguration.saturationOverrideLight`.
+final ValueNotifier<double> saturationLight =
+    ValueNotifier<double>(LiquidGlassConfiguration.saturationOverrideLight)
+      ..addListener(() => LiquidGlassConfiguration.saturationOverrideLight =
+          saturationLight.value);
+
+/// The global saturation on a dark theme; sets
+/// `LiquidGlassConfiguration.saturationOverrideDark`.
+final ValueNotifier<double> saturationDark =
+    ValueNotifier<double>(LiquidGlassConfiguration.saturationOverrideDark)
+      ..addListener(() => LiquidGlassConfiguration.saturationOverrideDark =
+          saturationDark.value);
+
+/// Whether [shadowLight] and [shadowDark] replace every shadow's colour.
+final ValueNotifier<bool> overrideShadow = ValueNotifier<bool>(false)
+  ..addListener(_applyShadowOverrides);
+
+/// The shadow colour on a light theme while [overrideShadow] is on.
+final ValueNotifier<Color> shadowLight =
+    ValueNotifier<Color>(const Color(0xFF000000))
+      ..addListener(_applyShadowOverrides);
+
+/// The shadow colour on a dark theme while [overrideShadow] is on.
+final ValueNotifier<Color> shadowDark =
+    ValueNotifier<Color>(const Color(0xFF000000))
+      ..addListener(_applyShadowOverrides);
+
+void _applyShadowOverrides() {
+  final bool on = overrideShadow.value;
+  LiquidGlassConfiguration.shadowColorOverrideLight =
+      on ? shadowLight.value : null;
+  LiquidGlassConfiguration.shadowColorOverrideDark =
+      on ? shadowDark.value : null;
+}
+
 /// Whether [glassBlur] and [glassDispersion] replace every lens's own.
 final ValueNotifier<bool> overrideGlass = ValueNotifier<bool>(false)
   ..addListener(_applyGlassOverrides);

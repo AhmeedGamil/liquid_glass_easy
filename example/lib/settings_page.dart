@@ -27,6 +27,10 @@ import 'app_settings.dart';
 //     Batched dispersion → `.batchShaderBlurDispersion`.
 //   • Override blur & dispersion → `LiquidGlassConfiguration.blurOverride` and
 //     `.dispersionOverride`, from the two sliders; read when a page opens.
+//   • Global tint → `LiquidGlassConfiguration.tintOverride`, with the light
+//     and dark tint (`.colorOverrideLight/Dark`) and saturation
+//     (`.saturationOverrideLight/Dark`) below it.
+//   • Override shadow colour → `.shadowColorOverrideLight/Dark`.
 //
 // The settings are not persisted; they reset on restart.
 //
@@ -227,6 +231,32 @@ class SettingsPage extends StatelessWidget {
                       onChanged: (v) => globalTint.value = v,
                     ),
                   ),
+                  _ColorRow(label: 'Tint light', notifier: tintLight),
+                  _SliderRow(
+                    label: 'Sat. light',
+                    notifier: saturationLight,
+                    max: 3,
+                  ),
+                  _ColorRow(label: 'Tint dark', notifier: tintDark),
+                  _SliderRow(
+                    label: 'Sat. dark',
+                    notifier: saturationDark,
+                    max: 3,
+                  ),
+                  ValueListenableBuilder<bool>(
+                    valueListenable: overrideShadow,
+                    builder: (context, value, _) => _SwitchRow(
+                      icon: Icons.blur_circular_rounded,
+                      label: 'Override shadow colour',
+                      detail: value
+                          ? 'Every shadow takes the colours below'
+                          : 'Every shadow keeps its own colour',
+                      value: value,
+                      onChanged: (v) => overrideShadow.value = v,
+                    ),
+                  ),
+                  _ColorRow(label: 'Shadow light', notifier: shadowLight),
+                  _ColorRow(label: 'Shadow dark', notifier: shadowDark),
                   ValueListenableBuilder<bool>(
                     valueListenable: overrideGlass,
                     builder: (context, value, _) => _SwitchRow(
@@ -250,6 +280,125 @@ class SettingsPage extends StatelessWidget {
                     max: 8,
                   ),
                 ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A colour setting: its swatch and hex; a tap opens alpha, red, green and
+/// blue sliders.
+class _ColorRow extends StatelessWidget {
+  final String label;
+  final ValueNotifier<Color> notifier;
+
+  const _ColorRow({required this.label, required this.notifier});
+
+  static String _hex(Color c) =>
+      '0x${c.toARGB32().toRadixString(16).padLeft(8, '0').toUpperCase()}';
+
+  void _edit(BuildContext context) {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(label),
+        content: ValueListenableBuilder<Color>(
+          valueListenable: notifier,
+          builder: (context, c, _) {
+            Widget channel(String name, double v, Color Function(int) set) {
+              return Row(
+                children: [
+                  SizedBox(width: 18, child: Text(name)),
+                  Expanded(
+                    child: Slider(
+                      value: v * 255,
+                      max: 255,
+                      onChanged: (x) => notifier.value = set(x.round()),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 32,
+                    child: Text('${(v * 255).round()}',
+                        textAlign: TextAlign.end),
+                  ),
+                ],
+              );
+            }
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: c,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(_hex(c)),
+                ),
+                channel('A', c.a, (x) => c.withAlpha(x)),
+                channel('R', c.r, (x) => c.withRed(x)),
+                channel('G', c.g, (x) => c.withGreen(x)),
+                channel('B', c.b, (x) => c.withBlue(x)),
+              ],
+            );
+          },
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Done'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color ink = dark ? Colors.white : const Color(0xFF11131A);
+    return ValueListenableBuilder<Color>(
+      valueListenable: notifier,
+      builder: (context, c, _) => InkWell(
+        onTap: () => _edit(context),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 92,
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    color: ink,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ),
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: c,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.grey),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                _hex(c),
+                style: TextStyle(
+                  color: ink,
+                  fontSize: 14,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
               ),
             ],
           ),
