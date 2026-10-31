@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 
 import '../lens/liquid_glass_batch.dart';
+import '../liquid_glass_engine.dart';
 import '../lens/liquid_glass_lens_scope.dart';
 import '../utils/liquid_glass_adaptivity.dart';
 import '../utils/liquid_glass_adaptivity_driver.dart';
@@ -369,16 +370,20 @@ class _LiquidGlassScrollEdgeState extends State<LiquidGlassScrollEdge>
     );
   }
 
-  /// How much the bottom band's sigma is nudged off the top band's.
+  /// How much the bottom band's sigma is nudged off the top band's while
+  /// lite glass is on.
   ///
-  /// On Impeller, identical filters under one shared batch key are drawn once,
-  /// so a top and a bottom band with the same blur would lose a pass and their
-  /// `dstIn` ramps would erase the page. The nudge keeps them apart; at this
-  /// size it cannot be seen.
+  /// On Impeller, identical filters under one shared batch key are drawn once.
+  /// With lite glass no lens filter sits between a top and a bottom band, so
+  /// two bands with the same blur would lose a pass and their `dstIn` ramps
+  /// would erase the page. The nudge keeps them apart; at this size it cannot
+  /// be seen.
   static const double _kBottomSigmaNudge = 0.01;
 
   /// The blur sigma of this band's pass.
-  double _sigma(bool top) => top ? widget.blur : widget.blur + _kBottomSigmaNudge;
+  double _sigma(bool top) => top || !LiquidGlassEngine.liteGlass
+      ? widget.blur
+      : widget.blur + _kBottomSigmaNudge;
 
   /// Cache for [_featherMask]. The mask never varies for a given band —
   /// same edge, same curve, same black — so without this an adaptive
