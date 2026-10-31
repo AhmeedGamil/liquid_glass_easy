@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
 // =============================================================
@@ -62,14 +62,23 @@ ThemeData _theme(Brightness b) => ThemeData(
       ),
     );
 
-// Apple Match's tab icons.
-const List<LiquidGlassTabBarItem> _tabs = [
-  LiquidGlassTabBarItem(icon: CupertinoIcons.house_fill, label: 'Home'),
-  LiquidGlassTabBarItem(icon: CupertinoIcons.search, label: 'Explore'),
-  LiquidGlassTabBarItem(icon: CupertinoIcons.square_stack_fill, label: 'Reels'),
-  LiquidGlassTabBarItem(
-      icon: CupertinoIcons.person_crop_circle_fill, label: 'Profile'),
+// Apple Match's tab icons, drawn as the project's own SVGs.
+final List<LiquidGlassTabBarItem> _tabs = [
+  _tab('home_fill', 'Home'),
+  _tab('search', 'Explore'),
+  _tab('square_stack_fill', 'Reels'),
+  _tab('person_circle_fill', 'Profile'),
 ];
+
+LiquidGlassTabBarItem _tab(String icon, String label) => LiquidGlassTabBarItem(
+      label: label,
+      iconBuilder: (context, g) => SvgPicture.asset(
+        'assets/icons/$icon.svg',
+        width: g.size,
+        height: g.size,
+        colorFilter: ColorFilter.mode(g.color, BlendMode.srcIn),
+      ),
+    );
 
 const List<String> _filters = ['For you', 'Following', 'Trending', 'Nearby'];
 
