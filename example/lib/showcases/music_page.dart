@@ -89,7 +89,7 @@ class _MusicPageState extends State<MusicPage> {
   int _tab = 0;
 
   /// How far the capsule and the search circle flow into each other.
-  double _smoothness = 48;
+  double _smoothness = 15;
 
   static const double _edge = 16;
   static const double _barHeight = 62;
