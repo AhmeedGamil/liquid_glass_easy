@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -16,8 +17,7 @@ void main() => runApp(MaterialApp(
 /// search on a glass circle beside it.
 ///
 /// The bar's capsule and the search circle share one blender, so they flow
-/// together; the bar's moving glass pill stays out of it. Tap the profile
-/// picture to tune the blend.
+/// together; the bar's moving glass pill stays out of it.
 class MusicPage extends StatefulWidget {
   const MusicPage({super.key});
 
@@ -89,11 +89,12 @@ class _MusicPageState extends State<MusicPage> {
   int _tab = 0;
 
   /// How far the capsule and the search circle flow into each other.
-  double _smoothness = 15;
+  static const double _smoothness = 15;
 
   static const double _edge = 16;
   static const double _barHeight = 62;
-  static const double _bottom = 24;
+  /// The least gap under the bar, for screens that report no inset.
+  static const double _minBottom = 12;
   static const double _playerHeight = 48;
 
   static final List<LiquidGlassTabBarItem> _tabs = [
@@ -140,36 +141,6 @@ class _MusicPageState extends State<MusicPage> {
     ('Velvet', 'Rosa'),
     ('Northern Lights', 'Aurora Bay'),
   ];
-
-  void _tune(BuildContext context) {
-    showModalBottomSheet<void>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setSheet) => SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 12, 16),
-            child: Row(
-              children: [
-                Text('Blend ${_smoothness.round()}'),
-                Expanded(
-                  child: Slider(
-                    min: 0,
-                    max: 100,
-                    value: _smoothness,
-                    activeColor: _accent,
-                    onChanged: (v) {
-                      setSheet(() {});
-                      setState(() => _smoothness = v);
-                    },
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   Widget _sectionHeader(String title, Color ink, {bool more = true}) {
     return Padding(
@@ -316,7 +287,8 @@ class _MusicPageState extends State<MusicPage> {
         dark ? LiquidGlassTabBar.defaultDarkStyle : LiquidGlassTabBar.defaultStyle;
     final double barWidth =
         mq.size.width - 2 * _edge - _barHeight - 12; // room for search
-    final double barBottom = mq.padding.bottom + _bottom;
+    // On the home indicator's inset, as iOS sits it, never on the edge.
+    final double barBottom = math.max(mq.padding.bottom, _minBottom);
 
     final LiquidGlassTabBar bar = LiquidGlassTabBar(
       items: _tabs,
@@ -325,7 +297,11 @@ class _MusicPageState extends State<MusicPage> {
       width: barWidth,
       // Left-anchored: the right end of the line is search's.
       alignment: Alignment.bottomLeft,
-      margin: const EdgeInsets.only(left: _edge, bottom: _bottom),
+      // The bar adds the inset itself; this is what it lacks of the gap.
+      margin: EdgeInsets.only(
+        left: _edge,
+        bottom: barBottom - mq.padding.bottom,
+      ),
       itemStyle: const LiquidGlassTabItemStyle(selectedColor: _accent),
     );
 
@@ -347,14 +323,11 @@ class _MusicPageState extends State<MusicPage> {
                     ),
                   ),
                 ),
-                // The profile picture; here it opens the blend tuning.
-                GestureDetector(
-                  onTap: () => _tune(context),
-                  child: _sf(
-                    'person.crop.circle.fill',
-                    34,
-                    ink.withValues(alpha: 0.35),
-                  ),
+                // The profile picture.
+                _sf(
+                  'person.crop.circle.fill',
+                  34,
+                  ink.withValues(alpha: 0.35),
                 ),
               ],
             ),
