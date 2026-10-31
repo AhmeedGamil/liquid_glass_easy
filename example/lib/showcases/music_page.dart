@@ -454,9 +454,6 @@ class _MusicPageState extends State<MusicPage> {
                     child: LiquidGlassTabBarAction(
                       size: _barHeight,
                       onTap: () {},
-                      touch: const LiquidGlassTouch.flexing(
-                        LiquidGlassFlex.subtle(),
-                      ),
                       child: _sf('magnifyingglass', 24, ink),
                     ),
                   ),
