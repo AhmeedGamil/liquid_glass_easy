@@ -91,15 +91,16 @@ uniform sampler2D u_texture_input;
 //
 // Column layout of each u_lensPairN:
 //   [0] lens A = (centerX, centerY, halfWidth, halfHeight) px
-//   [1] meta A = (cornerRadius px, packedScale, cornerStyle, spare)
+//   [1] meta A = (cornerRadius px, packedScale, cornerStyle, opacity)
 //   [2] lens B, [3] meta B — the same, for the odd member of the pair.
 //
 //   packedScale is that lens's flex (deformed/rest) as two 11-bit values
 //   — see unpackScale; 0 means undeformed. It took over the old `enabled`
 //   slot: an absent lens is packed all-zero, so the lens column's .z
 //   (half-width) already IS the enabled bit and every guard reads that.
-//   The meta's fourth slot is unused. It carried per-side blend activations
-//   back when a continuous corner had to be flattened to blend cleanly.
+//   The meta's fourth slot is the member's own opacity, 0 to 1: it blends
+//   across the bridge on the same weight as the tint, and the group's
+//   u_glassOpacity multiplies the result.
 uniform mat4 u_lensPair0;
 uniform mat4 u_lensPair1;
 uniform mat4 u_lensPair2;
@@ -200,7 +201,8 @@ uniform vec4 u_imageRegion;
 // The baked field (metaball_geometry.frag): x = distance range px, 0 = none,
 // y = 1 when one tint covers every member, zw = texture size px.
 uniform vec4 u_geom;
-// xy = the bake's origin in fragment px; z = which texture a bake pass writes.
+// xy = the bake's origin in fragment px; z = which texture a bake pass writes;
+// w = the glass's opacity, which every glass output is multiplied by.
 uniform vec4 u_geomB;
 uniform sampler2D u_geomDist;    // raw field (16 bits), gradient
 uniform sampler2D u_geomAnchor;  // anchor x, y (16 bits each)
@@ -223,7 +225,10 @@ uniform sampler2D u_geomTint;    // the blended member colour
 #define u_borderAlpha                  u_warpC.x
 #define u_specularIntensity            u_warpC.y
 #define u_specularAngle                u_warpC.z
-#define u_honorBackdropAlpha           u_warpC.w
+// u_warpC.w: 1.0 honors the backdrop's alpha, plus 2.0 when the glow fades
+// over dark backdrops (LiquidGlassConfiguration.rimLiftOnDark off).
+#define u_honorBackdropAlpha           (mod(u_warpC.w, 2.0))
+#define u_rimDarkFade                  (step(1.5, u_warpC.w))
 #define u_blur                         u_warpD.x
 #define u_shapeAaPx                    u_warpD.y
 #define u_specularSpread               u_warpD.z
@@ -237,6 +242,8 @@ uniform sampler2D u_geomTint;    // the blended member colour
 #define u_borderSharpness              u_packA.z
 #define u_glowIntensity                u_packA.w
 #define u_specular2Intensity           u_lightOpposite.w
+// The glass's opacity: 1 draws it whole, 0 leaves the backdrop as it was.
+#define u_glassOpacity                 u_geomB.w
 // Each light as the border reads it: (angle in degrees, spread, intensity).
 #define u_specular vec3(u_specularAngle, u_specularSpread, u_specularIntensity)
 #define u_glow     vec3(u_glowAngle, u_glowSpread, u_glowIntensity)
@@ -572,7 +579,8 @@ ShapeData evaluateField(vec2 fragPx) {
 // hands over across the bridge at exactly the rate u_smoothness set for the
 // geometry — so the colour seam sits where the shape seam already is.
 void accumulateAnchor(vec4 lens, vec4 meta, vec4 tint, vec2 p,
-                      inout vec3 acc, inout float wsum, inout vec4 tintAcc) {
+                      inout vec3 acc, inout float wsum, inout vec4 tintAcc,
+                      inout float opacityAcc) {
     if (lens.z <= 0.0) return;
     float w = exp(-max(lensDistance(p, lens, meta), 0.0) / max(u_smoothness, EPS));
     // z carries the member's refraction depth: half its largest side.
@@ -582,6 +590,9 @@ void accumulateAnchor(vec4 lens, vec4 meta, vec4 tint, vec2 p,
     // averaging straight alpha would drag the more transparent one's colour in
     // at full strength.
     tintAcc += vec4(tint.rgb * tint.a, tint.a) * w;
+    // The member's opacity rides the same weight, so two members fading
+    // apart cross over where their shapes fuse, as their colours do.
+    opacityAcc += meta.w * w;
 }
 
 // Weighted premultiplied accumulation back to the straight-alpha colour
@@ -591,6 +602,11 @@ vec4 resolveTint(vec4 tintAcc, float wsum) {
     if (wsum <= EPS) return u_lensColor;
     vec4 pm = tintAcc / wsum;
     return (pm.a > EPS) ? vec4(pm.rgb / pm.a, pm.a) : vec4(0.0);
+}
+
+// The blended member opacity; whole where no member reaches (masked out).
+float resolveOpacity(float opacityAcc, float wsum) {
+    return (wsum > EPS) ? opacityAcc / wsum : 1.0;
 }
 
 // ── Hard union (u_mergeEnabled == 0) ─────────────────────────────────────
@@ -644,27 +660,38 @@ NearestMember nearestMember(vec2 p) {
     return n;
 }
 
-vec2 anchorFor(vec2 p, out vec4 tint, out float depth) {
+vec2 anchorFor(vec2 p, out vec4 tint, out float depth, out float opacity) {
     // The branch is on a UNIFORM, so it costs nothing: every fragment in the
     // draw takes the same side of it.
     if (u_mergeEnabled < 0.5) {
         NearestMember n = nearestMember(p);
         tint = n.tint;
+        opacity = n.meta.w;
         depth = min(n.lens.z, n.lens.w);
         return (n.dist < 1e8) ? n.lens.xy : p;
     }
     vec3 acc = vec3(0.0);
     float wsum = 0.0;
     vec4 tintAcc = vec4(0.0);
-    accumulateAnchor(u_lens0, u_lensMeta0, u_lensTint0, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens1, u_lensMeta1, u_lensTint1, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens2, u_lensMeta2, u_lensTint2, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens3, u_lensMeta3, u_lensTint3, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens4, u_lensMeta4, u_lensTint4, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens5, u_lensMeta5, u_lensTint5, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens6, u_lensMeta6, u_lensTint6, p, acc, wsum, tintAcc);
-    accumulateAnchor(u_lens7, u_lensMeta7, u_lensTint7, p, acc, wsum, tintAcc);
+    float opacityAcc = 0.0;
+    accumulateAnchor(u_lens0, u_lensMeta0, u_lensTint0, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens1, u_lensMeta1, u_lensTint1, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens2, u_lensMeta2, u_lensTint2, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens3, u_lensMeta3, u_lensTint3, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens4, u_lensMeta4, u_lensTint4, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens5, u_lensMeta5, u_lensTint5, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens6, u_lensMeta6, u_lensTint6, p, acc, wsum, tintAcc,
+                     opacityAcc);
+    accumulateAnchor(u_lens7, u_lensMeta7, u_lensTint7, p, acc, wsum, tintAcc,
+                     opacityAcc);
     tint = resolveTint(tintAcc, wsum);
+    opacity = resolveOpacity(opacityAcc, wsum);
     depth = (wsum > EPS) ? acc.z / wsum : 0.0;
     return (wsum > EPS) ? acc.xy / wsum : p;
 }
@@ -690,6 +717,7 @@ struct MergedField {
     vec2  anchor;      // == anchorFor(p)
     float depth;       // == anchorFor's depth out — the blended refraction depth
     vec4  tint;        // == anchorFor's tint out — the blended member colour
+    float opacity;     // == anchorFor's opacity out — the blended member opacity
     vec2  grad;        // analytic merged gradient (METABALL_GRAD_ANALYTIC only)
     vec2  bend;        // the members' capsule directions, blended as grad
     vec4  h03;         // each member's blend weight, so the band alone
@@ -700,8 +728,8 @@ struct MergedField {
 float accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
                        inout float smoothSdf, inout float hardSdf,
                        inout vec3 anchorAcc, inout float anchorW,
-                       inout vec4 tintAcc, inout vec2 gradAcc,
-                       inout vec2 bendAcc) {
+                       inout vec4 tintAcc, inout float opacityAcc,
+                       inout vec2 gradAcc, inout vec2 bendAcc) {
     if (lens.z <= 0.0) return 1.0;
 
     // The one raw SDF for this lens — shared by all three accumulators.
@@ -716,6 +744,7 @@ float accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
     anchorW   += w;
     // Tint on the same weight — see accumulateAnchor.
     tintAcc   += vec4(tint.rgb * tint.a, tint.a) * w;
+    opacityAcc += meta.w * w;
 
     // Smooth union, inlined so the blend weight h is shared with the gradient.
     // h and the value are bit-identical to smoothUnion(smoothSdf, base, k).
@@ -749,6 +778,7 @@ MergedField evaluateMerged(vec2 p) {
         m.anchor    = (n.dist < 1e8) ? n.lens.xy : p;
         m.depth     = min(n.lens.z, n.lens.w);
         m.tint      = n.tint;
+        m.opacity   = n.meta.w;
 #if METABALL_GRAD_ANALYTIC
         // One gradient — the winner's own — instead of eight blended together.
         m.grad = (n.dist < 1e8) ? lensGradDir(p, n.lens, n.meta) : vec2(0.0);
@@ -767,33 +797,43 @@ MergedField evaluateMerged(vec2 p) {
     vec3 anchorAcc = vec3(0.0);
     float anchorW = 0.0;
     vec4 tintAcc = vec4(0.0);
+    float opacityAcc = 0.0;
 #ifdef LIQUID_GLASS_DESKTOP
     for (int k = 0; k < 8; k++) {
         accumulateMerged(p, memberLens(k), memberMeta(k), memberTint(k),
                          m.smoothSdf, m.hardSdf, anchorAcc, anchorW, tintAcc,
-                         m.grad, m.bend);
+                         opacityAcc, m.grad, m.bend);
     }
 #else
     m.h03.x = accumulateMerged(p, u_lens0, u_lensMeta0, u_lensTint0, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h03.y = accumulateMerged(p, u_lens1, u_lensMeta1, u_lensTint1, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h03.z = accumulateMerged(p, u_lens2, u_lensMeta2, u_lensTint2, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h03.w = accumulateMerged(p, u_lens3, u_lensMeta3, u_lensTint3, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h47.x = accumulateMerged(p, u_lens4, u_lensMeta4, u_lensTint4, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h47.y = accumulateMerged(p, u_lens5, u_lensMeta5, u_lensTint5, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h47.z = accumulateMerged(p, u_lens6, u_lensMeta6, u_lensTint6, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
     m.h47.w = accumulateMerged(p, u_lens7, u_lensMeta7, u_lensTint7, m.smoothSdf,
-                     m.hardSdf, anchorAcc, anchorW, tintAcc, m.grad, m.bend);
+                     m.hardSdf, anchorAcc, anchorW, tintAcc, opacityAcc, m.grad,
+                     m.bend);
 #endif
     m.anchor = (anchorW > EPS) ? anchorAcc.xy / anchorW : p;
     m.depth  = (anchorW > EPS) ? anchorAcc.z / anchorW : 0.0;
     m.tint   = resolveTint(tintAcc, anchorW);
+    m.opacity = resolveOpacity(opacityAcc, anchorW);
     return m;
 }
 
@@ -1042,6 +1082,7 @@ void main() {
     float rimWrap;
     vec2 anchorPx;
     vec4 lensTint;
+    float memberOpacity;
     vec2 bend;
     if (u_geom.x > 0.0) {
         // Baked: the field, anchor, colour and bend read back, no member walked.
@@ -1052,6 +1093,8 @@ void main() {
         if (length(bend) < 0.02) bend = vec2(0.0);
         rimWrap = b.z * METABALL_RIM_WRAP;
         lensTint = u_geom.y > 0.5 ? u_lensTint0 : texture(u_geomTint, uv);
+        // Only a group whose members share one opacity is baked.
+        memberOpacity = u_lensMeta0.w;
     } else {
         mf = evaluateMerged(fragPx);
 #if METABALL_GRAD_ANALYTIC
@@ -1071,6 +1114,7 @@ void main() {
                   * METABALL_RIM_WRAP;
         anchorPx = mf.anchor;
         lensTint = mf.tint;
+        memberOpacity = mf.opacity;
         bend     = mf.bend;
     }
     float shapeDistPx   = shapeData.orthoDist;
@@ -1086,11 +1130,15 @@ void main() {
 
     vec4 lensTint;
     float refrDepth;
-    vec2 anchorPx   = anchorFor(fragPx, lensTint, refrDepth);
+    float memberOpacity;
+    vec2 anchorPx   = anchorFor(fragPx, lensTint, refrDepth, memberOpacity);
     vec2 anchorNorm = anchorPx * invResY;
     // The experiment paths keep the shape's own normal.
     vec2 bend       = vec2(0.0);
 #endif
+
+    // The group's opacity over the members' own.
+    float glassOpacity = u_glassOpacity * memberOpacity;
 
     // Past the AA ramp the glass and its rim are exactly transparent: the
     // gaps between members skip the sample and the rim.
@@ -1138,11 +1186,11 @@ void main() {
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
         u_lightOpposite.xyz,
-        u_shapeAaPx,
+        u_shapeAaPx, u_rimDarkFade,
         rimWrap
     );
 
-    frag_color = overlayPremul(base, borderPremul);
+    frag_color = overlayPremul(base, borderPremul) * glassOpacity;
 #else
     if (zoneMask < 0.5) {
         // Outside the distortion band — straight magnified sample + border.
@@ -1157,11 +1205,11 @@ void main() {
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
             u_lightOpposite.xyz,
-            u_shapeAaPx,
+            u_shapeAaPx, u_rimDarkFade,
             rimWrap
         );
 
-        frag_color = overlayPremul(base, borderPremul);
+        frag_color = overlayPremul(base, borderPremul) * glassOpacity;
         return;
     }
 
@@ -1189,11 +1237,11 @@ void main() {
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
         u_lightOpposite.xyz,
-        u_shapeAaPx,
+        u_shapeAaPx, u_rimDarkFade,
         rimWrap
     );
 
-    frag_color = overlayPremul(base, borderPremul);
+    frag_color = overlayPremul(base, borderPremul) * glassOpacity;
 #endif
 }
 #endif

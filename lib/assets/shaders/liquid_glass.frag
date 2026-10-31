@@ -62,7 +62,8 @@ uniform vec4 u_packC;
 uniform vec4 u_specular2;
 // The second specular's own colour, as u_specularColor.
 uniform vec4 u_specular2Color;
-// Far-arc strength per light: x=specular  y=glow  z=second specular.
+// Far-arc strength per light: x=specular  y=glow  z=second specular;
+// w=the glass's opacity, which every output is multiplied by.
 uniform vec4 u_lightOpposite;
 
 // Restore the original scalar names. These are plain float aliases (a single
@@ -86,6 +87,8 @@ uniform vec4 u_lightOpposite;
 #define u_glowAngle                    u_packB.w
 #define u_glowSpread                   u_packC.x
 #define u_specular2Intensity           u_packC.y
+// The glass's opacity: 1 draws it whole, 0 leaves the backdrop as it was.
+#define u_glassOpacity                 u_lightOpposite.w
 #define u_shaderBlurPx                 u_packC.z
 #define u_shaderBlurDispersion         u_packC.w
 // Each light as the border reads it: (angle in degrees, spread, intensity).
@@ -108,7 +111,12 @@ uniform vec2 u_imageSize;
 // treat the backdrop as opaque (Impeller live backdrop: its alpha is not
 // a transparency signal and reads 0 over dark regions, which would
 // otherwise zero the body coverage and drop the optical rim).
-uniform float u_honorBackdropAlpha;
+// Plus 2.0 when the glow fades over dark backdrops (see rimLift):
+// LiquidGlassConfiguration.rimLiftOnDark off. Both flags in one float,
+// so the rim switch costs no uniform of its own.
+uniform float u_backdropFlags;
+#define u_honorBackdropAlpha (mod(u_backdropFlags, 2.0))
+#define u_rimDarkFade        (step(1.5, u_backdropFlags))
 
 // Edge-AA band width in FRAGMENT pixels (one logical pixel): 1.0 on the Skia
 // (logical-px) shader space, devicePixelRatio on the Impeller (physical-px)
@@ -532,13 +540,13 @@ void main() {
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
         u_lightOpposite.xyz,
-        u_shapeAaPx
+        u_shapeAaPx, u_rimDarkFade
     );
 
     // ===============================
     // Output composite
     // ===============================
-    frag_color = overlayPremul(base, borderPremul);
+    frag_color = overlayPremul(base, borderPremul) * u_glassOpacity;
 #else
     if (zoneMask < 0.5) {
         // Outside distortion zone
@@ -555,10 +563,10 @@ void main() {
             u_glowThickness, u_glow, u_glowColor,
             u_specular2, u_specular2Intensity, u_specular2Color,
             u_lightOpposite.xyz,
-            u_shapeAaPx
+            u_shapeAaPx, u_rimDarkFade
         );
 
-        frag_color = overlayPremul(base, borderPremul);
+        frag_color = overlayPremul(base, borderPremul) * u_glassOpacity;
         return;
     }
 
@@ -600,12 +608,12 @@ void main() {
         u_glowThickness, u_glow, u_glowColor,
         u_specular2, u_specular2Intensity, u_specular2Color,
         u_lightOpposite.xyz,
-        u_shapeAaPx
+        u_shapeAaPx, u_rimDarkFade
     );
 
     // ===============================
     // Output composite
     // ===============================
-    frag_color = overlayPremul(base, borderPremul);
+    frag_color = overlayPremul(base, borderPremul) * u_glassOpacity;
 #endif
 }
