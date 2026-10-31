@@ -31,17 +31,26 @@ enum LiquidGlassPillMode {
 /// and label render. Defaults mirror the bar's flat parameters, so
 /// swapping APIs is lossless.
 class LiquidGlassTabItemStyle {
-  /// Color of the selected item's icon + label.
-  final Color selectedColor;
+  /// Color of the selected item's icon + label. `null` (the default) is
+  /// the system blue for the theme's brightness: [defaultSelectedLight] or
+  /// [defaultSelectedDark].
+  final Color? selectedColor;
 
-  /// Color of unselected items' icons + labels.
-  final Color unselectedColor;
+  /// Color of unselected items' icons + labels. `null` (the default) is
+  /// black on a light theme and white on a dark one.
+  final Color? unselectedColor;
+
+  /// The selected colour on a light theme when [selectedColor] is `null`.
+  static const Color defaultSelectedLight = Color(0xFF0088FF);
+
+  /// The selected colour on a dark theme when [selectedColor] is `null`.
+  static const Color defaultSelectedDark = Color(0xFF0091FF);
 
   /// Icon size for every item.
   final double iconSize;
 
   /// Icon size for the item **under the glass** — and only there. `null`
-  /// (the default) keeps [iconSize], so nothing changes unless asked.
+  /// keeps [iconSize]. Default `30`.
   ///
   /// This is the **glass's** state, not the selection's: it applies
   /// while the moving glass pill is over an item — lifted on it,
@@ -62,8 +71,8 @@ class LiquidGlassTabItemStyle {
   /// Label font size. Labels are only shown for items that provide one.
   final double labelFontSize;
 
-  /// Label font size for the item **under the glass**. `null` (the
-  /// default) keeps [labelFontSize]. Same rules as [underGlassIconSize]:
+  /// Label font size for the item **under the glass**. `null` keeps
+  /// [labelFontSize]. Default `10`. Same rules as [underGlassIconSize]:
   /// the glass's state, not the selection's.
   final double? underGlassLabelFontSize;
 
@@ -83,21 +92,36 @@ class LiquidGlassTabItemStyle {
   final FontWeight unselectedFontWeight;
 
   const LiquidGlassTabItemStyle({
-    this.selectedColor = Colors.white,
-    this.unselectedColor = Colors.white70,
-    this.iconSize = 24,
-    this.underGlassIconSize,
-    this.labelFontSize = 10.5,
-    this.underGlassLabelFontSize,
-    this.iconLabelGap = 2,
+    this.selectedColor,
+    this.unselectedColor,
+    this.iconSize = 28,
+    this.underGlassIconSize = 30,
+    this.labelFontSize = 10,
+    this.underGlassLabelFontSize = 10,
+    this.iconLabelGap = 1,
     this.axis = Axis.vertical,
     this.selectedFontWeight = FontWeight.w600,
-    this.unselectedFontWeight = FontWeight.w500,
+    this.unselectedFontWeight = FontWeight.w600,
   });
 
-  /// Resolves the icon/label color for a cell in [selected] state.
-  Color colorFor({required bool selected}) =>
-      selected ? selectedColor : unselectedColor;
+  /// This style with a `null` [selectedColor] or [unselectedColor] filled
+  /// in for [brightness].
+  LiquidGlassTabItemStyle resolve(Brightness brightness) {
+    if (selectedColor != null && unselectedColor != null) return this;
+    final bool dark = brightness == Brightness.dark;
+    return copyWith(
+      selectedColor: selectedColor ??
+          (dark ? defaultSelectedDark : defaultSelectedLight),
+      unselectedColor:
+          unselectedColor ?? (dark ? Colors.white : Colors.black),
+    );
+  }
+
+  /// Resolves the icon/label color for a cell in [selected] state; a
+  /// `null` colour reads as its light-theme default.
+  Color colorFor({required bool selected}) => selected
+      ? selectedColor ?? defaultSelectedLight
+      : unselectedColor ?? Colors.black;
 
   /// Resolves the icon size for a cell by how much glass is over it:
   /// a lerp from the shared [iconSize] (`0`) to [underGlassIconSize]
@@ -169,7 +193,7 @@ class LiquidGlassTabMagnifierPillStyle {
 
   const LiquidGlassTabMagnifierPillStyle({
     this.enabled = true,
-    this.magnification = 0.87,
+    this.magnification = 0.832,
   });
 
   LiquidGlassTabMagnifierPillStyle copyWith({
@@ -232,8 +256,8 @@ class LiquidGlassTabPillStyle {
   final double growHeight;
 
   /// How much wider than the resting pill the glass pill is while it is
-  /// lifted (glass [mode]s only). `null` (the default) keeps the resting
-  /// pill's proportions, so the width follows [growHeight].
+  /// lifted (glass [mode]s only). `null` keeps the resting pill's
+  /// proportions, so the width follows [growHeight]. Default `12`.
   final double? growWidth;
 
   /// Whether the moving glass pill stays inside the bar's left and right
@@ -258,14 +282,19 @@ class LiquidGlassTabPillStyle {
   final double dispersion;
 
   /// The selection pill's width at rest, in logical pixels. `null` (the
-  /// default) makes it one equal share of the bar, with each item centred
-  /// in its share.
+  /// default) makes it [widthFactor] times one equal share of the bar.
   ///
   /// Set it to make the pill wider than a share: the first and last items
   /// then sit `itemPadding + width / 2` in from the bar's ends and the
   /// items between spread evenly over the rest. The lifted glass pill keeps
   /// the same proportions.
   final double? width;
+
+  /// With a `null` [width], the resting pill's width as a multiple of one
+  /// equal share of the bar. `1` centres each item in its share; the
+  /// default `1.175` is the wider iOS pill (94 pt on a 328 pt, four-tab
+  /// bar), with the end items half a pill in from the bar's ends.
+  final double widthFactor;
 
   /// Shape of the moving **glass** pill (glass [mode]s only). When
   /// `null` (the default) the pill is an Apple capsule-style
@@ -319,7 +348,7 @@ class LiquidGlassTabPillStyle {
 
   /// The Impeller-only **magnifier pill** under the moving glass pill —
   /// see [LiquidGlassTabMagnifierPillStyle]. Defaults to enabled at
-  /// magnification `0.87`.
+  /// magnification `0.832`.
   final LiquidGlassTabMagnifierPillStyle magnifierPill;
 
   /// The glass pill's events, timing and travel (glass [mode]s only) — the
@@ -334,19 +363,20 @@ class LiquidGlassTabPillStyle {
   const LiquidGlassTabPillStyle({
     this.mode = LiquidGlassPillMode.both,
     this.show = true,
-    this.color = const Color(0x2EAEAEB2),
+    this.color = const Color(0x46AEAEB2),
     this.animated = false,
     this.animationDuration = const Duration(milliseconds: 320),
     this.animationCurve = Curves.easeOutCubic,
     this.blur = 0,
-    this.growHeight = 9,
-    this.growWidth,
+    this.growHeight = 7,
+    this.growWidth = 12,
     this.confineToBar = false,
-    this.refractionIndex = 1.025,
-    this.refractionWidth = 12,
+    this.refractionIndex = 1.007,
+    this.refractionWidth = 36,
     this.magnification = 1,
     this.dispersion = 1.32,
     this.width,
+    this.widthFactor = 1.175,
     this.shape,
     this.glassStyle,
     this.rest,
@@ -389,6 +419,7 @@ class LiquidGlassTabPillStyle {
     double? magnification,
     double? dispersion,
     double? width,
+    double? widthFactor,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
     LiquidGlassStyle? rest,
@@ -414,6 +445,7 @@ class LiquidGlassTabPillStyle {
       magnification: magnification ?? this.magnification,
       dispersion: dispersion ?? this.dispersion,
       width: width ?? this.width,
+      widthFactor: widthFactor ?? this.widthFactor,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
       rest: rest ?? this.rest,

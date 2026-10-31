@@ -202,7 +202,7 @@ class LiquidGlassBottomNavPillStatic extends StatelessWidget {
   /// Fill of the rest highlight.
   final Color color;
 
-  /// Corner shape of the rest highlight. When `null` a plain capsule is
+  /// Corner shape of the rest highlight. When `null` a continuous capsule is
   /// used. Only the corner family + radius are honored — the border and
   /// refractive fields don't apply to this non-shader pill.
   final LiquidGlassShape? shape;
@@ -233,20 +233,20 @@ class LiquidGlassBottomNavPillStatic extends StatelessWidget {
 /// [shape]'s corner family — circular, L^n squircle, or the Apple
 /// capsule-style continuous curve — so a CPU-painted pill or a clip
 /// lines up with the glass pill the shader draws. A `null` shape yields
-/// a plain capsule (radius = half the short side).
+/// a continuous capsule (radius = half the short side).
 Path liquidGlassNavPillOutline(Size size, LiquidGlassShape? shape) {
   final s = shape;
   final double maxR = math.min(size.width, size.height) / 2;
   final double radius = s != null ? math.min(s.cornerRadius, maxR) : maxR;
   switch (s?.cornerStyle) {
     case LiquidGlassCornerStyle.continuousRoundedRectangle:
+    case null:
       return liquidGlassContinuousRoundedRectPath(size, radius);
     case LiquidGlassCornerStyle.squircle:
       // Full, fixed smoothing to match the shader's squircle branch
       // (u_cornerStyle == 1).
       return liquidGlassSquirclePath(size, radius, 1.0);
     case LiquidGlassCornerStyle.roundedRectangle:
-    case null:
       return Path()
         ..addRRect(RRect.fromRectAndRadius(
           Offset.zero & size,

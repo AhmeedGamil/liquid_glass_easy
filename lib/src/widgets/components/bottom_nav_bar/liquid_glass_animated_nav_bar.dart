@@ -1611,7 +1611,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       LiquidGlassShape? base, double fallbackRadius) {
     final LiquidGlassLitShape lit = LiquidGlassLitShape.of(base ??
         LiquidGlassShape.continuousRoundedRectangle(
-            cornerRadius: fallbackRadius));
+            cornerRadius: fallbackRadius,
+            clipQuality: LiquidGlassClipQuality.exact));
     return lit.copyWith(
       specular: lit.specular.copyWith(thickness: 0, intensity: 0),
       glow: lit.glow.copyWith(thickness: 0),

@@ -42,12 +42,12 @@ class LiquidGlassTabPillTiming {
     this.travelDuration = 0.4,
     this.travelBounce = 0.15,
     this.glassFadeDuration = 0.4,
-    this.dragDuration = 0.196,
+    this.dragDuration = 0.25,
     this.dragBounce = 0.097,
     this.dragThreshold = 10,
-    this.landingWobbleStrength = 1.0,
+    this.landingWobbleStrength = 1.939,
     this.landingWobbleDelay = 0.0,
-    this.landingSquashFadeDuration = 0.08,
+    this.landingSquashFadeDuration = 0.138,
   });
 
   /// The bar height the points below are relative to: a host scales every

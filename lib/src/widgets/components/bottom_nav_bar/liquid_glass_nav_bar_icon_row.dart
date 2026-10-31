@@ -48,6 +48,9 @@ class LiquidGlassNavTabCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Unset colours follow the theme's brightness.
+    final LiquidGlassTabItemStyle style =
+        this.style.resolve(Theme.of(context).brightness);
     Color color = style.colorFor(selected: selected);
     // The adaptive content color arrives through IconTheme (animated
     // every frame of a palette flip by the lens / animated bar). The
@@ -55,7 +58,9 @@ class LiquidGlassNavTabCell extends StatelessWidget {
     // accent — identical selected/unselected colors mean "just content";
     // a distinct selectedColor is a deliberate accent and stays pinned.
     if (adaptive &&
-        (!selected || style.selectedColor == style.unselectedColor)) {
+        (!selected ||
+            style.colorFor(selected: true) ==
+                style.colorFor(selected: false))) {
       final Color? content = IconTheme.of(context).color;
       if (content != null) color = content;
     }
