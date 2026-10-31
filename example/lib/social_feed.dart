@@ -27,6 +27,17 @@ final ValueNotifier<bool> _overlay = ValueNotifier<bool>(false);
 final ValueNotifier<double> _blur = ValueNotifier<double>(3);
 final ValueNotifier<bool> _batch = ValueNotifier<bool>(true);
 
+// The tab bar's moving pills, starting at the package defaults.
+const LiquidGlassTabPillStyle _pillDefaults = LiquidGlassTabPillStyle();
+final ValueNotifier<double> _pillIndex =
+    ValueNotifier<double>(_pillDefaults.refractionIndex);
+final ValueNotifier<double> _pillWidth =
+    ValueNotifier<double>(_pillDefaults.refractionWidth);
+final ValueNotifier<double> _pillZoom =
+    ValueNotifier<double>(_pillDefaults.magnification);
+final ValueNotifier<double> _magnifierZoom =
+    ValueNotifier<double>(_pillDefaults.magnifierPill.magnification);
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // Compile the glass programs before the first frame.
@@ -159,7 +170,15 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
     // The page carries its own theme and overlay, so the panel's switches
     // work the same from the gallery as standalone.
     return ListenableBuilder(
-      listenable: Listenable.merge(<Listenable>[_dark, _overlay, _batch]),
+      listenable: Listenable.merge(<Listenable>[
+        _dark,
+        _overlay,
+        _batch,
+        _pillIndex,
+        _pillWidth,
+        _pillZoom,
+        _magnifierZoom,
+      ]),
       builder: (context, _) => Theme(
         data: _theme(_dark.value ? Brightness.dark : Brightness.light),
         child: Builder(builder: _page),
@@ -346,6 +365,13 @@ class _FeedTabBar extends StatelessWidget {
               ? LiquidGlassTabBar.defaultDarkStyle
               : LiquidGlassTabBar.defaultStyle)
           .copyWith(blur: blur),
+      pillStyle: _pillDefaults.copyWith(
+        refractionIndex: _pillIndex.value,
+        refractionWidth: _pillWidth.value,
+        magnification: _pillZoom.value,
+        magnifierPill: _pillDefaults.magnifierPill
+            .copyWith(magnification: _magnifierZoom.value),
+      ),
     ).buildGlassPillBar(
       body: body,
       chromeChild: chrome,
@@ -652,6 +678,12 @@ class _SettingsPanel extends StatelessWidget {
                 ],
               ),
             ),
+            Text('Glass pill', style: TextStyle(color: sub, fontSize: 12.5)),
+            _sliderRow('Refraction', _pillIndex, 1, 1.5, 3, ink, label),
+            _sliderRow('Band width', _pillWidth, 0, 60, 0, ink, label),
+            _sliderRow('Zoom (Skia)', _pillZoom, 0.8, 1.3, 2, ink, label),
+            Text('Magnifier pill', style: TextStyle(color: sub, fontSize: 12.5)),
+            _sliderRow('Zoom', _magnifierZoom, 0.6, 1.2, 3, ink, label),
             _switchRow(Icons.join_full_rounded, 'Batch', _batch, ink, label),
             _switchRow(Icons.speed_rounded, 'Performance overlay', _overlay,
                 ink, label),
@@ -665,6 +697,36 @@ class _SettingsPanel extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  /// A labelled slider over [value], from [min] to [max], its reading
+  /// shown with [digits] decimals.
+  Widget _sliderRow(String text, ValueNotifier<double> value, double min,
+      double max, int digits, Color ink, TextStyle label) {
+    return ValueListenableBuilder<double>(
+      valueListenable: value,
+      builder: (context, v, _) => Row(
+        children: [
+          SizedBox(width: 92, child: Text(text, style: label)),
+          Expanded(
+            child: Slider(
+              value: v.clamp(min, max),
+              min: min,
+              max: max,
+              onChanged: (x) => value.value = x,
+            ),
+          ),
+          SizedBox(
+            width: 44,
+            child: Text(
+              v.toStringAsFixed(digits),
+              textAlign: TextAlign.end,
+              style: label,
+            ),
+          ),
+        ],
       ),
     );
   }
