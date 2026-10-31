@@ -186,7 +186,7 @@ class LiquidGlassFlex {
   /// See [LiquidGlassFlexAdvanced.releaseDamping].
   double get releaseDamping => advanced.releaseDamping;
 
-  /// The shipped feel: the blended-list spec, at a [stretch] of 13.
+  /// The shipped feel: the blended-list spec, at a [stretch] of 8.
   ///
   /// Dialled in on a real panel rather than derived — a list-sized lens that
   /// deforms visibly under a drag without leaving its own footprint, leans
@@ -194,7 +194,7 @@ class LiquidGlassFlex {
   /// [compressInward] is on, so driving the grabbed edge into the body
   /// squashes it rather than inflating it whichever way it is shoved.
   const LiquidGlassFlex({
-    this.stretch = 13,
+    this.stretch = 8,
     this.squeeze = 0.70,
     this.lean = 0.50,
     this.grip = 0.70,
