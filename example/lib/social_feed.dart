@@ -300,8 +300,9 @@ class _SocialFeedPageState extends State<SocialFeedPage> {
   }
 }
 
-/// The package's tab bar with its moving glass pill, floating over [body]
-/// with [chrome] placed for the renderer.
+/// The package's tab bar on its defaults (the iOS 26 floating tab bar,
+/// as tuned in Apple Match), floating over [body] with [chrome] placed
+/// for the renderer. Only the capsule's blur follows the page's knob.
 class _FeedTabBar extends StatelessWidget {
   const _FeedTabBar({
     required this.selectedIndex,
@@ -328,21 +329,11 @@ class _FeedTabBar extends StatelessWidget {
       items: _tabs,
       selectedIndex: selectedIndex,
       onChanged: onChanged,
-      width: 328,
-      height: height,
       margin: EdgeInsets.only(bottom: bottom),
-      itemPadding: 4,
-      style: LiquidGlassTabBar.defaultStyle.copyWith(
-        shape: const LiquidGlassShape.continuousRoundedRectangle(
-          cornerRadius: height / 2,
-        ),
-        blur: blur,
-      ),
-      pillStyle: const LiquidGlassTabPillStyle(mode: LiquidGlassPillMode.both),
-      itemStyle: LiquidGlassTabItemStyle(
-        selectedColor: const Color(0xFF0A84FF),
-        unselectedColor: dark ? Colors.white : Colors.black,
-      ),
+      style: (dark
+              ? LiquidGlassTabBar.defaultDarkStyle
+              : LiquidGlassTabBar.defaultStyle)
+          .copyWith(blur: blur),
     ).buildGlassPillBar(
       body: body,
       chromeChild: chrome,
