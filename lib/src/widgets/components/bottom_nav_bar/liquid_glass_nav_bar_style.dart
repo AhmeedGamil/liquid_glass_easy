@@ -193,7 +193,7 @@ class LiquidGlassTabMagnifierPillStyle {
 
   const LiquidGlassTabMagnifierPillStyle({
     this.enabled = true,
-    this.magnification = 0.85,
+    this.magnification = 0.832,
   });
 
   LiquidGlassTabMagnifierPillStyle copyWith({
@@ -355,7 +355,7 @@ class LiquidGlassTabPillStyle {
 
   /// The Impeller-only **magnifier pill** under the moving glass pill —
   /// see [LiquidGlassTabMagnifierPillStyle]. Defaults to enabled at
-  /// magnification `0.85`.
+  /// magnification `0.832`.
   final LiquidGlassTabMagnifierPillStyle magnifierPill;
 
   /// The glass pill's events, timing and travel (glass [mode]s only) — the
@@ -379,7 +379,7 @@ class LiquidGlassTabPillStyle {
     this.growWidth = 12,
     this.confineToBar = false,
     this.refractionIndex = 1.015,
-    this.refractionWidth = 20,
+    this.refractionWidth = 24,
     this.magnification = 1,
     this.dispersion = 1.32,
     this.width,
