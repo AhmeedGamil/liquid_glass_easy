@@ -355,8 +355,7 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
     // nothing at all. Decided at BUILD time so members can see it.
     // Lite glass — by the engine switch or this style's pickup: no merged
     // pass at all, so members paint solo, each its own lite surface.
-    final bool lite =
-        LiquidGlassEngine.liteGlass || widget.style.liteGlass;
+    final bool lite = LiquidGlassEngine.liteGlass || widget.style.liteGlass;
     final bool canBlend = (useImpeller || lensScope != null) && !lite;
     if (!canBlend && !lite) _warnSoloOnce();
 
@@ -476,9 +475,24 @@ class LiquidGlassBlenderScope extends InheritedWidget {
     required this.canBlend,
     required this.style,
     required super.child,
-  }) : _registry = registry;
+  })  : _registry = registry,
+        _excluded = false;
 
-  final _LiquidGlassBlenderRegistry _registry;
+  const LiquidGlassBlenderScope._excluded({required super.child})
+      : _registry = null,
+        canBlend = false,
+        style = const LiquidGlassStyle(),
+        _excluded = true;
+
+  /// [child]'s lenses keep their own glass under an enclosing blender:
+  /// they do not join its merged surface.
+  static Widget exclude({required Widget child}) =>
+      LiquidGlassBlenderScope._excluded(child: child);
+
+  final _LiquidGlassBlenderRegistry? _registry;
+
+  /// Set by [exclude]: [maybeOf] reports no blender below it.
+  final bool _excluded;
 
   /// Whether the merged surface can actually be drawn. False on Skia / web
   /// with no ancestor `LiquidGlassView`: there is no captured backdrop to
@@ -493,8 +507,9 @@ class LiquidGlassBlenderScope extends InheritedWidget {
   final LiquidGlassStyle style;
 
   static LiquidGlassBlenderScope? maybeOf(BuildContext context) {
-    return context
-        .dependOnInheritedWidgetOfExactType<LiquidGlassBlenderScope>();
+    final LiquidGlassBlenderScope? scope =
+        context.dependOnInheritedWidgetOfExactType<LiquidGlassBlenderScope>();
+    return scope == null || scope._excluded ? null : scope;
   }
 
   /// The style a member should paint itself with when [canBlend] is false.
@@ -549,7 +564,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
           );
 
     return _LiquidGlassBlenderMember(
-      registry: _registry,
+      registry: _registry!,
       shape: shape,
       visible: visible,
       shapeScale: shapeScale,
@@ -562,6 +577,7 @@ class LiquidGlassBlenderScope extends InheritedWidget {
   @override
   bool updateShouldNotify(LiquidGlassBlenderScope oldWidget) {
     return _registry != oldWidget._registry ||
+        _excluded != oldWidget._excluded ||
         canBlend != oldWidget.canBlend ||
         style != oldWidget.style;
   }
@@ -1441,8 +1457,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         shape.glow.thickness,
       ),
     );
-    final double range =
-        LiquidGlassShapeCache.ceilTo((reach + 4) * dpr * 2, 8);
+    final double range = LiquidGlassShapeCache.ceilTo((reach + 4) * dpr * 2, 8);
     final Offset origin = rect.topLeft;
     final List<MetaballLensUniform> local = <MetaballLensUniform>[
       for (final MetaballLensUniform lens in lenses) lens.translated(-origin)

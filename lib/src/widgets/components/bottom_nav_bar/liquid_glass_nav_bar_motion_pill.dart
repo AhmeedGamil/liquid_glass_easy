@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
+import '../../lens/liquid_glass_blender.dart' show LiquidGlassBlenderScope;
 import '../../lens/liquid_glass_lens.dart';
 import '../../lens/liquid_glass_shape_cache.dart'
     show LiquidGlassShapeCacheExclude;
@@ -437,9 +438,12 @@ class _LiquidGlassNavBarMotionPillState
     // Out of the shape cache: the pill changes shape on every touch and
     // every tab change, so a bake taken on settle never pays off. Out of
     // the blur and dispersion overrides too: its look is the tab bar's.
-    Widget glassPill = LiquidGlassShapeCacheExclude(
-        child: LiquidGlassOverrideExclude(
-            child: LiquidGlassLens(
+    // Out of any enclosing blender: the bar's capsule may join one, the
+    // glass pill and the magnifier keep their own glass.
+    Widget glassPill = LiquidGlassBlenderScope.exclude(
+        child: LiquidGlassShapeCacheExclude(
+            child: LiquidGlassOverrideExclude(
+                child: LiquidGlassLens(
       style: _resolveStyle(styleProgress, scaleX, presence: presence, rim: rim),
       honorBackdropAlpha: widget.honorBackdropAlpha,
       // The 4.1.0 clip, kept for the two tab bar pills only: a padded rect
@@ -457,7 +461,7 @@ class _LiquidGlassNavBarMotionPillState
         childTranslateY: 0,
         pressAmount: 0,
       ),
-    )));
+    ))));
 
     // The shadow remains part of this same surface and eases away with the
     // active style instead of being hidden by a replacement rest widget.
