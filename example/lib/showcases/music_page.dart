@@ -37,6 +37,9 @@ LiquidGlassTabBarItem _sfTab(String symbol, String label) =>
 class _MusicPageState extends State<MusicPage> {
   int _tab = 0;
 
+  /// How far the capsule and the search circle flow into each other.
+  double _smoothness = 48;
+
   static const double _edge = 16;
   static const double _barHeight = 62;
   static const double _bottom = 24;
@@ -150,38 +153,76 @@ class _MusicPageState extends State<MusicPage> {
       ),
       child: Material(
         type: MaterialType.transparency,
-        // One material for the capsule and the circle: the bar's own.
-        child: LiquidGlassBlender(
-          style: dark
-              ? LiquidGlassTabBar.defaultDarkStyle
-              : LiquidGlassTabBar.defaultStyle,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              // With a live backdrop the bar is a full-screen overlay that
-              // places itself; otherwise it is the bare capsule.
-              if (ui.ImageFilter.isShaderFilterSupported)
-                bar
-              else
-                Positioned(
-                  left: _edge,
-                  bottom: mq.padding.bottom + _bottom,
-                  child: bar,
-                ),
-              Positioned(
-                right: _edge,
-                bottom: mq.padding.bottom + _bottom,
-                child: LiquidGlassTabBarAction(
-                  size: _barHeight,
-                  onTap: () {},
-                  touch: const LiquidGlassTouch.flexing(
-                    LiquidGlassFlex.subtle(),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            // One material for the capsule and the circle: the bar's own.
+            LiquidGlassBlender(
+              smoothness: _smoothness,
+              style: dark
+                  ? LiquidGlassTabBar.defaultDarkStyle
+                  : LiquidGlassTabBar.defaultStyle,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // With a live backdrop the bar is a full-screen overlay that
+                  // places itself; otherwise it is the bare capsule.
+                  if (ui.ImageFilter.isShaderFilterSupported)
+                    bar
+                  else
+                    Positioned(
+                      left: _edge,
+                      bottom: mq.padding.bottom + _bottom,
+                      child: bar,
+                    ),
+                  Positioned(
+                    right: _edge,
+                    bottom: mq.padding.bottom + _bottom,
+                    child: LiquidGlassTabBarAction(
+                      size: _barHeight,
+                      onTap: () {},
+                      touch: const LiquidGlassTouch.flexing(
+                        LiquidGlassFlex.subtle(),
+                      ),
+                      child: _sf('magnifyingglass', 26, ink),
+                    ),
                   ),
-                  child: _sf('magnifyingglass', 26, ink),
+                ],
+              ),
+            ),
+            // Tuning: the blender's smoothness.
+            Positioned(
+              left: _edge,
+              right: _edge,
+              top: mq.padding.top + 64,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: (dark ? Colors.black : Colors.white)
+                      .withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 6, 6, 6),
+                  child: Row(
+                    children: [
+                      Text(
+                        'Smoothness ${_smoothness.round()}',
+                        style: TextStyle(color: ink, fontSize: 13),
+                      ),
+                      Expanded(
+                        child: Slider(
+                          min: 0,
+                          max: 100,
+                          value: _smoothness,
+                          onChanged: (v) => setState(() => _smoothness = v),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
