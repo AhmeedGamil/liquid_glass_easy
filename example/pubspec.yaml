@@ -11,6 +11,8 @@ dependencies:
     sdk: flutter
 
   flutter_svg: ^2.3.0
+  # The SF Symbols-style tab icons on the social feed.
+  cupertino_icons: ^1.0.8
   # Only the "Device preview" demo: the app scaled to fit a phone frame.
   liquid_glass_easy:
     path: ../

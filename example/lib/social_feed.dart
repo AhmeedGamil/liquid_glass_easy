@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/cupertino.dart' show CupertinoIcons;
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
 
@@ -61,12 +62,13 @@ ThemeData _theme(Brightness b) => ThemeData(
       ),
     );
 
+// Apple Match's tab icons.
 const List<LiquidGlassTabBarItem> _tabs = [
-  LiquidGlassTabBarItem(icon: Icons.home_rounded, label: 'Home'),
-  LiquidGlassTabBarItem(icon: Icons.search_rounded, label: 'Explore'),
-  LiquidGlassTabBarItem(icon: Icons.slideshow_rounded, label: 'Reels'),
+  LiquidGlassTabBarItem(icon: CupertinoIcons.house_fill, label: 'Home'),
+  LiquidGlassTabBarItem(icon: CupertinoIcons.search, label: 'Explore'),
+  LiquidGlassTabBarItem(icon: CupertinoIcons.square_stack_fill, label: 'Reels'),
   LiquidGlassTabBarItem(
-      icon: Icons.account_circle_rounded, label: 'Profile'),
+      icon: CupertinoIcons.person_crop_circle_fill, label: 'Profile'),
 ];
 
 const List<String> _filters = ['For you', 'Following', 'Trending', 'Nearby'];
