@@ -95,22 +95,30 @@ class LiquidGlassConfiguration {
   /// [blurOverride] keeps its own. Read when a lens builds.
   static double? dispersionOverride;
 
-  /// Replaces the tint (`LiquidGlassStyle.color`) of every lens and blender
-  /// on a light theme when set, an adaptive verdict's tint included. The
-  /// same glass as for [blurOverride] keeps its own. Read when a lens
-  /// builds; the theme is the app's (`Theme.of(context).brightness`).
-  static Color? colorOverrideLight;
+  /// Whether every lens and blender takes the global tint: [colorOverrideLight]
+  /// and [saturationOverrideLight] on a light theme, [colorOverrideDark] and
+  /// [saturationOverrideDark] on a dark one, in place of its own colour and
+  /// saturation, an adaptive verdict's tint included. Off by default. The
+  /// tab bar's glass and magnifier pills, the slider thumb and the switch
+  /// thumb keep their own. Read when a lens builds; the theme is the app's
+  /// (`Theme.of(context).brightness`).
+  static bool tintOverride = false;
 
-  /// [colorOverrideLight] on a dark theme.
-  static Color? colorOverrideDark;
+  /// The global tint on a light theme, while [tintOverride] is on: white at
+  /// about 68% by default.
+  static Color colorOverrideLight = const Color(0xADFFFFFF);
 
-  /// Replaces the saturation of every lens and blender on a light theme
-  /// when set. The same glass as for [blurOverride] keeps its own. Read
-  /// when a lens builds.
-  static double? saturationOverrideLight;
+  /// The global tint on a dark theme, while [tintOverride] is on: a near
+  /// black (28, 28, 31) at about 55% by default.
+  static Color colorOverrideDark = const Color(0x8C1C1C1F);
 
-  /// [saturationOverrideLight] on a dark theme.
-  static double? saturationOverrideDark;
+  /// The global saturation on a light theme, while [tintOverride] is on.
+  /// `2` by default.
+  static double saturationOverrideLight = 2.0;
+
+  /// The global saturation on a dark theme, while [tintOverride] is on.
+  /// `1.2` by default.
+  static double saturationOverrideDark = 1.2;
 
   /// Replaces the shadow colour of every lens and blender that has a shadow,
   /// on a light theme, when set. The same glass as for [blurOverride] keeps
@@ -138,9 +146,16 @@ class LiquidGlassConfiguration {
       BuildContext context, LiquidGlassAppearance appearance) {
     final double? blur = blurOverride;
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color? color = dark ? colorOverrideDark : colorOverrideLight;
-    final double? saturation =
-        dark ? saturationOverrideDark : saturationOverrideLight;
+    final Color? color = !tintOverride
+        ? null
+        : dark
+            ? colorOverrideDark
+            : colorOverrideLight;
+    final double? saturation = !tintOverride
+        ? null
+        : dark
+            ? saturationOverrideDark
+            : saturationOverrideLight;
     final Color? shadowColor =
         dark ? shadowColorOverrideDark : shadowColorOverrideLight;
     if (blur == null &&
@@ -198,9 +213,16 @@ class LiquidGlassConfiguration {
     Brightness brightness = Brightness.light,
   }) {
     final bool dark = brightness == Brightness.dark;
-    final Color? color = dark ? colorOverrideDark : colorOverrideLight;
-    final double? saturation =
-        dark ? saturationOverrideDark : saturationOverrideLight;
+    final Color? color = !tintOverride
+        ? null
+        : dark
+            ? colorOverrideDark
+            : colorOverrideLight;
+    final double? saturation = !tintOverride
+        ? null
+        : dark
+            ? saturationOverrideDark
+            : saturationOverrideLight;
     final Color? shadowColor =
         dark ? shadowColorOverrideDark : shadowColorOverrideLight;
     if (blurOverride == null &&
