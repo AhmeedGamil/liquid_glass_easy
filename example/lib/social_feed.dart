@@ -62,18 +62,19 @@ ThemeData _theme(Brightness b) => ThemeData(
       ),
     );
 
-// Apple Match's tab icons, drawn as the project's own SVGs.
+// Apple Match's tab icons: the SF Symbols, as SVGs in assets/sf/.
 final List<LiquidGlassTabBarItem> _tabs = [
-  _tab('home_fill', 'Home'),
-  _tab('search', 'Explore'),
-  _tab('square_stack_fill', 'Reels'),
-  _tab('person_circle_fill', 'Profile'),
+  _tab('house.fill', 'Home'),
+  _tab('magnifyingglass', 'Explore'),
+  _tab('play.square.stack.fill', 'Reels'),
+  _tab('person.crop.circle.fill', 'Profile'),
 ];
 
-LiquidGlassTabBarItem _tab(String icon, String label) => LiquidGlassTabBarItem(
+LiquidGlassTabBarItem _tab(String symbol, String label) =>
+    LiquidGlassTabBarItem(
       label: label,
       iconBuilder: (context, g) => SvgPicture.asset(
-        'assets/icons/$icon.svg',
+        'assets/sf/$symbol.svg',
         width: g.size,
         height: g.size,
         colorFilter: ColorFilter.mode(g.color, BlendMode.srcIn),
