@@ -282,7 +282,8 @@ class LiquidGlassTabPillStyle {
   final double dispersion;
 
   /// The selection pill's width at rest, in logical pixels. `null` (the
-  /// default) makes it [widthFactor] times one equal share of the bar.
+  /// default) makes it [targetWidth], kept between one equal share of the
+  /// bar and [widthFactor] shares.
   ///
   /// Set it to make the pill wider than a share: the first and last items
   /// then sit `itemPadding + width / 2` in from the bar's ends and the
@@ -290,11 +291,17 @@ class LiquidGlassTabPillStyle {
   /// the same proportions.
   final double? width;
 
-  /// With a `null` [width], the resting pill's width as a multiple of one
-  /// equal share of the bar. `1` centres each item in its share; the
-  /// default `1.175` is the wider iOS pill (94 pt on a 328 pt, four-tab
-  /// bar), with the end items half a pill in from the bar's ends.
+  /// With a `null` [width], the widest the resting pill grows, as a
+  /// multiple of one equal share of the bar. `1` centres each item in its
+  /// share; the default `1.175` is the wider iOS pill on a tight bar, with
+  /// the end items half a pill in from the bar's ends.
   final double widthFactor;
+
+  /// With a `null` [width], the resting pill's width in logical pixels,
+  /// kept between one share and [widthFactor] shares. The default `94` is
+  /// the iOS pill on a 328 pt, four-tab bar; a roomier bar (fewer or wider
+  /// tabs) stops at it instead of growing with its share.
+  final double targetWidth;
 
   /// Shape of the moving **glass** pill (glass [mode]s only). When
   /// `null` (the default) the pill is an Apple capsule-style
@@ -377,6 +384,7 @@ class LiquidGlassTabPillStyle {
     this.dispersion = 1.32,
     this.width,
     this.widthFactor = 1.175,
+    this.targetWidth = 94,
     this.shape,
     this.glassStyle,
     this.rest,
@@ -420,6 +428,7 @@ class LiquidGlassTabPillStyle {
     double? dispersion,
     double? width,
     double? widthFactor,
+    double? targetWidth,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
     LiquidGlassStyle? rest,
@@ -446,6 +455,7 @@ class LiquidGlassTabPillStyle {
       dispersion: dispersion ?? this.dispersion,
       width: width ?? this.width,
       widthFactor: widthFactor ?? this.widthFactor,
+      targetWidth: targetWidth ?? this.targetWidth,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
       rest: rest ?? this.rest,

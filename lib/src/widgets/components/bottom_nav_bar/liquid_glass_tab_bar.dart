@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -240,10 +241,16 @@ class LiquidGlassTabBar extends StatelessWidget {
       );
 
   /// The resting pill's width: [LiquidGlassTabPillStyle.width], or its
-  /// `widthFactor` times one equal share of the bar.
-  double get restPillWidth =>
-      pillStyle.width ??
-      pillStyle.widthFactor * (width - 2 * itemPadding) / items.length;
+  /// `targetWidth` kept between one equal share of the bar and
+  /// `widthFactor` shares.
+  double get restPillWidth {
+    final double? fixed = pillStyle.width;
+    if (fixed != null) return fixed;
+    final double share = (width - 2 * itemPadding) / items.length;
+    final double widest = share * pillStyle.widthFactor;
+    return pillStyle.targetWidth
+        .clamp(math.min(share, widest), math.max(share, widest));
+  }
 
   /// Whether [glassPill] resolves to the glass-refracting morphing pill
   /// on the active renderer.
