@@ -1,8 +1,9 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:meta/meta.dart';
 
 import 'lens/liquid_glass_batch.dart';
 import 'lens/liquid_glass_shape_cache.dart';
+import 'components/liquid_glass_shadow.dart';
 import 'liquid_glass_config.dart';
 import 'liquid_glass_style.dart';
 
@@ -94,6 +95,31 @@ class LiquidGlassConfiguration {
   /// [blurOverride] keeps its own. Read when a lens builds.
   static double? dispersionOverride;
 
+  /// Replaces the tint (`LiquidGlassStyle.color`) of every lens and blender
+  /// on a light theme when set, an adaptive verdict's tint included. The
+  /// same glass as for [blurOverride] keeps its own. Read when a lens
+  /// builds; the theme is the app's (`Theme.of(context).brightness`).
+  static Color? colorOverrideLight;
+
+  /// [colorOverrideLight] on a dark theme.
+  static Color? colorOverrideDark;
+
+  /// Replaces the saturation of every lens and blender on a light theme
+  /// when set. The same glass as for [blurOverride] keeps its own. Read
+  /// when a lens builds.
+  static double? saturationOverrideLight;
+
+  /// [saturationOverrideLight] on a dark theme.
+  static double? saturationOverrideDark;
+
+  /// Replaces the shadow colour of every lens and blender that has a shadow,
+  /// on a light theme, when set. The same glass as for [blurOverride] keeps
+  /// its own. Read when a lens builds.
+  static Color? shadowColorOverrideLight;
+
+  /// [shadowColorOverrideLight] on a dark theme.
+  static Color? shadowColorOverrideDark;
+
   /// Whether the glow keeps showing over a dark backdrop.
   ///
   /// On (the default), the glow adds its lightness to whatever is behind
@@ -104,16 +130,50 @@ class LiquidGlassConfiguration {
   /// glass paints.
   static bool rimLiftOnDark = true;
 
-  /// [appearance] with [blurOverride] applied, unless [context] sits under
-  /// a [LiquidGlassOverrideExclude]. Library-internal.
+  /// [appearance] with [blurOverride] and the light/dark colour, saturation
+  /// and shadow colour overrides applied, unless [context] sits under a
+  /// [LiquidGlassOverrideExclude]. Library-internal.
   @internal
   static LiquidGlassAppearance overrideAppearance(
       BuildContext context, LiquidGlassAppearance appearance) {
     final double? blur = blurOverride;
-    if (blur != null && LiquidGlassOverrideExclude.of(context)) {
+    final bool dark = Theme.of(context).brightness == Brightness.dark;
+    final Color? color = dark ? colorOverrideDark : colorOverrideLight;
+    final double? saturation =
+        dark ? saturationOverrideDark : saturationOverrideLight;
+    final Color? shadowColor =
+        dark ? shadowColorOverrideDark : shadowColorOverrideLight;
+    if (blur == null &&
+        color == null &&
+        saturation == null &&
+        shadowColor == null) {
       return appearance;
     }
-    return blur == null ? appearance : appearance.copyWith(blur: blur);
+    if (LiquidGlassOverrideExclude.of(context)) return appearance;
+    return appearance.copyWith(
+      blur: blur,
+      color: color,
+      saturation: saturation,
+      shadow: _recolor(appearance.shadow, shadowColor),
+    );
+  }
+
+  /// [shadow] in [color]; [shadow] itself when either is null.
+  static LiquidGlassShadow? _recolor(LiquidGlassShadow? shadow, Color? color) {
+    if (shadow == null || color == null) return shadow;
+    return LiquidGlassShadow(
+      key: shadow.key,
+      blur: shadow.blur,
+      opacity: shadow.opacity,
+      color: color,
+      offset: shadow.offset,
+      cornerRadius: shadow.cornerRadius,
+      scale: shadow.scale,
+      inset: shadow.inset,
+      visible: shadow.visible,
+      insideGlass: shadow.insideGlass,
+      child: shadow.child,
+    );
   }
 
   /// [refraction] with [dispersionOverride] applied, unless [context] sits
@@ -130,11 +190,33 @@ class LiquidGlassConfiguration {
         : refraction.copyWith(dispersion: dispersion);
   }
 
-  /// [style] with both overrides applied. Library-internal.
+  /// [style] with every override applied, the light/dark ones for
+  /// [brightness]. Library-internal.
   @internal
-  static LiquidGlassStyle overrideStyle(LiquidGlassStyle style) {
-    if (blurOverride == null && dispersionOverride == null) return style;
-    return style.copyWith(blur: blurOverride, dispersion: dispersionOverride);
+  static LiquidGlassStyle overrideStyle(
+    LiquidGlassStyle style, {
+    Brightness brightness = Brightness.light,
+  }) {
+    final bool dark = brightness == Brightness.dark;
+    final Color? color = dark ? colorOverrideDark : colorOverrideLight;
+    final double? saturation =
+        dark ? saturationOverrideDark : saturationOverrideLight;
+    final Color? shadowColor =
+        dark ? shadowColorOverrideDark : shadowColorOverrideLight;
+    if (blurOverride == null &&
+        dispersionOverride == null &&
+        color == null &&
+        saturation == null &&
+        shadowColor == null) {
+      return style;
+    }
+    return style.copyWith(
+      blur: blurOverride,
+      dispersion: dispersionOverride,
+      color: color,
+      saturation: saturation,
+      shadow: _recolor(style.shadow, shadowColor),
+    );
   }
 }
 

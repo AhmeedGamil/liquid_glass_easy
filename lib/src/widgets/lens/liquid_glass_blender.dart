@@ -438,7 +438,10 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
             child: _LiquidGlassBlenderSurface(
               registry: _registry,
               shader: _shader!,
-              style: LiquidGlassConfiguration.overrideStyle(style),
+              style: LiquidGlassConfiguration.overrideStyle(
+                style,
+                brightness: Theme.of(context).brightness,
+              ),
               smoothness: widget.smoothness,
               useImpellerBackdrop: useImpeller,
               // Inside a LiquidGlassBatch the merged pass joins the batch's
