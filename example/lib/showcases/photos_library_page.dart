@@ -160,12 +160,6 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
   /// search, Select and the menu.
   final double _glassBlur = 4;
 
-  /// The tab pill's glass.
-  final LiquidGlassStyle _pillGlass = const LiquidGlassStyle(
-    dispersion: 3.3,
-    shadow: LiquidGlassShadow(blur: 9, opacity: 0.3),
-  );
-
   /// What the filter menu offers. The count is the library's headline
   /// number; the step is what the grid actually shows, so the two agree
   /// as you pick.
@@ -368,25 +362,6 @@ class _PhotosLibraryPageState extends State<PhotosLibraryPage> {
           iconLabelGap: 2,
           selectedFontWeight: FontWeight.w600,
           unselectedFontWeight: FontWeight.w500,
-        ),
-        pillStyle: LiquidGlassTabPillStyle(
-          mode: LiquidGlassPillMode.both,
-          animated: true,
-          growHeight: 7,
-          // The pill wears the page's lights and bends with the same
-          // index, over a narrower band. Clear, unblurred, with the
-          // pill's own shadow.
-          glassStyle: _pillGlass,
-          // Travelling, the pill carries almost no tint — over a
-          // capsule this pale, a fill would only mud it. It is the
-          // refraction of the bar's own frost that reads as movement.
-          //
-          // Where it lands: the lighter capsule of the reference, a
-          // lift of white on white.
-          rest: LiquidGlassStyle(
-            shape: _frostShape(50),
-            color: Color.fromARGB(40, 0, 0, 0),
-          ),
         ),
       ),
 
