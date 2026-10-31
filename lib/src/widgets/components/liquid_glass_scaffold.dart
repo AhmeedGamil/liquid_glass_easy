@@ -266,13 +266,12 @@ class LiquidGlassScaffold extends StatefulWidget {
 
   /// See [LiquidGlassView.batch]. `true` (the default) puts the glass in
   /// [body] on one shared read of the backdrop and the chrome — app bar,
-  /// action, FAB, [lenses] — on another. It is the one chrome
-  /// batch on both tab bar paths, and the tab bar is never in it: on
-  /// either path the bar's glass takes a read of its own. A
+  /// action, FAB, [lenses], and the tab bar with them — on another. It is
+  /// the one chrome batch on both tab bar paths. A
   /// `showLiquidGlassSheet` or a `showLiquidGlassDialog` opened from a
   /// context inside this scaffold can join that batch too, with
   /// `batch: true` on the call, so the sheet or the dialog costs no read
-  /// of its own — the same read the tab bar takes. Off by default: each
+  /// of its own — the same read the tab bar shares. Off by default: each
   /// takes a read of its own.
   final bool batch;
 
@@ -686,10 +685,8 @@ class _LiquidGlassScaffoldState extends State<LiquidGlassScaffold> {
                     left: navMargin.left,
                     right: navMargin.right,
                   ),
-                  // Its own read, never the chrome batch's.
-                  child: LiquidGlassBatch.exclude(
-                    child: widget.bottomNavigationBar!,
-                  ),
+                  // In the chrome batch with the rest of the chrome.
+                  child: widget.bottomNavigationBar!,
                 ),
               ),
             ),

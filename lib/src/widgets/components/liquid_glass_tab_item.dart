@@ -60,12 +60,19 @@ class LiquidGlassTabBarItem {
   /// the text to render, or left `null` for builder-only content.
   final LiquidGlassLabelBuilder? labelBuilder;
 
+  /// Whether the tab can be selected. A disabled tab ignores a press, and
+  /// a scrub never lands on it: the pill goes to the nearest enabled tab.
+  /// It is drawn as given; dim its art with [iconBuilder] and
+  /// [labelBuilder]. Default `true`.
+  final bool enabled;
+
   const LiquidGlassTabBarItem({
     this.icon,
     this.selectedIcon,
     this.label,
     this.iconBuilder,
     this.labelBuilder,
+    this.enabled = true,
   }) : assert(icon != null || iconBuilder != null,
             'Give the tab a glyph: an icon or an iconBuilder.');
 

@@ -124,6 +124,11 @@ class LiquidGlassNavBarMotionPill extends StatefulWidget {
   /// this widget only renders what it is given.
   final double? deviation;
 
+  /// The vertical half of a host-supplied deformation, when the two axes
+  /// are not a mirrored pair: `scaleY = 1 − deviationY`. `null` (the
+  /// default) mirrors [deviation]. Read only with [deviation].
+  final double? deviationY;
+
   /// How much of the glass is present, `0`..`1`, on top of the lift.
   ///
   /// The lift ([morphProgress]) says how big and how raised the pill is;
@@ -193,6 +198,7 @@ class LiquidGlassNavBarMotionPill extends StatefulWidget {
         refractionIndex: 1.5, refractionWidth: 30, blur: 0),
     this.motion = const LiquidGlassLensMotionSpec(),
     this.deviation,
+    this.deviationY,
     this.glassPresence = 1.0,
     this.expandStiffness = 247,
     this.expandDamping = 18.9,
@@ -385,11 +391,12 @@ class _LiquidGlassNavBarMotionPillState
     final double morphH = envelope?.height ??
         rest.height + (active.height - rest.height) * _morph;
     final double d = _deviation;
+    final double dy = widget.deviation != null ? (widget.deviationY ?? d) : d;
     return (
       morphW: morphW,
       morphH: morphH,
       pillW: morphW * (1 + d),
-      pillH: morphH * (1 - d),
+      pillH: morphH * (1 - dy),
     );
   }
 

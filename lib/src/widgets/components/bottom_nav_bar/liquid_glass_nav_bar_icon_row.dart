@@ -60,8 +60,10 @@ class LiquidGlassNavTabCell extends StatelessWidget {
       if (content != null) color = content;
     }
     final double glass = underGlass.clamp(0.0, 1.0);
+    final bool beside = style.axis == Axis.horizontal;
     return Center(
-      child: Column(
+      child: Flex(
+        direction: style.axis,
         mainAxisSize: MainAxisSize.min,
         children: [
           buildLiquidGlassNavGlyph(
@@ -73,7 +75,9 @@ class LiquidGlassNavTabCell extends StatelessWidget {
             underGlass: glass > 0,
           ),
           if (item.hasLabel) ...[
-            SizedBox(height: style.iconLabelGap),
+            beside
+                ? SizedBox(width: style.iconLabelGap)
+                : SizedBox(height: style.iconLabelGap),
             buildLiquidGlassNavLabel(
               context,
               item,
@@ -106,30 +110,51 @@ class NavBarTapRow extends StatelessWidget {
   /// splash is a capsule matching the cell, at any bar height.
   final double cellHeight;
 
+  /// The selection pill's rest width; `null` for one equal share. Each
+  /// item's target reaches halfway to its neighbours.
+  final double? pillWidth;
+
   const NavBarTapRow({
     super.key,
     required this.itemCount,
     required this.onChanged,
     required this.cellHeight,
+    this.pillWidth,
   });
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(cellHeight / 2);
-    return Row(
-      children: [
-        for (int i = 0; i < itemCount; i++)
-          Expanded(
-            child: Material(
-              color: Colors.transparent,
-              child: InkWell(
-                borderRadius: radius,
-                onTap: () => onChanged(i),
+    return LayoutBuilder(builder: (context, constraints) {
+      final row = LiquidGlassTabBarLayout(
+        itemCount: itemCount,
+        width: constraints.maxWidth,
+        padding: 0,
+        restPillWidth: pillWidth,
+      );
+      // Item i's centre; its target runs to the midpoints either side.
+      double centre(int i) => row.pillOffset(i.toDouble()) + row.pillWidth / 2;
+      return Stack(
+        children: [
+          for (int i = 0; i < itemCount; i++)
+            Positioned(
+              left: i == 0 ? 0 : (centre(i - 1) + centre(i)) / 2,
+              right: i == itemCount - 1
+                  ? 0
+                  : constraints.maxWidth - (centre(i) + centre(i + 1)) / 2,
+              top: 0,
+              bottom: 0,
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  borderRadius: radius,
+                  onTap: () => onChanged(i),
+                ),
               ),
             ),
-          ),
-      ],
-    );
+        ],
+      );
+    });
   }
 }
 
@@ -184,10 +209,14 @@ class NavBarIconRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.all(layout.padding),
-      child: Row(
+      child: Stack(
         children: [
           for (int i = 0; i < items.length; i++)
-            Expanded(
+            Positioned(
+              left: layout.pillOffset(i.toDouble()),
+              width: layout.pillWidth,
+              top: 0,
+              bottom: 0,
               child: LiquidGlassNavTabCell(
                 item: items[i],
                 selected: forceSelected

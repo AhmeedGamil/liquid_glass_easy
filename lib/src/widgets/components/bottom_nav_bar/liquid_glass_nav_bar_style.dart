@@ -7,6 +7,9 @@ import '../../utils/liquid_glass_lens_motion.dart';
 import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_shadow.dart';
+import 'liquid_glass_tab_pill_timing.dart';
+
+export 'liquid_glass_tab_pill_timing.dart' show LiquidGlassTabPillTiming;
 
 /// Which renderer(s) get the full iOS-26 **glass-refracting** morphing
 /// pill (the dual-pipeline animated bar). See
@@ -64,8 +67,14 @@ class LiquidGlassTabItemStyle {
   /// the glass's state, not the selection's.
   final double? underGlassLabelFontSize;
 
-  /// Vertical gap between the icon and its label, in logical pixels.
+  /// Gap between the icon and its label, in logical pixels: below the
+  /// icon, or beside it with a horizontal [axis].
   final double iconLabelGap;
+
+  /// How the icon and label are laid out: [Axis.vertical] (the default)
+  /// puts the label under the icon; [Axis.horizontal] puts it beside it,
+  /// as iOS does on an iPhone in landscape.
+  final Axis axis;
 
   /// Font weight of the selected item's label.
   final FontWeight selectedFontWeight;
@@ -81,6 +90,7 @@ class LiquidGlassTabItemStyle {
     this.labelFontSize = 10.5,
     this.underGlassLabelFontSize,
     this.iconLabelGap = 2,
+    this.axis = Axis.vertical,
     this.selectedFontWeight = FontWeight.w600,
     this.unselectedFontWeight = FontWeight.w500,
   });
@@ -116,6 +126,7 @@ class LiquidGlassTabItemStyle {
     double? labelFontSize,
     double? underGlassLabelFontSize,
     double? iconLabelGap,
+    Axis? axis,
     FontWeight? selectedFontWeight,
     FontWeight? unselectedFontWeight,
   }) {
@@ -128,6 +139,7 @@ class LiquidGlassTabItemStyle {
       underGlassLabelFontSize:
           underGlassLabelFontSize ?? this.underGlassLabelFontSize,
       iconLabelGap: iconLabelGap ?? this.iconLabelGap,
+      axis: axis ?? this.axis,
       selectedFontWeight: selectedFontWeight ?? this.selectedFontWeight,
       unselectedFontWeight: unselectedFontWeight ?? this.unselectedFontWeight,
     );
@@ -219,6 +231,17 @@ class LiquidGlassTabPillStyle {
   /// whole travel, and comes back down once it has landed.
   final double growHeight;
 
+  /// How much wider than the resting pill the glass pill is while it is
+  /// lifted (glass [mode]s only). `null` (the default) keeps the resting
+  /// pill's proportions, so the width follows [growHeight].
+  final double? growWidth;
+
+  /// Whether the moving glass pill stays inside the bar's left and right
+  /// edges (glass [mode]s only): the lifted width, the squash and stretch
+  /// and the landing overshoot are all kept within the capsule rather than
+  /// poking past its ends. Default `false`.
+  final bool confineToBar;
+
   /// Refraction strength of the moving glass pill (glass [mode]s only).
   final double refractionIndex;
 
@@ -229,6 +252,20 @@ class LiquidGlassTabPillStyle {
   /// Magnification of the content seen through the glass pill (glass
   /// [mode]s only). `1` = none.
   final double magnification;
+
+  /// Colour fringing at the moving glass pill's edge, in logical pixels
+  /// (glass [mode]s only). `0` = none. Default `1.32`.
+  final double dispersion;
+
+  /// The selection pill's width at rest, in logical pixels. `null` (the
+  /// default) makes it one equal share of the bar, with each item centred
+  /// in its share.
+  ///
+  /// Set it to make the pill wider than a share: the first and last items
+  /// then sit `itemPadding + width / 2` in from the bar's ends and the
+  /// items between spread evenly over the rest. The lifted glass pill keeps
+  /// the same proportions.
+  final double? width;
 
   /// Shape of the moving **glass** pill (glass [mode]s only). When
   /// `null` (the default) the pill is an Apple capsule-style
@@ -247,7 +284,7 @@ class LiquidGlassTabPillStyle {
   /// The **moving glass pill**'s full look as one [LiquidGlassStyle]
   /// (shape + fill/blur + refraction). When non-null it supersedes the
   /// individual glass-pill fields ([shape], [blur], [refractionIndex],
-  /// [refractionWidth], [magnification]);
+  /// [refractionWidth], [magnification], [dispersion]);
   /// a `null` shape inside it falls back to [shape]. Glass [mode]s only.
   final LiquidGlassStyle? glassStyle;
 
@@ -258,14 +295,12 @@ class LiquidGlassTabPillStyle {
   /// [shape]). It draws no border; refraction is ignored.
   final LiquidGlassStyle? rest;
 
-  /// Stiffness of the spring that carries the glass pill between tabs
-  /// (glass [mode]s only). Higher → snappier travel. Default `320`.
+  /// No longer read: the travel spring is [timing]'s
+  /// `travelDuration` / `travelBounce` (0.4 s, bounce 0.15 as measured).
+  /// Kept so existing callers keep compiling.
   final double travelStiffness;
 
-  /// Damping of the travel spring (glass [mode]s only). The critical
-  /// (no-overshoot) value is `2·√travelStiffness` (≈ 36 at the default
-  /// stiffness): below it the pill bounces, at/above it just settles.
-  /// Default `30` — a faint settle.
+  /// No longer read; see [travelStiffness].
   final double travelDamping;
 
   /// The pill's squash/stretch tuning (glass [mode]s only) — the same
@@ -287,6 +322,15 @@ class LiquidGlassTabPillStyle {
   /// magnification `0.87`.
   final LiquidGlassTabMagnifierPillStyle magnifierPill;
 
+  /// The glass pill's events, timing and travel (glass [mode]s only) — the
+  /// native iOS 26 bar's, as measured: a zero-delay press that sends the
+  /// pill on the press, a scrub past 10 pt with the pill chasing the
+  /// finger, a release on the tab nearest the finger, one 0.4 s travel
+  /// spring, a 0.25 s lift that drops as the pill lands, a 0.4 s shed and
+  /// the landing wobble. Every default is the capture's own number. See
+  /// [LiquidGlassTabPillTiming].
+  final LiquidGlassTabPillTiming timing;
+
   const LiquidGlassTabPillStyle({
     this.mode = LiquidGlassPillMode.both,
     this.show = true,
@@ -296,9 +340,13 @@ class LiquidGlassTabPillStyle {
     this.animationCurve = Curves.easeOutCubic,
     this.blur = 0,
     this.growHeight = 9,
+    this.growWidth,
+    this.confineToBar = false,
     this.refractionIndex = 1.025,
     this.refractionWidth = 12,
     this.magnification = 1,
+    this.dispersion = 1.32,
+    this.width,
     this.shape,
     this.glassStyle,
     this.rest,
@@ -313,6 +361,7 @@ class LiquidGlassTabPillStyle {
       responseTime: 0.18,
     ),
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
+    this.timing = const LiquidGlassTabPillTiming(),
   });
 
   /// The tuned default contact shadow of the moving glass pill — a soft
@@ -333,9 +382,13 @@ class LiquidGlassTabPillStyle {
     Curve? animationCurve,
     double? blur,
     double? growHeight,
+    double? growWidth,
+    bool? confineToBar,
     double? refractionIndex,
     double? refractionWidth,
     double? magnification,
+    double? dispersion,
+    double? width,
     LiquidGlassShape? shape,
     LiquidGlassStyle? glassStyle,
     LiquidGlassStyle? rest,
@@ -343,6 +396,7 @@ class LiquidGlassTabPillStyle {
     double? travelDamping,
     LiquidGlassLensMotionSpec? motion,
     LiquidGlassTabMagnifierPillStyle? magnifierPill,
+    LiquidGlassTabPillTiming? timing,
   }) {
     return LiquidGlassTabPillStyle(
       mode: mode ?? this.mode,
@@ -353,9 +407,13 @@ class LiquidGlassTabPillStyle {
       animationCurve: animationCurve ?? this.animationCurve,
       blur: blur ?? this.blur,
       growHeight: growHeight ?? this.growHeight,
+      growWidth: growWidth ?? this.growWidth,
+      confineToBar: confineToBar ?? this.confineToBar,
       refractionIndex: refractionIndex ?? this.refractionIndex,
       refractionWidth: refractionWidth ?? this.refractionWidth,
       magnification: magnification ?? this.magnification,
+      dispersion: dispersion ?? this.dispersion,
+      width: width ?? this.width,
       shape: shape ?? this.shape,
       glassStyle: glassStyle ?? this.glassStyle,
       rest: rest ?? this.rest,
@@ -363,6 +421,7 @@ class LiquidGlassTabPillStyle {
       travelDamping: travelDamping ?? this.travelDamping,
       motion: motion ?? this.motion,
       magnifierPill: magnifierPill ?? this.magnifierPill,
+      timing: timing ?? this.timing,
     );
   }
 
@@ -389,7 +448,7 @@ class LiquidGlassTabPillStyle {
             refractionIndex: refractionIndex,
             refractionWidth: refractionWidth,
             magnification: magnification,
-            dispersion: 1.32,
+            dispersion: dispersion,
           ),
       liteGlass: g?.liteGlass ?? false,
     );
@@ -450,4 +509,52 @@ class LiquidGlassTabPillStyle {
       ),
     );
   }
+}
+
+/// How the tab bar grows while its glass pill is lifted: the capsule, the
+/// pills and the items scale up together on one spring, and come back
+/// down when the pill does. A plain scale — the bar keeps its shape.
+///
+/// Glass pill modes only; a bar with no moving pill has nothing to lift.
+@immutable
+class LiquidGlassTabBarPress {
+  const LiquidGlassTabBarPress({
+    this.scale = 0.03,
+    this.grip = 0.5,
+    this.stiffness = 320,
+    this.damping = 24,
+    this.releaseDamping = 17,
+  });
+
+  /// How much bigger the bar is while the pill is up, as a fraction of its
+  /// size: `0.03` is 3% on both axes. Negative shrinks it.
+  final double scale;
+
+  /// Where the bar grows from, `0`..`1`. `0` grows it evenly about its
+  /// middle; `1` leans the growth toward the pill, so the side the pill
+  /// is on grows the most. The point follows the pill as it travels.
+  final double grip;
+
+  /// Stiffness of the scale spring. Higher → it gets there faster.
+  final double stiffness;
+
+  /// Damping of the scale spring while the pill is up.
+  final double damping;
+
+  /// Damping once the pill comes down. Below [damping] it rebounds a
+  /// little as it settles.
+  final double releaseDamping;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassTabBarPress &&
+      other.scale == scale &&
+      other.grip == grip &&
+      other.stiffness == stiffness &&
+      other.damping == damping &&
+      other.releaseDamping == releaseDamping;
+
+  @override
+  int get hashCode =>
+      Object.hash(scale, grip, stiffness, damping, releaseDamping);
 }

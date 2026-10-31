@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 
@@ -27,12 +26,13 @@ import '../../utils/liquid_glass_refresh_rate.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../../utils/liquid_glass_lens_motion.dart';
 import 'liquid_glass_nav_bar_motion_pill.dart';
+import 'liquid_glass_tab_pill_timing.dart';
 import '../liquid_glass_shadow.dart';
 
 /// Self-contained **animated** liquid-glass bottom nav bar — the iOS-26
 /// "morphing glass pill" that slides between tabs, grows out of the rest
-/// highlight, can be picked up with a press-and-hold on the selected pill
-/// and dragged, and reveals the selected icon as it passes.
+/// highlight, lifts under a finger and can be scrubbed along the bar, and
+/// reveals the selected icon as it passes.
 ///
 /// This is the internal machinery behind
 /// [LiquidGlassTabBar.glassPill]: it owns the entire dual
@@ -109,20 +109,35 @@ import '../liquid_glass_shadow.dart';
 /// them. Nothing overlaps a bottom-anchored pill in practice — an app bar
 /// is at the top, a side action sits beside the bar.
 ///
+/// ## Events, timing and travel
+///
+/// These are the native iOS 26/27 tab bar's, as measured from the control
+/// frame by frame (see [LiquidGlassTabPillTiming]); [timing] holds the
+/// numbers, every one defaulting to the capture:
+///
+///  * A press lifts the pill **at once** — no hold — and sends it to the
+///    pressed tab on the press itself.
+///  * A finger that moves past `dragThreshold` scrubs: the pill keeps
+///    the gap it had to the finger at that moment and moves with the
+///    finger from there, on the follow spring, kept within the first and
+///    last tab. Letting go selects the tab nearest where the finger is
+///    pulling the pill (a tie keeps the current tab), and the pill travels
+///    there from the position and velocity the scrub left it with.
+///  * The travel is one spring for every distance (`travelDuration`,
+///    `travelBounce`), ended once under a fifth of a point remains past
+///    its overshoot.
+///  * The lift rises on a critically damped `liftDuration` spring, holds
+///    for as long as the finger is down and the pill is travelling, and is
+///    released once the pill is within `dropDistance` of its tab, falling on
+///    the same spring. So the pill arrives at full size and comes down
+///    where it stands.
+///
 /// ## How the pill grows
 ///
-/// The lift is a **held state**, not a pass the travel makes through a
-/// bigger size. Tap a tab and the pill inflates at once, on springs
-/// under critical damping so it overshoots its raised size and rebounds;
-/// it stays there for the whole journey; and only once it has landed
-/// ([handoverStart]) is the lift released, so it deflates where it
-/// stands — dipping a little under its resting size and coming back.
-/// A grab is the same thing held open by a finger.
-///
-/// Each axis carries its own spring, at damping ratios that differ just
-/// enough that the width overshoots a shade further and settles a shade
-/// later than the height. The material has a third, much faster one, so
-/// the glass is fully on long before the size stops moving.
+/// The raised size is [pillGrowHeight] / [pillGrowWidth] over the resting
+/// pill. The glass material rides the same lift,
+/// so the pill looks like glass as it rises and stops looking like it as
+/// it comes down.
 ///
 /// ## Handing over to the plain pill
 ///
@@ -130,12 +145,12 @@ import '../liquid_glass_shadow.dart';
 /// outer capture, no dual-layer icon reveal. The glass gets there by
 /// **becoming** the plain pill rather than being cross-faded with one.
 ///
-/// From the landing ([handoverStart]) the lens sheds its glass while
+/// From the lift's release the lens sheds its glass on the native grey
+/// platter's return — a critically damped `glassFadeDuration` spring — while
 /// everything else keeps running: the rim and its contact shadow go
 /// first, then the refraction band narrows to nothing behind them. The
-/// deflation and the acceleration squash are untouched throughout — the
-/// pill is still shrinking and still deforming while it stops looking
-/// like glass.
+/// deflation and the squash are untouched throughout — the pill is still
+/// shrinking and still deforming while it stops looking like glass.
 ///
 /// Only once there is nothing left in it to see — no glass, no lift, no
 /// deformation — is the lens dropped and
@@ -144,11 +159,7 @@ import '../liquid_glass_shadow.dart';
 /// draws, so the exchange is two identical pictures. That is what keeps
 /// the plain pill plain: it never needs the deformation, the stretched
 /// outline or an opacity, because it only ever appears once all three
-/// have finished.
-///
-/// [handoverStart] is a target rather than a switch, so tapping another
-/// tab mid-hand-off turns the glass straight back around
-/// ([glassReturnTau]) instead of finishing and starting over.
+/// have finished. A press mid-hand-over lifts the glass straight back.
 ///
 /// [body] is the page content, captured behind the glass. [chromeChild]
 /// is the host's chrome (e.g. the app bar and the side action button),
@@ -159,6 +170,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final List<LiquidGlassTabBarItem> items;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
+
+  /// A tap on the tab that is already selected, with its index: no scrub
+  /// and not cancelled. `null` (the default) ignores it.
+  final ValueChanged<int>? onReselected;
 
   /// Icon + label styling for every tab cell.
   final LiquidGlassTabItemStyle itemStyle;
@@ -217,6 +232,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// Appearance (tint + blur) of the bar capsule.
   final LiquidGlassAppearance? barAppearance;
+
+  /// Draws the bar capsule as lite glass (see `LiquidGlassStyle.liteGlass`).
+  final bool barLiteGlass;
+
+  /// How the whole bar grows while the glass pill is lifted — capsule,
+  /// pills and items, as one scale. `null` keeps the bar its size.
+  final LiquidGlassTabBarPress? barPress;
 
   /// iOS-style adaptivity for the whole bar (same contract as
   /// `LiquidGlassStyle.adaptivity`): the bar capsule's tint follows the
@@ -289,6 +311,14 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// lifted — which is the whole travel, not a peak it passes through.
   final double pillGrowHeight;
 
+  /// How much wider than the resting pill the glass pill is while it is
+  /// lifted. `null` keeps the resting pill's proportions.
+  final double? pillGrowWidth;
+
+  /// Whether the drawn pill stays inside the bar's left and right edges,
+  /// whatever its lift, squash or overshoot.
+  final bool confineToBar;
+
   /// Refraction strength of the moving glass pill.
   final double pillRefractionIndex;
 
@@ -329,14 +359,12 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// stays on the rim while the pill squashes. It fades with the pill.
   final LiquidGlassShadow? pillShadow;
 
+  /// Draws the moving glass pill as lite glass (see
+  /// `LiquidGlassStyle.liteGlass`), its Impeller magnifier with it.
+  final bool pillLiteGlass;
+
   /// Resting material endpoint of the same persistent glass pill.
   final LiquidGlassStyle restStyle;
-
-  /// Stiffness of the spring carrying the pill between tabs.
-  final double travelStiffness;
-
-  /// Damping of the travel spring.
-  final double travelDamping;
 
   /// The pill's acceleration squash/stretch tuning, applied on both
   /// finger-drags and tap-travel.
@@ -346,28 +374,9 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// capsule, and a third of its height in overhang would climb out of it.
   final LiquidGlassLensMotionSpec motion;
 
-  /// How far through a travel the pill counts as **landed**, `0`..`1` —
-  /// the one moment the settle hangs off. At it the lift is released, so
-  /// the pill starts deflating, and the hand-off to the plain twin
-  /// begins with it.
-  ///
-  /// The default `0.92` is the last of the travel, where the spring is
-  /// creeping the final pixels in: the pill arrives at full size and
-  /// comes down where it stands, rather than shrinking on the way in.
-  ///
-  /// A press-and-hold is held up for as long as the finger is down, and
-  /// then lands like any other travel — letting go starts the snap, not
-  /// the settle.
-  final double handoverStart;
-
-  /// Time constant of the hand-off — glass → plain. Larger is slower.
-  final double handoverTau;
-
-  /// Time constant of the reverse — plain → glass, when a travel starts
-  /// or a pill is picked up. Shorter than [handoverTau]: glass that is
-  /// slow to arrive reads as lag, while glass that is slow to leave reads
-  /// as settling.
-  final double glassReturnTau;
+  /// The events, timing and travel both models run on, and the measured
+  /// model's deformation and bar-swell values.
+  final LiquidGlassTabPillTiming timing;
 
   // Render pipeline knobs forwarded to both views.
   final double pixelRatio;
@@ -375,9 +384,10 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final bool? useImpellerBackdrop;
 
   /// See `LiquidGlassView.batch`, forwarded to both views. The bar's own
-  /// glass — capsule, moving pill and magnifier pill — is kept out
-  /// regardless: each takes a read of its own, so the batch only carries
-  /// the host's [chromeChild].
+  /// capsule joins whatever batch encloses it, like any lens. The moving
+  /// pill and the magnifier pill are kept out regardless: each takes a
+  /// read of its own, so they refract the capsule, which a shared copy
+  /// does not hold.
   final bool batch;
 
   /// See `LiquidGlassView.batchMode`, forwarded to both views.
@@ -402,6 +412,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     required this.items,
     required this.selectedIndex,
     required this.onChanged,
+    this.onReselected,
     required this.layout,
     this.itemStyle = const LiquidGlassTabItemStyle(),
     this.showSelectionPill = true,
@@ -417,10 +428,15 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.barSecondSpecular,
     this.barRefraction,
     this.barAppearance,
+    this.barLiteGlass = false,
+    this.barPress,
     this.barShadow,
     this.pillShadow,
+    this.pillLiteGlass = false,
     this.pillBlur = 0,
     this.pillGrowHeight = 12,
+    this.pillGrowWidth,
+    this.confineToBar = false,
     this.pillRefractionIndex = 1.025,
     this.pillRefractionWidth = 10,
     this.pillRefraction,
@@ -439,17 +455,13 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
       refractionWidth: 0,
       dispersion: 0,
     ),
-    this.travelStiffness = 280,
-    this.travelDamping = 31.4,
     this.motion = const LiquidGlassLensMotionSpec(
       sampleWindow: 0.3,
       sensitivity: 0.00007,
       maxDeformation: 0.12,
       responseTime: 0.18,
     ),
-    this.handoverStart = 0.92,
-    this.handoverTau = 0.09,
-    this.glassReturnTau = 0.05,
+    this.timing = const LiquidGlassTabPillTiming(),
     this.pixelRatio = 1.0,
     this.useSync = true,
     this.useImpellerBackdrop,
@@ -566,20 +578,12 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// Flips only AFTER the glass finishes travelling.
   late int _tabIndexCommitted;
 
-  /// Fractional pill position (0..itemCount-1). While dragging this is
-  /// the finger's target; the pill is drawn at [_dragFollow], a smoothed
-  /// chase of it.
+  /// Fractional pill position (0..itemCount-1). While a finger scrubs
+  /// this is its target; the pill is drawn at [_dragFollow], the follow
+  /// spring's chase of it.
   double _tabPillFracIndex = 0;
   double _dragFollow = 0;
   bool _tabDragging = false;
-
-  /// Fractional position of the initial press, captured at long-press
-  /// start.
-  double _pressFrac = 0;
-
-  /// True once the finger has moved far enough from [_pressFrac] to count
-  /// as a genuine drag.
-  bool _draggedRealMove = false;
 
   // ── Travel spring ────────────────────────────────────────────────
   double _travelPos = 0;
@@ -591,36 +595,10 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   bool _travelActive = false;
 
   /// Whether the pill is currently held up at its raised size. It goes
-  /// up the instant a travel starts or a pill is grabbed, stays up for
-  /// the whole journey, and only comes down once the pill has landed.
+  /// up the instant a finger lands or a travel starts, stays up for the
+  /// whole journey and for as long as the finger is down, and comes down
+  /// once the pill is within the measured release distance of its tab.
   bool _lifted = false;
-
-  /// The raised size, one spring per axis. Both are under critical, so
-  /// each end of the lift overshoots and rebounds rather than easing in
-  /// — and the two ratios differ slightly, so the width overshoots a
-  /// little further and settles a little later than the height. That
-  /// small disagreement is what keeps the growth from reading as a
-  /// plain scale-up.
-  double _liftX = 0;
-  double _liftXVel = 0;
-  double _liftY = 0;
-  double _liftYVel = 0;
-
-  /// The material's own lift — how much of the glass is on. Critically
-  /// damped and four times as stiff as the size springs, so the pill
-  /// LOOKS like glass almost at once, and stops looking like it as soon
-  /// as it lands, while its size is still wobbling into place.
-  double _lift = 0;
-  double _liftVel = 0;
-
-  static const double _kLiftStiffness = 250;
-
-  /// Damping ratio 0.6 across, 0.7 down (`ζ · 2√k`).
-  static const double _kLiftDampingX = 19.0;
-  static const double _kLiftDampingY = 22.1;
-
-  static const double _kMaterialStiffness = 1000;
-  static const double _kMaterialDamping = 63.3;
 
   /// The pill's acceleration squash/stretch — owned by the BAR, not by
   /// the glass pill.
@@ -672,6 +650,80 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   Offset _pillCenter = Offset.zero;
   bool _pillCenterValid = false;
 
+  /// The bar's press scale above its size (`0` at rest) and its spring
+  /// velocity, and where across the bar it grows from, `0`..`1`.
+  double _press = 0, _pressVel = 0;
+  double _pressAnchorX = 0.5;
+
+  // ===== Events, timing and travel: the native bar's, as measured (see
+  // [LiquidGlassTabPillTiming]).
+
+  /// The events', timing's and travel's values.
+  LiquidGlassTabPillTiming get _m => widget.timing;
+
+  /// The bar's clock in seconds, carried across ticker restarts (a
+  /// ticker's `elapsed` starts over each time it is started).
+  double _mNow = 0;
+
+  /// The finger on the bar: which pointer, whether it is down, where it
+  /// pressed and where it is now, in row x.
+  int _pointerId = -1;
+  bool _fingerDown = false;
+  double _pressRowX = 0;
+  double _fingerRowX = 0;
+
+  /// Whether the finger has moved past the drag threshold and scrubs the
+  /// pill.
+  bool _scrubbing = false;
+
+  /// Whether the press landed on the tab that was already selected.
+  bool _pressedSelected = false;
+
+  /// The scrub follow spring's velocity; its position is [_dragFollow].
+  double _dragVel = 0;
+
+  /// The grab: how far the pill's centre sat from the finger, in row x,
+  /// when the scrub began. The pill keeps that gap and moves 1:1 with the
+  /// finger from there, rather than jumping under it.
+  double _grabOffsetX = 0;
+
+  /// When the lift was last released on the clock — the landing — kept
+  /// until the next gesture: the landing wobble runs from here.
+  double? _landedAt;
+
+  /// The one lift, size and material alike, and its velocity.
+  double _mLift = 0, _mLiftVel = 0;
+
+  /// The grey platter's return spring velocity; its position is
+  /// [_handover].
+  double _mHandoverVel = 0;
+
+  /// The vertical half of the deformation: `scaleY = 1 − _devY`. The
+  /// horizontal half rides [_deviation]. Equal to it except through the
+  /// landing wobble, whose two axes are independent.
+  double _devY = 0;
+
+  /// The pill centre's offset along the travel, in cells (the wobble's).
+  double _leadFrac = 0;
+
+  /// Logical pixels per point of the timing: the bar's height over the
+  /// 62 pt the native bar was measured on.
+  double get _ptScale => _layout.height / _m.barHeight;
+
+  /// Where the pill is drawn this frame, in cells: the travel or the scrub
+  /// follow, plus the landing wobble's small centre offset.
+  double get _drawFrac => (_tabDragging ? _dragFollow : _travelPos) + _leadFrac;
+
+  /// The press as a map, set each build: everything on the bar scales by
+  /// [_swellScale] about [_swellAnchor] (the outer view's coordinates).
+  double _swellScale = 1;
+  Offset _swellAnchor = Offset.zero;
+
+  // Untouched at rest: mapping through a scale of 1 could still move the
+  // point by a rounding error, and the pills sit on the pixel grid.
+  Offset _swellPoint(Offset p) =>
+      _swellScale == 1 ? p : _swellAnchor + (p - _swellAnchor) * _swellScale;
+
   /// Single ticker driving the travel spring, the motion sampling and
   /// the settle-grow decay.
   Ticker? _ticker;
@@ -716,6 +768,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   @override
   void didUpdateWidget(covariant LiquidGlassAnimatedNavBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+    // Live tuning: the squash and stretch takes it from the next frame.
+    _pillMotion.spec = widget.motion;
     // External (programmatic) selection change — animate to it without
     // re-notifying the parent.
     if (widget.selectedIndex != _tabIndex &&
@@ -759,14 +813,130 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   }
 
   // ── Selection / animation ────────────────────────────────────────
+  /// A programmatic selection: the pill travels there as a tap's would.
   void _animateTo(int next, {required bool notify}) {
     if (next == _tabIndex) return;
+    _travelTo(next, notify: notify);
+  }
+
+  // ── Gesture geometry ─────────────────────────────────────────────
+  // The overlay spans the row, so its local x is already row-relative —
+  // and stays right wherever the bar sits on the screen.
+  double _xToTabFrac(double rowDx) => _layout.fracAt(rowDx);
+
+  // ── The gestures, as the native bar's: a zero-delay press, a scrub
+  // past the drag threshold, a release on the tab nearest the finger ──
+  void _onPointerDown(PointerDownEvent e) {
+    if (_fingerDown) return;
+    final double rowX = e.localPosition.dx;
+    // A disabled tab ignores the press.
+    if (!widget.items[_layout.indexAt(rowX)].enabled) return;
+    _pointerId = e.pointer;
+    _fingerDown = true;
+    _scrubbing = false;
+    _pressRowX = rowX;
+    _fingerRowX = rowX;
+    _lifted = true;
+    _landedAt = null;
+    _startCapture();
+    _startTicker();
+    // The lens leaves for the pressed tab on the press itself, as the
+    // native bar's does — not on the release.
+    final int next = _layout.indexAt(rowX);
+    _pressedSelected = next == _tabIndex;
+    if (next != _tabIndex) {
+      _travelTo(next, notify: true);
+    } else {
+      setState(() {});
+    }
+  }
+
+  void _onPointerMove(PointerMoveEvent e) {
+    if (!_fingerDown || e.pointer != _pointerId) return;
+    final double rowX = e.localPosition.dx;
+    _fingerRowX = rowX;
+    if (!_scrubbing &&
+        (rowX - _pressRowX).abs() > _m.dragThreshold * _ptScale) {
+      // The pill leaves its tap motion from where it is, keeping its
+      // speed, and follows the finger from here.
+      _scrubbing = true;
+      _tabDragging = true;
+      _travelActive = false;
+      _dragFollow = _travelPos;
+      _dragVel = _travelVel;
+      // Grabbed where it is GOING: the gap between the travel's target
+      // and the finger is kept, so a scrub that starts mid-flight carries
+      // the pill on to the pressed tab and moves it by what the finger
+      // moves from there — not from wherever the flight had got to. At
+      // rest the target is where the pill is, and it doesn't jump under
+      // the finger.
+      _grabOffsetX =
+          _layout.pillOffset(_travelTarget) + _layout.pillWidth / 2 - rowX;
+      // The hand takes the deformation back off the travel's key.
+      _travelSign = 0;
+      _landedAt = null;
+    }
+    if (_scrubbing) {
+      setState(() => _tabPillFracIndex = _xToTabFrac(rowX + _grabOffsetX));
+    }
+  }
+
+  void _onPointerEnd(int pointer, {bool cancelled = false}) {
+    if (!_fingerDown || pointer != _pointerId) return;
+    _fingerDown = false;
+    if (!_scrubbing && !cancelled && _pressedSelected) {
+      widget.onReselected?.call(_tabIndex);
+    }
+    if (_scrubbing) {
+      _scrubbing = false;
+      // The tab nearest where the finger is PULLING the pill (the finger
+      // plus the grab gap), not the pill itself, which can be well behind
+      // after a flick; a tie keeps the current tab.
+      final double frac = _layout.fracAt(_fingerRowX + _grabOffsetX);
+      final double half = frac - frac.floorToDouble();
+      final int next = _nearestEnabled(
+          ((half - 0.5).abs() < 1e-3 ? _tabIndex : frac.round())
+              .clamp(0, _layout.itemCount - 1));
+      final bool notify = next != _tabIndex;
+      // The pill travels there on the tap's own spring, from the position
+      // and velocity the scrub left it with; the lift drops as it lands.
+      setState(() {
+        _tabDragging = false;
+        _tabIndex = next;
+        _travelActive = true;
+        _travelPos = _dragFollow;
+        _travelVel = _dragVel;
+        _travelFrom = _dragFollow;
+        _travelTarget = next.toDouble();
+        _travelSign = _signOfTravel(_travelTarget - _travelFrom);
+      });
+      if (notify) widget.onChanged(next);
+    }
+    _startTicker();
+  }
+
+  /// [i] when it is enabled, else the nearest enabled tab (the lower on a
+  /// tie), else the current tab.
+  int _nearestEnabled(int i) {
+    final List<LiquidGlassTabBarItem> items = widget.items;
+    for (int d = 0; d < items.length; d++) {
+      if (i - d >= 0 && items[i - d].enabled) return i - d;
+      if (i + d < items.length && items[i + d].enabled) return i + d;
+    }
+    return _tabIndex;
+  }
+
+  /// Starts a tap travel to [next]: the travel spring from wherever the
+  /// pill is, keeping its velocity, with the deformation keyed to the new
+  /// direction.
+  void _travelTo(int next, {required bool notify}) {
     setState(() {
       _tabIndex = next;
       _travelActive = true;
       _lifted = true;
-      // Retarget from wherever the pill currently is; the spring keeps
-      // its velocity.
+      _landedAt = null;
+      _tabDragging = false;
+      _scrubbing = false;
       _travelFrom = _travelPos;
       _travelTarget = next.toDouble();
       _travelSign = _signOfTravel(_travelTarget - _travelFrom);
@@ -776,236 +946,210 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     if (notify) widget.onChanged(next);
   }
 
-  // ── Gesture geometry ─────────────────────────────────────────────
-  double _xToTabFrac(double globalDx) {
-    final cell0Center = _barLeft + _layout.padding + _layout.cellWidth / 2;
-    final cellW = _layout.cellWidth;
-    final raw = (globalDx - cell0Center) / cellW;
-    return raw.clamp(0.0, (_layout.itemCount - 1).toDouble());
-  }
-
-  void _onTabBarTapUp(TapUpDetails d) {
-    final cellW = _layout.cellWidth;
-    final raw = d.localPosition.dx / cellW;
-    final idx = raw.floor().clamp(0, _layout.itemCount - 1);
-    _animateTo(idx, notify: true);
-  }
-
-  // ── Hold-to-grab handlers ────────────────────────────────────────
-  void _onTabPillLongPressStart(LongPressStartDetails d) {
-    _tabDragging = true;
-    _travelActive = false;
-    _lifted = true;
-    // The hand takes the deformation back off the travel.
-    _travelSign = 0;
-    _startCapture();
-    final frac = _xToTabFrac(d.globalPosition.dx);
-    // Start the smoothed follow at the pill's current resting position so
-    // a hold away from the pill EASES over to the finger.
-    _dragFollow = _travelPos;
-    _travelVel = 0;
-    _pressFrac = frac;
-    _draggedRealMove = false;
-    _startTicker();
-    setState(() => _tabPillFracIndex = frac);
-  }
-
-  void _onTabPillLongPressMoveUpdate(LongPressMoveUpdateDetails d) {
-    if (!_tabDragging) return;
-    final frac = _xToTabFrac(d.globalPosition.dx);
-    if ((frac - _pressFrac).abs() > 0.2) _draggedRealMove = true;
-    setState(() => _tabPillFracIndex = frac);
-  }
-
-  void _onTabPillLongPressEnd(LongPressEndDetails d) {
-    if (!_tabDragging) return;
-    _releaseTabPillDrag();
-  }
-
-  void _onTabPillLongPressCancel() {
-    if (!_tabDragging) return;
-    _releaseTabPillDrag();
-  }
-
-  void _releaseTabPillDrag() {
-    final from = _dragFollow;
-    final double snapFrac = _draggedRealMove ? from : _pressFrac;
-    final next = snapFrac.round().clamp(0, _layout.itemCount - 1);
-    final notify = next != _tabIndex;
-    // The pill stays lifted through the snap and comes down on landing,
-    // exactly as a tap's does — letting go is not the end of the
-    // journey, arriving is.
-    setState(() {
-      _tabDragging = false;
-      _tabIndex = next;
-      _travelActive = true;
-      _travelPos = from;
-      _travelVel = 0;
-      _travelFrom = from;
-      _travelTarget = next.toDouble();
-      _travelSign = _signOfTravel(_travelTarget - _travelFrom);
-    });
-    _startTicker();
-    if (notify) widget.onChanged(next);
-  }
-
-  /// One frame of the pill's physics, all of which the bar owns: the
-  /// travel spring, the smoothed follow while a finger is down, the lift
-  /// springs, the acceleration squash and the hand-off. The pill widget
-  /// is handed the results and draws them.
   void _onTick(Duration elapsed) {
     final last = _tickerLast ?? elapsed;
     final dt = (elapsed - last).inMicroseconds / 1e6;
     _tickerLast = elapsed;
+    _stepFrame(dt);
+  }
 
-    // 1) Travel (positional) spring.
-    bool travelSettled = true;
+  /// One frame of the pill's physics, all of which the bar owns: the
+  /// travel spring, the follow spring under a finger, the lift, the glass
+  /// hand-over, the deformation and the bar's press. The pill widget is
+  /// handed the results and draws them. The timing is the native bar's —
+  /// see [LiquidGlassTabPillTiming].
+  void _stepFrame(double dt) {
+    _mNow += dt;
+    final double step = _layout.itemStep;
+    final double s = _ptScale;
+    // Cells to points along the row.
+    final double cell = step / s;
+
+    // 1) The travel spring: 0.4 s, bounce 0.15, ended once under
+    // `settleDistance` remains past the overshoot.
+    bool travelSettled = !_travelActive;
     if (_travelActive) {
       final r = liquidGlassSpringStep(
         x: _travelPos,
         vel: _travelVel,
         target: _travelTarget,
         dt: dt,
-        stiffness: widget.travelStiffness,
-        damping: widget.travelDamping,
+        stiffness: _m.travelStiffness,
+        damping: _m.travelDamping,
       );
       _travelPos = r.$1;
       _travelVel = r.$2;
+      final double remaining = (_travelPos - _travelTarget).abs() * cell;
+      final double speed = (_travelVel * cell).abs();
       travelSettled =
-          (_travelPos - _travelTarget).abs() < 0.003 && _travelVel.abs() < 0.05;
+          remaining < LiquidGlassTabPillTiming.settleDistance && speed < 15;
       if (travelSettled) {
         _travelPos = _travelTarget;
         _travelVel = 0;
       }
     }
 
-    // 2) While dragging, smoothly chase the finger target so a hold away
-    // from the pill glides to the held position.
+    // 2) The scrub follow: the pill after the finger, within the tabs.
     if (_tabDragging) {
-      const followTau = 0.05;
-      _dragFollow +=
-          (_tabPillFracIndex - _dragFollow) * (1 - math.exp(-dt / followTau));
+      final r = liquidGlassSpringStep(
+        x: _dragFollow,
+        vel: _dragVel,
+        target: _tabPillFracIndex,
+        dt: dt,
+        stiffness: _m.dragStiffness,
+        damping: _m.dragDamping,
+      );
+      _dragFollow = r.$1;
+      _dragVel = r.$2;
     }
 
-    // 3) The lift. The pill is raised for the whole journey and comes
-    // down once it has landed — [handoverStart] is where "landed"
-    // begins — so it arrives at full size and settles afterwards,
-    // rather than deflating on the way in.
-    // Arriving counts as landing whatever [handoverStart] says, so a
-    // gate set past the end of the travel cannot strand the pill up.
-    if (!_tabDragging &&
-        (travelSettled || _travelProgress() >= widget.handoverStart)) {
+    // 3) The lift: held while the finger is down, released once the pill
+    // is within `dropDistance` of its tab, falling on the same spring.
+    final double remaining = _tabDragging
+        ? double.infinity
+        : (_travelActive ? (_travelTarget - _travelPos).abs() * cell : 0);
+    if (_lifted && !_fingerDown && remaining <= _m.dropDistance) {
       _lifted = false;
+      _mHandoverVel = -_mLiftVel;
+      _landedAt = _mNow;
     }
-    final double liftTarget = _lifted ? 1.0 : 0.0;
-    final xr = _stepLift(
-      _liftX,
-      _liftXVel,
-      liftTarget,
-      dt,
-      _kLiftStiffness,
-      _kLiftDampingX,
+    final lr = liquidGlassSpringStep(
+      x: _mLift,
+      vel: _mLiftVel,
+      target: _lifted ? 1 : 0,
+      dt: dt,
+      stiffness: _m.liftStiffness,
+      damping: _m.liftDamping,
     );
-    _liftX = xr.$1;
-    _liftXVel = xr.$2;
-    final yr = _stepLift(
-      _liftY,
-      _liftYVel,
-      liftTarget,
-      dt,
-      _kLiftStiffness,
-      _kLiftDampingY,
-    );
-    _liftY = yr.$1;
-    _liftYVel = yr.$2;
-    final mr = _stepLift(
-      _lift,
-      _liftVel,
-      liftTarget,
-      dt,
-      _kMaterialStiffness,
-      _kMaterialDamping,
-    );
-    _lift = mr.$1;
-    _liftVel = mr.$2;
-    final bool liftSettled =
-        !_lifted && _liftX == 0 && _liftY == 0 && _lift == 0;
+    _mLift = lr.$1;
+    _mLiftVel = lr.$2;
+    if (_lifted && _mLift >= LiquidGlassTabPillTiming.liftSnap) {
+      _mLift = 1;
+      _mLiftVel = 0;
+    }
+    if (!_lifted && _mLift < 0.003 && _mLiftVel.abs() < 0.05) {
+      _mLift = 0;
+      _mLiftVel = 0;
+    }
+    _mLift = _mLift = _mLift = _mLift;
+    final bool liftSettled = !_lifted && _mLift == 0;
 
-    // 4) Commit only once the travel AND the lift have finished: the
-    // deflation outlives the spring that carried the pill there.
+    // 4) Commit once the travel and the lift are both done.
     if (_travelActive && travelSettled && liftSettled && !_tabDragging) {
       _travelActive = false;
       _tabIndexCommitted = _tabIndex;
     }
 
-    // 5) Sample the pill where it is drawn THIS frame, in pixels. Done
-    // here rather than from the last build so the model never reads a
-    // frame-old position, and so it keeps running once the glass is gone.
-    if (_pillCenterValid) {
-      _pillCenter = _resolvePillCenter();
-      if (!_pillMotion.isTracking) _pillMotion.start();
-      _pillMotion.track(
-        _pillCenter,
-        now: elapsed.inMicroseconds / 1e6,
+    // 5) The grey platter under the lens: gone as the lift rises, back on a
+    // 0.4 s spring from wherever the release caught it. It is the glass
+    // hand-over here: the rim and refraction shed as the platter returns.
+    if (_lifted) {
+      _handover = (1 - _mLift).clamp(0.0, 1.0);
+      _mHandoverVel = -_mLiftVel;
+    } else {
+      final hr = liquidGlassSpringStep(
+        x: _handover,
+        vel: _mHandoverVel,
+        target: 1,
         dt: dt,
+        stiffness: _m.platterStiffness,
+        damping: _m.platterDamping,
       );
-      _deviation = _pillMotion.deviation;
-
-      // A key of zero is a destination like any other — grabbing a pill
-      // mid-flight hands it back to the raw force, and that hand-back
-      // crosses too.
-      if (_travelSignEased == 0) {
-        _travelSignEased = _travelSign;
-      } else if (_travelSignEased != _travelSign) {
-        const signTau = 0.25;
-        _travelSignEased +=
-            (_travelSign - _travelSignEased) * (1 - math.exp(-dt / signTau));
-        if ((_travelSign - _travelSignEased).abs() < 0.01) {
-          _travelSignEased = _travelSign;
-        }
-      }
-
-      // Keep the force's MAGNITUDE — the launch peak, the lull at
-      // constant speed, the braking peak — and take its sign from the
-      // direction of travel, so the pill deforms one way for the whole
-      // journey instead of turning itself inside out at the halfway
-      // mark. A part-way key is a blend of the two, which is what makes
-      // a reversal cross rather than switch. See [_travelSign].
-      final double key = _travelSignEased;
-      if (key != 0) {
-        _deviation = _deviation * (1 - key.abs()) - key * _deviation.abs();
+      _handover = hr.$1;
+      _mHandoverVel = hr.$2;
+      if (_handover > 0.998 && _mHandoverVel.abs() < 0.05) {
+        _handover = 1;
+        _mHandoverVel = 0;
       }
     }
 
-    // 6) The hand-off, on the same landing the deflation runs off: the
-    // glass leaves as the pill starts coming down. It is a target, not a
-    // switch, so tapping again mid-hand-off turns the glass straight
-    // back around instead of restarting it.
-    final double handoverTarget = _lifted ? 0 : 1;
-    final double tau =
-        handoverTarget > _handover ? widget.handoverTau : widget.glassReturnTau;
-    _handover += (handoverTarget - _handover) * (1 - math.exp(-dt / tau));
-    if ((handoverTarget - _handover).abs() < 0.002) _handover = handoverTarget;
+    // 6) The deformation: the acceleration squash, sampled where the pill
+    // is drawn THIS frame, in pixels — so the model never reads a
+    // frame-old position, and keeps running once the glass is gone.
+    bool deformSettled;
+    {
+      if (_pillCenterValid) {
+        _pillCenter = _resolvePillCenter();
+        if (!_pillMotion.isTracking) _pillMotion.start();
+        _pillMotion.track(_pillCenter, now: _mNow, dt: dt);
+        double dev = _pillMotion.deviation;
 
-    // Everything must be finished — not just the travel. The deflation
-    // and the squash both outlive the spring (the squash's sampling
-    // window has to drain), and the hand-off outlives all of them, so
-    // stopping on the spring alone would freeze the pill mid-shrink,
-    // mid-deformation or mid-fade.
-    final bool motionSettled = _deviation.abs() < 0.0005;
-    final bool handoverSettled = _handover >= 1.0;
+        // A key of zero is a destination like any other — grabbing a pill
+        // mid-flight hands it back to the raw force, and that hand-back
+        // crosses too.
+        if (_travelSignEased == 0) {
+          _travelSignEased = _travelSign;
+        } else if (_travelSignEased != _travelSign) {
+          const signTau = 0.25;
+          _travelSignEased +=
+              (_travelSign - _travelSignEased) * (1 - math.exp(-dt / signTau));
+          if ((_travelSign - _travelSignEased).abs() < 0.01) {
+            _travelSignEased = _travelSign;
+          }
+        }
+
+        // Keep the force's MAGNITUDE — the launch peak, the lull at
+        // constant speed, the braking peak — and take its sign from the
+        // direction of travel, so the pill deforms one way for the whole
+        // journey instead of turning itself inside out at the halfway
+        // mark. A part-way key is a blend of the two, which is what makes
+        // a reversal cross rather than switch. See [_travelSign].
+        final double key = _travelSignEased;
+        if (key != 0) dev = dev * (1 - key.abs()) - key * dev.abs();
+        _deviation = dev;
+      }
+      _devY = _deviation;
+      _leadFrac = 0;
+
+      // Landed: the braking squash fades out and the measured landing
+      // wobble takes over, so the pill rings where it stands instead of
+      // squashing into its tab. The squash stays for the launch, the
+      // travel and the finger.
+      bool wobbling = false;
+      if (_landedAt != null) {
+        final double t = _mNow - _landedAt!;
+        final double fade = _m.landingSquashFadeDuration <= 0
+            ? 0.0
+            : math.exp(-t / _m.landingSquashFadeDuration);
+        _deviation *= fade;
+        _devY *= fade;
+        final double tw = t - _m.landingWobbleDelay;
+        wobbling = tw < LiquidGlassTabPillTiming.wobbleSeconds &&
+            _m.landingWobbleStrength != 0;
+        if (tw >= 0) {
+          final LiquidGlassTabDeform w = _m.landingWobble(tw);
+          _deviation += w.scaleX;
+          _devY -= w.scaleY;
+          final double dir = _travelSign == 0 ? 1 : _travelSign;
+          _leadFrac = step <= 0 ? 0 : w.lead * dir * s / step;
+        }
+      }
+      deformSettled = !wobbling &&
+          _deviation.abs() < 0.0005 &&
+          _devY.abs() < 0.0005 &&
+          _leadFrac.abs() < 1e-4;
+    }
+
+    // 7) The bar's press under the finger.
+    final bool pressSettled = _stepPress(dt);
+
+    // Everything must be finished — not just the travel. The deflation,
+    // the hand-over and the squash all outlive the spring (the squash's
+    // sampling window has to drain), so stopping on the spring
+    // alone would freeze the pill mid-shrink, mid-deformation or mid-fade.
     if (!_travelActive &&
         !_tabDragging &&
+        !_fingerDown &&
         liftSettled &&
-        motionSettled &&
-        handoverSettled) {
+        deformSettled &&
+        _handover >= 1 &&
+        pressSettled) {
       _pillMotion.stop();
-      _deviation = 0;
+      _deviation = _devY = _leadFrac = 0;
       // Held until here, not dropped at the end of the travel: the
-      // deformation drains after the spring does, and it has to drain
-      // on the sense it was drawn with.
-      _travelSign = 0;
-      _travelSignEased = 0;
+      // deformation drains after the spring does, on the sense it was
+      // drawn with.
+      _travelSign = _travelSignEased = 0;
       _maybeStopCapture();
       _ticker?.stop();
     }
@@ -1013,54 +1157,88 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     if (mounted) setState(() {});
   }
 
+  /// One frame of [LiquidGlassAnimatedNavBar.barPress]'s spring: toward its scale while a finger is on the bar, back to none
+  /// once it lifts, about a point that follows the pill. Returns whether
+  /// it has settled.
+  bool _stepPress(double dt) {
+    final LiquidGlassTabBarPress? press = widget.barPress;
+    if (press == null) {
+      _press = _pressVel = 0;
+      return true;
+    }
+    if (_lifted) {
+      // The pill's centre across the bar, mirrored and pulled toward the
+      // middle by grip: the side the pill is on grows the most.
+      final LiquidGlassTabBarLayout layout = _layout;
+      final double frac = _tabDragging ? _dragFollow : _travelPos;
+      final double pillX = layout.width <= 0
+          ? 0.5
+          : ((layout.padding + layout.pillOffset(frac) + layout.pillWidth / 2) /
+                  layout.width)
+              .clamp(0.0, 1.0);
+      final double grip = press.grip.clamp(0.0, 1.0);
+      _pressAnchorX = 0.5 + (0.5 - pillX) * grip;
+    }
+    final r = liquidGlassSpringStep(
+      x: _press,
+      vel: _pressVel,
+      target: _lifted ? press.scale : 0.0,
+      dt: dt.clamp(0.0, 1 / 30),
+      stiffness: press.stiffness,
+      damping: _lifted ? press.damping : press.releaseDamping,
+    );
+    _press = r.$1;
+    _pressVel = r.$2;
+    if (!_lifted && _press.abs() < 0.0005 && _pressVel.abs() < 0.005) {
+      _press = _pressVel = 0;
+    }
+    return _press == 0 && _pressVel == 0;
+  }
+
   /// The direction key for a travel of [span] cells. A travel with no
   /// distance in it has no direction either, and keeps the raw force.
   double _signOfTravel(double span) => span.abs() < 1e-6 ? 0 : span.sign;
-
-  /// One frame of a lift spring, snapped to its target once it has
-  /// nothing left to say — so a settled lift compares equal to `0` and
-  /// the bar can tell the deflation has finished.
-  (double, double) _stepLift(
-    double x,
-    double vel,
-    double target,
-    double dt,
-    double stiffness,
-    double damping,
-  ) {
-    final r = liquidGlassSpringStep(
-      x: x,
-      vel: vel,
-      target: target,
-      dt: dt,
-      stiffness: stiffness,
-      damping: damping,
-    );
-    if ((r.$1 - target).abs() < 0.0008 && r.$2.abs() < 0.01) {
-      return (target, 0.0);
-    }
-    return r;
-  }
-
-  /// How far through the current travel the pill is, `0`..`1`.
-  double _travelProgress() {
-    final double span = (_travelTarget - _travelFrom).abs();
-    if (span < 1e-6) return 1;
-    return (1 - (_travelTarget - _travelPos).abs() / span).clamp(0.0, 1.0);
-  }
 
   /// The pill's centre in the outer view's coordinates, from the current
   /// spring/drag state and the geometry the last build resolved.
   Offset _resolvePillCenter() {
     final layout = _layout;
-    final double frac = _tabDragging ? _dragFollow : _travelPos;
+    final double frac = _drawFrac;
     return Offset(
-      _barLeft +
-          layout.padding +
-          frac * layout.cellWidth +
-          layout.pillWidth / 2,
+      _confinePillX(
+          _barLeft +
+              layout.padding +
+              layout.pillOffset(frac) +
+              layout.pillWidth / 2,
+          layout),
       _pillCenter.dy,
     );
+  }
+
+  /// [cx] moved in just far enough that the pill, at the width it is
+  /// drawn this frame, stays inside the bar's ends — with
+  /// [LiquidGlassAnimatedNavBar.confineToBar] only.
+  double _confinePillX(double cx, LiquidGlassTabBarLayout layout) {
+    if (!widget.confineToBar) return cx;
+    final double pillW = layout.pillWidth;
+    final double liftedW = _pillLiftedSize(layout).width;
+    final double half =
+        (pillW + (liftedW - pillW) * _mLift) * (1 + _deviation) / 2;
+    final double lo = _barLeft + half;
+    final double hi = _barLeft + layout.width - half;
+    return lo > hi ? _barLeft + layout.width / 2 : cx.clamp(lo, hi);
+  }
+
+  /// The raised glass pill's size: a touch taller than the bar, with either
+  /// the resting w:h ratio or its own extra width.
+  Size _pillLiftedSize(LiquidGlassTabBarLayout layout) {
+    final double pillW = layout.pillWidth;
+    final double liftedH = layout.height + widget.pillGrowHeight;
+    return Size(
+        widget.pillGrowWidth == null
+            ? liftedH * (pillW / layout.cellHeight)
+            : pillW + widget.pillGrowWidth!,
+        liftedH);
   }
 
   @override
@@ -1106,27 +1284,27 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       }
       final layout = _layout.copyWith(bottomMargin: _effBottomMargin);
 
-      final cellW = layout.cellWidth;
-
       // The two ends of the lift: the cell the pill rests in, and the
-      // raised glass it stands at while it is up — the same w:h ratio,
-      // scaled so the glass is a touch bigger than the bar height.
+      // raised glass it stands at while it is up: a touch taller than the
+      // bar, and either the resting w:h ratio or its own extra width.
       final Size pillRest = Size(layout.pillWidth, layout.cellHeight);
-      final double liftedH = layout.height + widget.pillGrowHeight;
-      final Size pillLifted =
-          Size(liftedH * (layout.pillWidth / layout.cellHeight), liftedH);
+      final Size pillLifted = _pillLiftedSize(layout);
 
       // How much of the glass is on. Its own spring, so the material
       // can be all the way in before the size is.
-      final double morphProgress = _lift.clamp(0.0, 1.0);
+      final double morphProgress = _mLift.clamp(0.0, 1.0);
 
-      final pillFrac = _tabDragging ? _dragFollow : _travelPos;
+      final double pillFrac = _drawFrac;
 
       // The pill's centre in the outer view's coordinates. Horizontally
       // it rides its cell; vertically the centre never moves, since the
       // morph is symmetric about the bar's row.
-      final double pillCX =
-          _barLeft + layout.padding + pillFrac * cellW + layout.pillWidth / 2;
+      final double pillCX = _confinePillX(
+          _barLeft +
+              layout.padding +
+              layout.pillOffset(pillFrac) +
+              layout.pillWidth / 2,
+          layout);
       final double pillCY = parentHeight -
           (_effBottomMargin + layout.padding + layout.cellHeight / 2);
       // Hand the row's Y to the ticker, which re-derives X itself each
@@ -1144,19 +1322,37 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // past the raised size and dip under the resting one, and they do
       // it by slightly different amounts.
       final Size envelopeSize = Size(
-        pillRest.width + (pillLifted.width - pillRest.width) * _liftX,
-        pillRest.height + (pillLifted.height - pillRest.height) * _liftY,
+        pillRest.width + (pillLifted.width - pillRest.width) * _mLift,
+        pillRest.height + (pillLifted.height - pillRest.height) * _mLift,
       );
+      // A mirrored pair except through the landing wobble, whose axes
+      // are independent.
       final double dev = _deviation;
+      final double devY = _devY;
       final Size liveSize = Size(
         envelopeSize.width * (1 + dev),
-        envelopeSize.height * (1 - dev),
+        envelopeSize.height * (1 - devY),
       );
 
       // How much of the pill still reads as glass. It sheds the rim, its
       // shadow and its refraction on this, and keeps everything else —
       // the travel, the lift, the squash — running underneath.
       final double glassPresence = (1 - _handover).clamp(0.0, 1.0);
+
+      // The bar's press, which the capsule, the pills and the items all
+      // take on: one scale about a point on the bar's middle row.
+      _swellScale = 1 + _press;
+      _swellAnchor = Offset(
+        _barLeft + layout.width * _pressAnchorX,
+        parentHeight - _effBottomMargin - layout.height / 2,
+      );
+      final Offset pillCenter = _swellPoint(Offset(pillCX, pillCY));
+      final bool swollen = _swellScale != 1;
+      final Size pillRestDrawn = swollen ? pillRest * _swellScale : pillRest;
+      final Size pillLiftedDrawn =
+          swollen ? pillLifted * _swellScale : pillLifted;
+      final Size envelopeDrawn =
+          swollen ? envelopeSize * _swellScale : envelopeSize;
 
       // The lens stays until there is nothing left in it to see: no glass,
       // no lift and no deformation. By then it is drawing a flat fill at
@@ -1165,11 +1361,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // plain pill never has to know about the motion.
       final bool pillIsFlat = glassPresence <= 0 &&
           morphProgress <= 0 &&
-          _liftX == 0 &&
-          _liftY == 0 &&
+          _mLift == 0 &&
+          _mLift == 0 &&
           dev.abs() < 0.0005 &&
+          devY.abs() < 0.0005 &&
           !_travelActive &&
-          !_tabDragging;
+          !_tabDragging &&
+          !_fingerDown;
       final bool glassMounted = widget.showSelectionPill && !pillIsFlat;
 
       // The icon shell's reveal is cut to the size the pill says it is
@@ -1199,23 +1397,24 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                     // before the icon shell above it had painted.
                     child: LiquidGlassBatch.exclude(
                       child: LiquidGlassNavBarMotionPill(
-                        center: Offset(pillCX, pillCY),
+                        center: pillCenter,
                         active: _lifted,
                         morphProgress: morphProgress,
-                        envelopeSize: envelopeSize,
-                        restSize: pillRest,
-                        activeSize: pillLifted,
+                        envelopeSize: envelopeDrawn,
+                        restSize: pillRestDrawn,
+                        activeSize: pillLiftedDrawn,
                         style: _magnifierStyle(
                           baseShape: widget.pillShape,
-                          fallbackRadius: pillLifted.height / 2,
+                          fallbackRadius: pillLiftedDrawn.height / 2,
                           magnification: widget.magnifierPill.magnification,
                         ),
                         restStyle: _magnifierStyle(
                           baseShape: widget.restStyle.shape,
-                          fallbackRadius: pillRest.height / 2,
+                          fallbackRadius: pillRestDrawn.height / 2,
                           magnification: 1,
                         ),
                         deviation: dev,
+                        deviationY: devY,
                         glassPresence: glassPresence,
                         honorBackdropAlpha: false,
                       ),
@@ -1281,18 +1480,19 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                         child: _withRestStyle(
                           (LiquidGlassStyle rest) =>
                               LiquidGlassNavBarMotionPill(
-                            center: Offset(pillCX, pillCY),
+                            center: pillCenter,
                             active: _lifted,
                             // The bar owns the size as well as the squash;
                             // the pill's own morph spring stays out of it.
                             morphProgress: morphProgress,
-                            envelopeSize: envelopeSize,
-                            restSize: pillRest,
-                            activeSize: pillLifted,
+                            envelopeSize: envelopeDrawn,
+                            restSize: pillRestDrawn,
+                            activeSize: pillLiftedDrawn,
                             style: _pillStyle(),
                             restStyle: rest,
                             // The bar owns the model; the pill just draws it.
                             deviation: dev,
+                            deviationY: devY,
                             glassPresence: glassPresence,
                             shadow: widget.pillShadow,
                             honorBackdropAlpha: false,
@@ -1308,9 +1508,9 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 else if (widget.showSelectionPill)
                   Positioned(
                     key: const ValueKey('lg-motion-nav-pill-static'),
-                    left: pillCX - pillRest.width / 2,
-                    top: pillCY - pillRest.height / 2,
-                    child: _restPill(pillRest),
+                    left: pillCenter.dx - pillRestDrawn.width / 2,
+                    top: pillCenter.dy - pillRestDrawn.height / 2,
+                    child: _restPill(pillRestDrawn),
                   ),
                 // The host's chrome, on Impeller only: no capture up here
                 // to keep awake, so it paints over the cells and the pill
@@ -1326,35 +1526,21 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
               ],
             ),
           ),
-          // Unified gesture overlay: a quick tap on any cell selects it;
-          // a press-and-hold lifts the pill to drag.
+          // The gesture overlay, reading the raw pointer: a press lifts the
+          // pill at once, a move past the drag threshold scrubs it, and the
+          // release lands it on the tab nearest the finger.
           Positioned(
             key: const ValueKey('lg-animated-nav-gesture-overlay'),
             left: _barLeft + layout.padding,
             bottom: _effBottomMargin + layout.padding,
             width: layout.width - 2 * layout.padding,
             height: layout.cellHeight,
-            child: RawGestureDetector(
+            child: Listener(
               behavior: HitTestBehavior.opaque,
-              gestures: {
-                TapGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<TapGestureRecognizer>(
-                  () => TapGestureRecognizer(),
-                  (instance) => instance.onTapUp = _onTabBarTapUp,
-                ),
-                LongPressGestureRecognizer:
-                    GestureRecognizerFactoryWithHandlers<
-                        LongPressGestureRecognizer>(
-                  () => LongPressGestureRecognizer(
-                    duration: const Duration(milliseconds: 100),
-                  ),
-                  (instance) => instance
-                    ..onLongPressStart = _onTabPillLongPressStart
-                    ..onLongPressMoveUpdate = _onTabPillLongPressMoveUpdate
-                    ..onLongPressEnd = _onTabPillLongPressEnd
-                    ..onLongPressCancel = _onTabPillLongPressCancel,
-                ),
-              },
+              onPointerDown: _onPointerDown,
+              onPointerMove: _onPointerMove,
+              onPointerUp: (e) => _onPointerEnd(e.pointer),
+              onPointerCancel: (e) => _onPointerEnd(e.pointer, cancelled: true),
             ),
           ),
         ],
@@ -1409,8 +1595,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       // the glass pill on top must not compound it (m² in the middle).
       magnification: _useImpeller ? 1 : refraction.magnification,
       dispersion: refraction.dispersion,
+      liteGlass: widget.pillLiteGlass,
     );
   }
+
+  /// Whether the moving pill draws lite glass: its glass or its rest style
+  /// asks for it. The magnifier under it follows, so the two always match.
+  bool get _pillLite => widget.pillLiteGlass || widget.restStyle.liteGlass;
 
   /// The magnifier's silhouette: the shape the glass pill draws with at
   /// this end of the morph, stripped of everything visible — no rim, no
@@ -1447,6 +1638,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       refractionWidth: 0,
       magnification: magnification,
       dispersion: 0,
+      liteGlass: _pillLite,
     );
   }
 
@@ -1576,13 +1768,18 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       capsuleAppearance = capsuleAppearance.copyWith(
           color: _adaptDriver.glassColor(adaptivity));
     }
+    final LiquidGlassShape capsuleShape = widget.barShape ??
+        LiquidGlassLitShape(
+          cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
+          cornerRadius: 40,
+          specular: const LiquidGlassLight.specular(),
+        );
     final LiquidGlassStyle capsuleStyle = LiquidGlassStyle.groups(
-      shape: widget.barShape ??
-          LiquidGlassLitShape(
-            cornerStyle: LiquidGlassCornerStyle.roundedRectangle,
-            cornerRadius: 40,
-            specular: const LiquidGlassLight.specular(),
-          ),
+      // Corners scale with the press, so the capsule keeps its shape.
+      shape: _swellScale == 1
+          ? capsuleShape
+          : capsuleShape.copyWith(
+              cornerRadius: capsuleShape.cornerRadius * _swellScale),
       specular: widget.barSpecular,
       glow: widget.barGlow,
       secondSpecular: widget.barSecondSpecular,
@@ -1594,6 +1791,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
             refractionIndex: 1.1,
             refractionWidth: 12,
           ),
+      liteGlass: widget.barLiteGlass,
     );
 
     Widget shell = LiquidGlassAnimatedBottomNavBarShell(
@@ -1663,17 +1861,16 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
           // disagree by a pixel.
           child: Stack(
             children: [
+              // Grown by the press about its anchor, as the items are.
               Positioned(
-                left: _barLeft,
-                bottom: _effBottomMargin,
-                width: layout.width,
-                height: layout.height,
+                left: _swellPoint(Offset(_barLeft, 0)).dx,
+                bottom:
+                    _effBottomMargin + layout.height * (1 - _swellScale) / 2,
+                width: layout.width * _swellScale,
+                height: layout.height * _swellScale,
                 child: IgnorePointer(
-                  // Its own read, never a batch's: the bar stays off the
-                  // shared chrome read even when the host batches.
-                  child: LiquidGlassBatch.exclude(
-                    child: LiquidGlassLens(style: capsuleStyle),
-                  ),
+                  // Joins an enclosing batch, such as the host's chrome.
+                  child: LiquidGlassLens(style: capsuleStyle),
                 ),
               ),
               // The host's chrome, on Skia only, on THIS view's capture: it
@@ -1699,7 +1896,16 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
         IgnorePointer(
           child: Material(
             type: MaterialType.transparency,
-            child: shell,
+            // The items grow with the bar. They are not glass, so a
+            // plain transform carries them.
+            child: _swellScale == 1
+                ? shell
+                : Transform.scale(
+                    scale: _swellScale,
+                    alignment: Alignment.topLeft,
+                    origin: _swellAnchor,
+                    child: shell,
+                  ),
           ),
         ),
       ],

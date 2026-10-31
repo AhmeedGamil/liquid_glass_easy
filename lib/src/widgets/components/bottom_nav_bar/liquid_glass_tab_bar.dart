@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../lens/liquid_glass_batch.dart';
 import '../../lens/liquid_glass_lens.dart';
@@ -74,6 +75,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     required this.items,
     required this.selectedIndex,
     required this.onChanged,
+    this.onReselected,
     this.itemStyle = const LiquidGlassTabItemStyle(),
     this.pillStyle = const LiquidGlassTabPillStyle(),
     this.style,
@@ -83,6 +85,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 6,
     this.alignment = Alignment.bottomCenter,
+    this.press,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -96,6 +99,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     required this.items,
     required this.selectedIndex,
     required this.onChanged,
+    this.onReselected,
     this.itemStyle = const LiquidGlassTabItemStyle(),
     this.pillStyle = const LiquidGlassTabPillStyle(),
     this.style,
@@ -105,6 +109,7 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 6,
     this.alignment = Alignment.bottomCenter,
+    this.press,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -115,8 +120,24 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// The selected tab index.
   final int selectedIndex;
 
-  /// Selection callback.
+  /// Selection callback. A change of tab gives the same light haptic tap
+  /// the switch gives when it flips.
   final ValueChanged<int> onChanged;
+
+  /// A tap on the tab that is already selected, with its index: iOS's
+  /// re-tap, which sends a tab back to its root and then to its top.
+  /// `null` (the default) ignores it.
+  final ValueChanged<int>? onReselected;
+
+  /// [onChanged], with the switch's light haptic tap when the tab changes;
+  /// nothing for a disabled tab, [onReselected] as well for the selected
+  /// one.
+  void _select(int index) {
+    if (!items[index].enabled) return;
+    if (index != selectedIndex) HapticFeedback.lightImpact();
+    onChanged(index);
+    if (index == selectedIndex) onReselected?.call(index);
+  }
 
   /// Icon + label styling of the tabs (colors, icon size, label font).
   final LiquidGlassTabItemStyle itemStyle;
@@ -163,6 +184,11 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// `LiquidGlassScaffold` on both the plain and glass-pill paths.
   final Alignment alignment;
 
+  /// How the whole bar — capsule, pills and items — grows while the glass
+  /// pill is lifted, as one scale (see [LiquidGlassTabBarPress]). Glass
+  /// pill modes only. `null` (the default) keeps the bar its size.
+  final LiquidGlassTabBarPress? press;
+
   /// The tuned default capsule look — a faint white frost over the
   /// default refraction. Its `shape` is `null`: the bar derives a
   /// height-tracking full-pill optical-border shape when [style] supplies
@@ -188,6 +214,7 @@ class LiquidGlassTabBar extends StatelessWidget {
         height: height,
         bottomMargin: margin.bottom,
         padding: itemPadding,
+        restPillWidth: pillStyle.width,
       );
 
   /// Whether [glassPill] resolves to the glass-refracting morphing pill
@@ -294,6 +321,7 @@ class LiquidGlassTabBar extends StatelessWidget {
       bottomMargin: base.bottomMargin + bottomInset,
       padding: base.padding,
       pillExtraHeight: base.pillExtraHeight,
+      restPillWidth: base.restPillWidth,
     );
 
     final glassStyle = pillStyle.effectiveGlass;
@@ -304,7 +332,8 @@ class LiquidGlassTabBar extends StatelessWidget {
       body: body,
       items: items,
       selectedIndex: selectedIndex,
-      onChanged: onChanged,
+      onChanged: _select,
+      onReselected: onReselected,
       layout: layout,
       barPosition: resolveBarPosition(bottomInset: bottomInset),
       itemStyle: itemStyle,
@@ -319,22 +348,26 @@ class LiquidGlassTabBar extends StatelessWidget {
       barSecondSpecular: barStyle.secondSpecular,
       barRefraction: barStyle.refraction,
       barAppearance: barStyle.appearance,
+      barLiteGlass: barStyle.liteGlass,
+      barPress: press,
       // The bar capsule's contact shadow rides its style's appearance —
       // the same place every lens carries one.
       barShadow: barStyle.appearance.shadow,
       pillBlur: glassStyle.appearance.blur,
       pillColor: glassStyle.appearance.color,
       pillGrowHeight: pillStyle.growHeight,
+      pillGrowWidth: pillStyle.growWidth,
+      confineToBar: pillStyle.confineToBar,
       pillRefraction: glassStyle.refraction,
       pillShape: glassStyle.shape,
       pillSpecular: glassStyle.specular,
       pillGlow: glassStyle.glow,
       pillSecondSpecular: glassStyle.secondSpecular,
       pillShadow: glassStyle.appearance.shadow,
+      pillLiteGlass: glassStyle.liteGlass,
       restStyle: restStyle,
-      travelStiffness: pillStyle.travelStiffness,
-      travelDamping: pillStyle.travelDamping,
       motion: pillStyle.motion,
+      timing: pillStyle.timing,
       magnifierPill: pillStyle.magnifierPill,
       pixelRatio: pixelRatio,
       useSync: useSync,
@@ -470,7 +503,7 @@ class LiquidGlassTabBar extends StatelessWidget {
         ? AnimatedBottomNavBarContent(
             items: items,
             selectedIndex: selectedIndex,
-            onChanged: onChanged,
+            onChanged: _select,
             itemPadding: itemPadding,
             showSelectionPill: pillStyle.show,
             selectionColor: restStyle.appearance.color,
@@ -479,18 +512,20 @@ class LiquidGlassTabBar extends StatelessWidget {
             duration: pillStyle.animationDuration,
             curve: pillStyle.animationCurve,
             pillShape: restStyle.shape,
+            pillWidth: pillStyle.width,
             adaptive: adaptive,
           )
         : BottomNavBarContent(
             items: items,
             selectedIndex: selectedIndex,
-            onChanged: onChanged,
+            onChanged: _select,
             itemPadding: itemPadding,
             showSelectionPill: pillStyle.show,
             selectionColor: restStyle.appearance.color,
             selectionAdaptivity: pillAdaptivity,
             itemStyle: itemStyle,
             pillShape: restStyle.shape,
+            pillWidth: pillStyle.width,
             adaptive: adaptive,
           );
 

@@ -87,9 +87,9 @@ LiquidGlass buildLiquidGlassBottomNavPill({
   double opacity = 1.0,
 }) {
   final extra = extraHeight ?? layout.pillExtraHeight;
-  final cellW = layout.cellWidth;
   final barLeft = (parentWidth - layout.width) / 2 + dx;
-  final pillLeft = barLeft + layout.padding + animatedIndex * cellW;
+  final pillLeft =
+      barLeft + layout.padding + layout.pillOffset(animatedIndex);
   // Center the pill (which may be taller than the cell) vertically
   // over the bar's inner row.
   final pillBottom = layout.bottomMargin + layout.padding - extra / 2;

@@ -6,6 +6,7 @@ import '../liquid_glass_adaptive_area.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_tab_item.dart' show LiquidGlassTabBarItem;
 import 'liquid_glass_nav_bar_icon_row.dart';
+import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_pill.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
@@ -33,6 +34,9 @@ class BottomNavBarContent extends StatelessWidget {
   /// `null`, a plain capsule is used.
   final LiquidGlassShape? pillShape;
 
+  /// The selection pill's rest width; `null` for one equal share.
+  final double? pillWidth;
+
   /// Unselected cells follow the ambient adaptive content color
   /// (installed by the hosting lens) instead of the style's fixed color;
   /// the selected cell keeps `itemStyle.selectedColor`. Set when the
@@ -50,6 +54,7 @@ class BottomNavBarContent extends StatelessWidget {
     this.selectionAdaptivity,
     required this.itemStyle,
     this.pillShape,
+    this.pillWidth,
     this.adaptive = false,
   });
 
@@ -60,7 +65,13 @@ class BottomNavBarContent extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.all(itemPadding),
       child: LayoutBuilder(builder: (context, constraints) {
-        final cellWidth = constraints.maxWidth / items.length;
+        final row = LiquidGlassTabBarLayout(
+          itemCount: items.length,
+          width: constraints.maxWidth,
+          padding: 0,
+          restPillWidth: pillWidth,
+        );
+        final cellWidth = row.pillWidth;
         final cellHeight = constraints.maxHeight;
         return Stack(
           children: [
@@ -68,7 +79,7 @@ class BottomNavBarContent extends StatelessWidget {
             // selected cell (no slide). Sits behind the icons.
             if (showSelectionPill)
               Positioned(
-                left: selectedIndex * cellWidth,
+                left: row.pillOffset(selectedIndex.toDouble()),
                 top: 0,
                 bottom: 0,
                 width: cellWidth,
@@ -83,10 +94,14 @@ class BottomNavBarContent extends StatelessWidget {
                 ),
               ),
             // Icon + label row with tap handling.
-            Row(
+            Stack(
               children: [
                 for (int i = 0; i < items.length; i++)
-                  Expanded(
+                  Positioned(
+                    left: row.pillOffset(i.toDouble()),
+                    width: cellWidth,
+                    top: 0,
+                    bottom: 0,
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
