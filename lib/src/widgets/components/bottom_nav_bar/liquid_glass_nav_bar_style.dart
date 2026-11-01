@@ -7,9 +7,9 @@ import '../../utils/liquid_glass_lens_motion.dart';
 import '../../utils/liquid_glass_light.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../liquid_glass_shadow.dart';
-import 'liquid_glass_tab_pill_timing.dart';
+import 'liquid_glass_tab_pill_behavior.dart';
 
-export 'liquid_glass_tab_pill_timing.dart' show LiquidGlassTabPillTiming;
+export 'liquid_glass_tab_pill_behavior.dart' show LiquidGlassTabPillBehavior;
 
 /// Which renderer(s) get the full iOS-26 **glass-refracting** morphing
 /// pill (the dual-pipeline animated bar). See
@@ -31,19 +31,23 @@ enum LiquidGlassPillMode {
 /// and label render. Defaults mirror the bar's flat parameters, so
 /// swapping APIs is lossless.
 class LiquidGlassTabItemStyle {
-  /// Color of the selected item's icon + label. `null` (the default) is
-  /// the system blue for the theme's brightness: [defaultSelectedLight] or
-  /// [defaultSelectedDark].
-  final Color? selectedColor;
+  /// Color of the selected item's icon + label. Left unset (the default)
+  /// the bar draws the system blue for the theme's brightness,
+  /// [defaultSelectedLight] or [defaultSelectedDark]; read here, an unset
+  /// colour is [defaultSelectedLight].
+  Color get selectedColor => _selectedColor ?? defaultSelectedLight;
+  final Color? _selectedColor;
 
-  /// Color of unselected items' icons + labels. `null` (the default) is
-  /// black on a light theme and white on a dark one.
-  final Color? unselectedColor;
+  /// Color of unselected items' icons + labels. Left unset (the default)
+  /// the bar draws black on a light theme and white on a dark one; read
+  /// here, an unset colour is black.
+  Color get unselectedColor => _unselectedColor ?? Colors.black;
+  final Color? _unselectedColor;
 
-  /// The selected colour on a light theme when [selectedColor] is `null`.
+  /// The selected colour on a light theme when [selectedColor] is unset.
   static const Color defaultSelectedLight = Color(0xFF0088FF);
 
-  /// The selected colour on a dark theme when [selectedColor] is `null`.
+  /// The selected colour on a dark theme when [selectedColor] is unset.
   static const Color defaultSelectedDark = Color(0xFF0091FF);
 
   /// Icon size for every item.
@@ -92,8 +96,8 @@ class LiquidGlassTabItemStyle {
   final FontWeight unselectedFontWeight;
 
   const LiquidGlassTabItemStyle({
-    this.selectedColor,
-    this.unselectedColor,
+    Color? selectedColor,
+    Color? unselectedColor,
     this.iconSize = 28,
     this.underGlassIconSize = 30,
     this.labelFontSize = 10,
@@ -102,26 +106,26 @@ class LiquidGlassTabItemStyle {
     this.axis = Axis.vertical,
     this.selectedFontWeight = FontWeight.w600,
     this.unselectedFontWeight = FontWeight.w600,
-  });
+  })  : _selectedColor = selectedColor,
+        _unselectedColor = unselectedColor;
 
-  /// This style with a `null` [selectedColor] or [unselectedColor] filled
+  /// This style with an unset [selectedColor] or [unselectedColor] filled
   /// in for [brightness].
   LiquidGlassTabItemStyle resolve(Brightness brightness) {
-    if (selectedColor != null && unselectedColor != null) return this;
+    if (_selectedColor != null && _unselectedColor != null) return this;
     final bool dark = brightness == Brightness.dark;
     return copyWith(
-      selectedColor: selectedColor ??
+      selectedColor: _selectedColor ??
           (dark ? defaultSelectedDark : defaultSelectedLight),
       unselectedColor:
-          unselectedColor ?? (dark ? Colors.white : Colors.black),
+          _unselectedColor ?? (dark ? Colors.white : Colors.black),
     );
   }
 
-  /// Resolves the icon/label color for a cell in [selected] state; a
-  /// `null` colour reads as its light-theme default.
-  Color colorFor({required bool selected}) => selected
-      ? selectedColor ?? defaultSelectedLight
-      : unselectedColor ?? Colors.black;
+  /// Resolves the icon/label color for a cell in [selected] state; an
+  /// unset colour reads as its light-theme default.
+  Color colorFor({required bool selected}) =>
+      selected ? selectedColor : unselectedColor;
 
   /// Resolves the icon size for a cell by how much glass is over it:
   /// a lerp from the shared [iconSize] (`0`) to [underGlassIconSize]
@@ -155,8 +159,8 @@ class LiquidGlassTabItemStyle {
     FontWeight? unselectedFontWeight,
   }) {
     return LiquidGlassTabItemStyle(
-      selectedColor: selectedColor ?? this.selectedColor,
-      unselectedColor: unselectedColor ?? this.unselectedColor,
+      selectedColor: selectedColor ?? _selectedColor,
+      unselectedColor: unselectedColor ?? _unselectedColor,
       iconSize: iconSize ?? this.iconSize,
       underGlassIconSize: underGlassIconSize ?? this.underGlassIconSize,
       labelFontSize: labelFontSize ?? this.labelFontSize,
@@ -331,7 +335,7 @@ class LiquidGlassTabPillStyle {
   /// [shape]). It draws no border; refraction is ignored.
   final LiquidGlassStyle? rest;
 
-  /// No longer read: the travel spring is [timing]'s
+  /// No longer read: the travel spring is [behavior]'s
   /// `travelDuration` / `travelBounce` (0.4 s, bounce 0.15 as measured).
   /// Kept so existing callers keep compiling.
   final double travelStiffness;
@@ -364,8 +368,8 @@ class LiquidGlassTabPillStyle {
   /// finger, a release on the tab nearest the finger, one 0.4 s travel
   /// spring, a 0.25 s lift that drops as the pill lands, a 0.4 s shed and
   /// the landing wobble. Every default is the capture's own number. See
-  /// [LiquidGlassTabPillTiming].
-  final LiquidGlassTabPillTiming timing;
+  /// [LiquidGlassTabPillBehavior].
+  final LiquidGlassTabPillBehavior behavior;
 
   const LiquidGlassTabPillStyle({
     this.mode = LiquidGlassPillMode.both,
@@ -399,7 +403,7 @@ class LiquidGlassTabPillStyle {
       responseTime: 0.18,
     ),
     this.magnifierPill = const LiquidGlassTabMagnifierPillStyle(),
-    this.timing = const LiquidGlassTabPillTiming(),
+    this.behavior = const LiquidGlassTabPillBehavior(),
   });
 
   /// The tuned default contact shadow of the moving glass pill — a soft
@@ -436,7 +440,7 @@ class LiquidGlassTabPillStyle {
     double? travelDamping,
     LiquidGlassLensMotionSpec? motion,
     LiquidGlassTabMagnifierPillStyle? magnifierPill,
-    LiquidGlassTabPillTiming? timing,
+    LiquidGlassTabPillBehavior? behavior,
   }) {
     return LiquidGlassTabPillStyle(
       mode: mode ?? this.mode,
@@ -463,7 +467,7 @@ class LiquidGlassTabPillStyle {
       travelDamping: travelDamping ?? this.travelDamping,
       motion: motion ?? this.motion,
       magnifierPill: magnifierPill ?? this.magnifierPill,
-      timing: timing ?? this.timing,
+      behavior: behavior ?? this.behavior,
     );
   }
 
@@ -559,8 +563,8 @@ class LiquidGlassTabPillStyle {
 ///
 /// Glass pill modes only; a bar with no moving pill has nothing to lift.
 @immutable
-class LiquidGlassTabBarPress {
-  const LiquidGlassTabBarPress({
+class LiquidGlassTabBarSwell {
+  const LiquidGlassTabBarSwell({
     this.scale = 0.03,
     this.grip = 0.75,
     this.stiffness = 320,
@@ -589,7 +593,7 @@ class LiquidGlassTabBarPress {
 
   @override
   bool operator ==(Object other) =>
-      other is LiquidGlassTabBarPress &&
+      other is LiquidGlassTabBarSwell &&
       other.scale == scale &&
       other.grip == grip &&
       other.stiffness == stiffness &&

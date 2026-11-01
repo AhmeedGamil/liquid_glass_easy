@@ -87,7 +87,8 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 4,
     this.alignment = Alignment.bottomCenter,
-    this.press = const LiquidGlassTabBarPress(),
+    this.swell = const LiquidGlassTabBarSwell(),
+    this.joinBatch = false,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -111,7 +112,8 @@ class LiquidGlassTabBar extends StatelessWidget {
     this.margin = const EdgeInsets.only(bottom: 24),
     this.itemPadding = 4,
     this.alignment = Alignment.bottomCenter,
-    this.press = const LiquidGlassTabBarPress(),
+    this.swell = const LiquidGlassTabBarSwell(),
+    this.joinBatch = false,
   })  : assert(items.length > 0, 'Provide at least one item'),
         assert(selectedIndex >= 0 && selectedIndex < items.length,
             'selectedIndex out of range');
@@ -187,9 +189,15 @@ class LiquidGlassTabBar extends StatelessWidget {
   final Alignment alignment;
 
   /// How the whole bar — capsule, pills and items — grows while the glass
-  /// pill is lifted, as one scale (see [LiquidGlassTabBarPress]). Glass
+  /// pill is lifted, as one scale (see [LiquidGlassTabBarSwell]). Glass
   /// pill modes only. `null` keeps the bar its size.
-  final LiquidGlassTabBarPress? press;
+  final LiquidGlassTabBarSwell? swell;
+
+  /// Whether the bar capsule joins an enclosing `LiquidGlassBatch`, such as
+  /// a `LiquidGlassScaffold`'s chrome batch, and reads its shared copy of
+  /// the backdrop. `false` (the default) keeps it on a read of its own. The
+  /// moving glass pill and its magnifier never join one.
+  final bool joinBatch;
 
   /// The tuned capsule look on a light theme: the iOS 26 floating tab
   /// bar's white frost, a continuous capsule and a soft contact shadow.
@@ -386,7 +394,8 @@ class LiquidGlassTabBar extends StatelessWidget {
         barRefraction: barStyle.refraction,
         barAppearance: barStyle.appearance,
         barLiteGlass: barStyle.liteGlass,
-        barPress: press,
+        barSwell: swell,
+        capsuleJoinsBatch: joinBatch,
         // The bar capsule's contact shadow rides its style's appearance —
         // the same place every lens carries one.
         barShadow: barStyle.appearance.shadow,
@@ -404,7 +413,7 @@ class LiquidGlassTabBar extends StatelessWidget {
         pillLiteGlass: glassStyle.liteGlass,
         restStyle: restStyle,
         motion: pillStyle.motion,
-        timing: pillStyle.timing,
+        behavior: pillStyle.behavior,
         magnifierPill: pillStyle.magnifierPill,
         pixelRatio: pixelRatio,
         useSync: useSync,
@@ -576,28 +585,30 @@ class LiquidGlassTabBar extends StatelessWidget {
     // The bar's contact shadow rides the lens's appearance
     // (`appearance.shadow`): the lens wraps itself in the ring, painting
     // it behind the glass and composing its visibility with the bar's.
+    final Widget capsule = LiquidGlassLens(
+      style: LiquidGlassStyle(
+        shape: effectiveShape,
+        specular: barStyle.specular,
+        glow: barStyle.glow,
+        saturation: barStyle.saturation,
+        blur: barStyle.blur,
+        color: barStyle.color,
+        shadow: barStyle.shadow,
+        refractionIndex: barStyle.refractionIndex,
+        refractionWidth: barStyle.refractionWidth,
+        magnification: barStyle.magnification,
+        dispersion: barStyle.dispersion,
+        adaptivity: barStyle.adaptivity,
+        liteGlass: barStyle.liteGlass,
+      ),
+      visibility: visibility,
+      child: content,
+    );
     return SizedBox(
       width: width,
       height: height,
-      child: LiquidGlassLens(
-        style: LiquidGlassStyle(
-          shape: effectiveShape,
-          specular: barStyle.specular,
-          glow: barStyle.glow,
-          saturation: barStyle.saturation,
-          blur: barStyle.blur,
-          color: barStyle.color,
-          shadow: barStyle.shadow,
-          refractionIndex: barStyle.refractionIndex,
-          refractionWidth: barStyle.refractionWidth,
-          magnification: barStyle.magnification,
-          dispersion: barStyle.dispersion,
-          adaptivity: barStyle.adaptivity,
-          liteGlass: barStyle.liteGlass,
-        ),
-        visibility: visibility,
-        child: content,
-      ),
+      // On a read of its own unless it joins the enclosing batch.
+      child: joinBatch ? capsule : LiquidGlassBatch.exclude(child: capsule),
     );
   }
 }

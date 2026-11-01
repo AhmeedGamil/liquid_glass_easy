@@ -26,7 +26,7 @@ import '../../utils/liquid_glass_refresh_rate.dart';
 import '../../utils/liquid_glass_shape.dart';
 import '../../utils/liquid_glass_lens_motion.dart';
 import 'liquid_glass_nav_bar_motion_pill.dart';
-import 'liquid_glass_tab_pill_timing.dart';
+import 'liquid_glass_tab_pill_behavior.dart';
 import '../liquid_glass_shadow.dart';
 
 /// Self-contained **animated** liquid-glass bottom nav bar — the iOS-26
@@ -112,7 +112,7 @@ import '../liquid_glass_shadow.dart';
 /// ## Events, timing and travel
 ///
 /// These are the native iOS 26/27 tab bar's, as measured from the control
-/// frame by frame (see [LiquidGlassTabPillTiming]); [timing] holds the
+/// frame by frame (see [LiquidGlassTabPillBehavior]); [behavior] holds the
 /// numbers, every one defaulting to the capture:
 ///
 ///  * A press lifts the pill **at once** — no hold — and sends it to the
@@ -238,7 +238,11 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// How the whole bar grows while the glass pill is lifted — capsule,
   /// pills and items, as one scale. `null` keeps the bar its size.
-  final LiquidGlassTabBarPress? barPress;
+  final LiquidGlassTabBarSwell? barSwell;
+
+  /// Whether the bar capsule joins an enclosing batch, such as the host's
+  /// chrome. Off, it takes a read of its own.
+  final bool capsuleJoinsBatch;
 
   /// iOS-style adaptivity for the whole bar (same contract as
   /// `LiquidGlassStyle.adaptivity`): the bar capsule's tint follows the
@@ -376,7 +380,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
 
   /// The events, timing and travel both models run on, and the measured
   /// model's deformation and bar-swell values.
-  final LiquidGlassTabPillTiming timing;
+  final LiquidGlassTabPillBehavior behavior;
 
   // Render pipeline knobs forwarded to both views.
   final double pixelRatio;
@@ -384,7 +388,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   final bool? useImpellerBackdrop;
 
   /// See `LiquidGlassView.batch`, forwarded to both views. The bar's own
-  /// capsule joins whatever batch encloses it, like any lens. The moving
+  /// capsule joins an enclosing batch only with [capsuleJoinsBatch]. The moving
   /// pill and the magnifier pill are kept out regardless: each takes a
   /// read of its own, so they refract the capsule, which a shared copy
   /// does not hold.
@@ -429,7 +433,8 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
     this.barRefraction,
     this.barAppearance,
     this.barLiteGlass = false,
-    this.barPress,
+    this.barSwell,
+    this.capsuleJoinsBatch = false,
     this.barShadow,
     this.pillShadow,
     this.pillLiteGlass = false,
@@ -461,7 +466,7 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
       maxDeformation: 0.12,
       responseTime: 0.18,
     ),
-    this.timing = const LiquidGlassTabPillTiming(),
+    this.behavior = const LiquidGlassTabPillBehavior(),
     this.pixelRatio = 1.0,
     this.useSync = true,
     this.useImpellerBackdrop,
@@ -656,10 +661,10 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   double _pressAnchorX = 0.5;
 
   // ===== Events, timing and travel: the native bar's, as measured (see
-  // [LiquidGlassTabPillTiming]).
+  // [LiquidGlassTabPillBehavior]).
 
   /// The events', timing's and travel's values.
-  LiquidGlassTabPillTiming get _m => widget.timing;
+  LiquidGlassTabPillBehavior get _m => widget.behavior;
 
   /// The bar's clock in seconds, carried across ticker restarts (a
   /// ticker's `elapsed` starts over each time it is started).
@@ -957,7 +962,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// travel spring, the follow spring under a finger, the lift, the glass
   /// hand-over, the deformation and the bar's press. The pill widget is
   /// handed the results and draws them. The timing is the native bar's —
-  /// see [LiquidGlassTabPillTiming].
+  /// see [LiquidGlassTabPillBehavior].
   void _stepFrame(double dt) {
     _mNow += dt;
     final double step = _layout.itemStep;
@@ -982,7 +987,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       final double remaining = (_travelPos - _travelTarget).abs() * cell;
       final double speed = (_travelVel * cell).abs();
       travelSettled =
-          remaining < LiquidGlassTabPillTiming.settleDistance && speed < 15;
+          remaining < LiquidGlassTabPillBehavior.settleDistance && speed < 15;
       if (travelSettled) {
         _travelPos = _travelTarget;
         _travelVel = 0;
@@ -1023,7 +1028,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     );
     _mLift = lr.$1;
     _mLiftVel = lr.$2;
-    if (_lifted && _mLift >= LiquidGlassTabPillTiming.liftSnap) {
+    if (_lifted && _mLift >= LiquidGlassTabPillBehavior.liftSnap) {
       _mLift = 1;
       _mLiftVel = 0;
     }
@@ -1114,7 +1119,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
         _deviation *= fade;
         _devY *= fade;
         final double tw = t - _m.landingWobbleDelay;
-        wobbling = tw < LiquidGlassTabPillTiming.wobbleSeconds &&
+        wobbling = tw < LiquidGlassTabPillBehavior.wobbleSeconds &&
             _m.landingWobbleStrength != 0;
         if (tw >= 0) {
           final LiquidGlassTabDeform w = _m.landingWobble(tw);
@@ -1157,11 +1162,11 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     if (mounted) setState(() {});
   }
 
-  /// One frame of [LiquidGlassAnimatedNavBar.barPress]'s spring: toward its scale while a finger is on the bar, back to none
+  /// One frame of [LiquidGlassAnimatedNavBar.barSwell]'s spring: toward its scale while a finger is on the bar, back to none
   /// once it lifts, about a point that follows the pill. Returns whether
   /// it has settled.
   bool _stepPress(double dt) {
-    final LiquidGlassTabBarPress? press = widget.barPress;
+    final LiquidGlassTabBarSwell? press = widget.barSwell;
     if (press == null) {
       _press = _pressVel = 0;
       return true;
@@ -1870,8 +1875,13 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
                 width: layout.width * _swellScale,
                 height: layout.height * _swellScale,
                 child: IgnorePointer(
-                  // Joins an enclosing batch, such as the host's chrome.
-                  child: LiquidGlassLens(style: capsuleStyle),
+                  // Joins an enclosing batch, such as the host's chrome,
+                  // only when asked; otherwise a read of its own.
+                  child: widget.capsuleJoinsBatch
+                      ? LiquidGlassLens(style: capsuleStyle)
+                      : LiquidGlassBatch.exclude(
+                          child: LiquidGlassLens(style: capsuleStyle),
+                        ),
                 ),
               ),
               // The host's chrome, on Skia only, on THIS view's capture: it

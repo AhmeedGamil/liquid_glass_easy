@@ -33,8 +33,8 @@ import 'dart:math' as math;
 ///    kit plays it at the landing, on [landingWobbleStrength], in place of the
 ///    acceleration squash's braking — which fades out over
 ///    [landingSquashFadeDuration].
-class LiquidGlassTabPillTiming {
-  const LiquidGlassTabPillTiming({
+class LiquidGlassTabPillBehavior {
+  const LiquidGlassTabPillBehavior({
     this.barHeight = 62,
     this.liftDuration = 0.25,
     this.liftBounce = 0.0,
@@ -144,7 +144,7 @@ class LiquidGlassTabPillTiming {
     );
   }
 
-  LiquidGlassTabPillTiming copyWith({
+  LiquidGlassTabPillBehavior copyWith({
     double? barHeight,
     double? liftDuration,
     double? liftBounce,
@@ -159,7 +159,7 @@ class LiquidGlassTabPillTiming {
     double? landingWobbleDelay,
     double? landingSquashFadeDuration,
   }) {
-    return LiquidGlassTabPillTiming(
+    return LiquidGlassTabPillBehavior(
       barHeight: barHeight ?? this.barHeight,
       liftDuration: liftDuration ?? this.liftDuration,
       liftBounce: liftBounce ?? this.liftBounce,
@@ -181,7 +181,7 @@ class LiquidGlassTabPillTiming {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is LiquidGlassTabPillTiming &&
+      other is LiquidGlassTabPillBehavior &&
           other.barHeight == barHeight &&
           other.liftDuration == liftDuration &&
           other.liftBounce == liftBounce &&
