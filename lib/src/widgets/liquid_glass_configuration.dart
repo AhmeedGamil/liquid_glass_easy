@@ -95,31 +95,6 @@ class LiquidGlassConfiguration {
   /// [blurOverride] keeps its own. Read when a lens builds.
   static double? dispersionOverride;
 
-  /// Whether every lens and blender takes the global tint: [colorOverrideLight]
-  /// and [saturationOverrideLight] on a light theme, [colorOverrideDark] and
-  /// [saturationOverrideDark] on a dark one, in place of its own colour and
-  /// saturation, an adaptive verdict's tint included. Off by default. The
-  /// tab bar's glass and magnifier pills, the slider thumb and the switch
-  /// thumb keep their own. Read when a lens builds; the theme is the app's
-  /// (`Theme.of(context).brightness`).
-  static bool tintOverride = false;
-
-  /// The global tint on a light theme, while [tintOverride] is on: white at
-  /// about 68% by default.
-  static Color colorOverrideLight = const Color(0xADFFFFFF);
-
-  /// The global tint on a dark theme, while [tintOverride] is on: a near
-  /// black (28, 28, 31) at about 55% by default.
-  static Color colorOverrideDark = const Color(0x8C1C1C1F);
-
-  /// The global saturation on a light theme, while [tintOverride] is on.
-  /// `2` by default.
-  static double saturationOverrideLight = 2.0;
-
-  /// The global saturation on a dark theme, while [tintOverride] is on.
-  /// `1.2` by default.
-  static double saturationOverrideDark = 1.2;
-
   /// Replaces the shadow colour of every lens and blender that has a shadow,
   /// on a light theme, when set. The same glass as for [blurOverride] keeps
   /// its own. Read when a lens builds.
@@ -146,16 +121,16 @@ class LiquidGlassConfiguration {
       BuildContext context, LiquidGlassAppearance appearance) {
     final double? blur = blurOverride;
     final bool dark = Theme.of(context).brightness == Brightness.dark;
-    final Color? color = !tintOverride
+    final Color? color = !LiquidGlassTintOverride.enabled
         ? null
         : dark
-            ? colorOverrideDark
-            : colorOverrideLight;
-    final double? saturation = !tintOverride
+            ? LiquidGlassTintOverride.colorDark
+            : LiquidGlassTintOverride.colorLight;
+    final double? saturation = !LiquidGlassTintOverride.enabled
         ? null
         : dark
-            ? saturationOverrideDark
-            : saturationOverrideLight;
+            ? LiquidGlassTintOverride.saturationDark
+            : LiquidGlassTintOverride.saturationLight;
     final Color? shadowColor =
         dark ? shadowColorOverrideDark : shadowColorOverrideLight;
     if (blur == null &&
@@ -213,16 +188,16 @@ class LiquidGlassConfiguration {
     Brightness brightness = Brightness.light,
   }) {
     final bool dark = brightness == Brightness.dark;
-    final Color? color = !tintOverride
+    final Color? color = !LiquidGlassTintOverride.enabled
         ? null
         : dark
-            ? colorOverrideDark
-            : colorOverrideLight;
-    final double? saturation = !tintOverride
+            ? LiquidGlassTintOverride.colorDark
+            : LiquidGlassTintOverride.colorLight;
+    final double? saturation = !LiquidGlassTintOverride.enabled
         ? null
         : dark
-            ? saturationOverrideDark
-            : saturationOverrideLight;
+            ? LiquidGlassTintOverride.saturationDark
+            : LiquidGlassTintOverride.saturationLight;
     final Color? shadowColor =
         dark ? shadowColorOverrideDark : shadowColorOverrideLight;
     if (blurOverride == null &&
@@ -258,4 +233,33 @@ class LiquidGlassOverrideExclude extends InheritedWidget {
 
   @override
   bool updateShouldNotify(LiquidGlassOverrideExclude oldWidget) => false;
+}
+
+/// The global tint: while [enabled], every lens and blender takes
+/// [colorLight] and [saturationLight] on a light theme, [colorDark] and
+/// [saturationDark] on a dark one, in place of its own colour and
+/// saturation, an adaptive verdict's tint included. The tab bar's glass
+/// and magnifier pills, the slider thumb and the switch thumb keep their
+/// own. Read when a lens builds; the theme is the app's
+/// (`Theme.of(context).brightness`).
+///
+/// Not exported yet: the gallery imports it from `src/`.
+class LiquidGlassTintOverride {
+  LiquidGlassTintOverride._();
+
+  /// Whether the global tint applies. Off by default.
+  static bool enabled = false;
+
+  /// The tint on a light theme: white at about 68% by default.
+  static Color colorLight = const Color(0xADFFFFFF);
+
+  /// The tint on a dark theme: a near black (28, 28, 31) at about 55% by
+  /// default.
+  static Color colorDark = const Color(0x8C1C1C1F);
+
+  /// The saturation on a light theme. `2` by default.
+  static double saturationLight = 2.0;
+
+  /// The saturation on a dark theme. `1.2` by default.
+  static double saturationDark = 1.2;
 }
