@@ -31,8 +31,7 @@ class LiquidGlassDockApp {
 }
 
 /// A horizontal dock of app icons inside a single liquid-glass blob with
-/// a soft optical rim — the home-screen dock pattern popularised by iOS
-/// / iPadOS.
+/// a soft optical rim — the familiar home-screen dock pattern.
 ///
 /// Drop it anywhere in your layout. The dock sizes itself to its [apps].
 /// Styling uses the [LiquidGlassLens] vocabulary — [shape], [appearance],

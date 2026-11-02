@@ -8,7 +8,7 @@ import 'dart:math' as math;
 /// limits, and the capture view painted around the whole thing. Change
 /// [width] and [height] and the rest follows.
 ///
-/// The defaults are the iOS-26 sliding switch: a 63×28 track carrying a
+/// The defaults are a sliding switch: a 63×28 track carrying a
 /// 37×24 handle that swells to 58×38.33 while it is held — wider AND
 /// taller than the track it sits in, which is why the thumb overhangs.
 class LiquidGlassSwitchLayout {

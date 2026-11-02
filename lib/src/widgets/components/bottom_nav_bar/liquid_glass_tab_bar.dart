@@ -128,8 +128,8 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// the switch gives when it flips.
   final ValueChanged<int> onChanged;
 
-  /// A tap on the tab that is already selected, with its index: iOS's
-  /// re-tap, which sends a tab back to its root and then to its top.
+  /// A tap on the tab that is already selected, with its index: the
+  /// re-tap that sends a tab back to its root and then to its top.
   /// `null` (the default) ignores it.
   final ValueChanged<int>? onReselected;
 
@@ -199,8 +199,8 @@ class LiquidGlassTabBar extends StatelessWidget {
   /// moving glass pill and its magnifier never join one.
   final bool joinBatch;
 
-  /// The tuned capsule look on a light theme: the iOS 26 floating tab
-  /// bar's white frost, a continuous capsule and a soft contact shadow.
+  /// The tuned capsule look on a light theme: a white frost, a
+  /// continuous capsule and a soft contact shadow.
   /// Compose with `copyWith` to tweak one facet while keeping the rest of
   /// the tuned look, e.g.
   /// `style: LiquidGlassTabBar.defaultStyle.copyWith(shape: …)`.

@@ -5,7 +5,7 @@
 /// INNER view captures the wallpaper + bar capsule, and an OUTER
 /// view composites the moving selection pill on top. The result is a
 /// selection pill that refracts the bar capsule's own glass output
-/// — the iOS-26 "morphing pill" feel.
+/// — the "morphing pill" feel.
 ///
 /// The non-animated [LiquidGlassTabBarShell] only needs this
 /// for sizing; the moving-pill fields are consumed by the

@@ -58,8 +58,7 @@ class _Spring {
 /// more, plus how each pair is timed against the plain spring.
 ///
 /// The rect is derived — the anchor is the point of the rect that [anchor]
-/// names, so a blob grows around that point the way Apple's matched
-/// geometry does around its `anchor:`. Anchor and size are separate pairs on
+/// names, so a blob grows around that point. Anchor and size are separate pairs on
 /// purpose: the whole liquid look is the two NOT agreeing about where the
 /// blob is.
 class _Blob {
@@ -232,7 +231,7 @@ class _Blob {
 /// by `contentInEnd`. A swap that reverses mid-flight carries each child on
 /// from wherever it had got to, so a child that had not yet appeared never
 /// does. And the material thickens as the glass grows — more blur, deeper
-/// refraction — the way Apple's does when a menu opens from a button.
+/// refraction — as when a menu opens from a button.
 ///
 /// ## Shared elements
 ///
@@ -243,7 +242,8 @@ class _Blob {
 /// morph matches the two: the originals hide for the swap and one opaque
 /// copy travels from the old one's rect to the new one's on the motion's own
 /// spring, scaling between their sizes, and hands over to the new original
-/// once it has landed. Apple's matched geometry, inside the glass.
+/// once it has landed, so the content moves with the glass from one shape
+/// to the other.
 ///
 /// ## Layout, and why [alignment] matters
 ///
@@ -1281,7 +1281,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     );
   }
 
-  /// Apple's content transition in one place: opacity, a little scale, and
+  /// The content transition in one place: opacity, a little scale, and
   /// a blur that is at its strongest exactly when the content is faintest.
   Widget _materialise(
     Widget child, {
@@ -1476,9 +1476,9 @@ class _MorphContentScope extends InheritedWidget {
 /// During the swap both originals hide and one opaque copy of the NEW
 /// side's child flies from the old rect to the new on the motion's own
 /// spring, scaling between the two sizes, and hands over to the new original
-/// once it has landed and the new content is fully in. Nothing blurs. This
-/// is Apple's matched geometry, inside the glass. Outside a morph, or with
-/// no match on the other side, it is simply its child.
+/// once it has landed and the new content is fully in. Nothing blurs: the
+/// content moves with the glass from one shape to the other. Outside a
+/// morph, or with no match on the other side, it is simply its child.
 ///
 /// The copy is the destination's widget at the destination's size, fitted
 /// into the travelling rect, so the two sides may differ in size but should

@@ -174,7 +174,7 @@ float roundedRectangleShape(vec2 p, vec2 c, vec2 h, float r){
    SQUIRCLE ROUNDED RECTANGLE (Ln-norm continuous corners)
    ---------------------------------------------------
    Same construction as the rounded rect, but the corner occupies a
-   WIDER zone than the visual radius (Apple's continuous corners run
+   WIDER zone than the visual radius (continuous corners run
    ~1.528 × r along each edge) and uses an Ln-norm profile instead of
    the circular L2. `zone` is the corner-zone size in px and `n` the
    Ln exponent; both are derived ONCE per fragment from (radius,
@@ -185,7 +185,7 @@ float roundedRectangleShape(vec2 p, vec2 c, vec2 h, float r){
    NOTE: this is the "squircle" smoothing. The caller (the .frag shape
    branch) now passes a fixed smoothing of 1.0 for the squircle style.
    It is distinct from the `continuousRoundedRect*` family below, which
-   is the Apple capsule-style (circular belly + tuned G2 shoulder) curve.
+   is the capsule-style (circular belly + tuned G2 shoulder) curve.
    =========================== */
 float squircleShape(vec2 p, vec2 c, vec2 h, float zone, float n){
     vec2 q = abs(p - c) - h + zone;
@@ -267,12 +267,12 @@ ShapeData shapeToScreen(ShapeData d, vec2 scale){
    Continuous-corner zone + exponent from (radius, smoothing).
    ---------------------------------------------------
    smoothing 0 → zone = r, n = 2 (plain circular corner).
-   smoothing 1 → zone = 1.528 r (Apple's continuous-corner extension),
+   smoothing 1 → zone = 1.528 r (the continuous-corner extension),
    n ≈ 3.26 chosen so the curve passes through the SAME apex point as
    the circular corner of radius r — the perceived radius stays r.
    The zone is clamped to the shorter half-side, so as the radius
    approaches full (capsule) the zone collapses back to r and n → 2:
-   a smooth degradation to a circular cap, exactly like iOS/Figma.
+   a smooth degradation to a circular cap.
    Returns vec2(zone, n).
    =========================== */
 vec2 squircleCornerParams(float r, float smoothing, float maxCorner){
@@ -280,7 +280,7 @@ vec2 squircleCornerParams(float r, float smoothing, float maxCorner){
     // approaches the maximum the zone collapses back to r and the
     // exponent below lands exactly on n = 2 — the smoothing fades out
     // and the shape returns to the PLAIN rounded rectangle (a clean
-    // capsule at full radius), matching iOS/Figma behavior.
+    // capsule at full radius).
     float zone  = min(r * (1.0 + 0.528 * smoothing), maxCorner);
     // Solve  1 - 2^(-1/n) = (1 - 1/sqrt(2)) * r / zone  for n, so the
     // Ln corner's 45° apex coincides with the circular corner's apex.
@@ -365,7 +365,7 @@ const float CRR_DEGEN    = 1e-20;   // both offsets vanish: no radius to pick
 // is short of room — a capsule only gets its full reach once it is twice as
 // long as it is tall, and linear slack makes everything below that read as a
 // plain rounded rectangle. At t^0.6 a 1.2:1 capsule keeps 6.6 px of reach
-// instead of 3.5, and the outline is still within 0.42% of the reference.
+// instead of 3.5, and the outline error stays within 0.42%.
 //
 // The min() is the guard the shaping needs: t^0.6 > t below t = 0.045, so
 // without it a nearly-round edge would ask for more reach than it has room

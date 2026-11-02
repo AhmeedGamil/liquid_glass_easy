@@ -64,14 +64,14 @@ class LiquidGlassMorphMotion {
   final double stretch;
 
   /// The point the new shape grows around, and the point of the old shape
-  /// it is born at — Apple's matched-geometry `anchor`.
+  /// it is born at.
   ///
   /// Together with the widget's `alignment` this sets the neck's direction.
   /// [Alignment.center] makes the blob leap from the old centre to the new
   /// one and drag a neck behind it. `null` uses the widget's own
   /// `alignment`, the corner that holds: the anchor then barely travels and
-  /// the shape simply pops open from that corner, with no neck — which is
-  /// how Apple's menus grow from a toolbar button.
+  /// the shape simply pops open from that corner, with no neck — the way a
+  /// menu grows from a toolbar button.
   final Alignment? anchor;
 
   /// Whether the morph is two blobs joined by a `LiquidGlassBlender` — the
@@ -94,11 +94,11 @@ class LiquidGlassMorphMotion {
   /// `duration` [spring] was given, and 0.45 s for the built-in presets.
   double get duration => 2 * math.pi / math.sqrt(stiffness);
 
-  /// The spring SwiftUI would give you for `Spring(duration:bounce:)`, so a
-  /// value copied from a design spec lands here unchanged.
+  /// A spring given as a duration and a bounce, so a value copied from a
+  /// design spec lands here unchanged.
   ///
   /// [duration] is the perceptual duration, not a hard stop: ω = 2π/duration.
-  /// [bounce] is `0` for no overshoot, `0.3` for SwiftUI's `.bouncy`, and
+  /// [bounce] is `0` for no overshoot, `0.3` for a bouncy spring, and
   /// higher for livelier. Negative values overdamp.
   factory LiquidGlassMorphMotion.spring({
     Duration duration = const Duration(milliseconds: 450),
@@ -110,7 +110,7 @@ class LiquidGlassMorphMotion {
   }) {
     final double seconds = math.max(duration.inMicroseconds / 1e6, 0.001);
     final double omega = 2 * math.pi / seconds;
-    // SwiftUI's mapping: bounce is 1 − damping ratio.
+    // Bounce is 1 − damping ratio.
     final double zeta = (1 - bounce).clamp(0.05, 4.0);
     return LiquidGlassMorphMotion(
       stiffness: omega * omega,
@@ -145,16 +145,15 @@ class LiquidGlassMorphMotion {
 
   // ── Presets ───────────────────────────────────────────────────────────
   //
-  // Apple's menu spring is `.bouncy(duration: 0.4)`: Spring(duration 0.4–0.5,
-  // bounce 0.3). The constants below are that spring at 0.45 s, and at 0.4 s
+  // The constants below are a bounce 0.3 spring at 0.45 s, and at 0.4 s
   // critically damped for `calm`.
 
   /// A menu leaping out of a toolbar button: the blob's centre leaves first,
   /// the size follows, the old shape lingers and drains after it.
   static const LiquidGlassMorphMotion fluid = LiquidGlassMorphMotion();
 
-  /// Grows from the corner that holds, the way Apple's own menus pop open
-  /// from their button. The anchor barely travels, so there is no neck: the
+  /// Grows from the corner that holds, the way a menu pops open from its
+  /// button. The anchor barely travels, so there is no neck: the
   /// liquid read is the bounce, the thickening, and the content
   /// materialising around the corner.
   static const LiquidGlassMorphMotion anchoredPop = LiquidGlassMorphMotion(
@@ -257,7 +256,7 @@ class LiquidGlassMorphAdvanced {
   final double followDelay;
 
   /// Size of the new blob at birth as a fraction of the old shape, 0.2–1.
-  /// `1` is Apple's matched geometry: the new shape starts as the old frame.
+  /// `1` starts the new shape as the old frame.
   /// Smaller births a droplet inside the old shape that grows as it leaves.
   final double seedScale;
 
@@ -326,7 +325,7 @@ class LiquidGlassMorphAdvanced {
   // ── Material ──────────────────────────────────────────────────────────
 
   /// How much thicker the blur reads at the large size, as a fraction of the
-  /// style's own sigma. Apple: "a thicker, more substantial material".
+  /// style's own sigma.
   final double thickenBlur;
 
   /// Same, for the refraction band and depth.

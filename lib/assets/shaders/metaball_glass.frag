@@ -71,7 +71,7 @@ uniform vec2 u_resolution;
 uniform sampler2D u_texture_input;
 
 // --- Packed uniforms (Metal [[buffer(N)]] limit fix) -----------------------
-// iOS 26 Impeller binds each runtime-effect uniform to its own Metal buffer
+// Impeller on iOS binds each runtime-effect uniform to its own Metal buffer
 // and caps at ~30, so what is scarce here is DECLARATIONS, not floats.
 //
 // The per-lens data therefore rides in mat4s: one holds TWO members, as four

@@ -24,7 +24,7 @@ uniform vec2 u_touch;
 uniform sampler2D u_texture_input;
 
 // --- Packed scalar uniforms (Metal [[buffer(N)]] limit fix) ----------------
-// Mirrors liquid_glass.frag: scalars merged into vec4s to stay under iOS 26
+// Mirrors liquid_glass.frag: scalars merged into vec4s to stay under iOS
 // Impeller's ~30 Metal-buffer cap. The #define block restores scalar names;
 // float offsets are unchanged, so the Dart packing code stays in sync,
 // including u_lensColor at the main shader's slot: the rim lifts from the
@@ -32,7 +32,7 @@ uniform sampler2D u_texture_input;
 
 // x=lensWidth  y=lensHeight  z=cornerRadius  w=cornerStyle
 //   cornerStyle: 0 = circular, 1 = squircle (full smoothing),
-//   2 = continuous (Apple capsule-style). Mirrors liquid_glass.frag.
+//   2 = continuous (capsule-style). Mirrors liquid_glass.frag.
 uniform vec4 u_lensGeom;
 // x=magnification  y=refractionIndex  z=refractionWidthPx
 // w=dispersion

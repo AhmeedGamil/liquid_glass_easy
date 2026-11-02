@@ -21,7 +21,7 @@ import 'liquid_glass_nav_bar_style.dart';
 ///     one along [curve], and
 ///   • the icon currently under the pill renders in its selected
 ///     (filled / bright) state while the rest stays unselected — the
-///     iOS-26 "icon highlights through the moving pill" reveal —
+///     "icon highlights through the moving pill" reveal —
 ///     implemented by drawing the icon row twice and clipping one copy
 ///     to the inside of the moving pill and the other to the outside.
 class AnimatedBottomNavBarContent extends StatefulWidget {

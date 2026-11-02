@@ -11,7 +11,7 @@ import 'liquid_glass_tab_pill_behavior.dart';
 
 export 'liquid_glass_tab_pill_behavior.dart' show LiquidGlassTabPillBehavior;
 
-/// Which renderer(s) get the full iOS-26 **glass-refracting** morphing
+/// Which renderer(s) get the full **glass-refracting** morphing
 /// pill (the dual-pipeline animated bar). See
 /// [LiquidGlassTabBar.glassPill] for how to opt in.
 enum LiquidGlassPillMode {
@@ -86,7 +86,7 @@ class LiquidGlassTabItemStyle {
 
   /// How the icon and label are laid out: [Axis.vertical] (the default)
   /// puts the label under the icon; [Axis.horizontal] puts it beside it,
-  /// as iOS does on an iPhone in landscape.
+  /// as suits a phone in landscape.
   final Axis axis;
 
   /// Font weight of the selected item's label.
@@ -224,7 +224,7 @@ class LiquidGlassTabMagnifierPillStyle {
 ///    to this tier only. A settled bar costs no shader pass, no clip
 ///    and no capture, on either backend.
 ///  • sliding highlight — [mode] none + [animated] true: the pill
-///    slides between tabs with the iOS-26 icon-reveal, drawn inside
+///    slides between tabs with the icon-reveal, drawn inside
 ///    the lens (works on every renderer);
 ///  • static highlight — [mode] none, [animated] false: the flat
 ///    instant highlight, the cheapest tier of all.
@@ -239,7 +239,7 @@ class LiquidGlassTabPillStyle {
   final Color color;
 
   /// When `true`, the selection pill **slides** between tabs with the
-  /// iOS-26 "icon highlights through the moving pill" reveal. When
+  /// "icon highlights through the moving pill" reveal. When
   /// `false` the selection jumps instantly.
   final bool animated;
 
@@ -297,18 +297,18 @@ class LiquidGlassTabPillStyle {
 
   /// With a `null` [width], the widest the resting pill grows, as a
   /// multiple of one equal share of the bar. `1` centres each item in its
-  /// share; the default `1.175` is the wider iOS pill on a tight bar, with
+  /// share; the default `1.175` is a wider pill on a tight bar, with
   /// the end items half a pill in from the bar's ends.
   final double widthFactor;
 
   /// With a `null` [width], the resting pill's width in logical pixels,
   /// kept between one share and [widthFactor] shares. The default `94` is
-  /// the iOS pill on a 328 pt, four-tab bar; a roomier bar (fewer or wider
+  /// the pill on a 328 pt, four-tab bar; a roomier bar (fewer or wider
   /// tabs) stops at it instead of growing with its share.
   final double targetWidth;
 
   /// Shape of the moving **glass** pill (glass [mode]s only). When
-  /// `null` (the default) the pill is an Apple capsule-style
+  /// `null` (the default) the pill is a continuous capsule-style
   /// [LiquidGlassShape] whose corner radius tracks the
   /// pill's height, so it stays a clean capsule while it grows and
   /// squashes. Supply a custom [LiquidGlassShape] — e.g. a
@@ -336,7 +336,7 @@ class LiquidGlassTabPillStyle {
   final LiquidGlassStyle? rest;
 
   /// No longer read: the travel spring is [behavior]'s
-  /// `travelDuration` / `travelBounce` (0.4 s, bounce 0.15 as measured).
+  /// `travelDuration` / `travelBounce` (0.4 s, bounce 0.15).
   /// Kept so existing callers keep compiling.
   final double travelStiffness;
 
@@ -362,12 +362,11 @@ class LiquidGlassTabPillStyle {
   /// magnification `0.832`.
   final LiquidGlassTabMagnifierPillStyle magnifierPill;
 
-  /// The glass pill's events, timing and travel (glass [mode]s only) — the
-  /// native iOS 26 bar's, as measured: a zero-delay press that sends the
-  /// pill on the press, a scrub past 10 pt with the pill chasing the
-  /// finger, a release on the tab nearest the finger, one 0.4 s travel
-  /// spring, a 0.25 s lift that drops as the pill lands, a 0.4 s shed and
-  /// the landing wobble. Every default is the capture's own number. See
+  /// The glass pill's events, timing and travel (glass [mode]s only): a
+  /// zero-delay press that sends the pill on the press, a scrub past 10 pt
+  /// with the pill chasing the finger, a release on the tab nearest the
+  /// finger, one 0.4 s travel spring, a 0.25 s lift that drops as the pill
+  /// lands, a 0.4 s shed and the landing wobble. See
   /// [LiquidGlassTabPillBehavior].
   final LiquidGlassTabPillBehavior behavior;
 

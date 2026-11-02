@@ -67,8 +67,8 @@ export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_adaptive_a
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_adaptive_content.dart'
     show LiquidGlassAdaptiveContent;
 // Scroll edge treatment: an adaptive fading dim band pinned over a
-// scrollable's edge, keeping floating glass elements legible (the
-// dimming variant of iOS 26's scroll edge effect).
+// scrollable's edge, keeping floating glass elements legible (a
+// dimming scroll edge effect).
 export 'package:liquid_glass_easy/src/widgets/components/liquid_glass_scroll_edge.dart'
     show LiquidGlassScrollEdge, LiquidGlassEdge, LiquidGlassScrollEdgeStyle;
 // The two clip helpers are shared between the widget-level clip and the

@@ -1,14 +1,12 @@
 import 'dart:math' as math;
 
-/// The glass pill's **events, timing and travel** — the native iOS 26/27
-/// `UITabBar`'s, as measured from the control frame by frame. Every default
-/// is the capture's own number. Lengths are in points of a bar [barHeight]
-/// tall (a host scales by its own bar height over it), durations in
-/// seconds; springs are given as a duration (`2π / ω`) and a bounce
-/// (`1 − ζ`: `0` settles without overshooting, higher overshoots more), the
-/// way UIKit does.
+/// The glass pill's **events, timing and travel**. Lengths are in points of
+/// a bar [barHeight] tall (a host scales by its own bar height over it),
+/// durations in seconds; springs are given as a duration (`2π / ω`) and a
+/// bounce (`1 − ζ`: `0` settles without overshooting, higher overshoots
+/// more).
 ///
-/// What the capture showed:
+/// How it moves:
 ///
 ///  * A press lifts the pill **at once** — no hold — and sends it to the
 ///    pressed tab on the press itself.
@@ -26,11 +24,11 @@ import 'dart:math' as math;
 ///  * The lift rises on a critically damped [liftDuration] spring, holds
 ///    for as long as the finger is down and the pill is travelling, and is
 ///    released once the pill is within [dropDistance] of its tab, falling on
-///    the same spring. The glass fades into the flat pill on the native
-///    grey platter's return, a critically damped [glassFadeDuration] spring.
+///    the same spring. The glass fades into the flat pill as the grey
+///    platter returns, a critically damped [glassFadeDuration] spring.
 ///  * Every release ends in a small two-beat **wobble** of the pill's shape
-///    (width +1.6 % then −1.5 %, height −2 % then +2.2 %, over ~0.6 s). The
-///    kit plays it at the landing, on [landingWobbleStrength], in place of the
+///    (width +1.6 % then −1.5 %, height −2 % then +2.2 %, over ~0.6 s). It
+///    plays at the landing, on [landingWobbleStrength], in place of the
 ///    acceleration squash's braking — which fades out over
 ///    [landingSquashFadeDuration].
 class LiquidGlassTabPillBehavior {
@@ -78,10 +76,10 @@ class LiquidGlassTabPillBehavior {
   final double dragThreshold;
 
   /// The landing: once the lift is released the acceleration squash fades
-  /// out over [landingSquashFadeDuration] seconds and the measured release
-  /// wobble plays in its place on [landingWobbleStrength], [landingWobbleDelay]
-  /// seconds after the release. `1` plays the wobble as captured (about
-  /// ±2 %), `0` turns it off.
+  /// out over [landingSquashFadeDuration] seconds and the release wobble
+  /// plays in its place on [landingWobbleStrength], [landingWobbleDelay]
+  /// seconds after the release. `1` plays the wobble at its table size
+  /// (about ±2 %), `0` turns it off.
   final double landingWobbleStrength;
   final double landingWobbleDelay;
   final double landingSquashFadeDuration;
@@ -131,8 +129,8 @@ class LiquidGlassTabPillBehavior {
     return table[i] + (table[i + 1] - table[i]) * t;
   }
 
-  /// The landing wobble [seconds] after the lift's release: the measured
-  /// release wobble on [landingWobbleStrength]; none outside it.
+  /// The landing wobble [seconds] after the lift's release: the release
+  /// wobble on [landingWobbleStrength]; none outside it.
   LiquidGlassTabDeform landingWobble(double seconds) {
     if (seconds < 0 || seconds > wobbleSeconds || landingWobbleStrength == 0) {
       return LiquidGlassTabDeform.none;
@@ -233,7 +231,7 @@ class LiquidGlassTabDeform {
   final double lead;
 }
 
-// ── The measured release wobble, one sample per 1/60 s from its start ──
+// ── The release wobble, one sample per 1/60 s from its start ──
 // (the lens's scaleX − 1, scaleY − 1 and centre offset in points).
 
 const List<double> kWobbleX = <double>[

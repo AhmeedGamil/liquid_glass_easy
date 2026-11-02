@@ -25,7 +25,7 @@ uniform vec2  u_touch;
 uniform sampler2D u_texture_input;
 
 // --- Packed scalar uniforms (Metal [[buffer(N)]] limit fix) ----------------
-// iOS 26 Impeller binds each runtime-effect uniform to its own Metal buffer
+// Impeller on iOS binds each runtime-effect uniform to its own Metal buffer
 // and caps at ~30. To stay under the limit, several scalars are merged into
 // vec4s below; the #define block right after restores the original scalar
 // names. The float-offset order is IDENTICAL to the old per-scalar layout, so
@@ -35,7 +35,7 @@ uniform sampler2D u_texture_input;
 // x=lensWidth  y=lensHeight  z=cornerRadius  w=cornerStyle
 //   cornerStyle selects the corner SDF (see the shape branch in main):
 //   0 = circular rounded rect, 1 = squircle (Ln-norm, full smoothing),
-//   2 = continuous (Apple capsule-style) corners.
+//   2 = continuous (capsule-style) corners.
 uniform vec4 u_lensGeom;
 // x=magnification  y=refractionIndex  z=refractionWidthPx
 // w=dispersion
@@ -421,7 +421,7 @@ void main() {
         deformed ? lensCenterPx + (fragPx - lensCenterPx) / shapeScale : fragPx;
 
     // Rounded rectangle. u_cornerStyle selects the corner SDF:
-    //   2 = continuous (Apple capsule-style), 1 = squircle, 0 = circular.
+    //   2 = continuous (capsule-style), 1 = squircle, 0 = circular.
     float maxCorner      = min(restHalfPx.x, restHalfPx.y);
     float cornerRadiusPx = min(u_cornerRadius, maxCorner);
 

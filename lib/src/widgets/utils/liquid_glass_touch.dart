@@ -4,10 +4,9 @@ import 'liquid_glass_flex.dart';
 
 /// How a glass surface **answers a finger**, bundled as one descriptor.
 ///
-/// Touch response is not one effect. Apple's own description of Liquid Glass
-/// is that a control can "lift, flex, and energize" the moment you touch it —
-/// a deformation and a light, two separate things that fire on the same
-/// gesture. This is the group that holds them, so a surface's whole feel
+/// Touch response is not one effect. A control can lift, flex and light up
+/// the moment you touch it — a deformation and a light, two separate things
+/// that fire on the same gesture. This is the group that holds them, so a surface's whole feel
 /// travels as a single value the way its whole look travels as a
 /// `LiquidGlassStyle`.
 ///

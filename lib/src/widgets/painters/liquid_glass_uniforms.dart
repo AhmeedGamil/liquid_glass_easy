@@ -382,7 +382,7 @@ class MetaballLensUniform {
 /// Maximum lenses the metaball shader (`metaball_glass.frag`) unions.
 ///
 /// Eight, carried as four `mat4` uniforms of two members each. The ceiling is
-/// declaration count, not float count — iOS 26 Impeller binds every uniform to
+/// declaration count, not float count — Impeller on iOS binds every uniform to
 /// its own Metal buffer — so raising it again means adding `u_lensPairN`
 /// declarations in the shader, two members at a time, and matching this.
 const int kMetaballMaxLenses = 8;

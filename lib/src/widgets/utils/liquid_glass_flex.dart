@@ -354,8 +354,8 @@ class LiquidGlassFlexAdvanced {
   /// **Off by default**, and deliberately separate from [refractionBoost].
   /// Magnification is not a refraction depth — it scales the content behind
   /// the lens about its centre, so a press reads as the background sliding
-  /// rather than as glass bending. Apple keys lensing to a surface's SIZE,
-  /// not to a finger being down, and its press cue is light instead. Turn
+  /// rather than as glass bending. Lensing usually follows a surface's SIZE,
+  /// not a finger being down, and the press cue is light instead. Turn
   /// this up only if you want that zoom on purpose.
   final double magnificationBoost;
 

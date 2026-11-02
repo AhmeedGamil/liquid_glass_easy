@@ -107,7 +107,7 @@ class LiquidGlassNavBarItemStyle {
 }
 
 /// **Pill** group — the moving glass selection pill's look + size (the
-/// iOS-26 morphing pill that slides between tabs). Defaults reproduce the
+/// morphing pill that slides between tabs). Defaults reproduce the
 /// shipping bar's pill.
 class LiquidGlassTabPillStyle {
   /// Blur behind the moving glass pill.

@@ -41,7 +41,7 @@ import '../liquid_glass_tab_item.dart'
 import 'liquid_glass_styles.dart';
 
 /// Self-contained, drop-in **styled** animated liquid-glass bottom nav bar —
-/// the iOS-26 "morphing glass pill" bar, but configured through the shared
+/// the "morphing glass pill" bar, but configured through the shared
 /// existing config groups ([LiquidGlassRefraction], [LiquidGlassAppearance],
 /// [LiquidGlassShape]) plus [LiquidGlassMotion] / [LiquidGlassNavBarItemStyle].
 ///
@@ -724,7 +724,7 @@ class _StyledRestPill extends StatelessWidget {
   }
 }
 
-/// Styled animated shell: the iOS-26 "icon highlights through the moving
+/// Styled animated shell: the "icon highlights through the moving
 /// pill" reveal, with icon/label colors + sizes taken from [itemStyle].
 class _StyledNavShell extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;

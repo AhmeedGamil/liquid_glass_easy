@@ -24,8 +24,7 @@ import 'liquid_glass_nav_bar_layout.dart';
 /// [extraHeight] overrides the layout's default pill-extra-height
 /// for this single frame. Animate it from `0` →
 /// `layout.pillExtraHeight` → `0` to make the pill grow out of and
-/// shrink back into the static selection highlight, the way iOS
-/// does on tap.
+/// shrink back into the static selection highlight on tap.
 ///
 /// [extraWidth] adds horizontal stretch to the pill — useful for
 /// the jelly effect during a drag. Always grows symmetrically (left
@@ -69,7 +68,7 @@ LiquidGlass buildLiquidGlassBottomNavPill({
   /// revealing the background directly through the center.
 
   /// Overrides the pill's glass shape. When `null` the default
-  /// **Apple capsule-style** [LiquidGlassShape] is used,
+  /// **continuous capsule-style** [LiquidGlassShape] is used,
   /// with its corner radius tracking the pill's current height so it
   /// stays a clean capsule as the pill grows/squashes. Pass a custom
   /// [LiquidGlassShape] (e.g. a rounded or a
@@ -230,7 +229,7 @@ class LiquidGlassBottomNavPillStatic extends StatelessWidget {
 }
 
 /// The outline of a non-shader nav selection pill of [size], following
-/// [shape]'s corner family — circular, L^n squircle, or the Apple
+/// [shape]'s corner family — circular, L^n squircle, or the
 /// capsule-style continuous curve — so a CPU-painted pill or a clip
 /// lines up with the glass pill the shader draws. A `null` shape yields
 /// a continuous capsule (radius = half the short side).

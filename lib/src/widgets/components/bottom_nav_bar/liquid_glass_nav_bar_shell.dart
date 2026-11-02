@@ -10,7 +10,7 @@ import 'liquid_glass_nav_bar_layout.dart';
 ///
 /// This is the **non-animated**, release-ready bottom nav shell.
 /// The selected tab is highlighted instantly (no moving glass pill,
-/// no iOS-26 "icon fills through the pill" reveal). Compose it with
+/// no "icon fills through the pill" reveal). Compose it with
 /// [buildLiquidGlassBottomNavCapsule] and, optionally,
 /// [LiquidGlassBottomNavPillStatic] for the soft selection highlight.
 ///

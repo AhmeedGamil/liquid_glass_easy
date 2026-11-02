@@ -165,7 +165,7 @@ class NavBarTapRow extends StatelessWidget {
 
 /// Single pass of icons + labels. Used both as the non-animated
 /// single-layer renderer and as the dual-layer building block for
-/// the iOS-26 highlight effect.
+/// the highlight effect.
 class NavBarIconRow extends StatelessWidget {
   final List<LiquidGlassTabBarItem> items;
   final LiquidGlassTabBarLayout layout;

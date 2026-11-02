@@ -29,7 +29,7 @@ import 'liquid_glass_nav_bar_motion_pill.dart';
 import 'liquid_glass_tab_pill_behavior.dart';
 import '../liquid_glass_shadow.dart';
 
-/// Self-contained **animated** liquid-glass bottom nav bar — the iOS-26
+/// Self-contained **animated** liquid-glass bottom nav bar — the
 /// "morphing glass pill" that slides between tabs, grows out of the rest
 /// highlight, lifts under a finger and can be scrubbed along the bar, and
 /// reveals the selected icon as it passes.
@@ -111,9 +111,8 @@ import '../liquid_glass_shadow.dart';
 ///
 /// ## Events, timing and travel
 ///
-/// These are the native iOS 26/27 tab bar's, as measured from the control
-/// frame by frame (see [LiquidGlassTabPillBehavior]); [behavior] holds the
-/// numbers, every one defaulting to the capture:
+/// [behavior] holds the numbers (see [LiquidGlassTabPillBehavior]); the
+/// defaults:
 ///
 ///  * A press lifts the pill **at once** — no hold — and sends it to the
 ///    pressed tab on the press itself.
@@ -145,8 +144,8 @@ import '../liquid_glass_shadow.dart';
 /// outer capture, no dual-layer icon reveal. The glass gets there by
 /// **becoming** the plain pill rather than being cross-faded with one.
 ///
-/// From the lift's release the lens sheds its glass on the native grey
-/// platter's return — a critically damped `glassFadeDuration` spring — while
+/// From the lift's release the lens sheds its glass as the grey platter
+/// returns — a critically damped `glassFadeDuration` spring — while
 /// everything else keeps running: the rim and its contact shadow go
 /// first, then the refraction band narrows to nothing behind them. The
 /// deflation and the squash are untouched throughout — the pill is still
@@ -337,8 +336,8 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// Magnification of the content seen through the glass pill.
   final double pillMagnification;
 
-  /// Overrides the moving glass pill's shape. When `null` the pill is an
-  /// Apple capsule-style shape whose radius tracks the pill's ENVELOPE
+  /// Overrides the moving glass pill's shape. When `null` the pill is a
+  /// continuous capsule-style shape whose radius tracks the pill's ENVELOPE
   /// height — the size before the acceleration deformation, since the
   /// shader stretches the authored outline rather than re-rounding it.
   final LiquidGlassShape? pillShape;
@@ -378,8 +377,8 @@ class LiquidGlassAnimatedNavBar extends StatefulWidget {
   /// capsule, and a third of its height in overhang would climb out of it.
   final LiquidGlassLensMotionSpec motion;
 
-  /// The events, timing and travel both models run on, and the measured
-  /// model's deformation and bar-swell values.
+  /// The events, timing and travel both models run on, and the landing
+  /// deformation and bar-swell values.
   final LiquidGlassTabPillBehavior behavior;
 
   // Render pipeline knobs forwarded to both views.
@@ -602,7 +601,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// Whether the pill is currently held up at its raised size. It goes
   /// up the instant a finger lands or a travel starts, stays up for the
   /// whole journey and for as long as the finger is down, and comes down
-  /// once the pill is within the measured release distance of its tab.
+  /// once the pill is within the release distance of its tab.
   bool _lifted = false;
 
   /// The pill's acceleration squash/stretch — owned by the BAR, not by
@@ -660,8 +659,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   double _press = 0, _pressVel = 0;
   double _pressAnchorX = 0.5;
 
-  // ===== Events, timing and travel: the native bar's, as measured (see
-  // [LiquidGlassTabPillBehavior]).
+  // ===== Events, timing and travel (see [LiquidGlassTabPillBehavior]).
 
   /// The events', timing's and travel's values.
   LiquidGlassTabPillBehavior get _m => widget.behavior;
@@ -712,7 +710,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   double _leadFrac = 0;
 
   /// Logical pixels per point of the timing: the bar's height over the
-  /// 62 pt the native bar was measured on.
+  /// behaviour's 62 pt bar.
   double get _ptScale => _layout.height / _m.barHeight;
 
   /// Where the pill is drawn this frame, in cells: the travel or the scrub
@@ -829,7 +827,7 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   // and stays right wherever the bar sits on the screen.
   double _xToTabFrac(double rowDx) => _layout.fracAt(rowDx);
 
-  // ── The gestures, as the native bar's: a zero-delay press, a scrub
+  // ── The gestures: a zero-delay press, a scrub
   // past the drag threshold, a release on the tab nearest the finger ──
   void _onPointerDown(PointerDownEvent e) {
     if (_fingerDown) return;
@@ -845,8 +843,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
     _landedAt = null;
     _startCapture();
     _startTicker();
-    // The lens leaves for the pressed tab on the press itself, as the
-    // native bar's does — not on the release.
+    // The lens leaves for the pressed tab on the press itself, not on
+    // the release.
     final int next = _layout.indexAt(rowX);
     _pressedSelected = next == _tabIndex;
     if (next != _tabIndex) {
@@ -961,8 +959,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
   /// One frame of the pill's physics, all of which the bar owns: the
   /// travel spring, the follow spring under a finger, the lift, the glass
   /// hand-over, the deformation and the bar's press. The pill widget is
-  /// handed the results and draws them. The timing is the native bar's —
-  /// see [LiquidGlassTabPillBehavior].
+  /// handed the results and draws them. The timing is in
+  /// [LiquidGlassTabPillBehavior].
   void _stepFrame(double dt) {
     _mNow += dt;
     final double step = _layout.itemStep;
@@ -1106,8 +1104,8 @@ class _LiquidGlassAnimatedNavBarState extends State<LiquidGlassAnimatedNavBar>
       _devY = _deviation;
       _leadFrac = 0;
 
-      // Landed: the braking squash fades out and the measured landing
-      // wobble takes over, so the pill rings where it stands instead of
+      // Landed: the braking squash fades out and the landing wobble
+      // takes over, so the pill rings where it stands instead of
       // squashing into its tab. The squash stays for the launch, the
       // travel and the finger.
       bool wobbling = false;

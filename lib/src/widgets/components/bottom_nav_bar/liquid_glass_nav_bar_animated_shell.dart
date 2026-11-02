@@ -6,7 +6,7 @@ import 'liquid_glass_nav_bar_layout.dart';
 import 'liquid_glass_nav_bar_pill_clippers.dart';
 import 'liquid_glass_nav_bar_style.dart';
 
-/// Animated bottom nav shell — renders the iOS-26 "icon highlights
+/// Animated bottom nav shell — renders the "icon highlights
 /// through the moving glass pill" effect.
 ///
 /// **Not exported yet.** The animation polish for the liquid-glass
@@ -14,9 +14,9 @@ import 'liquid_glass_nav_bar_style.dart';
 /// and is only consumed by the package's own example/showcase. Once
 /// the motion work is complete it can be promoted to the public API.
 ///
-/// ## iOS-26 "icon highlights through the pill"
+/// ## "Icon highlights through the pill"
 ///
-/// On iOS 26, when the moving glass pill passes over an icon, the
+/// When the moving glass pill passes over an icon, the
 /// part of that icon *under* the pill renders in its selected
 /// (filled / bright) state, while the part *outside* the pill stays
 /// in its unselected (outlined / dim) state. The pill behaves like a
@@ -48,7 +48,7 @@ class LiquidGlassAnimatedBottomNavBarShell extends StatelessWidget {
   /// [buildLiquidGlassBottomNavPill]'s `animatedIndex` so the icon
   /// highlight tracks the pill exactly.
   ///
-  /// `null` disables the iOS-26 dual-layer rendering and the shell
+  /// `null` disables the dual-layer rendering and the shell
   /// falls back to highlighting only [selectedIndex].
   final double? highlightFrac;
 

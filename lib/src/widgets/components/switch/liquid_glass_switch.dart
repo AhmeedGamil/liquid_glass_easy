@@ -142,7 +142,7 @@ class LiquidGlassSwitch extends StatefulWidget {
   final double? height;
 
   /// Size of the track and of the thumb that rides it. Defaults to the
-  /// iOS-26 63×28 capsule; everything else — the resting positions, the
+  /// 63×28 capsule; everything else — the resting positions, the
   /// travel, the rubber band, the capture view — is derived from it.
   /// [width] and [height] override the two same-named fields on it;
   /// everything else is only settable here.

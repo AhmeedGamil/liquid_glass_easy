@@ -36,8 +36,8 @@ enum LiquidGlassScrollEdgeStyle {
 
 /// iOS-style scroll edge treatment: a **fading dim band** pinned over a
 /// scrollable's edge so floating glass elements (nav pills, app bars)
-/// stay legible over whatever scrolls beneath — the "subtle dimming"
-/// variant of Apple's scroll edge effect, without any blur of its own.
+/// stay legible over whatever scrolls beneath — a "subtle dimming"
+/// scroll edge effect, without any blur of its own.
 ///
 /// Place it inside a `LiquidGlassView`'s `child`, pinned to an edge,
 /// *under* your floating glass elements:

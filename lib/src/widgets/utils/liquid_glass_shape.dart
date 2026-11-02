@@ -21,7 +21,7 @@ enum LiquidGlassCornerStyle {
   /// the matching `squircle*` SDF.
   squircle,
 
-  /// **Apple capsule-style** continuous rounded rectangle — each corner is an
+  /// **Capsule-style** continuous rounded rectangle — each corner is an
   /// exact circle "belly" plus a tuned G2 shoulder onto each flat edge. The
   /// shader draws the matching `continuousRoundedRect*` SDF; at full radius it
   /// degrades to a clean capsule. **The default corner style.**
@@ -78,7 +78,7 @@ class LiquidGlassShape {
           clipQuality: clipQuality,
         );
 
-  /// An **Apple capsule-style** continuous rounded rectangle
+  /// A **capsule-style** continuous rounded rectangle
   /// ([LiquidGlassCornerStyle.continuousRoundedRectangle]).
   const LiquidGlassShape.continuousRoundedRectangle({
     double cornerRadius = 50.0,
@@ -202,7 +202,7 @@ enum LiquidGlassClipQuality {
   roundedRectangle,
 
   /// An exact `ClipPath` that matches this shape's shader corner: the squircle
-  /// L^n curve for [LiquidGlassCornerStyle.squircle], the Apple capsule-style
+  /// L^n curve for [LiquidGlassCornerStyle.squircle], the capsule-style
   /// curve for [LiquidGlassCornerStyle.continuous], and a circular rounded rect
   /// for [LiquidGlassCornerStyle.circular]. Slightly pricier (adds a save
   /// layer) but the clipped silhouette lines up exactly with the refraction.
@@ -211,7 +211,7 @@ enum LiquidGlassClipQuality {
 
 /// The shader corner-style selector (`u_cornerStyle`), derived from
 /// [LiquidGlassShape.cornerStyle]:
-///   * `2.0` — Apple capsule-style ([LiquidGlassCornerStyle.continuous]).
+///   * `2.0` — capsule-style ([LiquidGlassCornerStyle.continuous]).
 ///   * `1.0` — L^n squircle ([LiquidGlassCornerStyle.squircle], full smoothing).
 ///   * `0.0` — plain circular ([LiquidGlassCornerStyle.circular]).
 double liquidGlassCornerStyle(LiquidGlassShape shape) =>
@@ -232,7 +232,7 @@ bool liquidGlassUsesRoundedClip(LiquidGlassShape shape) => true;
 
 /// Wraps [child] in the clip that matches [shape]'s outline, honoring its
 /// [LiquidGlassShape.clipQuality]: a circular `ClipRRect`, a shader-matched
-/// squircle `ClipPath`, or an Apple capsule-style continuous `ClipPath`. Used
+/// squircle `ClipPath`, or a capsule-style continuous `ClipPath`. Used
 /// by the renderers so the clipped blur/child silhouette agrees with the SDF
 /// the shader draws.
 Widget liquidGlassClip({
