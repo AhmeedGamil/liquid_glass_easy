@@ -62,7 +62,7 @@ These dynamic lenses **magnify**, **distort**, **blur**, **tint**, and **refract
 | **Lite** | `LiquidGlassLite`, `LiquidGlassEngine`, `LiquidGlassStyle.liteGlass` | The material without the shader: frost, tint and a lit rim, no refraction. Flip one lens, or the whole app per engine — nothing to compile, no capture on Skia, no slot in the lens budget. |
 | **Shadow** | `LiquidGlassShadow` | The contact shadow that sets glass *into* the page: a soft ring hugging the rim and pooling beneath, multiplied over whatever is under it. Authored on the style's `shadow`, where the lens wraps itself in it; usable on its own around anything. |
 | **Batch** | `LiquidGlassBatch` | Wrap a subtree and every lens inside it shares **one** read of the backdrop — no limit on how many, each keeping its own shape and style. The group's ceiling and its fusing, traded away for scale. Members must not overlap; `LiquidGlassBatch.exclude` keeps one subtree out. The view and the scaffold batch on their own (`batch: true`). `LiquidGlassBatchMode` picks how an engine-blurred member shares the read: `separatePass` (the default) or `singlePass`. |
-| **Configuration** | `LiquidGlassConfiguration`, `LiquidGlassBlurMethod` | Package-wide settings. Where glass blurs (the engine's Gaussian, or the lens's own shader, which costs no extra read), in a batch and out of one; how a batch shares its read; the shape cache, which bakes a lens's outline once while it only moves; and app-wide blur and dispersion overrides. |
+| **Configuration** | `LiquidGlassConfiguration`, `LiquidGlassBlurMethod` | Package-wide settings. Where glass blurs (the engine's Gaussian, or the lens's own shader, which costs no extra read), in a batch and out of one; how a batch shares its read; the shape cache, which bakes a lens's outline once while it only moves; app-wide blur, dispersion and light/dark shadow colour overrides; and whether the glow lifts over dark backdrops (`rimLiftOnDark`). |
 | **Adapt** | `LiquidGlassAdaptivity` | Glass tint and content colour flip with the background actually behind each surface — smoked over a dark photo, milky over a white page, and the OS bars along with them. [Docs →](ADAPTIVITY.md) |
 | **Scroll edge** | `LiquidGlassScrollEdge` | iOS-style scroll edge treatment: a fading, blurred band pinned to a screen edge so floating chrome stays legible over whatever scrolls under it. Adapts with the background like everything else. |
 | **View** | `LiquidGlassView` | The Skia / web background pipeline. Not needed on Impeller. |
@@ -404,7 +404,7 @@ share:
 
 ```yaml
 dependencies:
-  liquid_glass_easy: ^5.1.0
+  liquid_glass_easy: ^5.2.0
 ```
 
 ```bash
@@ -509,6 +509,7 @@ You can find the demos shown above under the [`example/`](example/) folder.
 LiquidGlassLens({
   LiquidGlassStyle style = const LiquidGlassStyle(),
   bool visibility = true,        // instant show/hide; hidden = no backdrop cost
+  double opacity = 1,            // fades the glass, still refracting; 0 = no backdrop cost
   bool? useImpellerBackdrop,     // override engine auto-detection
   Widget? child,                 // clipped to the lens shape
 })
@@ -683,6 +684,10 @@ transition:
 ```dart
 LiquidGlassLens(visibility: _visible, style: myStyle, child: content)
 ```
+
+To fade it, drive `opacity` (0 to 1): the glass keeps refracting as it fades,
+its shadow fades with it, and at `0` it costs no backdrop pass.
+`LiquidGlassBlender` and `LiquidGlassMorph` take the same `opacity`.
 
 ### Lenses inside scrollables
 
@@ -921,6 +926,27 @@ leading blob runs ahead of its own size) and `anchor` (the point the new shape
 grows around; `null` uses the widget's own `alignment`). Everything set once
 and left alone is in `LiquidGlassMorphAdvanced`, behind `advanced`.
 
+**Shared elements.** Something that appears on both sides — the artwork on a
+pill and on the card it opens into — can fly between them instead of
+cross-fading. Wrap it on both sides with the same `tag`:
+
+```dart
+LiquidGlassMorph(
+  child: open
+      ? Card(
+          key: const ValueKey('card'),
+          art: const LiquidGlassMorphShared(tag: 'art', child: Art(140)),
+        )
+      : Pill(
+          key: const ValueKey('pill'),
+          art: const LiquidGlassMorphShared(tag: 'art', child: Art(28)),
+        ),
+)
+```
+
+The copy travels on the morph's spring and scales between the two sizes, so
+the two sides should look alike — the same icon at two sizes, not two glyphs.
+
 Two things to know. A content-sized surface needs one frame to measure before
 it knows how big it is, so it is transparent for that frame; pin both axes and
 there is no warm-up frame. And bound the constraints — under unbounded ones
@@ -931,9 +957,12 @@ tint, blur and refraction pass through to the blender untouched.
 ### Tab bar — the moving glass pill
 
 `LiquidGlassTabBar`'s selection pill is real glass on **every renderer**
-by default: it lifts off the tab the moment you tap, travels on a spring
-— stretching as it launches, squashing as it brakes — and refracts the
-bar's own capsule as it passes. A settled bar costs no shader pass at
+by default: it lifts off the tab the moment you press and heads straight
+for it, travels on one spring — stretching as it launches, squashing as it
+brakes, with a small wobble as it lands — and refracts the bar's own capsule
+as it passes. Drag along the bar and the pill follows your finger; let go and
+the nearest tab is selected. The whole bar swells a little while the pill is
+lifted (`swell`, `null` to turn it off). A settled bar costs no shader pass at
 all. The tier is chosen by `LiquidGlassTabPillStyle.mode` (`both` /
 `impellerOnly` / `none`), and the pill's look, motion and contact shadow
 are tuned defaults — the shadow authored, like every lens's, on its glass
@@ -952,6 +981,15 @@ The tab **under** the pill is its own state: `underGlassIconSize` and
 label render bigger while the glass is over them. The enlargement is the
 glass's effect, not the selection's — it rides under the pill for the
 whole travel and glides back down through the landing.
+
+The pill's timing — lift, travel, drag and landing springs, each a duration
+and a bounce — lives in `LiquidGlassTabPillStyle.behavior`
+(`LiquidGlassTabPillBehavior`). The bar follows the theme: a milky capsule on
+a light theme, a smoked one (`LiquidGlassTabBar.defaultDarkStyle`) on a dark
+theme, with the selected tab in blue. `onReselected` fires when the selected
+tab is tapped again, `LiquidGlassTabBarItem.enabled: false` takes a tab out of
+both taps and drags, and `joinBatch: true` puts the capsule in an enclosing
+batch such as the scaffold's chrome batch.
 
 ### Custom icons & labels — SVG, PNG, rich text, anything
 
