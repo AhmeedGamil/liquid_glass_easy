@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:liquid_glass_easy/liquid_glass_easy.dart';
+// ignore: implementation_imports
+import 'package:liquid_glass_easy/src/widgets/liquid_glass_configuration.dart'
+    show LiquidGlassTintOverride;
 
 /// Whether the gallery paints itself dark.
 ///
@@ -102,38 +105,38 @@ final ValueNotifier<bool> shaderBlurDispersion =
           LiquidGlassConfiguration.shaderBlurDispersion = shaderBlurDispersion.value);
 
 /// Whether every lens takes the global light/dark tint and saturation; sets
-/// `LiquidGlassConfiguration.tintOverride`, read when a page opens.
+/// `LiquidGlassTintOverride.enabled`, read when a page opens.
 final ValueNotifier<bool> globalTint =
-    ValueNotifier<bool>(LiquidGlassConfiguration.tintOverride)
+    ValueNotifier<bool>(LiquidGlassTintOverride.enabled)
       ..addListener(
-          () => LiquidGlassConfiguration.tintOverride = globalTint.value);
+          () => LiquidGlassTintOverride.enabled = globalTint.value);
 
 /// The global tint on a light theme; sets
-/// `LiquidGlassConfiguration.colorOverrideLight`.
+/// `LiquidGlassTintOverride.colorLight`.
 final ValueNotifier<Color> tintLight =
-    ValueNotifier<Color>(LiquidGlassConfiguration.colorOverrideLight)
+    ValueNotifier<Color>(LiquidGlassTintOverride.colorLight)
       ..addListener(
-          () => LiquidGlassConfiguration.colorOverrideLight = tintLight.value);
+          () => LiquidGlassTintOverride.colorLight = tintLight.value);
 
 /// The global tint on a dark theme; sets
-/// `LiquidGlassConfiguration.colorOverrideDark`.
+/// `LiquidGlassTintOverride.colorDark`.
 final ValueNotifier<Color> tintDark =
-    ValueNotifier<Color>(LiquidGlassConfiguration.colorOverrideDark)
+    ValueNotifier<Color>(LiquidGlassTintOverride.colorDark)
       ..addListener(
-          () => LiquidGlassConfiguration.colorOverrideDark = tintDark.value);
+          () => LiquidGlassTintOverride.colorDark = tintDark.value);
 
 /// The global saturation on a light theme; sets
-/// `LiquidGlassConfiguration.saturationOverrideLight`.
+/// `LiquidGlassTintOverride.saturationLight`.
 final ValueNotifier<double> saturationLight =
-    ValueNotifier<double>(LiquidGlassConfiguration.saturationOverrideLight)
-      ..addListener(() => LiquidGlassConfiguration.saturationOverrideLight =
+    ValueNotifier<double>(LiquidGlassTintOverride.saturationLight)
+      ..addListener(() => LiquidGlassTintOverride.saturationLight =
           saturationLight.value);
 
 /// The global saturation on a dark theme; sets
-/// `LiquidGlassConfiguration.saturationOverrideDark`.
+/// `LiquidGlassTintOverride.saturationDark`.
 final ValueNotifier<double> saturationDark =
-    ValueNotifier<double>(LiquidGlassConfiguration.saturationOverrideDark)
-      ..addListener(() => LiquidGlassConfiguration.saturationOverrideDark =
+    ValueNotifier<double>(LiquidGlassTintOverride.saturationDark)
+      ..addListener(() => LiquidGlassTintOverride.saturationDark =
           saturationDark.value);
 
 /// Whether [shadowLight] and [shadowDark] replace every shadow's colour.

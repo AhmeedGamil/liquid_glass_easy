@@ -27,9 +27,9 @@ import 'app_settings.dart';
 //     Batched dispersion → `.batchShaderBlurDispersion`.
 //   • Override blur & dispersion → `LiquidGlassConfiguration.blurOverride` and
 //     `.dispersionOverride`, from the two sliders; read when a page opens.
-//   • Global tint → `LiquidGlassConfiguration.tintOverride`, with the light
-//     and dark tint (`.colorOverrideLight/Dark`) and saturation
-//     (`.saturationOverrideLight/Dark`) below it.
+//   • Global tint → `LiquidGlassTintOverride.enabled` (not exported yet,
+//     imported from src/), with the light and dark tint (`.colorLight/Dark`)
+//     and saturation (`.saturationLight/Dark`) below it.
 //   • Override shadow colour → `.shadowColorOverrideLight/Dark`.
 //
 // The settings are not persisted; they reset on restart.
