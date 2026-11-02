@@ -509,7 +509,7 @@ You can find the demos shown above under the [`example/`](example/) folder.
 LiquidGlassLens({
   LiquidGlassStyle style = const LiquidGlassStyle(),
   bool visibility = true,        // instant show/hide; hidden = no backdrop cost
-  double opacity = 1,            // fades the glass, still refracting; 0 = no backdrop cost
+  double opacity = 1,            // fades what the shader draws, still refracting; 0 = no backdrop cost
   bool? useImpellerBackdrop,     // override engine auto-detection
   Widget? child,                 // clipped to the lens shape
 })
@@ -685,9 +685,12 @@ transition:
 LiquidGlassLens(visibility: _visible, style: myStyle, child: content)
 ```
 
-To fade it, drive `opacity` (0 to 1): the glass keeps refracting as it fades,
-its shadow fades with it, and at `0` it costs no backdrop pass.
-`LiquidGlassBlender` and `LiquidGlassMorph` take the same `opacity`.
+To fade it, drive `opacity` (0 to 1): the refraction, tint, rim and an
+in-shader blur fade together and the glass keeps refracting the whole way,
+which an `Opacity` around the lens cannot do. At `0` it costs no backdrop
+pass. An engine blur, the shadow and the child are yours to scale by the same
+amount. `LiquidGlassBlender` takes the same `opacity`; `LiquidGlassMorph`'s
+fades its glass, blur, shadow and content together.
 
 ### Lenses inside scrollables
 
