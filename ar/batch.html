@@ -101,7 +101,7 @@ document.documentElement.dataset.lite=l==='1'?'on':'off';})();
     <span class="t-a">children</span>: [
       <span class="t-y">Expanded</span>(<span class="t-a">child</span>: cards),          <span class="t-c">// shared read</span>
       <span class="t-y">LiquidGlassBatch</span>.<span class="t-f">exclude</span>(        <span class="t-c">// its own read again</span>
-        child: myTabBar,
+        child: floatingPanel,          <span class="t-c">// overlaps the cards' glass</span>
       ),
     ],
   ),
