@@ -1251,6 +1251,16 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     canvas.restore();
   }
 
+  /// How far [transform] stretches one logical pixel, per axis — the lengths
+  /// of its two basis columns, so a pure rotation reads as exactly (1, 1).
+  static Offset _axisScaleOf(Matrix4 transform) {
+    final List<double> s = transform.storage;
+    return Offset(
+      math.sqrt(s[0] * s[0] + s[1] * s[1]),
+      math.sqrt(s[4] * s[4] + s[5] * s[5]),
+    );
+  }
+
   /// The enabled members as metaball lenses, in [target]'s coordinate space
   /// (global when [target] is null), in LOGICAL px — `_packShared` applies
   /// the per-path scale.
@@ -1258,24 +1268,36 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
     List<_RenderLiquidGlassBlenderMember> members,
     RenderObject? target,
   ) {
-    final List<Rect> rects = members
-        .map((member) => MatrixUtils.transformRect(
-              member.getTransformTo(target),
-              Offset.zero & member.size,
-            ))
-        .toList(growable: false);
-
-    return List<MetaballLensUniform>.generate(members.length, (i) {
+    final List<MetaballLensUniform> lenses =
+        List<MetaballLensUniform>.generate(members.length, (i) {
       final member = members[i];
-      final Rect rect = rects[i];
-      final double maxCorner = math.min(rect.width, rect.height) * 0.5;
+      final Matrix4 transform = member.getTransformTo(target);
+      final Rect rect =
+          MatrixUtils.transformRect(transform, Offset.zero & member.size);
+      // An ancestor transform (a breathing scale, a page zoom) inflates the
+      // member's RECT but not its shape. A full-radius pill's fixed logical
+      // radius then meets a bigger box, and min(radius, halfSide) leaves a
+      // flat run on every edge — a circle reads as a rounded square. Hand the
+      // scale down as the rest-space factor the flex already uses, so the
+      // shape is evaluated at its own size and mapped back out: the same
+      // thing a single lens does with its xform uniforms.
+      final Offset zoom = _axisScaleOf(transform);
+      final Offset shapeScale = Offset(
+        member.shapeScale.dx * zoom.dx,
+        member.shapeScale.dy * zoom.dy,
+      );
 
       return MetaballLensUniform(
         center: rect.center,
         halfSize: Size(rect.width * 0.5, rect.height * 0.5),
-        cornerRadius: math.min(member.shape.cornerRadius, maxCorner),
+        // NOT clamped to this box here: the shader clamps it in REST space
+        // (`min(meta.x, min(halfSize / shapeScale))`). Clamping first would
+        // cap a full-radius pill at a shrunken member's deformed half-side,
+        // and the divide-by-scale in the shader would then leave the corner
+        // that much short of round.
+        cornerRadius: member.shape.cornerRadius,
         cornerStyle: member.shape.cornerStyle.index,
-        shapeScale: member.shapeScale,
+        shapeScale: shapeScale,
         // A member that judges its own background paints its own verdict; one
         // that does not falls back to the group's colour, so every member has
         // a tint and a group where nobody adapts blends back to exactly the
@@ -1284,6 +1306,7 @@ class _RenderLiquidGlassBlenderSurface extends RenderBox {
         opacity: member.opacity,
       );
     }, growable: false);
+    return lenses;
   }
 
   /// Tight clip for the costly backdrop pass: the union of the [members]'

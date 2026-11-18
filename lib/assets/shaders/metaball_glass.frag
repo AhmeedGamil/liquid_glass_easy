@@ -582,7 +582,7 @@ void accumulateAnchor(vec4 lens, vec4 meta, vec4 tint, vec2 p,
                       inout vec3 acc, inout float wsum, inout vec4 tintAcc,
                       inout float opacityAcc) {
     if (lens.z <= 0.0) return;
-    float w = exp(-max(lensDistance(p, lens, meta), 0.0) / max(u_smoothness, EPS));
+    float w = exp(min(-lensDistance(p, lens, meta) / max(u_smoothness, EPS), 8.0));
     // z carries the member's refraction depth: half its largest side.
     acc  += vec3(lens.xy, min(lens.z, lens.w)) * w;
     wsum += w;
@@ -739,7 +739,7 @@ float accumulateMerged(vec2 p, vec4 lens, vec4 meta, vec4 tint,
     hardSdf = min(hardSdf, base);
 
     // Anchor weight (== accumulateAnchor).
-    float w = exp(-max(base, 0.0) / max(u_smoothness, EPS));
+    float w = exp(min(-base / max(u_smoothness, EPS), 8.0));
     anchorAcc += vec3(lens.xy, min(lens.z, lens.w)) * w;
     anchorW   += w;
     // Tint on the same weight — see accumulateAnchor.
