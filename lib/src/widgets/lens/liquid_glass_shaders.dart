@@ -184,6 +184,16 @@ class LiquidGlassShaders {
   static bool isBlenderLoadedFor(bool impeller) =>
       _metaballPrograms.containsKey(impeller);
 
+  /// The compiled merged-surface program for [impeller], or null
+  /// while it is still loading. `ensureBlenderLoaded` hands the same program
+  /// back, but always through a Future — so a blender created after the load
+  /// still painted nothing on its first frame. With this a blender that
+  /// mounts onto an already-loaded backend is glass on frame one, which is
+  /// what the class docs promise for every later mount.
+  @internal
+  static ui.FragmentProgram? blenderProgramIfLoaded(bool impeller) =>
+      _metaballPrograms[impeller];
+
   /// Loads and compiles the merged-surface program `LiquidGlassBlender` and
   /// `LiquidGlassGroup` draw with, once per backend, and hands it back.
   ///

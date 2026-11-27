@@ -330,6 +330,14 @@ class _LiquidGlassBlenderState extends State<LiquidGlassBlender>
   void _ensureShader(bool impeller) {
     if (_shaderImpeller == impeller && _shader != null) return;
     _shaderImpeller = impeller;
+    // An already-loaded program is taken here, in the build that
+    // first asks for it, instead of a turn later through the Future.
+    final ui.FragmentProgram? ready =
+        LiquidGlassShaders.blenderProgramIfLoaded(impeller);
+    if (ready != null) {
+      _shader = ready.fragmentShader();
+      return;
+    }
     LiquidGlassShaders.ensureBlenderLoaded(impeller).then((program) {
       // Ignore a stale load if the backend flipped while we were loading.
       if (mounted && _shaderImpeller == impeller) {
