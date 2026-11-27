@@ -429,6 +429,10 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
   final Map<Key, Map<Object, _SharedEntry>> _shared =
       <Key, Map<Object, _SharedEntry>>{};
 
+  /// Bumped on every child swap. A report is stamped with the epoch it
+  /// arrived in, and only reports from the current epoch can start a flight.
+  int _sharedEpoch = 0;
+
   /// The copies in flight, by tag: each a blob of content on the motion's
   /// spring, from where the old original sat to where the new one sits.
   final Map<Object, _Blob> _flights = <Object, _Blob>{};
@@ -444,7 +448,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
     final Map<Object, _SharedEntry> m =
         _shared.putIfAbsent(childKey, () => <Object, _SharedEntry>{});
     final _SharedEntry? was = m[tag];
-    m[tag] = _SharedEntry(rect, child);
+    m[tag] = _SharedEntry(rect, child, _sharedEpoch);
     if (was == null || was.rect != rect) setState(() {});
   }
 
@@ -766,6 +770,7 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       // later — read at rest (t = 1) it would paint the incoming child
       // fully opaque inside the OLD outline for that gap frame.
       _elapsed = 0;
+      _sharedEpoch++;
       // The old child keeps showing — in the source blob — until the new
       // one has been measured and the morph is under way.
       _srcChild = old.child;
@@ -1152,6 +1157,12 @@ class _LiquidGlassMorphState extends State<LiquidGlassMorph>
       _Blob? f = _flights[e.key];
       if (f == null) {
         if (!young) continue;
+        // A copy may only be born from reports made during THIS
+        // swap. An entry remembered from earlier content under the same
+        // child key describes a glyph that is not on that side any more.
+        if (from.epoch != _sharedEpoch || e.value.epoch != _sharedEpoch) {
+          continue;
+        }
         f = _Blob()..snapTo(from.rect.shift(srcOrigin));
         _flights[e.key] = f;
         _wake();
@@ -1404,10 +1415,12 @@ class _RenderMorphMeasure extends RenderShiftedBox {
 /// One [LiquidGlassMorphShared]'s report: where it sits inside its child's
 /// content, and what to fly.
 class _SharedEntry {
-  const _SharedEntry(this.rect, this.child);
+  const _SharedEntry(this.rect, this.child, this.epoch);
 
   final Rect rect;
   final Widget child;
+
+  final int epoch;
 }
 
 /// The box a child's content is measured against: a [LiquidGlassMorphShared]
